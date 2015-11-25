@@ -37,16 +37,19 @@ def main():
     #
     # propagate the trajectories 
     #
+    
     while variable.fms['current_time'] < variable.fms['simulation_time']:
         print("current time="+str(variable.fms['current_time']))
         # set the time step 
         dt = dynamics.time_step(master)         
+        #
+        final_time = variable.fms['current_time'] + dt
         # take an fms dynamics step, return the number at conclusion of step
-        num_alive = dynamics.fms_step(master,dt)   
+        dynamics.fms_step(master,variable.fms['current_time'],final_time,dt)   
         # update the fms output files, as well as checkpoint, if necessary
         fileio.update_output(master)
         # if no more live trajectories, simulation is complete
-        if(num_alive == 0): break
+        if(master.nalive == 0): break
 
     fileio.cleanup()
 
