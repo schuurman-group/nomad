@@ -1,4 +1,4 @@
-import numpy
+import cmath
 #
 # overlap of two gaussian functions
 #
@@ -6,10 +6,10 @@ def overlap(x1,p1,a1,x2,p2,a2):
     dx        = x1 - x2
     dp        = p1 - p2
     real_part = (a1*a2*dx**2 + 0.25*dp**2) / (a1 + a2)
-    prefactor = numpy.sqrt(2.0 * numpy.sqrt(a1 * a2) / (a1 + a2))
+    prefactor = cmath.sqrt(2.0 * cmath.sqrt(a1 * a2) / (a1 + a2))
     x_center  = (a1 * x1 + a2 * x2) / (a1 + a2)
     imag_part = (p1 * x1 - p2 * x2) - x_center * dp
-    S         = prefactor * numpy.exp(-real_part + complex(0.,1.) * imag_part)
+    S         = prefactor * cmath.exp(-real_part + complex(0.,1.) * imag_part)
     return S
 
 #

@@ -1,49 +1,45 @@
+import cmath
 import numpy as np
-import particle
+import src.basis.particle as particle
 class trajectory:
 
-    def _init_(self,interface,parent,nstates,particle_list,n_basis=0):
+    def __init__(self,particle_list,interface,nstates,tid=0,parent=0,n_basis=0):
         try:
-            pes = __import__('..interface.'+interface)
+            self.pes = __import__('src.interfaces.'+interface,fromlist=['NA'])
         except:
             print("INTERFACE FAIL: "+iterface)
+        # unique identifier for trajectory
+        self.tid        = tid
         # trajectory that spawned this one:
         self.parent     = parent         
         # total number of states
         self.nstates    = nstates        
         # state trajectory exists on
         self.state      = 0      
+        # list of particles in the trajectory
+        self.particles  = particle_list
         # number of particles comprising the trajectory
         self.n_particle = len(particle_list) 
         # dimension of the particles comprising the trajectory
-        self.d_particle = particle_list[0].dim 
+        self.d_particle = particle_list[0].dim
         # whether trajectory is alive (i.e. propagated)
         self.alive      = True
+        # wheterh trajectory is a centroid
+        self.centroid   = False
+        # amplitude of trajectory
+        self.amplitude  = complex(0.,0.)
+        # phase of the trajectory
+        self.phase      = 0.
         # time from which the death watch begins
         self.deadtime   = -1.            
-        # whether current pes information is accurate
-        self.up2date    = dict(
-                          orbitals=False,
-                          poten=False,
-                          derivative=[False]*self.nstates,
-                          dipole=[False]*self.nstates,
-                          quadpole=[False]*self.nstates,
-                          charges=[False]*self.nstates
-                          )                               
-        # amplitude of trajectory
-        self.amplitude  = complex(0.,0.) 
-        # phase of the trajectory
-        self.phase      = 0.             
+        # time of last spawn
+        self.last_spawn = np.zeros(self.nstates)
+        # time trajectory last left coupling region
+        self.exit_time  = np.zeros(self.nstates)
+        # if not zero, coupled to traj=array value
+        self.spawn_coup = np.zeros(self.nstates)
         # number of mos
         self.nbf        = n_basis              
-        # list of particles in the trajectory
-        self.particles  = particle_list      
-        # time of last spawn
-        self.spawn_time = np.zeros(self.nstates) 
-        # time trajectory last left coupling region
-        self.exit_time  = np.zeros(self.nstates) 
-        # if not zero, coupled to traj=array value
-        self.spawn_coup = np.zeros(self.nstates) 
         # value of the potential energy
         self.poten      = np.zeros(self.nstates)  
         # store the obitals at each step
@@ -55,8 +51,19 @@ class trajectory:
         # second moment tensor for each state
         self.quadpoles  = np.zeros((self.nstates,6))
         # charges on the atoms
-        self.charges    = np.zeros(self.nstates,self.n_particle)
-  
+        self.charges    = np.zeros((self.nstates,self.n_particle))
+   
+    #-------------------------------------------------------------------
+    #
+    # Trajectory status functions
+    #
+    #--------------------------------------------------------------------
+    def dead(time, uncoupled_thresh):
+        if self.deadtime != -1:
+            if (time - self.deadtime) > uncoupled_thresh:
+                return True
+        return False   
+
     #----------------------------------------------------------------------
     #
     # Functions for setting basic pes information from trajectory
@@ -67,29 +74,22 @@ class trajectory:
     #
     def update_x(self,pos):
         for i in range(self.n_particle):
-            self.particles[i].x = pos(i*self.d_particle:(i+1)*self.d_particle-1)
-        self.up2date = dict.fromkeys(self.up2date,False)
+            self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle-1]
 
     #
     # Update the momentum of the particles in the trajectory. Flips up2date switch to False
     #
     def update_p(self,mom):
         for i in range(self.n_particle):
-            self.particles[i].p = mom(i*self.d_particle:(i+1)*self.d_particle-1)
+            self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle-1]
 
     #
     # update the nuclear phase 
     #
     def update_phase(self,phase):
         self.phase = phase
-        if self.phase > 2*np.pi
+        if self.phase > 2*np.pi:
             self.phase = self.phase - int(self.phase/(2 * np.pi)) * 2 * n.pi
-
-    # 
-    # update the complex amplitude on this trajectory
-    #
-    def update_amp(self,amp):
-        self.amplitude = amp
 
     #-----------------------------------------------------------------------
     # 
@@ -100,41 +100,46 @@ class trajectory:
     # Returns the position of the particles in the trajectory as an array 
     #
     def x(self):
-        pos = np.zeros(self.n_particle * self.d_particle)
-        for i in range(self.n_particle):
-            pos[i*self.d_particle:(i+1)*self.d_particle-1] = self.particles[i].x
-        return pos
+        return np.fromiter((self.particles[i].x[j]
+                          for j in range(self.d_particle)
+                          for i in range(self.n_particle)),dtype=np.float)
 
     #
     # Returns the momentum of the particles in the trajectory as an array 
     #
     def p(self):
-        mom = np.zeros(self.n_particle * self.d_particle)
-        for i in range(self.n_particle):
-            mom[i*self.d_particle:(i+1)*self.d_particle-1] = self.particles[i].p
-        return mom
+        return np.fromiter((self.particles[i].p[j]
+                          for j in range(self.d_particle)
+                          for i in range(self.n_particle)),dtype=np.float)
 
     #
     # return a vector containing masses of particles
     # 
     def masses(self):
-        mass = np.zeros(self.n_particle * self.d_particle)
-        imass = np.empty(self.d_particle)
+        return np.fromiter((self.particles[i].mass 
+                          for j in range(self.d_particle) 
+                          for i in range(self.n_particle)),dtype=np.float)
+
+    #
+    # return a vector containing the widths of the b.f. along each d.o.f
+    #
+    def widths(self):
+        width = np.zeros(self.n_particle * self.d_particle)
+        icnt = -1
         for i in range(self.n_particle):
-            mass[i*self.d_particle:(i+1)*self.d_particle-1] = \
-                                    imass.fill(self.particle[i].mass) 
-        return mass
+            for j in range(self.d_particle):
+                icnt += 1
+                width[icnt] = self.particles[i].width
+        return width
 
     #
     # return the potential energies. If not current, recompute them
     #
     def energy(self,istate=0):
-        if not self.up2date['energy']:
-            self.poten = pes.energy(self.particles,self.nstates)
-            self.up2date['energy'] = True
+        self.poten = self.pes.energy(self.tid, self.particles, self.state)
         if istate:
             return self.poten[istate]
-        else
+        else:
             return self.poten
 
     #
@@ -142,90 +147,126 @@ class trajectory:
     # the current state
     #
     def derivative(self,rstate):
-        if not self.up2date['derivative'][rstate]:
-           self.deriv[rstate,:] = pes.derivative(self.particles,self.state,rstate)
-           self.up2date['derivative'][rstate] = True
-        return self.deriv(rstate,:)
+        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, rstate)
+        return self.deriv[rstate,:]
     
     #
     #
     #
     def dipole(self,rstate):
-        if not self.up2date['dipole'][rstate]:
-           self.dipole[rstate,:] = pes.dipole(self.particles,self.state,rstate)
-           self.up2date['dipole'][rstate] = True
-        return self.dipole(rstate,:)
+        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, rstate)
+        return self.dipole[rstate,:]
 
     #
     #
     #
-    def quadpole(self):
-        if not self.up2date['quadpole'][rstate]:
-           self.quadpole[rstate,:] = pes.quadpole(self.particles,self.state)
-           self.up2date['quadpole'][rstate] = True
+    def quadpole(self,rstate):
+        self.quadpole[rstate,:] = self.pes.quadpole(self.tid, self.particles, self.state, rstate)
         return self.quadpole
+
+    #
+    #
+    #
+    def tdipole(self,rstate):
+        self.tdipole[rstate,:] = self.pes.tdipole(self.tid, self.particles, self.state, rstate)
 
     #
     #
     # 
     def charges(self,rstate):
-        if not self.up2date['charges'][rstate]:
-           self.charges[rstate,:] = pes.charges(self.particles,rstate)
-           self.up2date['charges'][rstate] = True
+        self.charges[rstate,:] = self.pes.charges(self.tid, self.particles, self.state, rstate)
         return self.charges[rstate,:]
 
     #
     #
     #
     def orbitals(self):
-        if not self.up2date['orbitals']:
-           self.orbitals = pes.orbitals(self.particles)
-           self.up2date['orbitals'] = True
+        self.orbitals = self.pes.orbitals(self.tid, self.particles, self.state)
         return self.orbitals
+    
+    #-------------------------------------------------------------------------
+    #
+    # Computed quantities from the trajectory
+    #
+    #-------------------------------------------------------------------------
+    #
+    # Classical potential energy
+    #
+    def potential(self):
+        return self.energy(self,istate=self.state)
+
+    #
+    # Classical kinetic energy
+    #
+    def kinetic(self):
+         return 0.5 * sum( self.p() * self.p() / self.masses ) 
+
+    #
+    # Returns the classical energy of the trajectory
+    # 
+    def classical(self):
+         return self.potential() + self.kinetic()
 
     #
     # return momentum / mass
     #
     def velocity(self):
-        return self.p / self.masses
+        return self.p() / self.masses()
 
     #
     # Return the gradient of the self.state 
     #
     def force(self):
-        return -self.derivative(self.state,:)         
+        return -self.derivative(self.state)        
 
+    #
+    # Return time derivative of the phase
+    #
+    def phase_dot(self):
+        # d[gamma]/dt = T - V - alpha/(2M)
+        return self.kinetic() - self.potential() - 0.5*sum(self.widths()/self.masses())       
+
+    #
+    # Return the coupling.velocity
+    #
+    def coup_dot_vel(self,c_state):
+        if c_state == self.state:
+           return 0.
+        return abs(np.vdot( self.velocity(), self.derative[c_state,:] ))
+        
     #-----------------------------------------------------------------------------
     #
-    # Integral routines
+    # primitive integral routines
     #
     #-----------------------------------------------------------------------------
     #
     # overlap of two trajectories
     #
-    def overlap(self,other):
-         S = exp( complex(0.,1.)*(self.phase - other.phase) )
-         for i in range(self.nparticles):
-             S = S * self.particles[i].overlap(other.particles[i])
-         return S
+    def overlap(self,other,st_orthog=False):
+        if st_orthog and self.state != other.state:
+            return complex(0.,0.)         
+        S = cmath.exp( complex(0.,1.)*(self.phase - other.phase) )
+        for i in range(self.n_particle):
+            S = S * self.particles[i].overlap(other.particles[i])
+        return S
 
     #
-    # del/dp matrix element between two particles
+    # del/dp matrix element between two trajectories 
     #
     def deldp(self,other):
-         dpval = np.zeros(self.nparticles,'Complex')
-         for i in range(self.nparticles):
-             dpval[i] = self.particles[i].deldp(other.particles[i])
-         return dpval * overlap(self,other)
+        dpval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
+        for i in range(self.n_particle):
+            dpval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
+        return dpval * self.overlap(other)
 
     #
-    # del/dx matrix element between two particles
+    # del/dx matrix element between two trajectories
     #
     def deldx(self,other):
-         dxval = np.zeros(self.nparticles,'Complex')
-         for i in range(self.nparticles):
-             dxval[i] = self.particles[i].deldx(other.particles[i])
-         return dxval * overlap(self,other)
+        dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
+        for i in range(self.n_particle):
+            dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
+        return dxval * self.overlap(other)
 
     #
     # this is the expectation value of the momentum operator over the 2 x mass
@@ -233,47 +274,11 @@ class trajectory:
     # different states together theough the NACME
     #
     def deldx_m(self,other):
-         dxval = np.zeros(self.nparticles,'Complex')
-         for i in range(self.nparticles):
-             dxval[i] = self.particles[i].deldx(other.particles[i]) /  \
-                        self.particles[i].mass
-         return dxval * overlap(self,other)
-
-    #
-    # potential coupling matrix element between two trajectories
-    #
-    def v_integral(self,other=None,centroid=None):
-         if not other :
-             return self.energy(self.state) 
-         elif self.state == other.state:
-             return self.overlap(other) * centroid.energy(self.state)
-         elif not self.state != other.state:
-             fij = centroid.deriv(self.state,other.state)
-             return np.vdot(fij, deldx_m(self,other)
-         else:
-             print 'unknown state'
-    #
-    # kinetic energy integral over trajectories
-    #
-    def ke_integral(self,other):
-         ke = complex(0.,0.)
-         if self.state == other.state:
-             for i in range(self.nparticles):
-                 ke = ke - self.particles[i].deld2x(other.particles[i]) /  \
-                           (2.0*self.particles[i].mass)
-             return ke * overlap(self,other)
-         else:
-             return ke
-
-    #
-    # return the matrix element over the delS/dt operator
-    #
-    def sdot_integral(self,other):
-         sdot = (-vdot( traj_velocity(other), self.deldx(other) )   \
-                 +vdot( other.deriv(other.state)  , self.deldp(other) )   \
-                 +complex(0.,1.) * traj_phasedot(other) * overlap(self,other)
-         return sdot
-
+        dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
+        for i in range(self.n_particles):
+            dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
+                                                             self.particles[i].mass
+        return dxval * self.overlap(other)
 
    #--------------------------------------------------------------------------
    # 
@@ -281,6 +286,7 @@ class trajectory:
    #
    #--------------------------------------------------------------------------
     def write_trajectory(self,chkpt):
+        chkpt.write('{:5s}             alive'.format(self.alive))
         chkpt.write('{:10d}            nstates'.format(self.nstates))
         chkpt.write('{:10d}            traj ID'.format(self.tid))
         chkpt.write('{:10d}            state  '.format(self.state))
@@ -302,17 +308,17 @@ class trajectory:
         chkpt.write('# momentum')
         self.momentum().tofile(chkpt,' ',':12.8f')
         # Writes out dipole moments in cartesian coordinates
-        chkpt.write('# dipoles (n=state is permanent dipole, 
-                                others are transition dipoles)')
-        for i in range(self.nstates)
+        chkpt.write("# dipoles (n=state is permanent dipole, "  
+                                "others are transition dipoles)")
+        for i in range(self.nstates):
             chkpt.write('# n = {:4d}    '.format(i))
-            self.dipoles(i,:).tofile(chkpt,' ',':10.6f')
+            self.dipoles[i,:].tofile(chkpt,' ',':10.6f')
         # Writes out dipole moments
-        chkpt.write('# derivative matrix (n=state is gradient, 
-                                          others are nad coupling)')
-        for i in range(self.nstates)
+        chkpt.write("# derivative matrix (n=state is gradient, "
+                                "others are nad coupling)")
+        for i in range(self.nstates):
             chkpt.write('# n = {:4d}    '.format(i))
-            self.deriv(i,:).tofile(chkpt,' ',':16.10e')
+            self.deriv[i,:].tofile(chkpt,' ',':16.10e')
         #
         chkpt.write('# molecular orbitals')
         self.orbitals.tofile(chkpt,' ',':12.8e')
@@ -322,6 +328,7 @@ class trajectory:
     # function has been initially correctly and can hold all the information
     #
     def read_trajectory(self,chkpt):
+        self.alive     = bool(chkpt.readline()[0])
         self.nstates   = int(chkpt.readline()[0])
         self.tid       = int(chkpt.readline()[0])
         self.state     = int(chkpt.readline()[0])
@@ -348,14 +355,14 @@ class trajectory:
         self.update_momentum(mom)
 
         chkpt.readline() # dipoles
-        for i in range(self.nstates)
+        for i in range(self.nstates):
             chkpt.readline()
-            self.dipoles(i,:) = np.fromstring(chkpt.readline())
+            self.dipoles[i,:] = np.fromstring(chkpt.readline())
 
         chkpt.readline() # derivatives
-        for i in range(self.nstates)
+        for i in range(self.nstates):
             chkpt.readline()
-            self.deriv(i,:) = np.fromstring(chkpt.readline())
+            self.deriv[i,:] = np.fromstring(chkpt.readline())
 
         chkpt.readline() # orbitals
         self.orbitals = np.fromfile(chkpt,float,self.nbf**2)

@@ -1,0 +1,53 @@
+#
+# Compute integrals over trajectories traveling on adiabataic potentials
+#  This currently uses first-order saddle point.
+#
+import numpy as np
+#
+# potential coupling matrix element between two trajectories
+#
+def v_integral(traj1,traj2=None,centroid=None):
+    # if we are passed a single trajectory, this is a diagonal
+    # matrix element -- simply return potential energy of trajectory
+    if not traj2:
+        return traj1.energy(traj1.state)
+    #
+    # off-diagonal matrix element, between trajectories on the same
+    # state [this also requires the centroid be present
+    #
+    elif traj1.state == traj2.state:
+        return traj1.overlap(traj2) * centroid.energy(centroid.state)
+    #
+    # [necessarily] off-diagonal matrix element between trajectories
+    # on different electronic states
+    #
+    elif not traj1.state != traj2.state:
+        fij = centroid.derivative(traj1.state,traj2.state)
+        return np.vdot( fij, traj1.deldx_m(traj2) )
+    else:
+        print("ERROR in v_integral -- argument disagreement")
+        return 0.
+
+#
+# kinetic energy integral over trajectories
+#
+def ke_integral(traj1,traj2):
+    ke = complex(0.,0.)
+    if traj1.state == traj2.state:
+        for i in range(traj1.nparticles):
+            ke = ke - traj1.particles[i].deld2x(traj2.particles[i]) /  \
+                      (2.0*traj1.particles[i].mass)
+        return ke * traj1.overlap(traj2)
+    else:
+        return ke
+
+#
+# return the matrix element <Psi_1 | d/dt | Psi_2> 
+#
+def sdot_integral(traj1,traj2):
+    sdot =  -np.vdot( traj2.velocity(), traj1.deldx(traj2) )   \
+            +np.vdot( traj2.force()   , traj1.deldp(traj2) )   \
+            +complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
+    return sdot
+
+

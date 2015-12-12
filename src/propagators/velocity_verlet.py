@@ -1,6 +1,6 @@
 #
 import numpy as np
-import ..basis.trajectory
+from ..basis import trajectory
 #
 # all propagators have to define a function "propagate" that takes
 # a trajectory argument and a time step argument
@@ -22,7 +22,7 @@ def propagate(trajectory,dt):
     #------------------------------------------------
     # update the nuclear phase
     #  gamma = gamma + dt * phase_dot / 2.0
-    g1_0 = trajectory.phasedot
+    g1_0 = trajectory.phase_dot()
     g2_0 = 2. * np.vdot(f0, v0)
 
     #------------------------------------------------
@@ -35,18 +35,18 @@ def propagate(trajectory,dt):
     #-------------------------------------------
     # update x
     trajectory.update_x(x1)
-    f1 = trajectory.force
+    f1 = trajectory.force()
 
     #------------------------------------------
     # update p
     p1 = p0 + 0.5 * (f0 + f1) * dt 
     trajectory.update_p(p1)
-    v1 = trajectory.velocity
+    v1 = trajectory.velocity()
 
     #---------------------------------------------
     # update the nuclear phase
     #
-    g1_1 = trajecotry.phasedot
+    g1_1 = trajectory.phase_dot()
     g2_1 = 2. * np.vdot(f1, v1)
 
     #--------------------------------------------
@@ -62,11 +62,4 @@ def propagate(trajectory,dt):
 
     dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
     trajectory.update_phase(trajectory.phase + dgamma)
-    
-     
-
-       
-
-     
-
 

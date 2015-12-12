@@ -1,0 +1,21 @@
+output:
+
+trajectories:
+trajectory.ID
+potential.ID
+coupling.ID
+dipoles.ID
+quadrupoles.ID
+atomic_charges.ID
+
+bundle:
+population.log
+auto_correlation.log
+spawn.log
+energy.log
+
+simulation:
+summary.log
+
+potential:
+various output pertaining to running of electronic structure calculations
