@@ -1,0 +1,7 @@
+ &input
+  quadrup=1
+  lvlprt=1,
+  moment=2 
+  mofilen='mocoef' 
+  nofilen='mocoef_prop' 
+ &end

@@ -1,0 +1,27 @@
+GTOSCALE      0.9999994915
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+ATOMINFO: H  1      0.0000000000      0.0000000000     -0.7005214200
+ATOMINFO: H  2      0.0000000000      0.0000000000      0.7005214200
+CAOINFO:  1H  1 11s     1
+CAOINFO:  1H  1 11s     1
+CAOINFO:  1H  1 12px    2
+CAOINFO:  1H  1 12py    3
+CAOINFO:  1H  1 12pz    4
+CAOINFO:  2H  2 11s     1
+CAOINFO:  2H  2 11s     1
+CAOINFO:  2H  2 12px    2
+CAOINFO:  2H  2 12py    3
+CAOINFO:  2H  2 12pz    4
+  10   1
+  Symmetry  A  ( 1)
+  1    1
+  1    2
+  1    3
+  1    4
+  1    5
+  1    6
+  1    7
+  1    8
+  1    9
+  1   10

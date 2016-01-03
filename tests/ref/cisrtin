@@ -1,0 +1,5 @@
+ &input
+ maxbl3=240000
+ maxbl4=240000
+ maxbuf=4800000
+ &end

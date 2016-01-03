@@ -1,0 +1,582 @@
+===========================================================
+===                   runc                              ===
+===           version 7.0 pre_a1 , April 2010             ===
+===          requires COLUMBUS version COL_7.0_pre_a1              ===
+===                                                     ===
+===   written by: Thomas Mueller                        ===
+===   gradient ext. by: Michal Dallos                   ===
+===               Institute for Theoretical Chemistry   ===
+===               University of Vienna                  ===
+===               Waehringerstr. 17                     ===
+===               A-1090 Vienna, Austria                ===
+===   in revision by: Thomas Mueller, JSC, FZ Juelich   ===
+===========================================================
+
+
+Corememory: 500 DP 
+Vdisk size: 0 DP
+CHAINP: 0 CHAINS: 0 CHAINI 0 
+Reading job control file control.run ... Setting csfmn to: 0.01
+  done 
+Creating various directories ... 
+COLUMBUS directory: /home/schuurm/software/Columbus7.0/Columbus
+MOLCAS directory:   
+WORK directory:     /tmp/schuurm/COLSCR
+JOB directory:      /home/schuurm/software/FMSpy/tests/ref
+LD_LIBRARY_PATH=/home/software/intel/mkl/lib/intel64:/home/software/intel/lib/intel64:/usr/lib64/openmpi/lib:/usr/lib64:/usr/lib64
+
+Checking for illegal keywords and keyword combinations ... done 
+
+ Nonadiabatic couling term calculation type: DCI+DCSF
+
+ 2 states involved in calculation: 
+ DRT 1, STATE 1
+ DRT 1, STATE 2
+
+ 1 couplings involved in calculation: 
+ DRT 1, STATE 1; DRT 1, STATE 2
+appendtonl: transition
+  1  1  1  2 
+
+Checking for complete set of input files ... done
+ Route: prep_inputs aointegrals scfpart mcdrtpart mcscfpart drtpart ciudgav ciudgmom preprop exptvlci cid2tr    
+info ... #route=10
+
+ ++++++++++++++++++ input file generation +++++++++++++ 
+ runc start: Sat Jan  2 22:20:22 EST 2016
+ 
+  runc start: Sat Jan  2 22:20:22 EST 2016
+ 
+ starting unik.gets.x > unikls at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/unik.gets.x > unikls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- unik.gets.x ------------------------
+ finished unik.gets.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ starting hernew.x at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/hernew.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- hernew.x ------------------------
+ finished hernew.x at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ ++++++++++++++++++++ ao integral calculation ++++++++++++++++
+starting dalton.x -m 500 > hermitls at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > hermitls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ ++++++++++++++++++++ SCF calculation +++++++++++++++
+starting scfpq.x -m 500 at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/scfpq.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- scfpq.x ------------------------
+  nuclear repulsion energy          0.7137540491
+  kinetic energy                    1.0959193161
+  potential energy                 -2.2246342745
+  total energy                     -1.1287149585
+  virial theorem                    1.9709442653
+ finished scfpq.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+  >>>>>>>>>>>>> info: preparing drt no 1 out of 1 <<<<<<
+starting mcdrt.x -m 500 < mcdrtin > mcdrtls at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/mcdrt.x -m 500 < mcdrtin > mcdrtls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- mcdrt.x ------------------------
+  Spin multiplicity: singlet 
+  Spatial symmetry (#): 1
+  Number of Configurations:          3 
+  finished mcdrt.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ starting mcuft.x at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/mcuft.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- mcuft.x ------------------------
+ finished mcuft.x at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ ++++++++++++++++++++ MCSCF calculation +++++++++++++++
+starting mcscf.x -m 500 at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/mcscf.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- mcscf.x ------------------------
+ Individual total energies for all states: 
+    DRT #1 state # 1 wt 0.500 total energy=       -1.124013587, rel. (eV)=   0.000000
+    DRT #1 state # 2 wt 0.500 total energy=       -0.629705994, rel. (eV)=  13.450800
+  finished mcscf.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ starting mcpc.x -m 500 < mcpcin > mcpcls at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/mcpc.x -m 500 < mcpcin > mcpcls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- mcpc.x ------------------------
+ finished mcpc.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ starting mcpc.x -m 500 < mcpcin > mcpcls at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/mcpc.x -m 500 < mcpcin > mcpcls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- mcpc.x ------------------------
+ finished mcpc.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+ starting cidrtms.x -m 500 < cidrtmsin > cidrtmsls  at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cidrtms.x -m 500 < cidrtmsin > cidrtmsls  2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cidrtms.x ------------------------
+ finished cidrtms.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+  using the MCSCF MOs ... 
+starting tran.x -m 500  at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/tran.x -m 500  2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- tran.x ------------------------
+ finished tran.x  at  Sat Jan  2 22:20:22 EST 2016
+ --------------------------------------------------- 
+  Starting ciudgav with DRT # 1 out of 1 
+skipping cisrt.x call (ciudgav) .... 
+adding iden=2 to ciudgin
+starting ciudg.x -m 500 at Sat Jan  2 22:20:22 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/ciudg.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+  waiting after driverwrap ....                     0
+ -------------------- ciudg.x ------------------------
+ type of calculation:          mr-sdci
+ number of configurations:     19
+ total mr-sdci energy               -1.1398584719 
+ last mr-sdci energy change           0.0000000000 
+ residual                             0.0000029724 
+  type of calculation:          mr-sdci
+ number of configurations:     19
+ total mr-sdci energy               -0.6457000375 
+ last mr-sdci energy change           0.0000001347 
+ residual                             0.0000478820 
+  c0**2 =   0.98668724  c**2 (all zwalks) =   0.98668724
+ mr-sdci+(1-c0**2)*(eci-eref)             =      -1.140074022932 
+ mr-sdci+(1-c0**2)/(c0**2)*(eci-eref)     =      -1.140076931228 
+ mr-sdci+(1-c0**2)/(2*c0**2-1)*(eci-eref) =      -1.140079919078 
+ c0**2 =   0.98347359  c**2 (all zwalks) =   0.98347359
+ mr-sdci+(1-c0**2)*(eci-eref)             =      -0.645964361629 
+ mr-sdci+(1-c0**2)/(c0**2)*(eci-eref)     =      -0.645968803365 
+ mr-sdci+(1-c0**2)/(2*c0**2-1)*(eci-eref) =      -0.645973396931 
+ finished ciudg.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ renameing nocoef_ci.drt1.state1 to /home/schuurm/software/FMSpy/tests/ref/MOCOEFS/nocoef_ci.drt1.state1.sp 
+renameing nocoef_ci.drt1.state2 to /home/schuurm/software/FMSpy/tests/ref/MOCOEFS/nocoef_ci.drt1.state2.sp 
+keyinfile returned docipci=:
+starting cipc.x -m 500 < cipcin > cipcls at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cipc.x -m 500 < cipcin > cipcls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cipc.x ------------------------
+ finished cipc.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+  Calculating transition moment for (1,1) => (1,2)
+  &input 
+  lvlprt=1, 
+   nroot1=1, 
+  nroot2=2 
+   drt1=1, 
+ drt2=1 
+ /&end 
+ starting transci.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/transci.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- transci.x ------------------------
+            ***   FINAL RESULTS   ***
+
+
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:                19                     19
+   State energies:        -1.13985847            -0.64570004  a.u.
+
+   Transition energy:     0.49415843  a.u.
+   Transition energy:    13.45        eV
+   Transition frequency:  0.32514E+16 1/sec
+   Transition frequency:  0.10846E+06 cm-1
+
+
+       <L> value components:
+
+                 x            y            z
+
+<L> electron     0.000000     0.000000     0.000000  e*bohr
+
+
+   <L> value length:     0.000000    e*bohr
+
+ finished transci.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting dalton.x -m 500 > hermitls.property at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > hermitls.property 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+  --- ci properties for state 1 of  DRT 1 ----
+starting exptvl.x -m 500  at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/exptvl.x -m 500  2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- exptvl.x ------------------------
+  === dipole moment === 
+                     X               Y               Z   
+   nuclear       0.00000000      0.00000000      0.00000000
+   electronic    0.00000000     -0.00000000     -0.00000000
+   total         0.00000000     -0.00000000     -0.00000000
+   total Dipole moment =   0.00000000    Debye
+
+  === second moment === 
+                     XX              XY              XZ              YY  
+   nuclear       0.00000000      0.00000000      0.00000000      0.00000000
+   electronic   -1.53064595     -0.00000000     -0.00000000     -1.53064595
+   total        -1.53064595     -0.00000000     -0.00000000     -1.53064595
+
+  === quadrupole moment === 
+                    QXX             QXY             QXZ             QYY             Q
+   nuclear      -0.49073026      0.00000000      0.00000000     -0.49073026
+   electronic    0.29590248     -0.00000000     -0.00000000      0.29590248
+   total        -0.19482778     -0.00000000     -0.00000000     -0.19482778
+  
+                    QYZ             QZZ             Q
+   nuclear       0.00000000      0.98146052
+   electronic   -0.00000000     -0.59180497
+   total        -0.00000000      0.38965555
+
+ finished exptvl.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+  --- ci properties for state 2 of  DRT 1 ----
+starting exptvl.x -m 500  at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/exptvl.x -m 500  2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- exptvl.x ------------------------
+  === dipole moment === 
+                     X               Y               Z   
+   nuclear       0.00000000      0.00000000      0.00000000
+   electronic    0.00000000      0.00000000      0.00000000
+   total         0.00000000      0.00000000      0.00000000
+   total Dipole moment =   0.00000000    Debye
+
+  === second moment === 
+                     XX              XY              XZ              YY  
+   nuclear       0.00000000      0.00000000      0.00000000      0.00000000
+   electronic   -2.41268931      0.00000000      0.00000000     -2.41268931
+   total        -2.41268931      0.00000000      0.00000000     -2.41268931
+
+  === quadrupole moment === 
+                    QXX             QXY             QXZ             QYY             Q
+   nuclear      -0.49073026      0.00000000      0.00000000     -0.49073026
+   electronic    2.11151925      0.00000000      0.00000000      2.11151925
+   total         1.62078899      0.00000000      0.00000000      1.62078899
+  
+                    QYZ             QZZ             Q
+   nuclear       0.00000000      0.98146052
+   electronic    0.00000000     -4.22303849
+   total         0.00000000     -3.24157797
+
+ finished exptvl.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ 
+
+ +++++++++++ STARTING GRADIENTS AND NAD. COUPLINGS CALCULATION +++++++++++ 
+
+ Using new transition density code ... 
+---- Computing 2 gradient(s)  ----
+
+ --- Computing gradient for DRT:1, State; 1
+
+starting cigrd.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cigrd.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :    -1.139858471882 
+  Effective energy     :    -1.139858459747 
+  Delta E              :    -0.000000012135 
+  finished cigrd.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting tran.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/tran.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- tran.x ------------------------
+ finished tran.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting dalton.x -m 500 > abacusls at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > abacusls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ cartesian gradient by abacus (DALTON 1)
+   0.000000D+00   0.000000D+00   0.202394D-01
+   0.000000D+00   0.000000D+00  -0.202394D-01
+starting cart2int.x at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cart2int.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cart2int.x ------------------------
+ finished cart2int.x at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+  --- Computing gradient for DRT:1, State; 2
+
+starting cigrd.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cigrd.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :    -0.645700037473 
+  Effective energy     :    -0.645700038117 
+  Delta E              :     0.000000000644 
+  finished cigrd.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting tran.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/tran.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- tran.x ------------------------
+ finished tran.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting dalton.x -m 500 > abacusls at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > abacusls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ cartesian gradient by abacus (DALTON 1)
+   0.000000D+00   0.000000D+00   0.181665D+00
+   0.000000D+00   0.000000D+00  -0.181665D+00
+starting cart2int.x at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cart2int.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cart2int.x ------------------------
+ finished cart2int.x at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ 
+---- Computing 1 couplings ---- 
+
+
+ -------- NAD. COUPLING for DRT:1 STATE:1 AND DRT:1 STATE:2 --------
+
+ *** Transition density ***
+starting transci.x -m 500  at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/transci.x -m 500  2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- transci.x ------------------------
+            ***   FINAL RESULTS   ***
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:                19                     19
+   State energies:        -1.13985847            -0.64570004  a.u.
+
+   Transition energy:     0.49415843  a.u.
+   Transition energy:    13.45        eV
+   Transition frequency:  0.32514E+16 1/sec
+   Transition frequency:  0.10846E+06 cm-1
+
+       <L> value components:
+
+                 x            y            z
+
+<L> electron     0.000000     0.000000     0.000000  e*bohr
+
+   <L> value length:     0.000000    e*bohr
+
+ finished transci.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting cigrd.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cigrd.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :     0.000000000000 
+  Effective energy     :    -0.000000000000 
+  Delta E              :     0.000000000000 
+  finished cigrd.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting tran.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/tran.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- tran.x ------------------------
+ finished tran.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting dalton.x -m 500 > abacusls at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > abacusls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ cartesian gradient by abacus (DALTON 1)
+   0.000000D+00   0.000000D+00  -0.753792D-14
+   0.000000D+00   0.000000D+00   0.753792D-14
+starting cart2int.x at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cart2int.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cart2int.x ------------------------
+ finished cart2int.x at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ 
+ Calculating the Dx(r,s) term of D[CSF] nonadiabatic coupling term.
+starting tran.x -m 500 at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/tran.x -m 500 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- tran.x ------------------------
+ finished tran.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting dalton.x -m 500 > abacusls at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/dalton.x -m 500 > abacusls 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- dalton.x ------------------------
+  label    atoms   charge   prim    cont     basis   
+  ----------------------------------------------------------------------
+  H  1        1       1       7       5      [4s1p|2s1p]                            
+  H  2        1       1       7       5      [4s1p|2s1p]                            
+  ----------------------------------------------------------------------
+  ----------------------------------------------------------------------
+  total:      2       2      14      10
+
+                  atom 1     atom 2                           distance
+                  ------     ------                           --------
+ (Bond distances in Angstroem)
+
+  Nuclear repulsion energy:        0.7137540491
+
+ Irred. repr. : A       
+ # orbitals  :  10 
+ finished dalton.x  at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ starting cart2int.x at Sat Jan  2 22:20:23 EST 2016
+
+/home/schuurm/software/Columbus7.0/Columbus/cart2int.x 2>> /home/schuurm/software/FMSpy/tests/ref/runc.error
+ -------------------- cart2int.x ------------------------
+ finished cart2int.x at  Sat Jan  2 22:20:23 EST 2016
+ --------------------------------------------------- 
+ 
+ Norm of the nonadiabatic coupling vector: 
+ |h(drt1.state1,drt1.state2)|= 0.00965223383736635 
+
+ Cross-check of the non-adiabatic coupling term:
+  DeltaE= -0.494158434409
+
+  <L>*dE form CIGRD   :   -0.0000000000    -0.0000000000    -0.0000000000
+  <L>*dE form NADCOUPL:    0.0000000000     0.0000000000     0.0000000000
+ -------------------------------------------------------------------------
+  Difference          :    0.0000000000     0.0000000000     0.0000000000
+
+ NOTE: This test is meaningless at a point of conical intersection!
+
+leaving cid2tr prior to orthogonalization
+
+
+============== timings ===================
+
+ * unik.gets.x      walltime    0:00:00
+ * hernew.x         walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * scfpq.x          walltime    0:00:00
+ * mcdrt.x          walltime    0:00:00
+ * mcuft.x          walltime    0:00:00
+ * mcscf.x          walltime    0:00:00
+ * mcpc.x           walltime    0:00:00
+ * mcpc.x           walltime    0:00:00
+ * cidrtms.x        walltime    0:00:00
+ * tran.x           walltime    0:00:00
+ * ciudg.x          walltime    0:00:01
+ * cipc.x           walltime    0:00:00
+ * transci.x        walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * exptvl.x         walltime    0:00:00
+ * exptvl.x         walltime    0:00:00
+ * cigrd.x          walltime    0:00:00
+ * tran.x           walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * cart2int.x       walltime    0:00:00
+ * cigrd.x          walltime    0:00:00
+ * tran.x           walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * cart2int.x       walltime    0:00:00
+ * transci.x        walltime    0:00:00
+ * cigrd.x          walltime    0:00:00
+ * tran.x           walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * cart2int.x       walltime    0:00:00
+ * tran.x           walltime    0:00:00
+ * dalton.x         walltime    0:00:00
+ * cart2int.x       walltime    0:00:00
+
+==========================================
+
+

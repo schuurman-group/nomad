@@ -1,0 +1,5 @@
+#
+# COLUMBUS interface variable definitions
+#
+mem_per_core      = 2000
+

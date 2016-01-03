@@ -1,0 +1,972 @@
+
+&& iteration number 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  program cigrd
+
+ effective density and fock matrix construction for analytic energy
+ gradient evaluation for general mrci wave functions
+
+ programmed by: ron shepard and hans lischka
+
+ references:  r. shepard, int. j. quantum chem. 31, 33 (1987).
+
+              r. shepard, i. shavitt, r. m. pitzer, d. c. comeau, m. pepper,
+                   h. lischka, p. g. szalay, r. ahlrichs, f. b. brown,
+                   and j.-g. zhao, int. j. quantum chem. s22, 149 (1988).
+
+              h. lischka, r. shepard, r. m. pitzer, i. shavitt, m. dallos, t.
+                   muller, p. g. szalay, m. seth, g. s. kedziora, s. yabushita,
+                   and z. zhang, phys. chem. chem. phys. 3, 664-673 (2001).
+
+ version date: 13-aug-01
+
+ state-averag modifications:
+    X.1999, by: Michal Dallos
+    University Vienna, Austria
+
+
+     ******************************************
+     **    PROGRAM:              CIGRD       **
+     **    PROGRAM VERSION:      5.4.2b      **
+     **    DISTRIBUTION VERSION: 5.9.a       **
+     ******************************************
+
+
+ This Version of Program cigrd is Maintained by:
+     Thomas Mueller
+     Juelich Supercomputing Centre (JSC)
+     Institute of Advanced Simulation (IAS)
+     D-52425 Juelich, Germany 
+     Email: th.mueller@fz-juelich.de
+
+
+ workspace allocation information: lencor=    65536000 mem1=               0 ifirst=               1
+
+ ===echo of the user input===============================================
+  &input                                                                         
+  nmiter= 100, print=0, fresdd=1,                                                
+  fresaa=1, fresvv=1,                                                            
+  mdir=0,                                                                        
+  cdir=1,                                                                        
+  rtol=1e-6, dtol=1e-6,                                                          
+  wndtol=1e-7,wnatol=1e-7,wnvtol=1e-7                                            
+  nadcalc=3                                                                      
+   samcflag=0                                                                    
+   assume_fc=0                                                                   
+  drt1=1                                                                         
+  root1=1                                                                        
+  drt2=1                                                                         
+  root2=2                                                                        
+  &end                                                                           
+ ========================================================================
+
+ input parameters:
+ cigopt(*)=   0  1  1  1  0  0  0  0  0  0
+ ldamin=     511 ldamax=    4095 ldainc=      64
+ lenm1e=    2047 n1embf=    1636 lenm2e=    2047 n2embf=    1364
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      1       6    cigrdls                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      2       5    cigrdin                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      3      10    cidrtfl                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      4      11    moints                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      5      12    cid1fl                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      6      13    cid2fl                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      7      14    mcdrtfl                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      8      15    mcd1fl                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+      9      16    mcd2fl                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     10      17    mcdrtfl.*                                                   
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     11      36    civout.xx                                                   
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     12      19    restart                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     13      20    mchess                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     14      21    effd1fl                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     15      22    effd2fl                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     16      23    nocoef_cigrd                                                
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     17      50    mcscr2                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     18      51    hdiagf                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     19      24    mcscfin                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     20      25    moints2                                                     
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     21      63    mciscr                                                      
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     22      33    cid1trfl                                                    
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     23      35    mcdftfl.*                                                   
+
+ internal fortran  initial
+   unit    unit    filename
+  ------  ------   --------
+     24      34    mcoftfl.*                                                   
+
+  Calculation mode:
+ DCI(J,I,alpha)+DCSF(J,I,alpha) non-adiab. coupl. term.
+
+
+ MCSCF user input information:
+
+ ======== echo of the mcscf input ========
+ ------------------------------------------------------------------------
+  &input
+   niter=100,
+   nmiter=50,
+   nciitr=50,
+   tol(3)=1.e-5,
+   tol(2)=1.e-5,
+   tol(1)=1.e-9,
+   NSTATE=0,
+   npath=1,3,9,10,13,17,19,21,11,-12, 2,
+   ncoupl=5,
+   tol(9)=1.e-3,
+   FCIORB=  1,1,20,1,2,20
+   NAVST(1) = 2,
+   WAVST(1,1)=1 ,
+   WAVST(1,2)=1 ,
+  &end
+ ------------------------------------------------------------------------
+
+ ***  State averaging information: ***
+
+ MCSCF calculation performed for  1 DRT.
+
+ DRT  first state   no.of aver. states   weights
+  1   ground state          2             0.500 0.500
+ 1: civfl file: civout.drt1                                                 
+============================================================
+ extracting information from civout:
+ ci vector:                     1  itype=                     0  reference vecto
+ r                     1
+ a4den=  0.000000000000000E+000  eci=  -1.13985847188234     
+ titles:
+ energy computed by program ciudg.       localhost.localdo 22:20:23.015 02-Jan-1
+ 6
+============================================================
+ 2: civfl file: civout.drt1                                                 
+============================================================
+ extracting information from civout:
+ ci vector:                     2  itype=                     0  reference vecto
+ r                     2
+ a4den=  0.000000000000000E+000  eci= -0.645700037473206     
+ titles:
+ energy computed by program ciudg.       localhost.localdo 22:20:23.016 02-Jan-1
+ 6
+============================================================
+
+ listing file: fortran unit= 6, name( 1)=/tmp/schuurm/COLSCR/WORK/cigrdls                            
+
+ input file: fortran unit= 5, name( 2)=/tmp/schuurm/COLSCR/WORK/cigrdin                            
+
+ input file: fortran unit=24, name(19)=/tmp/schuurm/COLSCR/WORK/mcscfin                            
+
+ mo integrals file: fortran unit=11, name( 4)=/tmp/schuurm/COLSCR/WORK/moints                             
+ moint file header information
+   ntitle =   5     nsym =   1     nmot =  10
+    ninfo =   6   nenrgy =   1
+  A     10
+ info(*)=    1 8192 6552 8192 5460    0
+ labels(:)=
+   1: tout:001   2: tout:002   3: tout:003   4: tout:004   5: tout:005   6: tout:006   7: tout:007   8: tout:008
+   9: tout:009  10: tout:010
+ moint file header information
+ Hermit Integral Program : SIFS version  localhost.localdo 22:20:22.805 02-Jan-16
+  cidrt_title DRT#1                                                              
+ MO-coefficients from mcscf.x                                                    
+  total ao core energy =    0.713754049                                          
+ SIFS file created by program tran.      localhost.localdo 22:20:22.972 02-Jan-16
+ moint core energy(*) values:
+ energy( 1)=  7.137540490910E-01, ietype=   -1,    core energy of type: Nuc.Rep.
+
+    total mo core energy =   7.137540490910E-01
+ 
+  1-e CI density read from file:
+ cid1fl.tr                                                   
+  2-e CI density read from file:
+ cid2fl.tr                                                   
+
+ ci 1-particle density file: fortran unit=12, name( 5)=/tmp/schuurm/COLSCR/WORK/cid1fl.tr                          
+extracted nexo info=   8   0   0   0   0   0   0   0
+
+ ci density file header information:
+ CI transition density matrices for transition    1->   2                        
+ MR-CISD energy root #   1 =        -1.13985847                                  
+ MR-CISD energy root #   2 =        -0.64570004                                  
+ NEXO(*)=   8   0   0   0   0   0   0   0                                        
+ (isym:nbpsy)  1: 10
+ energy( 1)=  0.000000000000E+00, ietype=-1026,   total energy of type: MRSDCI  
+
+ ci drt file: fortran unit=10, name( 3)=/tmp/schuurm/COLSCR/WORK/cidrtfl                            
+ symmetry labels:  a  
+
+ ci drt information:
+  cidrt_title DRT#1                                                              
+ nmotd =  10 nfctd =   0 nfvtd =   0 nmot  =  10
+ niot  =   2
+ cidrt header read
+
+   ******  MCSCF DRT info section  ******
+
+ Information for MCSCF DRT number  1
+
+ mcscf drt header information:
+  title                                                                          
+ Molecular symmetry group:    a  
+ Total number of electrons:    2
+ Spin multiplicity:            1
+ Number of doubly occ.orbital  0
+ Number of active orbitals:    2
+ Number of active electrons:   2
+ Total number of CSFs:         3
+
+ mapml(*)   1   2
+
+ mcscf restart file: fortran unit=19, name(12)=/tmp/schuurm/COLSCR/WORK/restart                            
+docc:                 0
+active:               2
+internal:             2
+virtual:              8
+
+ mcscf 1-particle density file: fortran unit=15, name( 8)=/tmp/schuurm/COLSCR/WORK/mcd1fl                             
+ energy( 1)=  7.137540490910E-01, ietype=   -1,    core energy of type: Nuc.Rep.
+ energy( 2)= -8.768597904153E-01, ietype=-1025,   total energy of type: MCSCF   
+ energy( 3)=  7.327261020151E-11, ietype=-2050, cnvginf energy of type: MC-D.E. 
+ energy( 4)=  4.252650873272E-07, ietype=-2051, cnvginf energy of type: MC-Wnorm
+ energy( 5)=  2.198546777129E-07, ietype=-2052, cnvginf energy of type: MC-Knorm
+ energy( 6)=  4.672900345698E-14, ietype=-2053, cnvginf energy of type: MC-ApxDE
+
+ mcscf density file header information:
+ NO-coefficients from mcscf.x                                                    
+  total ao core energy =    0.713754049                                          
+ mcscf density matrices from program mcscf                                       
+                                                                                 
+ elast:     -8.768597904152744E-01 hartree.
+ total number of irreps: 1
+ (isym:nipsy)  1:  2
+ (isym:nmpsy)  1: 10
+ nonzero mcres(*) orbital masks:
+ orbital=   1 mask=  00000020
+ orbital=   2 mask=  00000020
+ mo-to-internal mapping vector [i:mo(i)]:
+    1:  1    2:  2    3:  0    4:  0    5:  0    6:  0    7:  0    8:  0    9:  0   10:  0
+ mcd1fl header information read
+
+ faar:   0 active-active rotations allowed out of:   1 possible.
+
+
+ Size of orbital-Hessian matrix B:                      192
+  1. B[ad,ad]              0
+  2. B[aa,ad]              0
+  3. B[aa,aa]              0
+  4. B[vd,ad]              0
+  5. B[vd,aa]              0
+  6. B[vd,vd]              0
+  7. B[va,ad]              0
+  8. B[va,aa]              0
+  9. B[va,vd]              0
+  10.B[va,va]            192
+
+ Size of the orbital-state Hessian matrix C:              0
+  11.C[csf,ad]              0
+  12.C[csf,aa]              0
+  13.C[csf,vd]              0
+  14.C[csf,va]              0
+
+ Total size of the state Hessian matrix M:               21
+ Size of HESSIAN-matrix for quadratic conv.:            213
+
+ one electron hamiltonian and overlap integrals read
+   1   2   3   4   5   6   7   8   9  10
+
+          d1 array block   1
+
+                MO   1         MO   2         MO   3         MO   4         MO   5         MO   6         MO   7         MO   8
+   MO   3    0.00000       4.877328E-02    0.00000    
+   MO   4  -4.820097E-02    0.00000       3.117410E-03    0.00000    
+   MO   7    0.00000      -1.759422E-02    0.00000      -1.072688E-03    0.00000        0.00000        0.00000    
+   MO  10  -6.404571E-03    0.00000       3.628578E-04    0.00000        0.00000        0.00000      -1.243992E-04    0.00000    
+
+                MO   9         MO  10
+
+ dalen: da sorting parameters, nbuk=   1 lendar=    4095 nvpbk=        2729 nvpsg=        3025
+getmosize:+labels=        9075
+ beginning two-electron integral sort...
+ sort1: nvals=       354 nvlout=       653
+
+ ci 2-particle density file: fortran unit=13, name( 6)=/tmp/schuurm/COLSCR/WORK/cid2fl.tr                          
+ beginning two-particle density matrix sort...
+ sort1: nvals=        44 nvlout=        88
+
+  reading antisymmetric 1-e CI density matrix
+
+ antisymmetric 1-e ci density file: fortran unit=33, name( 5)=/tmp/schuurm/COLSCR/WORK/cid1trfl                           
+ (isym:nbpsy)  1: 10
+  Antisymmetric 1-e density matrix
+ ijsym,symoff(ijsym)                     1                     0
+  Antisymmetr. diagonal d1 for symmetry                     1
+                     0
+
+          d1_diagonal 
+
+              tout:001       tout:002       tout:003       tout:004       tout:005       tout:006       tout:007       tout:008
+ tout:003    -0.00000000    -0.03814447     0.00000000
+ tout:004     0.01871108     0.00000000    -0.00496100     0.00000000
+ tout:007     0.00000000     0.01389283     0.00000000    -0.00174055     0.00000000     0.00000000     0.00000000
+ tout:010     0.00192564     0.00000000    -0.00064286     0.00000000     0.00000000     0.00000000     0.00022583     0.00000000
+
+              tout:009       tout:010
+
+          d1atr (remapped) block   1
+
+                mo   1         mo   2         mo   3         mo   4         mo   5         mo   6         mo   7         mo   8
+   mo   1     0.00000000     0.00000000     0.00000000    -0.01871108     0.00000000     0.00000000    -0.00000000     0.00000000
+   mo   2     0.00000000     0.00000000     0.03814447    -0.00000000     0.00000000     0.00000000    -0.01389283     0.00000000
+   mo   3    -0.00000000    -0.03814447     0.00000000     0.00496100     0.00000000     0.00000000    -0.00000000     0.00000000
+   mo   4     0.01871108     0.00000000    -0.00496100     0.00000000     0.00000000     0.00000000     0.00174055     0.00000000
+   mo   7     0.00000000     0.01389283     0.00000000    -0.00174055     0.00000000     0.00000000     0.00000000     0.00000000
+   mo  10     0.00192564     0.00000000    -0.00064286     0.00000000     0.00000000     0.00000000     0.00022583     0.00000000
+
+                mo   9         mo  10         mo  11         mo  12         mo  13         mo  14         mo  15         mo  16
+   mo   1     0.00000000    -0.00192564     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   mo   2     0.00000000    -0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   mo   3     0.00000000     0.00064286     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   mo   4     0.00000000    -0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   mo   7     0.00000000    -0.00022583     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+
+                mo  17         mo  18         mo  19         mo  20         mo  21         mo  22         mo  23         mo  24
+
+                mo  25         mo  26         mo  27         mo  28         mo  29         mo  30         mo  31         mo  32
+
+                mo  33         mo  34         mo  35         mo  36         mo  37         mo  38         mo  39         mo  40
+
+                mo  41         mo  42         mo  43         mo  44         mo  45         mo  46         mo  47         mo  48
+
+                mo  49         mo  50         mo  51         mo  52         mo  53         mo  54         mo  55         mo  56
+
+                mo  57         mo  58         mo  59         mo  60         mo  61         mo  62         mo  63         mo  64
+
+                mo  65         mo  66         mo  67         mo  68         mo  69         mo  70         mo  71         mo  72
+
+                mo  73         mo  74         mo  75         mo  76         mo  77         mo  78         mo  79         mo  80
+
+                mo  81         mo  82         mo  83         mo  84         mo  85         mo  86         mo  87         mo  88
+
+                mo  89         mo  90         mo  91         mo  92         mo  93         mo  94         mo  95         mo  96
+
+                mo  97         mo  98         mo  99         mo 100         mo 101         mo 102         mo 103         mo 104
+
+                mo 105         mo 106         mo 107         mo 108         mo 109         mo 110         mo 111         mo 112
+
+                mo 113         mo 114         mo 115         mo 116         mo 117         mo 118         mo 119         mo 120
+
+                mo 121         mo 122         mo 123         mo 124         mo 125         mo 126         mo 127         mo 128
+
+                mo 129         mo 130         mo 131         mo 132         mo 133         mo 134         mo 135         mo 136
+
+                mo 137         mo 138         mo 139         mo 140         mo 141         mo 142         mo 143         mo 144
+
+                mo 145         mo 146         mo 147         mo 148         mo 149         mo 150         mo 151         mo 152
+
+                mo 153         mo 154         mo 155         mo 156         mo 157         mo 158         mo 159         mo 160
+
+                mo 161         mo 162         mo 163         mo 164         mo 165         mo 166         mo 167         mo 168
+
+                mo 169         mo 170         mo 171         mo 172         mo 173         mo 174         mo 175         mo 176
+
+                mo 177         mo 178         mo 179         mo 180         mo 181         mo 182         mo 183         mo 184
+
+                mo 185         mo 186         mo 187         mo 188         mo 189         mo 190         mo 191         mo 192
+
+                mo 193         mo 194         mo 195         mo 196         mo 197         mo 198         mo 199         mo 200
+
+                mo 201         mo 202         mo 203         mo 204         mo 205         mo 206         mo 207         mo 208
+
+                mo 209         mo 210         mo 211         mo 212         mo 213         mo 214         mo 215         mo 216
+
+                mo 217         mo 218         mo 219         mo 220         mo 221         mo 222         mo 223         mo 224
+
+                mo 225         mo 226         mo 227         mo 228         mo 229         mo 230         mo 231         mo 232
+
+                mo 233         mo 234         mo 235         mo 236         mo 237         mo 238         mo 239         mo 240
+
+                mo 241         mo 242         mo 243         mo 244         mo 245         mo 246         mo 247         mo 248
+
+                mo 249         mo 250         mo 251         mo 252         mo 253         mo 254         mo 255         mo 256
+
+                mo 257         mo 258         mo 259         mo 260         mo 261         mo 262         mo 263         mo 264
+
+                mo 265         mo 266         mo 267         mo 268         mo 269         mo 270         mo 271         mo 272
+
+                mo 273         mo 274         mo 275         mo 276         mo 277         mo 278         mo 279         mo 280
+
+                mo 281         mo 282         mo 283         mo 284         mo 285         mo 286         mo 287         mo 288
+
+                mo 289         mo 290         mo 291         mo 292         mo 293         mo 294         mo 295         mo 296
+
+                mo 297         mo 298         mo 299         mo 300         mo 301         mo 302         mo 303         mo 304
+
+                mo 305         mo 306         mo 307         mo 308         mo 309         mo 310         mo 311         mo 312
+
+                mo 313         mo 314         mo 315         mo 316         mo 317         mo 318         mo 319         mo 320
+
+                mo 321         mo 322         mo 323         mo 324         mo 325         mo 326         mo 327         mo 328
+
+                mo 329         mo 330         mo 331         mo 332         mo 333         mo 334         mo 335         mo 336
+
+                mo 337         mo 338         mo 339         mo 340         mo 341         mo 342         mo 343         mo 344
+
+                mo 345         mo 346         mo 347         mo 348         mo 349         mo 350         mo 351         mo 352
+
+                mo 353         mo 354         mo 355         mo 356         mo 357         mo 358         mo 359         mo 360
+
+                mo 361         mo 362         mo 363         mo 364         mo 365         mo 366         mo 367         mo 368
+
+                mo 369         mo 370         mo 371         mo 372         mo 373         mo 374         mo 375         mo 376
+
+                mo 377         mo 378         mo 379         mo 380         mo 381         mo 382         mo 383         mo 384
+
+                mo 385         mo 386         mo 387         mo 388         mo 389         mo 390         mo 391         mo 392
+
+                mo 393         mo 394         mo 395         mo 396         mo 397         mo 398         mo 399         mo 400
+
+                mo 401         mo 402         mo 403         mo 404         mo 405         mo 406         mo 407         mo 408
+
+                mo 409         mo 410         mo 411         mo 412         mo 413         mo 414         mo 415         mo 416
+
+                mo 417         mo 418         mo 419         mo 420         mo 421         mo 422         mo 423         mo 424
+
+                mo 425         mo 426         mo 427         mo 428         mo 429         mo 430         mo 431         mo 432
+
+                mo 433         mo 434         mo 435         mo 436         mo 437         mo 438         mo 439         mo 440
+
+                mo 441         mo 442         mo 443         mo 444         mo 445         mo 446         mo 447         mo 448
+
+                mo 449         mo 450         mo 451         mo 452         mo 453         mo 454         mo 455         mo 456
+
+                mo 457         mo 458         mo 459         mo 460         mo 461         mo 462         mo 463         mo 464
+
+                mo 465         mo 466         mo 467         mo 468         mo 469         mo 470         mo 471         mo 472
+
+                mo 473         mo 474         mo 475         mo 476         mo 477         mo 478         mo 479         mo 480
+
+                mo 481         mo 482         mo 483         mo 484         mo 485         mo 486         mo 487         mo 488
+
+                mo 489         mo 490         mo 491         mo 492         mo 493         mo 494         mo 495         mo 496
+
+                mo 497         mo 498         mo 499         mo 500         mo 501         mo 502         mo 503         mo 504
+
+                mo 505         mo 506         mo 507         mo 508         mo 509         mo 510
+ IOSRES:wnatol  1.000000000000000E-007
+ nad:redundant:v-v anumer  4.513473942846166E-007
+ ab,ba,fci(ab),fci(ba):                     24                    33
+ -5.310635236121202E-003 -2.859565971215440E-003
+ ma,mb,d1atr(ma,mb):                      4                     3
+ -4.961001253032050E-003
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     25                    43
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      5                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     35                    44
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      5                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     26                    53
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     36                    54
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     46                    55
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -1.161374158362230E-018
+ ab,ba,fci(ab),fci(ba):                     27                    63
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     3
+  2.350206082692686E-018
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  2.638827604408301E-007
+ ab,ba,fci(ab),fci(ba):                     37                    64
+  9.883364267028881E-004  1.848180764880777E-003
+ ma,mb,d1atr(ma,mb):                      7                     4
+ -1.740551533774326E-003
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     47                    65
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     57                    66
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     28                    73
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     38                    74
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     48                    75
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     58                    76
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     68                    77
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     7
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     29                    83
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     39                    84
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     49                    85
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     59                    86
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     69                    87
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     7
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     79                    88
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     8
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -2.161791634451712E-006
+ ab,ba,fci(ab),fci(ba):                     30                    93
+ -6.610275100195248E-004 -3.411895492210733E-004
+ ma,mb,d1atr(ma,mb):                     10                     3
+ -6.428629909835471E-004
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -1.401882617710370E-019
+ ab,ba,fci(ab),fci(ba):                     40                    94
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     4
+  2.836909217964915E-019
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     50                    95
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     60                    96
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  7.683416694645613E-007
+ ab,ba,fci(ab),fci(ba):                     70                    97
+  2.300441334523244E-004  1.176777121904345E-004
+ ma,mb,d1atr(ma,mb):                     10                     7
+  2.258346146127494E-004
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     80                    98
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     8
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     90                    99
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     9
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+
+   Block resolution info:
+ numaa  =   100
+ numado =     0
+ numaf  =   100
+ qfresd = F
+ qfresa = T
+ qfresv = T
+ qresaf = F
+ mcd1fl and fock matrices read
+ IOSRES:wnatol  1.000000000000000E-007
+ nad:redundant:v-v anumer  4.513473942846166E-007
+ ab,ba,fci(ab),fci(ba):                     24                    33
+ -5.310635236121202E-003 -2.859565971215440E-003
+ ma,mb,d1atr(ma,mb):                      4                     3
+ -4.961001253032050E-003
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     25                    43
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      5                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     35                    44
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      5                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     26                    53
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     36                    54
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     46                    55
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      6                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -1.161374158362230E-018
+ ab,ba,fci(ab),fci(ba):                     27                    63
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     3
+  2.350206082692686E-018
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  2.638827604408301E-007
+ ab,ba,fci(ab),fci(ba):                     37                    64
+  9.883364267028881E-004  1.848180764880777E-003
+ ma,mb,d1atr(ma,mb):                      7                     4
+ -1.740551533774326E-003
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     47                    65
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     57                    66
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      7                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     28                    73
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     38                    74
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     48                    75
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     58                    76
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     68                    77
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      8                     7
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     29                    83
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     3
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     39                    84
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     4
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     49                    85
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     59                    86
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     69                    87
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     7
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     79                    88
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                      9                     8
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -2.161791634451712E-006
+ ab,ba,fci(ab),fci(ba):                     30                    93
+ -6.610275100195248E-004 -3.411895492210733E-004
+ ma,mb,d1atr(ma,mb):                     10                     3
+ -6.428629909835471E-004
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer -1.401882617710370E-019
+ ab,ba,fci(ab),fci(ba):                     40                    94
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     4
+  2.836909217964915E-019
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     50                    95
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     5
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     60                    96
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     6
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  7.683416694645613E-007
+ ab,ba,fci(ab),fci(ba):                     70                    97
+  2.300441334523244E-004  1.176777121904345E-004
+ ma,mb,d1atr(ma,mb):                     10                     7
+  2.258346146127494E-004
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     80                    98
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     8
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ nad:redundant:v-v anumer  0.000000000000000E+000
+ ab,ba,fci(ab),fci(ba):                     90                    99
+  0.000000000000000E+000  0.000000000000000E+000
+ ma,mb,d1atr(ma,mb):                     10                     9
+  0.000000000000000E+000
+ energy1-energy2:  -0.494158434409129     
+ essential virtual-active rotations
+
+ mcscf restart file: fortran unit=19, name(12)=/tmp/schuurm/COLSCR/WORK/restart                            
+ lenm2e_mc =  4096
+ n2embf_mc =  2730
+ ifmt,ifmtin:                     0                     0
+
+ mosort: allocated sort2 space, avc2is=    65462668 available sort2 space, avcisx=    65462668
+
+ mcscf hessian file: fortran unit=20, name(13)=/tmp/schuurm/COLSCR/WORK/mchess                             
+
+ ************************************************************
+
+   Solution of the Linear System of Equations:
+
+     Desired residual norm convergence = 1.0000E-06
+     Minimum denominater value: dtol = 1.0000E-06
+     Maximum subspace dimension for r vector =  16
+     Maximum subspace dimension for s vector =   5
+     Maximum number of iterations: nmiter = 100
+     Dimension of Lambda[orb]:  16
+     Dimension of Lambda[csf]:     6
+
+ miter=  1 |orbl|= 1.0189E-01 |csfl|= 0.0000E+00 rznorm= 1.8382E-01 rpnorm= 2.9623E-01 noldr=  1 nnewr=  2 nolds=  0 nnews=  1
+ miter=  2 |orbl|= 4.4591E-01 |csfl|= 6.9890E-01 rznorm= 3.7190E-02 rpnorm= 1.0331E-01 noldr=  2 nnewr=  3 nolds=  1 nnews=  2
+ miter=  3 |orbl|= 4.6022E-01 |csfl|= 9.0551E-01 rznorm= 2.4217E-03 rpnorm= 1.3848E-02 noldr=  3 nnewr=  4 nolds=  2 nnews=  3
+ lmicro: final convergence values.
+ miter=  4 |orbl|= 4.6440E-01 |csfl|= 8.7611E-01 rznorm= 3.2048E-16 rpnorm= 7.3108E-17 noldr=  4 nnewr=  4 nolds=  3 nnews=  3
+
+ ************************************************************
+
+ mcscf hessian file read and processed
+
+ mcscf 2-particle density file: fortran unit=16, name( 9)=/tmp/schuurm/COLSCR/WORK/mcd2fl                             
+
+ effective 1-particle density file: fortran unit=21, name(14)=/tmp/schuurm/COLSCR/WORK/effd1fl                            
+ icd(44):                     1                  3080
+ icd(45):                     1                  4095
+ icd(46):                     1                  2729
+ icd(47):                     1                  2730
+ mcscf restart read
+
+ wrnat: orbital occupations and coefficents for the effective density matrix d1_eff(:,:) were written.
+
+ effno and effocc file : fortran unit=23, name(16)=/tmp/schuurm/COLSCR/WORK/nocoef_cigrd                       
+ beginning effective two-particle density matrix sort...
+ sort1: nvals=        44 nvlout=        88
+
+ ************************************************************
+
+        ***  RESULTS:  ***
+
+     norm of Lambda(orb) =      0.46440398
+     norm of Lambda(csf) =      0.61100417
+
+     isym= 1   tr(d1(eff)*h) - tr(d1*h)=      -0.000000000000
+tr(d1(eff)*h)=       -0.0000000000
+tr(d1*h)     =        0.0000000000
+tr((d1(eff)-d1)*h)=       -0.0000000000
+
+      eci = tr(d1*h) + tr(d2*g) =                                0.000000000000
+      eci(eff) = tr(d1eff * h) + tr(d2eff * g) =                -0.000000000000
+
+      abs(eci - eci(eff))       =  3.0084E-16
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j=  3  2 f(ij)-f(ji)=   1.8849E-02 ftol=********f(ij)= -4.7454E-02
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j=  4  1 f(ij)-f(ji)=   9.2462E-03 ftol=********f(ij)=  9.9150E-02
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j=  4  3 f(ij)-f(ji)=   2.4514E-03 ftol=********f(ij)= -5.3114E-03
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j=  7  2 f(ij)-f(ji)=   6.8653E-03 ftol=********f(ij)=  1.0700E-02
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j=  7  4 f(ij)-f(ji)=   8.6010E-04 ftol=********f(ij)=  9.8785E-04
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j= 10  1 f(ij)-f(ji)=   9.5157E-04 ftol=********f(ij)=  5.8170E-03
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j= 10  3 f(ij)-f(ji)=   3.1765E-04 ftol=********f(ij)= -6.5854E-04
+***warning***  effective fock matrix is not symmetric 
+     isym=  1 i,j= 10  7 f(ij)-f(ji)=   1.1160E-04 ftol=********f(ij)=  2.2840E-04
+
+ effective 1-particle density file: fortran unit=21, name(14)=/tmp/schuurm/COLSCR/WORK/effd1fl                            

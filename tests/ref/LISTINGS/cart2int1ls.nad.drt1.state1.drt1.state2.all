@@ -1,0 +1,50 @@
+
+&& iteration number 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+      ******************************************
+     **    PROGRAM:              cart2int    **
+     **    PROGRAM VERSION:      1.0         **
+     **    DISTRIBUTION VERSION: 5.9.a       **
+     ******************************************
+
+ ======== echo of the cart2int input ========
+ ------------------------------------------------------------------------
+  &input
+  calctype='cart2int',
+  intgradout=1,
+  gradfl='cartgrd.nad.drt1.state1.drt1.state2',
+  forceinau=0,
+  intgradfl='intgrd.nad.drt1.state1.drt1.state2',
+ /&end
+ ------------------------------------------------------------------------
+
+          Initial Cartesian nuclear coordinates in angstrom
+
+      #  Symb  Nukl     x           y           z          mass
+    -----------------------------------------------------------------
+      1   H      1   0.0000000   0.0000000  -0.3707000   1.0078250
+      2   H      1   0.0000000   0.0000000   0.3707000   1.0078250
+ 
+
+          Cartesian forces
+
+      #  Symb        fx          fy          fz
+    -------------------------------------------------
+      1   H        0.000000    0.000000    0.000000
+      2   H        0.000000    0.000000   -0.000000
+
+          B matrix
+
+               int  1 
+ cart  3     -1.00000000
+ cart  6      1.00000000
+               -->> B matrix successfully written to file: bmatrix   
+               linear equation solved in   1 itererations
+               lin. eq. sol. residuum= .00000000E+00
+
+     internal coordinates and forces
+
+   1     0.7414000   -0.0000000
+ maximum force on coord.    1 =   -0.0000000
+               -->> Int. geom successfully written to file: intgeom   
+               -->> Int. grad. successfully written to file: intgrd.nad
