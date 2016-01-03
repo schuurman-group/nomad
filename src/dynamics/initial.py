@@ -89,17 +89,13 @@ def ho_distribution(master):
 #  Take initial position and momentum from geometry.dat file
 #
 def user_specified(master):
-    phase_gm   = fileio.read_geometry()
-    print("n_orbs = "+str(glbl.pes['n_orbs']))
-    master.add_trajectory(trajectory.trajectory(
-                          phase_gm,
-                          glbl.fms['interface'],
-                          glbl.fms['n_states'],
-                          tid=0,
-                          parent=0,
-                          n_basis=int(glbl.pes['n_orbs'])))
-    print("geom = "+str(master.traj[0].x))
-    master.traj[0].amplitude = complex(1.,0.)
+    geom_list = [fileio.read_geometry()]
+    amp_list  = [complex(1.,0.)]
+    pes.populate_bundle(master,geom_list,amp_list)
+
+    tmpx = master.traj[0].x()
+    print("tmpx[0]="+str(tmpx[0]))
+    print("geom = "+str(master.traj[0].x()))
     set_initial_state(master)
     return
 

@@ -10,7 +10,7 @@ def main():
     # of the dynamics, pass the starting time of the simluation
     # and the end time
     # 
-    fileio.read_fms_input()
+    fileio.read_input_files()
     #
     # initialize random number generator
     #
@@ -25,7 +25,7 @@ def main():
     #
     print("calling init_trajectories")
     initial.init_trajectories(master)
-    print('initial geom='+str(repr(master.traj[0].x)))
+    print('initial geom='+str(repr(master.traj[0].x())))
     #
     # propagate the trajectories 
     #

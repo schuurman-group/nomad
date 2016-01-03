@@ -101,24 +101,24 @@ class trajectory:
     #
     def x(self):
         return np.fromiter((self.particles[i].x[j]
-                          for j in range(self.d_particle)
-                          for i in range(self.n_particle)),dtype=np.float)
+                          for i in range(self.n_particle)
+                          for j in range(self.d_particle)),dtype=np.float)
 
     #
     # Returns the momentum of the particles in the trajectory as an array 
     #
     def p(self):
         return np.fromiter((self.particles[i].p[j]
-                          for j in range(self.d_particle)
-                          for i in range(self.n_particle)),dtype=np.float)
+                          for i in range(self.n_particle)
+                          for j in range(self.d_particle)),dtype=np.float)
 
     #
     # return a vector containing masses of particles
     # 
     def masses(self):
         return np.fromiter((self.particles[i].mass 
-                          for j in range(self.d_particle) 
-                          for i in range(self.n_particle)),dtype=np.float)
+                          for i in range(self.n_particle) 
+                          for j in range(self.d_particle)),dtype=np.float)
 
     #
     # return a vector containing the widths of the b.f. along each d.o.f

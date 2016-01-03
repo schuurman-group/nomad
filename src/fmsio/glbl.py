@@ -6,6 +6,10 @@ bohr2ang = 0.529177249
 mass2au  = 1822.887
 au2cm    = 219474.63
 fpzero   = 1.e-10
+
+# current working directory
+working_dir = ''
+
 #
 # Simulation parameters read form the fms.input file
 #
@@ -32,15 +36,10 @@ fms = dict(
 # Electronic structure information read from interface-specific
 # routines 
 #
-pes  = dict(
+# COLUMBUS input variables
+columbus  = dict(
        # level of mrci: 0-mcscf, 1-foci, 2-soci, etc.
        mrci_lvl          = 1,
-       # number of orbitals
-       n_orbs            = 0,
-       # number of mcscf states to determine
-       n_mcstates        = 0,
-       # number of ci roots to determine
-       n_cistates        = 0,
        # memory per core in MB   
        mem_per_core      = 100,
           )
@@ -49,4 +48,8 @@ pes  = dict(
 # Vibronic multistate representation, loaded by operator parsing
 # function
 #
+vibronic = dict (
+       # highest polynomial order in vibronic expansion
+       ordr_max          = 1,
+          )
 

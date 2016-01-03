@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.particle as particle
@@ -6,6 +7,48 @@ formats = dict()
 headers = dict()
 traj_keys = ('trajectory','potential','coupling','dipoles','quadrupoles','charges')
 bund_keys = ('pop','energy')
+
+# 
+# Read the fms.input file. This contains variables related
+# to the running of the dynamics simulation.
+#
+def read_input_files():
+
+    #
+    # Read fms.input. This contains general simulation variables
+    # 
+    kwords = read_namelist('fms.input')
+    for k,v in kwords.items():
+        if k in glbl.fms:
+            glbl.fms[k] = v
+        else:
+            print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
+    glbl.working_dir = os.getcwd()
+
+    #
+    # Read pes.input. This contains interface-specific user options. Get what
+    #  interface we're using via glbl.fms['interface'], and populate the corresponding
+    #  dictionary of keywords from glbl module
+    #
+    # Clumsy. Not even sure this is the best way to do this (need to segregate
+    # variables in different dictionaries. fix this later
+    kwords = read_namelist('pes.input')
+    if glbl.fms['interface'] == 'columbus':
+        for k,v in kwords.items():
+            if k in glbl.columbus:
+                glbl.columbus[k] = v
+            else:
+                print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
+    elif glbl.fms['interface'] == 'vibronic':
+        for k,v in kwords.items():
+            if k in glbl.vibronic:
+                glbl.vibronic[k] = v
+            else:
+                print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
+    else:
+        print("Interface: "+str(glbl.fms['interface'])+" not recognized.")
+
+    return
 
 #
 # Reads a namelist style input, returns results in dictionary
@@ -30,23 +73,12 @@ def read_namelist(filename):
     f.close()
     return kwords
 
-# 
-# Read the fms.input file. This contains variables related
-# to the running of the dynamics simulation.
-#
-def read_fms_input():
-    # 
-    kwords = read_namelist('fms.input')
-    for k,v in kwords.items():
-        if k in glbl.fms:
-            glbl.fms[k] = v
-        else:
-            print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
-
 #
 # initialize all the ouptut format descriptors
 #
 def init_fms_output():
+    global headers, formats, traj_keys
+
     np = glbl.num_particles
     nd = glbl.dim_particles
     ns = glbl.n_states
@@ -143,7 +175,7 @@ def update_output():
 def read_geometry():
     p_list = [] 
 
-    gm_file = open('geometry.dat','r',encoding='utf-8')
+    gm_file = open(glbl.working_dir+'/geometry.dat','r',encoding='utf-8')
     # comment line
     gm_file.readline()
     # number of atoms
@@ -162,6 +194,8 @@ def read_geometry():
     for i in range(natm):
         line = gm_file.readline().rstrip().split()
         p_list[i].p = np.fromiter((float(line[j]) for j in range(3)),np.float)
+
+    gm_file.close()
     
     # return the particle list specification
     return p_list
@@ -170,7 +204,7 @@ def read_geometry():
 # Read a hessian matrix (not mass weighted)
 #
 def read_hessian():
-    hessian = np.loadtxt('hessian.dat',dtype='float') 
+    hessian = np.loadtxt(glbl.working_dir+'/hessian.dat',dtype='float') 
     return hessian
 
 #----------------------------------------------------------------------------
