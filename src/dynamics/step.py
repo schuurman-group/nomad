@@ -1,9 +1,10 @@
 import sys
 import numpy as np
-from ..fmsio import glbl
-from ..basis import trajectory
-from ..basis import bundle 
-propagate = __import__('src.propagators.'+glbl.fms['propagator'],globals(),locals(),[],0)
+import src.fmsio.glbl as glbl
+import src.basis.trajectory as trajectory
+import src.basis.bundle as bundle
+integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
+
 #-----------------------------------------------------------------------------
 #
 # Public functions
@@ -26,9 +27,9 @@ def time_step(master):
 # Propagate the wave packet using a run-time selected propagator
 #
 def fms_step_bundle(master,init_time,dt):
-    
+
     # save the bundle from previous step in case step rejected
-    master0 = bundle.bundle()
+    master0 = bundle.bundle(glbl.fms['surface_type'])
     current_time = init_time
     end_time     = init_time + dt
     time_step    = dt
@@ -40,7 +41,7 @@ def fms_step_bundle(master,init_time,dt):
 
         # propagate each trajectory in the bundle
         for i in range(master.nalive): 
-            propagate.propagate(master.trajectory[i],time_step)  
+            integrator.propagate(master.traj[i],time_step)  
 
         # update centroids (not technically necessary -- but easier
         # to update all at once so more readily parallelized

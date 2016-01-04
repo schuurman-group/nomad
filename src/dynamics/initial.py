@@ -103,7 +103,7 @@ def user_specified(master):
 # set the initial state of the trajectories in the bundle
 #
 def set_initial_state(master):
-    if glbl.fms['init_state'] !=0:
+    if glbl.fms['init_state'] != 0:
         for i in range(master.n_total()):
             master.traj[i].state = glbl.fms['init_state']
     elif glbl.fms['init_brightest']:

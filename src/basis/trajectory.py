@@ -74,14 +74,14 @@ class trajectory:
     #
     def update_x(self,pos):
         for i in range(self.n_particle):
-            self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle-1]
+            self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle]
 
     #
     # Update the momentum of the particles in the trajectory. Flips up2date switch to False
     #
     def update_p(self,mom):
         for i in range(self.n_particle):
-            self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle-1]
+            self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle]
 
     #
     # update the nuclear phase 
@@ -135,27 +135,30 @@ class trajectory:
     #
     # return the potential energies. If not current, recompute them
     #
-    def energy(self,istate=0):
-        self.poten = self.pes.energy(self.tid, self.particles, self.state)
-        if istate:
-            return self.poten[istate]
-        else:
-            return self.poten
+    def energy(self,rstate):
+        self.poten[rstate] = self.pes.energy(self.tid, self.particles, self.state, rstate)
+        return self.poten[rstate]
 
     #
     # return the derivative with ket state = rstate. bra state assumed to be 
     # the current state
     #
     def derivative(self,rstate):
-        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, rstate)
+        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, self.state, rstate)
         return self.deriv[rstate,:]
     
     #
     #
     #
     def dipole(self,rstate):
-        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, rstate)
+        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, self.state, rstate)
         return self.dipole[rstate,:]
+
+    #
+    #
+    #
+    def tdipole(self,rstate):
+        self.tdipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, self.state, rstate)
 
     #
     #
@@ -166,15 +169,9 @@ class trajectory:
 
     #
     #
-    #
-    def tdipole(self,rstate):
-        self.tdipole[rstate,:] = self.pes.tdipole(self.tid, self.particles, self.state, rstate)
-
-    #
-    #
     # 
     def charges(self,rstate):
-        self.charges[rstate,:] = self.pes.charges(self.tid, self.particles, self.state, rstate)
+        self.charges[rstate,:] = self.pes.atomic_charges(self.tid, self.particles, self.state, rstate)
         return self.charges[rstate,:]
 
     #
@@ -193,13 +190,13 @@ class trajectory:
     # Classical potential energy
     #
     def potential(self):
-        return self.energy(self,istate=self.state)
+        return self.energy(self.state)
 
     #
     # Classical kinetic energy
     #
     def kinetic(self):
-         return 0.5 * sum( self.p() * self.p() / self.masses ) 
+         return 0.5 * sum( self.p() * self.p() / self.masses() ) 
 
     #
     # Returns the classical energy of the trajectory

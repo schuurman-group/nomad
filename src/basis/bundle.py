@@ -99,7 +99,7 @@ class bundle:
                                                       self.cent[ij])
                         self.H[c,r] = conjugate(self.H[r,c])
         # compute the S^-1, needed to compute Heff
-        self.Sinv = sp.linalg.pinv(S)                 
+        self.Sinv = np.linalg.pinv(self.S)                 
         self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
 
     #
