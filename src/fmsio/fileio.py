@@ -1,12 +1,14 @@
 import os
 import numpy as np
 import src.fmsio.glbl as glbl
-import src.basis.particle as particle
 
-formats = dict()
-headers = dict()
-traj_keys = ('trajectory','potential','coupling','dipoles','quadrupoles','charges')
-bund_keys = ('pop','energy')
+tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'quad_dump',
+               'tran_dump', 'charge_dump', 'grad_dump']
+bkeys       = ['pop_dump', 'bener_dump', 'hmat_dump', 'smat_dump', 'spawn_dump']
+formats     = dict()
+headers     = dict()
+tfile_names = dict()
+bfile_names = dict()
 
 # 
 # Read the fms.input file. This contains variables related
@@ -77,92 +79,141 @@ def read_namelist(filename):
 # initialize all the ouptut format descriptors
 #
 def init_fms_output():
-    global headers, formats, traj_keys
+    global tkeys, bkeys, headers, formats, tfile_names, bfile_names
 
     np = glbl.num_particles
     nd = glbl.dim_particles
     ns = glbl.n_states
-    # trajectory
+    space = ' '
+
+    # trajectory output
     dstr = ("x","y","z")
-    arr1 = [' pos' + str(x+1) + '.' + dstr[y] for x in range(np) for y in range(nd)]
-    arr2 = [' mom' + str(x+1) + '.' + dstr[y] for x in range(np) for y in range(nd)]
-    headers[traj_keys[0]] = 'Time  ' + ' '.join(arr1) + ' '.join(arr2) + ' Phase' + ' Amp ' + ' State'
-    formats[traj_keys[0]] = ''
+    arr1 = [' pos' + str(i+1) + '.' + dstr[x] for i in range(np) for x in range(nd)]
+    arr2 = [' mom' + str(i+1) + '.' + dstr[x] for i in range(np) for x in range(nd)]
+    tfile_names[tkeys[0]] = 'trajectory'
+    headers[tkeys[0]]     = 'Time  ' + ' '.join(arr1) + ' '.join(arr2) + ' Phase' + ' Amp ' + ' State'
+    formats[tkeys[0]]     = '{0:8.2f} '+ ' '+\
+                             space.join('{'+str(i)+':10.6f}' for i in range(1,np*nd+1))         + \
+                             space.join('{'+str(i)+':10.6f}' for i in range(np*nd+1,2*np*nd+1)) + \
+                             space.join('{'+str(i)+':8.4f}'  for i in range(2*np*nd+1,2*np*nd+4))
+
     # potential energy
     arr1 = ['potential.'+str(i+1) for i in range(ns)]
-    headers[traj_keys[1]] = ' Time ' + ' '.join(arr1)
-    formats[traj_keys[1]] = ''
+    tfile_names[tkeys[1]] = 'poten'
+    headers[tkeys[1]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[1]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':16.10f}' for i in range(1,ns+1)) 
+
     # coupling
     arr1 = ['coupling.'+str(i+1) for i in range(ns)]
     arr2 = ['  c * v .'+str(i+1) for i in range(ns)]
-    headers[traj_keys[2]] = ' Time ' + ' '.join(arr1) + ' '.join(arr2)
-    formats[traj_keys[2]] = '' 
-    # dipoles
-    arr1 = ['d'+str(i+1)+str(j+1)+'.'+dstr(k+1) for i in range(ns) for j in range(ns) for k in range(nd)]
-    headers[traj_keys[3]] = ' Time ' + ' '.join(arr1)
-    formats[traj_keys[3]] = ''
+    tfile_names[tkeys[2]] = 'coupling'
+    headers[tkeys[2]]     = '     Time' + ' '.join(arr1) + ' '.join(arr2)
+    formats[tkeys[2]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':10.5f}' for i in range(1,2*ns+1))
+
+    # permanent dipoles
+    arr1 = ['dip_st'+str(i+1)+'.'+dstr(j+1) for i in range(ns) for j in range(nd)]
+    tfile_names[tkeys[3]] = 'dipole'
+    headers[tkeys[3]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[3]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':8.5f}' for i in range(1,ns*nd+1))
+
+    # transition dipoles
+    arr1 = ['td_st'+str(i+1)+str(j+1)+'.'+dstr(k+1) for i in range(ns) for j in range(i) for k in range(nd)]
+    ncol = int(ns*(ns-1)*nd/2+1)
+    tfile_names[tkeys[4]] = 'tr_dipole'
+    headers[tkeys[4]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[4]]     = '{0:8.2f} '+ ' ' + \
+                             space.join('{'+str(i)+':8.5f}' for i in range(1,ncol))
+
     # quadrupoles
-    arr1 = ['q'+str(i+1)+'.'+dstr(j)+dstr(j) for i in range(ns) for j in range(nd)]
-    headers[traj_keys[4]] = ' Time ' + ' '.join(arr1)
-    formats[traj_keys[4]] = ''
+    arr1 = ['quad_st'+str(i+1)+'.'+dstr(j)+dstr(j) for i in range(ns) for j in range(nd)]
+    tfile_names[tkeys[5]] = 'quadrupole'
+    headers[tkeys[5]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[5]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':8.5f}' for i in range(1,ns*nd+1))
+
     #charges
     arr1 = ['part.'+str(i+1) for i in range(np)]
-    headers[traj_keys[5]] = ' Time ' + ' '.join(arr1)
-    formats[traj_keys[5]] = ''
+    tfile_names[tkeys[6]] = 'charge'
+    headers[tkeys[6]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[6]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':8.5f}' for i in range(1,np+1))
+
+    # gradients
+    arr1 = ['grad_part'+str(i+1)+'.'+dstr(j) for i in range(np) for j in range(nd)]
+    tfile_names[tkeys[7]] = 'gradient'
+    headers[tkeys[7]]     = ' Time ' + ' '.join(arr1)
+    formats[tkeys[7]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':8.5f}' for i in range(1,np*nd+1))
+
     # bundle output
+    # adiabatic state populations
     arr1 = ['state '+str(i+1) for i in range(ns)]
-    headers['pop']     = ' Time ' + ' '.join(arr1) + ' Norm'
-    formats['pop']     = ''
+    bfile_names[bkeys[0]] = 'n.dat'
+    headers[bkeys[0]]     = ' Time ' + ' '.join(arr1) + ' Norm'
+    formats[bkeys[0]]     = '{0:8.2f} '+  ' ' + \
+                            space.join('{'+str(i)+':8.5f}' for i in range(1,ns+1)) + \
+                            ' {'+str(ns+1)+':8.5f}'
+
+    # the bundle energy
     arr1 = ('potential(QM)','potential(Cl.)','kinetic(QM)',
             'kinetic(Cl.)','total(QM)','total(Cl.)')
-    headers['energy']  = ' Time ' + ' '.join(arr1)
-    formats['energy']  = ''
-    arr1 = ('time (entry)','time(spawn)','time(exit)','parent','state',
-            'child','state','ke(parent)','pot(parent)','ke(child)','pot(child)')
-    headers['spawn']  = ' '.join(arr1)
-    formats['spawn']  = ''
+    bfile_names[bkeys[1]] = 'e.dat'
+    headers[bkeys[1]]     = ' Time ' + ' '.join(arr1)
+    formats[bkeys[1]]     = '{0:8.2f} ' + ' ' + \
+                             space.join('{'+str(i)+':14.10f}' for i in range(1,6+1))
+
+    # the hamiltonian matrix
+    bfile_names[bkeys[2]] = 'h.dat'
+    formats[bkeys[2]]     = ''
+
+    # the trajectory overlap matrix
+    bfile_names[bkeys[3]] = 's.dat'
+    formats[bkeys[3]]     = ''    
+
+    # the spawn log
+    arr1 = ('time (entry)','time(spawn)','time(exit)',
+            'parent','state','child','state',
+            'ke(parent)','pot(parent)','ke(child)','pot(child)')
+    bfile_names[bkeys[4]] = 'spawn.dat'
+    headers[bkeys[4]]     = ' '.join(arr1)
+    formats[bkeys[4]]     = '{0:8.2f} {1:8.2f} {2:8.2f} '  + \
+                            '{3:4d} {3:4d} {3:4d} {3:4d} ' + \
+                            '{12.8f} {12.8f} {12.8f} {12.8f}'
 
 #
 # Appends a row of data, formatted by entry 'fkey' in formats to file
 # 'filename'
 #
-def print_row(filename,fkey,data):
+def print_traj_row(tid,fkey,data):
+    global tkeys,tfile_names,headers,formats
+    filename = tfile_names[tkeys[fkey]]+'.'+str(tid)
+
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
-            outfile.write(headers[fkey])
-            outfile.write(formats[fkey].format(data))
+            outfile.write(headers[tkeys[fkey]])
+            outfile.write(formats[tkeys[fkey]].format(data))
     else:
         with open(filename, "a") as outfile:
-            outfile.write(formats[fkey].format(data))
-    outfile.close()
+            outfile.write(formats[tkeys[fkey]].format(data))
 
 #
-# Update the trajectory and bundle logs at each time step
+# Appends a row of data, formatted by entry 'fkey' in formats to file
+# 'filename'
 #
-#def update_logs():
-#    # loop over trajectory information
-#    for i in range(master.ntraj)
-#        tid = '.'+str(master.trajectory[i].tid)
-#        for j in range(len(traj_keys))
-#            traj_data = pull_traj_data(i,traj_keys[j])
-#            print_row(traj_keys[j]+tid,traj_keys[j],traj_data)
-#
-#    # update bundle level information
-#    for i in range(len(bund_keys))
-#        bun_data = pull_bundle_data(bund_keys[i])
-#        print_row(bund_keys[i]+'.log',bund_keys[i],bun_data)
+def print_bund_row(fkey,data):
+    global bkeys,bfile_names,headers,formats
+    filename = bfile_names[bkeys[fkey]]
 
-#
-# Update the spawn log after a spawn
-#    
-def update_spawn_log(spawn_data):
-    print_row('spawn.log','spawn',spawn_data)
-
-#
-#
-#
-def update_output():
-    print("current_time="+str(glbl.fms['current_time']))
+    if not os.path.isfile(filename):
+        with open(filename, "x") as outfile:
+            outfile.write(headers[bkeys[fkey]])
+            outfile.write(formats[bkeys[fkey]].format(data))
+    else:
+        with open(filename, "a") as outfile:
+            outfile.write(formats[bkeys[fkey]].format(data))
 
 #----------------------------------------------------------------------------
 #
@@ -173,7 +224,7 @@ def update_output():
 # read in geometry.dat: position and momenta
 #
 def read_geometry():
-    p_list = [] 
+    geom_data = [] 
 
     gm_file = open(glbl.working_dir+'/geometry.dat','r',encoding='utf-8')
     # comment line
@@ -183,22 +234,15 @@ def read_geometry():
 
     # read in geometry
     for i in range(natm):
-        line = gm_file.readline().rstrip().split()
-        dim = len(line)-1
-        p_list.append(particle.particle(dim,i))
-        p_list[i].name = line[0]
-        particle.load_particle(p_list[i])
-        p_list[i].x = np.fromiter((float(line[j+1]) for j in range(3)),np.float)
+        geom_data.append(gm_file.readline().rstrip().split())
 
     # read in momenta
     for i in range(natm):
-        line = gm_file.readline().rstrip().split()
-        p_list[i].p = np.fromiter((float(line[j]) for j in range(3)),np.float)
+        geom_data[i].extend(gm_file.readline().rstrip().split())
 
     gm_file.close()
-    
-    # return the particle list specification
-    return p_list
+
+    return geom_data
 
 #
 # Read a hessian matrix (not mass weighted)

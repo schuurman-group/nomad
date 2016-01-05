@@ -1,8 +1,9 @@
-from src.fmsio import glbl
-from src.fmsio import fileio
-from src.basis import particle
-from src.basis import trajectory
-from src.basis import bundle
+import numpy as np
+import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
+import src.basis.particle as particle
+import src.basis.trajectory as trajectory
+import src.basis.bundle as bundle
 pes = __import__("src.interfaces."+glbl.fms['interface'],fromlist=['NA'])
 #--------------------------------------------------------------------------
 #
@@ -26,7 +27,8 @@ def init_trajectories(master):
         init_restart(master)
     else:
         init_conditions(master)
-    return
+
+    return master.time
 
 #
 # initialize a restart
@@ -73,9 +75,30 @@ def init_conditions(master):
 #    NOTE: assumes that hessian and geometry/momentum are in the same
 #          basis (i.e. atom centered cartesians vs. normal modes)
 #
+def load_geometry():
+    p_list      = []
+    geom_data   = fileio.read_geometry()
+    
+    for i in range(len(geom_data)):
+        dim = int((len(geom_data[i])-1)/2)
+        p_list.append(particle.particle(dim,i))
+        p_list[i].name = geom_data[i][0]
+        particle.load_particle(p_list[i])
+        p_list[i].x = np.fromiter((float(geom_data[i][j]) for j in range(1,4)),dtype=np.float)
+        p_list[i].p = np.fromiter((float(geom_data[i][j]) for j in range(4,7)),dtype=np.float)
+        print('x,p='+str(p_list[i].x)+','+str(p_list[i].p))
+    return p_list
+
+#
+# do some error checking on the hessian file
+#
+def load_hessian():
+    hessian_data = file.read_hessian()
+
+
 def gs_wigner(master):
-    phase_gm   = fileio.read_geometry()
-    hessian    = fileio.read_hessian()
+    phase_gm   = load_geometry()
+    hessian    = load_hessian()
     return
 
 #
@@ -89,12 +112,12 @@ def ho_distribution(master):
 #  Take initial position and momentum from geometry.dat file
 #
 def user_specified(master):
-    geom_list = [fileio.read_geometry()]
+    geom_list = [load_geometry()]
     amp_list  = [complex(1.,0.)]
     pes.populate_bundle(master,geom_list,amp_list)
 
-    tmpx = master.traj[0].x()
-    print("tmpx[0]="+str(tmpx[0]))
+    tmpx = master.traj[0].particles[0].x
+    print("tmpx[0]="+str(tmpx))
     print("geom = "+str(master.traj[0].x()))
     set_initial_state(master)
     return

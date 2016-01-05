@@ -1,16 +1,20 @@
 import sys
+import cmath
 import scipy as sp
 import numpy as np
+import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 class bundle:
-    def __init__(self,surface_rep):
+    def __init__(self,nstates,surface_rep):
         try:
             self.ints = __import__('src.basis.int_'+surface_rep,fromlist=['a'])
         except:
             print("BUNDLE INIT FAIL: src.basis.int_"+surface_rep)
+        self.time = 0.
         self.nalive = 0
         self.ndead = 0
-        self.nstates = 0
+        self.nstates = int(nstates)
         self.traj = []
         self.cent = [] 
         self.H    = np.zeros((0,0),dtype=np.cfloat)
@@ -84,20 +88,20 @@ class bundle:
                                                self.traj[i]) +  \
                               self.ints.v_integral(self.traj[i])
                 c = -1
-                for j in range(i-1):
+                for j in range(i):
                     if self.traj[j].alive:
                         c += 1
                         self.S[r,c] = self.traj[i].overlap(self.traj[j])
-                        self.S[c,r] = conjugate(self.S(r,c))
+                        self.S[c,r] = self.S(r,c).conjugate()
                         self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
                                                             self.traj[j])
-                        self.Sdot[c,r] = conjugate(self.Sdot(r,c))
+                        self.Sdot[c,r] = self.Sdot(r,c).conjugate()
                         self.H[r,c] = self.ints.ke_integral(self.traj[i],
                                                        self.traj[j]) + \
                                       self.ints.v_integral(self.traj[i],
                                                       self.traj[j],
                                                       self.cent[ij])
-                        self.H[c,r] = conjugate(self.H[r,c])
+                        self.H[c,r] = self.H[r,c].conjugate()
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)                 
         self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
@@ -105,7 +109,7 @@ class bundle:
     #
     # update the amplitudes of the trajectories in the bundle
     #
-    def propagate_amplitudes(self, dt, n_max):
+    def update_amplitudes(self, dt, n_max):
         # Solve:
         #  d/dt C = -i H C
         #
@@ -122,50 +126,50 @@ class bundle:
         #    exp(Bn) = I + Bn + 1/2 B2**2 + 1/3! Bn**3 + 1/4! Bn**4
         #
         # n is varied until C_tdt is stable
-        old_amp   = self.amplitudes()
-        new_amp   = np.zeros(self.nalive)
+        old_amp   = np.cfloat(self.amplitudes())
+        new_amp   = np.zeros(self.nalive,dtype=np.cfloat)
         Id        = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        for i in range(nalive):
+        for i in range(self.nalive):
             Id[i,i] = complex(1.,0.)
 
         B = -complex(0.,1.) * self.Heff * dt
-        amp_prev = complex(0.,0.)
+        prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
 
         for n in range(n_max):
             Bn  = B / 2**n
-            Bn2 = Bn.Bn
-            Bn3 = Bn2.Bn
-            Bn4 = Bn2.Bn2
+            Bn2 = np.dot(Bn,Bn)
+            Bn3 = np.dot(Bn2,Bn)
+            Bn4 = np.dot(Bn2,Bn2)
 
             taylor = Id + Bn + Bn2/2.0 + Bn3/6.0 + Bn4/24.0 
             taylor_prod = taylor
             for i in range(n):
-                taylor_prod = taylor_prod.taylor_prod
+                taylor_prod = np.dot(taylor_prod,taylor_prod)
 
-            new_amp = taylor_prod.old_amp
+            new_amp = np.dot(taylor_prod,old_amp)
             error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
-            if error < 1.e-10:
+            if abs(error) < 1.e-10:
                 break
             else:
                 prev_amp = new_amp            
 
         cnt = -1
-        for i in range(self.n_total):
-            if traj[i].alive:
+        for i in range(self.n_total()):
+            if self.traj[i].alive:
                 cnt += 1
-                traj[i].amplitude = new_amp[cnt]
+                self.traj[i].amplitude = new_amp[cnt]
         return
 
     #
     # return amplitudes of the trajectories
     #
     def amplitudes(self):
-        amps = np.zeros(self.nalive)
+        amps = np.zeros(self.nalive,dtype=np.cfloat)
         cnt = -1
         for i in range(self.n_total()):
-            if traj[i].alive:
+            if self.traj[i].alive:
                 cnt += 1
-                amps[cnt] = traj[i].amplitude
+                amps[cnt:] = np.cfloat(self.traj[i].amplitude) 
         return
 
     #
@@ -182,14 +186,14 @@ class bundle:
     
         # check if trajectories are coupled
         for i in range(self.nalive):
-            for j in range(i-1):
-                if abs(self.H[i,j]) > variable['coup_thresh']:
+            for j in range(i):
+                if abs(self.H[i,j]) > glbl.fms['coup_thresh']:
                     return True
 
         # check if any trajectories exceed NAD threshold
         for i in range(self.nalive):
             for j in range(self.nstates):
-                if self.traj[i].coup_dot_vel(j) > variable['nad_thresh']:
+                if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['nad_thresh']:
                     return True
 
         # else, return false
@@ -199,19 +203,19 @@ class bundle:
     # return the populations on each of the states
     # 
     def pop(self):
-        pop = np.zeros(self.nstates)
+        pop = np.zeros(self.nstates,dtype=np.float)
         for i in range(self.n_total()):
             state = self.traj[i].state
-            for j in range(i-1):
+            for j in range(i):
                 if self.traj[i].alive != self.traj[j].alive:
                     continue
                 olap = self.traj[i].overlap(self.traj[j])
-                pop[state] = pop(state) + float( olap * 
-                                       self.traj[i].amplitude * 
-                                       conjugate(self.traj[j].amplitude) )
-            pop[state] = pop(state) + \
-                         self.traj[i].amplitude * \
-                         conjugate(self.traj[j].amplitude)
+                pop[state] = pop[state] + \
+                             abs( olap * self.traj[i].amplitude * 
+                                           self.traj[j].amplitude.conjugate() )
+            pop[state] = pop[state] + \
+                         abs( self.traj[i].amplitude * 
+                                self.traj[i].amplitude.conjugate() )
         return pop        
 
     #
@@ -226,8 +230,8 @@ class bundle:
             if not self.traj[i].alive:
                continue
             olap = self.traj[tid].overlap(self.traj[i])                      
-            mulliken = mulliken + abs(conjugate(self.traj[tid].amplitude)
-                                       * olap * self.traj[i].amplitude)
+            mulliken = mulliken + abs( olap * self.traj[tid].amplitude.conjugate()
+                                            * self.traj[i].amplitude)
         return mulliken
 
  #-----------------------------------------------------------------------------
@@ -235,6 +239,58 @@ class bundle:
  # functions to read/write bundle to checkpoint files
  #
  #-----------------------------------------------------------------------------
+    #
+    # update the log files
+    #
+    def update_logs():
+        
+        for i in range(self.n_total()):
+            if self.traj[i].alive:
+
+                # trajectory file
+                data = [self.time]
+                data.extend(self.traj[i].x().tolist())
+                data.extend(self.traj[i].p().tolist())
+                data.extend([self.traj[i].phase,self.traj[i].amplitude,self.traj[i].state])
+                fileio.print_traj_row(self.traj[i].tid,0,data)
+
+                # potential energy
+                data = [self.time]
+                data.extend([self.traj[i].energy(j) for j in range(self.nstates)])
+                fileio.print_traj_row(self.traj[i].tid,1,data)
+
+                # coupling
+                data = [self.time]
+                data.extend([self.traj[i].coupling_norm(j) for j in range(self.nstates)])
+                data.extend([self.traj[i].coup_dot_vel(j) for j in range(self.nstates)])
+                fileio.print_traj_row(self.traj[i].tid,2,data)
+
+                # permanent dipoles
+                data = [self.time]
+                data.extend([self.traj[i].dipole(j) for j in range(self.nstates)])
+                fileio.print_traj_row(self.traj[i].tid,3,data)
+
+                # transition dipoles
+                data = [self.time]
+                data.extend([self.traj[i].tdipole(i,j) for j in range(self.nstates) for k in range(j)])
+                fileio.print_traj_row(self.traj[i].tid,4,data)
+
+                # quadrupoles
+                data = [self.time]
+                data.extend([self.traj[i].quadpole(j) for j in range(self.nstates)])
+                fileio.print_traj_row(self.traj[i].tid,5,data)
+ 
+                #charges
+                data = [self.time]
+                data.extend([self.traj[i].charges(j) for j in range(self.nstates)])
+                fileio.print_traj_row(self.traj[i].tid,6,data)
+
+                # gradients
+                data = [self.time]
+                data.extend(self.traj[i].derivative(self.traj[i].state.tolist()))
+                fileio.print_traj_row(self.traj[i].tid,7,data)
+
+
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
     #          

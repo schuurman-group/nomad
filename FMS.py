@@ -18,7 +18,7 @@ def main():
     #
     # Create the collection of trajectories
     #
-    master = bundle.bundle(glbl.fms['surface_type'])
+    master = bundle.bundle(glbl.fms['n_states'],glbl.fms['surface_type'])
     #
     # set the initial conditions for trajectories
     #
@@ -26,19 +26,21 @@ def main():
     #
     # propagate the trajectories 
     #
-    while glbl.fms['current_time'] < glbl.fms['simulation_time']:
+    while master.time < glbl.fms['simulation_time']:
         # set the time step 
-        current_time = glbl.fms['current_time']
-        default_dt   = step.time_step(master)         
+        current_time = master.time
+        time_step    = step.time_step(master)         
 
         # take an fms dynamics step, return the number at conclusion of step
-        step.fms_step_bundle(master,current_time,default_dt)   
-
-        # update the fms output files, as well as checkpoint, if necessary
-        fileio.update_output(master)
+        step.fms_step_bundle(master,current_time,time_step)   
 
         # if no more live trajectories, simulation is complete
-        if(master.nalive == 0): break
+        if(master.nalive == 0):
+            break
+
+        # update the fms output files, as well as checkpoint, if necessary
+        master.time += time_step
+        master.update_logs() 
 
     fileio.cleanup()
 

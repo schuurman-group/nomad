@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
@@ -29,7 +30,7 @@ def time_step(master):
 def fms_step_bundle(master,init_time,dt):
 
     # save the bundle from previous step in case step rejected
-    master0 = bundle.bundle(glbl.fms['surface_type'])
+    master0 = bundle.bundle(glbl.fms['n_states'],glbl.fms['surface_type'])
     current_time = init_time
     end_time     = init_time + dt
     time_step    = dt
@@ -147,11 +148,11 @@ def check_step_bundle(master0, master, time_step):
     #  ... or energy conservation
     #  (only need to check traj which exist in master0. If spawned, will be
     #  last entry(ies) in master
-    for i in range(master0.ntotal()):
-        energy_old = master0.trajectory[i].potential() +  \
-                     master0.trajectory[i].kinetic()
-        energy_new =  master.trajectory[i].potential() +  \
-                      master.trajectory[i].kinetic()
+    for i in range(master0.n_total()):
+        energy_old = master0.traj[i].potential() +  \
+                     master0.traj[i].kinetic()
+        energy_new =  master.traj[i].potential() +  \
+                      master.traj[i].kinetic()
         if abs(energy_old - energy_new) > 0.005:
             return False
     #
@@ -166,8 +167,8 @@ def check_step_trajectory(traj0, traj, time_step):
     #  ... or energy conservation
     #  (only need to check traj which exist in master0. If spawned, will be
     #  last entry(ies) in master
-    energy_old = master0.trajectory[i].classical()
-    energy_new =  master.trajectory[i].classical()
+    energy_old = master0.traj[i].classical()
+    energy_new =  master.traj[i].classical()
     if abs(energy_old - energy_new) > 0.005:
         return False
 
@@ -190,40 +191,38 @@ def check_step_trajectory(traj0, traj, time_step):
  
 def spawn(master,current_time,dt):
 
-    coup_hist = np.zeros((master.nalive,master.nstates,2))
-    t_index = -1
+    coup_hist = np.zeros((master.n_total(),master.nstates,2),dtype=np.float)
 
-    for i in range(master.ntotal()): 
+    for i in range(master.n_total()): 
     
         # only live trajectories can spawn
-        if not master.trajectory[i].alive:
+        if not master.traj[i].alive:
             continue
 
-        t_index += 1
         for st in range(master.nstates):
         
             # can only spawn to different electornic states
-            if master.trajectory[i].state == st:
+            if master.traj[i].state == st:
                 continue
 
             # compute magnitude of coupling to state j
-            coup = master.trajectory[i].coup_dot_vel(st)
-            coup_hist[t_index,st,2] = coup_hist(t_index,st,1)
-            coup_hist[t_index,st,1] = coup
+            coup = master.traj[i].coup_dot_vel(st)
+            coup_hist[i,st,1] = coup_hist[i,st,0]
+            coup_hist[i,st,0] = coup
 
             # check overlap with other trajectories
             max_sij = 0.
-            for j in range(master.ntotal()):
-                if master.trajectory[j].state == st:
-                    if abs(master.trajectory[i].overlap(master.trajectory[j])) > max_sij:
+            for j in range(master.n_total()):
+                if master.traj[j].state == st:
+                    if abs(master.traj[i].overlap(master.traj[j])) > max_sij:
                         print("trajectory overlap too big, no spawning...")
-                        max_sij = abs(master.trajectory[i].overlap(master.trajectory[j]))
-            if max_sij > sij_thresh:
+                        max_sij = abs(master.traj[i].overlap(master.traj[j]))
+            if max_sij > glbl.fms['sij_thresh']:
                 continue
 
             # if we satisfy spawning conditions, begin spawn process                    
-            if spawn_trajectory(master.trajectory[i], time, coup_hist[t_index,st,:], st):
-                parent_i = master.trajectory[i]
+            if spawn_trajectory(master.traj[i], current_time, coup_hist[i,st,:], st):
+                parent_i = master.traj[i]
                 print(" SPAwNING TRAJECTORY -- ")
                
                 # propagate the parent forward in time until coupling maximized
@@ -254,12 +253,12 @@ def propagate_forward(parent_f,child_s,dt):
 
     while True:
         coup = parent_f.coup_dot_vel()
-        coup_hist[2] = coup_hist[1]
-        coup_hist[1] = coup
+        coup_hist[1] = coup_hist[0]
+        coup_hist[0] = coup
 
         # if the copuling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail
-        if coup[1] < coup[2]:         
+        if coup[0] < coup[1]:         
             if child_created:
                 print("child created")
             else:
@@ -310,11 +309,11 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
 
     # Return False if:
     # if insufficient population on trajectory to spawn
-    if np.asbolute(traj.amplitude) < spawn_pop_thresh:
+    if abs(traj.amplitude) < glbl.fms['spawn_pop_thresh']:
         return False
 
     # we have already spawned to this state 
-    if current_time <= traj.lastspawn(spawn_state):
+    if current_time <= traj.last_spawn[spawn_state]:
         return False
 
     # there is insufficient coupling
@@ -322,7 +321,7 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
         return False
 
     # if coupling is decreasing
-    if coup_hist[1] < coup_hist[2]:
+    if coup_hist[0] < coup_hist[1]:
         return False
 
     return True
@@ -399,5 +398,11 @@ def adjust_child(parent, child, scale_dir):
 #
 #
 def overlap_with_bundle(trajectory,bundle):
+    pass
+
+#
+#
+#
+def write_spawn_log(parent,child):
     pass
 

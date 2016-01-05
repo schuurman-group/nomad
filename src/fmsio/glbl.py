@@ -14,7 +14,6 @@ working_dir = ''
 # Simulation parameters read form the fms.input file
 #
 fms = dict( 
-       current_time      = 0.,
        simulation_time   = 0.,
        default_time_step = 1., 
        coupled_time_step = 0.25,
@@ -30,7 +29,11 @@ fms = dict(
        init_state        = 1,
        init_brightest    = False,                
        restart_time      = 0.,
-       propagator        ='velocity_verlet'
+       propagator        ='velocity_verlet',
+       coup_thresh       = 0.001,
+       nad_thresh        = 0.001,
+       sij_thresh        = 1.e-5,
+       spawn_pop_thresh  = 0.025
           )
 #
 # Electronic structure information read from interface-specific

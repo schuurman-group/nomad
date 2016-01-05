@@ -27,7 +27,7 @@ class trajectory:
         # wheterh trajectory is a centroid
         self.centroid   = False
         # amplitude of trajectory
-        self.amplitude  = complex(0.,0.)
+        self.amplitude  = complex(0.,0.) 
         # phase of the trajectory
         self.phase      = 0.
         # time from which the death watch begins
@@ -100,9 +100,9 @@ class trajectory:
     # Returns the position of the particles in the trajectory as an array 
     #
     def x(self):
-        return np.fromiter((self.particles[i].x[j]
-                          for i in range(self.n_particle)
-                          for j in range(self.d_particle)),dtype=np.float)
+        return np.fromiter((self.particles[i].x[j] 
+                           for i in range(self.n_particle) 
+                           for j in range(self.d_particle)),dtype=np.float)
 
     #
     # Returns the momentum of the particles in the trajectory as an array 
@@ -151,21 +151,22 @@ class trajectory:
     #
     #
     def dipole(self,rstate):
-        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, self.state, rstate)
-        return self.dipole[rstate,:]
+        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, rstate, rstate)
+        return self.dipole[rstate,rstate,:]
 
     #
     #
     #
-    def tdipole(self,rstate):
-        self.tdipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, self.state, rstate)
+    def tdipole(self,lstate,rstate):
+        self.tdipole[lstate,rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, lstate, rstate)
+        return self.tdipole[lstate,rstate,:]
 
     #
     #
     #
     def quadpole(self,rstate):
         self.quadpole[rstate,:] = self.pes.quadpole(self.tid, self.particles, self.state, rstate)
-        return self.quadpole
+        return self.quadpole[rstate,:]
 
     #
     #
@@ -191,6 +192,14 @@ class trajectory:
     #
     def potential(self):
         return self.energy(self.state)
+
+    #
+    # norm of the coupling vector
+    #
+    def coupling_norm(self,rstate):
+        if self.state == rstate:
+            return 0.
+        return np.linalg.norm(derivative(rstate))
 
     #
     # Classical kinetic energy
@@ -229,7 +238,7 @@ class trajectory:
     def coup_dot_vel(self,c_state):
         if c_state == self.state:
            return 0.
-        return abs(np.vdot( self.velocity(), self.derative[c_state,:] ))
+        return abs(np.vdot( self.velocity(), self.derivative(c_state) ))
         
     #-----------------------------------------------------------------------------
     #

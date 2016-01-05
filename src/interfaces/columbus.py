@@ -242,8 +242,6 @@ def in_cache(tid,geom):
 
     if tid not in current_geom:
         return False
-    print("geom1="+str(geom[0].x[0])+" "+str(geom[0].x[1])+" "+str(geom[0].x[2])+" ")
-    print("geom2="+str(geom[1].x[0])+" "+str(geom[1].x[1])+" "+str(geom[1].x[2])+" ")
     g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(3)),np.float)
     if np.linalg.norm(g - current_geom[tid]) <= glbl.fpzero:
         return True
@@ -760,13 +758,26 @@ def make_col_restart(tid):
 
     os.chdir(work_path)
 
-    # copy orbitals
+    # move orbitals
     shutil.move('mocoef', restart_path+'/mocoef.'+str(tid))
 
-    # copy all ci vector, ci info files
+    # move all ci vector, ci info files
     shutil.move('civfl' , restart_path+'/civfl.'+str(tid))
     shutil.move('civout' , restart_path+'/civout.'+str(tid))
     shutil.move('cirefv' , restart_path+'/cirefv.'+str(tid))
+
+    # do some cleanup
+    os.remove('cidrtfl')
+    os.remove('cidrtfl.1')
+    os.remove('modens')
+    os.remove('modens2')
+    os.remove('cid1fl.tr')
+    os.remove('cid2fl.tr')
+    os.remove('cid1trfl')
+    os.remove('civfl.drt1')
+    os.remove('civout.drt1')
+    os.remove('cirefv.drt1')
+
 
 #-----------------------------------------------------------------
 #

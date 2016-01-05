@@ -34,12 +34,12 @@ def create_particle(pid,dim,name,width,mass):
 class particle:
     def __init__(self,dim,pid):
         # dimension of the particle (=3 for atom in cartesian coords)
-        self.dim   = dim
+        self.dim   = int(dim)
         # particle identifier (integer, specifying atom number)
-        self.pid   = pid 
+        self.pid   = int(pid) 
         # create a particle with zero position and momentum
-        self.x     = np.zeros(self.dim)
-        self.p     = np.zeros(self.dim)
+        self.x     = np.zeros(self.dim,dtype=np.float)
+        self.p     = np.zeros(self.dim,dtype=np.float)
         # width/uncertainty
         self.width = 0.
         # mass of particle
