@@ -88,8 +88,8 @@ class particle:
     #
     def deld2x(self,other):
          d2xval = np.fromiter((gaussian.deld2x(self.x[i],self.p[i],self.width,
-                                              other.x[i],other.p[i],other.width) 
-                                          for i in range(self.dim)),np.cfloat) * self.overlap(other)
+                               other.x[i],other.p[i],other.width) 
+                               for i in range(self.dim)),np.cfloat) * self.overlap(other)
          return np.sum(d2xval) * self.overlap(other)
 
     #------------------------------------------------------------------------

@@ -357,7 +357,7 @@ def adjust_child(parent, child, scale_dir):
     p_child = child.momentum()
 
     # scale the momentum along the scale_vec direction
-    p_para = np.vdot(p_child,scale_vec) * scale_vec
+    p_para = np.dot(p_child,scale_vec) * scale_vec
     p_perp = p_child - p_parallel   
 
     # the kinetic energy is given by:
@@ -366,9 +366,9 @@ def adjust_child(parent, child, scale_dir):
     #    = (p_para.p_para)/2m + (p_para.p_perp)/m + (p_perp.p_perp)/2m 
     #    = KE_para_para + KE_para_perp + KE_perp_perp
     mass = p_child.masses
-    ke_para_para = np.vdot(p_para,p_perp) / (2*mass)
-    ke_perp_perp = np.vdot(p_perp,p_perp) / (2*mass)
-    ke_para_perp = np.vdot(p_para,p_perp) / mass
+    ke_para_para = np.dot(p_para,p_perp) / (2*mass)
+    ke_perp_perp = np.dot(p_perp,p_perp) / (2*mass)
+    ke_para_perp = np.dot(p_para,p_perp) / mass
 
     # scale p_para by x so that KE == ke_goal
     # (ke_para_para)*x^2 + (ke_para_perp)*x + (ke_perp_perp - ke_goal) = 0

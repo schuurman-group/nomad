@@ -3,8 +3,8 @@
 #  This currently uses first-order saddle point.
 #
 import numpy as np
-from . import trajectory
-from ..interfaces import vibronic
+import src.basis.trajectory as trajectory
+import src.interfaces.vibronic as vibronic
 #
 # potential coupling matrix element between two trajectories
 #
@@ -52,8 +52,8 @@ def ke_integral(traj1,traj2):
 # return the matrix element <Psi_1 | d/dt | Psi_2> 
 #
 def sdot_integral(traj1,traj2):
-     sdot = (-np.vdot( traj2.velocity(), traj1.deldx(traj2) )   \
-             +np.vdot( traj2.force()   , traj1.deldp(traj2) )   \
+     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) )   \
+             +np.dot( traj2.force()   , traj1.deldp(traj2) )   \
              +complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
      return sdot
 

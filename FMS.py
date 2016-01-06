@@ -22,7 +22,7 @@ def main():
     #
     # set the initial conditions for trajectories
     #
-    initial.init_trajectories(master)
+    initial.init_bundle(master)
     #
     # propagate the trajectories 
     #
@@ -31,7 +31,7 @@ def main():
         current_time = master.time
         time_step    = step.time_step(master)         
 
-        # take an fms dynamics step, return the number at conclusion of step
+        # take an fms dynamics step
         step.fms_step_bundle(master,current_time,time_step)   
 
         # if no more live trajectories, simulation is complete

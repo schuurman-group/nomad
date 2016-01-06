@@ -42,12 +42,10 @@ class trajectory:
         self.nbf        = n_basis              
         # value of the potential energy
         self.poten      = np.zeros(self.nstates)  
-        # store the obitals at each step
-        self.orbitals   = np.zeros((self.nbf,self.nbf))
         # derivatives of the potential -- if off-diagonal, corresponds to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros((self.nstates,self.n_particle*self.d_particle)) 
+        self.deriv      = np.zeros((self.nstates,self.nstates,self.n_particle*self.d_particle)) 
         # dipoles and transition dipoles
-        self.dipoles    = np.zeros((self.nstates,self.d_particle))      
+        self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))      
         # second moment tensor for each state
         self.quadpoles  = np.zeros((self.nstates,6))
         # charges on the atoms
@@ -145,33 +143,33 @@ class trajectory:
     #
     def derivative(self,rstate):
         self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, self.state, rstate)
-        return self.deriv[rstate,:]
+        return self.deriv[self.state,rstate,:]
     
     #
     #
     #
     def dipole(self,rstate):
-        self.dipole[rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, rstate, rstate)
-        return self.dipole[rstate,rstate,:]
+        self.dipoles[rstate,rstate:] = self.pes.dipole(self.tid, self.particles, self.state, rstate, rstate)
+        return self.dipoles[rstate,rstate,:]
 
     #
     #
     #
     def tdipole(self,lstate,rstate):
-        self.tdipole[lstate,rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, lstate, rstate)
-        return self.tdipole[lstate,rstate,:]
+        self.dipoles[lstate,rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, lstate, rstate)
+        return self.dipoles[lstate,rstate,:]
 
     #
     #
     #
     def quadpole(self,rstate):
-        self.quadpole[rstate,:] = self.pes.quadpole(self.tid, self.particles, self.state, rstate)
-        return self.quadpole[rstate,:]
+        self.quadpoles[rstate,:] = self.pes.quadrupole(self.tid, self.particles, self.state, rstate)
+        return self.quadpoles[rstate,:]
 
     #
     #
     # 
-    def charges(self,rstate):
+    def charge(self,rstate):
         self.charges[rstate,:] = self.pes.atomic_charges(self.tid, self.particles, self.state, rstate)
         return self.charges[rstate,:]
 
@@ -179,8 +177,7 @@ class trajectory:
     #
     #
     def orbitals(self):
-        self.orbitals = self.pes.orbitals(self.tid, self.particles, self.state)
-        return self.orbitals
+        return self.pes.orbitals(self.tid, self.particles, self.state)
     
     #-------------------------------------------------------------------------
     #
@@ -199,7 +196,7 @@ class trajectory:
     def coupling_norm(self,rstate):
         if self.state == rstate:
             return 0.
-        return np.linalg.norm(derivative(rstate))
+        return np.linalg.norm(self.derivative(rstate))
 
     #
     # Classical kinetic energy
@@ -238,7 +235,7 @@ class trajectory:
     def coup_dot_vel(self,c_state):
         if c_state == self.state:
            return 0.
-        return abs(np.vdot( self.velocity(), self.derivative(c_state) ))
+        return abs(np.dot( self.velocity(), self.derivative(c_state) ))
         
     #-----------------------------------------------------------------------------
     #
@@ -327,7 +324,7 @@ class trajectory:
             self.deriv[i,:].tofile(chkpt,' ',':16.10e')
         #
         chkpt.write('# molecular orbitals')
-        self.orbitals.tofile(chkpt,' ',':12.8e')
+        self.orbitals().tofile(chkpt,' ',':12.8e')
 
     #
     # Read trajectory from file. This assumes the trajectory invoking this
@@ -371,5 +368,5 @@ class trajectory:
             self.deriv[i,:] = np.fromstring(chkpt.readline())
 
         chkpt.readline() # orbitals
-        self.orbitals = np.fromfile(chkpt,float,self.nbf**2)
+        #self.orbitals = np.fromfile(chkpt,float,self.nbf**2)
 

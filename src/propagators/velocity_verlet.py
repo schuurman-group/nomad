@@ -23,7 +23,7 @@ def propagate(trajectory,dt):
     # update the nuclear phase
     #  gamma = gamma + dt * phase_dot / 2.0
     g1_0 = trajectory.phase_dot()
-    g2_0 = 2. * np.vdot(f0, v0)
+    g2_0 = 2. * np.dot(f0, v0)
 
     #------------------------------------------------
     # update position and momentum
@@ -48,7 +48,7 @@ def propagate(trajectory,dt):
     # update the nuclear phase
     #
     g1_1 = trajectory.phase_dot()
-    g2_1 = 2. * np.vdot(f1, v1)
+    g2_1 = 2. * np.dot(f1, v1)
 
     #--------------------------------------------
     # solve for the phases

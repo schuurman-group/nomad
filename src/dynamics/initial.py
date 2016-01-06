@@ -13,12 +13,17 @@ pes = __import__("src.interfaces."+glbl.fms['interface'],fromlist=['NA'])
 #
 # initalize the trajectories
 #
-def init_trajectories(master):
+def init_bundle(master):
     #
     # initialize the interface we'll be using the determine the 
     #   the PES. There are some details here that trajectories
     #    will want to know about
     pes.init_interface()
+
+    #
+    # initialize the trajectory and bundle output files
+    #
+    fileio.init_fms_output()
 
     # 
     # now load the initial trajectories into the bundle
@@ -26,9 +31,18 @@ def init_trajectories(master):
     if(glbl.fms['restart']):
         init_restart(master)
     else:
-        init_conditions(master)
+        init_trajectories(master)
+        master.update_logs()
 
     return master.time
+
+############################################################################
+
+#---------------------------------------------------------------------------
+#
+# Private routines
+#
+#----------------------------------------------------------------------------
 
 #
 # initialize a restart
@@ -48,7 +62,7 @@ def init_restart(master):
 #
 #  initialize the t=0 set of trajectories
 #
-def init_conditions(master):
+def init_trajectories(master):
 
     # reads in geometry and hessian and samples v=0 distribution
     if glbl.fms['init_sampling'] == "gs_wigner":
@@ -65,37 +79,32 @@ def init_conditions(master):
         print("{:s} not a recognized initial condition".
                           format(glbl.fms['init_sampling']))
 
-#----------------------------------------------------------------------------
 #
-# Private routines
+# set the initial state of the trajectories in the bundle
 #
-#----------------------------------------------------------------------------
+def set_initial_state(master):
+    if glbl.fms['init_state'] != 0:
+        for i in range(master.n_total()):
+            master.traj[i].state = glbl.fms['init_state']
+    elif glbl.fms['init_brightest']:
+        for i in range(master.n_total()):
+            master.traj[i].state = 1
+            tdip =(np.linalg.norm(master.traj[i].dipole(j)) for j
+                                    in range(2,glbl.fms['n_states']+1))
+            master.traj[i].state = np.argmax(tdip)+2
+    else:
+        print("ERROR: Ambiguous initial state assignment")
+        sys.exit()
+
+#----------------------------------------------------------------
 #
-# Read in geometry file and hessian and sample about v=0 distribution
-#    NOTE: assumes that hessian and geometry/momentum are in the same
-#          basis (i.e. atom centered cartesians vs. normal modes)
+# Initial condition routines -- wigner, general, user, etc.
 #
-def load_geometry():
-    p_list      = []
-    geom_data   = fileio.read_geometry()
-    
-    for i in range(len(geom_data)):
-        dim = int((len(geom_data[i])-1)/2)
-        p_list.append(particle.particle(dim,i))
-        p_list[i].name = geom_data[i][0]
-        particle.load_particle(p_list[i])
-        p_list[i].x = np.fromiter((float(geom_data[i][j]) for j in range(1,4)),dtype=np.float)
-        p_list[i].p = np.fromiter((float(geom_data[i][j]) for j in range(4,7)),dtype=np.float)
-        print('x,p='+str(p_list[i].x)+','+str(p_list[i].p))
-    return p_list
+#-----------------------------------------------------------------
 
 #
-# do some error checking on the hessian file
-#
-def load_hessian():
-    hessian_data = file.read_hessian()
-
-
+# sample a v=0 wigner distribution
+# 
 def gs_wigner(master):
     phase_gm   = load_geometry()
     hessian    = load_hessian()
@@ -122,20 +131,34 @@ def user_specified(master):
     set_initial_state(master)
     return
 
+#-------------------------------------------------------------------
 #
-# set the initial state of the trajectories in the bundle
+# Utilities
 #
-def set_initial_state(master):
-    if glbl.fms['init_state'] != 0:
-        for i in range(master.n_total()):
-            master.traj[i].state = glbl.fms['init_state']
-    elif glbl.fms['init_brightest']:
-        for i in range(master.n_total()):
-            master.traj[i].state = 1
-            tdip =(np.linalg.norm(master.traj[i].dipole(j)) for j 
-                                    in range(2,glbl.fms['n_states']+1))
-            master.traj[i].state = np.argmax(tdip)+2
-    else:
-        print("ERROR: Ambiguous initial state assignment")
-        sys.exit()
+#-------------------------------------------------------------------
+
+#
+# Read in geometry file and hessian and sample about v=0 distribution
+#    NOTE: assumes that hessian and geometry/momentum are in the same
+#          basis (i.e. atom centered cartesians vs. normal modes)
+#
+def load_geometry():
+    p_list      = []
+    geom_data   = fileio.read_geometry()
+    
+    for i in range(len(geom_data)):
+        dim = int((len(geom_data[i])-1)/2)
+        p_list.append(particle.particle(dim,i))
+        p_list[i].name = geom_data[i][0]
+        particle.load_particle(p_list[i])
+        p_list[i].x = np.fromiter((float(geom_data[i][j]) for j in range(1,4)),dtype=np.float)
+        p_list[i].p = np.fromiter((float(geom_data[i][j]) for j in range(4,7)),dtype=np.float)
+        print('x,p='+str(p_list[i].x)+','+str(p_list[i].p))
+    return p_list
+
+#
+# do some error checking on the hessian file
+#
+def load_hessian():
+    hessian_data = file.read_hessian()
 

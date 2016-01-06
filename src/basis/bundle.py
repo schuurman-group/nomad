@@ -17,11 +17,11 @@ class bundle:
         self.nstates = int(nstates)
         self.traj = []
         self.cent = [] 
-        self.H    = np.zeros((0,0),dtype=np.cfloat)
-        self.S    = np.zeros((0,0),dtype=np.cfloat)
-        self.Sinv = np.zeros((0,0),dtype=np.cfloat)
-        self.Sdot = np.zeros((0,0),dtype=np.cfloat)
-        self.Heff = np.zeros((0,0),dtype=np.cfloat)
+        self.H    = np.zeros((0.,0.),dtype=np.cfloat)
+        self.S    = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Sinv = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Sdot = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Heff = np.zeros((0.,0.),dtype=np.cfloat)
 
     # total number of trajectories
     def n_total(self):
@@ -32,6 +32,7 @@ class bundle:
         self.traj.append(new_traj)
         self.traj[-1].alive = True
         self.nalive         = self.nalive + 1
+        self.traj[-1].tid   = self.n_total() - 1
         self.bundle_current = False
         new_matrix = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         if self.nalive == 1:
@@ -77,31 +78,36 @@ class bundle:
 
     # construct the Hamiltonian matrix in basis of trajectories
     def update_matrices(self):
+        print("Hmat="+str(self.H))
+        print("Smat="+str(self.S))
+        print("Sdot="+str(self.Sdot))
         r = -1
-        for i in range(len(self.traj)):
+        for i in range(self.n_total()):
             if self.traj[i].alive:
                 r += 1
-                self.S[r,r] = self.traj[i].overlap(self.traj[i])
-                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i], 
-                                                    self.traj[i])
-                self.H[r,r] = self.ints.ke_integral(self.traj[i],
-                                               self.traj[i]) +  \
-                              self.ints.v_integral(self.traj[i])
+                self.S[r,r]    = self.traj[i].overlap(self.traj[i])
+                self.H[r,r]    = self.ints.ke_integral(self.traj[i],
+                                                       self.traj[i]) + \
+                                 self.ints.v_integral(self.traj[i])
+                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],
+                                                         self.traj[i])
+                print("sdot: "+str(self.Sdot[r,r]))
                 c = -1
                 for j in range(i):
                     if self.traj[j].alive:
                         c += 1
-                        self.S[r,c] = self.traj[i].overlap(self.traj[j])
-                        self.S[c,r] = self.S(r,c).conjugate()
+                        self.S[r,c]    = self.traj[i].overlap(self.traj[j])
+                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],
+                                                               self.traj[j]) + \
+                                         self.ints.v_integral(self.traj[i],
+                                                              self.traj[j],
+                                                              self.cent[ij])
                         self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
-                                                            self.traj[j])
+                                                                 self.traj[j])
+                        self.S[c,r]    = self.S(r,c).conjugate()
+                        self.H[c,r]    = self.H[r,c].conjugate()
                         self.Sdot[c,r] = self.Sdot(r,c).conjugate()
-                        self.H[r,c] = self.ints.ke_integral(self.traj[i],
-                                                       self.traj[j]) + \
-                                      self.ints.v_integral(self.traj[i],
-                                                      self.traj[j],
-                                                      self.cent[ij])
-                        self.H[c,r] = self.H[r,c].conjugate()
+
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)                 
         self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
@@ -242,7 +248,7 @@ class bundle:
     #
     # update the log files
     #
-    def update_logs():
+    def update_logs(self):
         
         for i in range(self.n_total()):
             if self.traj[i].alive:
@@ -251,7 +257,8 @@ class bundle:
                 data = [self.time]
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
-                data.extend([self.traj[i].phase,self.traj[i].amplitude,self.traj[i].state])
+                data.extend([self.traj[i].phase,self.traj[i].amplitude.real,
+                             self.traj[i].amplitude.imag,self.traj[i].state])
                 fileio.print_traj_row(self.traj[i].tid,0,data)
 
                 # potential energy
@@ -267,27 +274,33 @@ class bundle:
 
                 # permanent dipoles
                 data = [self.time]
-                data.extend([self.traj[i].dipole(j) for j in range(self.nstates)])
+                for j in range(self.nstates):
+                    data.extend(self.traj[i].dipole(j).tolist())
+                print('dipoles='+str(data))
                 fileio.print_traj_row(self.traj[i].tid,3,data)
 
                 # transition dipoles
                 data = [self.time]
-                data.extend([self.traj[i].tdipole(i,j) for j in range(self.nstates) for k in range(j)])
+                for j in range(self.nstates):
+                    for k in range(j):
+                        data.extend(self.traj[i].tdipole(k,j).tolist()) 
                 fileio.print_traj_row(self.traj[i].tid,4,data)
 
                 # quadrupoles
                 data = [self.time]
-                data.extend([self.traj[i].quadpole(j) for j in range(self.nstates)])
+                for j in range(self.nstates):
+                    data.extend(self.traj[i].quadpole(j).tolist())
                 fileio.print_traj_row(self.traj[i].tid,5,data)
  
                 #charges
                 data = [self.time]
-                data.extend([self.traj[i].charges(j) for j in range(self.nstates)])
+                for j in range(self.nstates):
+                    data.extend(self.traj[i].charge(j).tolist()) 
                 fileio.print_traj_row(self.traj[i].tid,6,data)
 
                 # gradients
                 data = [self.time]
-                data.extend(self.traj[i].derivative(self.traj[i].state.tolist()))
+                data.extend(self.traj[i].derivative(self.traj[i].state).tolist())
                 fileio.print_traj_row(self.traj[i].tid,7,data)
 
 

@@ -120,7 +120,6 @@ def populate_bundle(master,geom_list,amp_list):
                               geom_list[i],
                               glbl.fms['interface'],
                               glbl.fms['n_states'],
-                              tid=i,
                               parent=0,
                               n_basis=n_orbs))
         master.traj[i].amplitude = amp_list[i]
@@ -306,14 +305,14 @@ def run_centroid(tid,geom,lstate,rstate):
     generate_integrals(tid)
 
     # run mcscf
-    run_col_mcscf(tid,tstate)
+    run_col_mcscf(tid,lstate)
 
     # run mrci, if necessary
-    run_col_mrci(tid,tstate)
+    run_col_mrci(tid,lstate)
 
     if lstate != rstate:
         # run coupling to other states
-        run_col_coupling(tid,tstate)
+        run_col_coupling(tid,lstate)
 
     # save restart files
     make_col_restart(tid)
@@ -462,8 +461,8 @@ def run_col_mrci(tid,t_state):
     set_mrci_restart(tid)
 
     # make sure we point to the correct formula tape file
-    os.symlink('cidrtfl.ci','cidrtfl')
-    os.symlink('cidrtfl.ci','cidrtfl.1')
+    link_force('cidrtfl.ci','cidrtfl')
+    link_force('cidrtfl.ci','cidrtfl.1')
 
     # perform the integral transformation
     with open('tranin','w') as ofile:
@@ -526,8 +525,8 @@ def run_col_mrci(tid,t_state):
         os.remove('moints')
         os.remove('cidrtfl')
         os.remove('cidrtfl.1')
-        os.symlink('cidrtfl.cigrd','cidrtfl')
-        os.symlink('cidrtfl.cigrd','cidrtfl.1')
+        link_force('cidrtfl.cigrd','cidrtfl')
+        link_force('cidrtfl.cigrd','cidrtfl.1')
         shutil.copy(input_path+'/tranin','tranin')
         suprocess.run(['tran.x','-m',mem_str])
  
@@ -551,7 +550,7 @@ def run_col_multipole(tid,t_state):
 
     for istate in range(nst):
         i1 = istate + 1
-        os.symlink('nocoef_'+str(type_str)+'.drt1.state'+str(i1),'mocoef_prop')
+        link_force('nocoef_'+str(type_str)+'.drt1.state'+str(i1),'mocoef_prop')
         subprocess.run(['exptvl.x','-m',mem_str])
         with open('propls','r') as prop_file:
             line = prop_file.readline()
@@ -592,9 +591,9 @@ def run_col_tdipole(tid,t_state):
 
     init_states = [0, t_state-1]
     # make sure we point to the correct formula tape file
-    os.symlink('civfl','civfl.drt1')
-    os.symlink('civout','civout.drt1')
-    os.symlink('cirefv','cirefv.drt1')
+    link_force('civfl','civfl.drt1')
+    link_force('civout','civout.drt1')
+    link_force('cirefv','cirefv.drt1')
 
     for istate in init_states:
         i1 = istate + 1
@@ -647,12 +646,12 @@ def run_col_gradient(tid,t_state):
     tindex = t_state + 1
 
     if mrci_lvl > 0:
-        os.symlink('cid1fl.drt1.state'+str(tindex),'cid1fl')
-        os.symlink('cid2fl.drt1.state'+str(tindex),'cid2fl')
+        link_force('cid1fl.drt1.state'+str(tindex),'cid1fl')
+        link_force('cid2fl.drt1.state'+str(tindex),'cid2fl')
         shutil.copy(input_path+'/trancidenin','tranin')       
     else:
-        os.symlink('mcsd1fl.'+str(tindex),'cid1fl')
-        os.symlink('mcsd2fl.'+str(tindex),'cid2fl')
+        link_force('mcsd1fl.'+str(tindex),'cid1fl')
+        link_force('mcsd2fl.'+str(tindex),'cid2fl')
         set_nlist_keyword('cigrdin','samcflag',1)
         shutil.copy(input_path+'/tranmcdenin','tranin')
 
@@ -715,13 +714,13 @@ def run_col_coupling(tid,t_state):
         s1 = str(min(i1,tindex)).strip()
         s2 = str(max(i1,tindex)).strip()
         if mrci_lvl == 0:
-            os.symlink('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-            os.symlink('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
-            os.symlink('mcad1fl.'+s1+s2,'cid1trfl')   
+            link_force('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+            link_force('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
+            link_force('mcad1fl.'+s1+s2,'cid1trfl')   
         else:
-            os.symlink('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-            os.symlink('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
-            os.symlink('cid1trfl.'+s1+'.'+s2,'cid1trfl')
+            link_force('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+            link_force('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
+            link_force('cid1trfl.'+s1+'.'+s2,'cid1trfl')
 
         set_nlist_keyword('cigrdin','drt1',1)
         set_nlist_keyword('cigrdin','drt2',1)
@@ -767,16 +766,18 @@ def make_col_restart(tid):
     shutil.move('cirefv' , restart_path+'/cirefv.'+str(tid))
 
     # do some cleanup
-    os.remove('cidrtfl')
-    os.remove('cidrtfl.1')
-    os.remove('modens')
-    os.remove('modens2')
-    os.remove('cid1fl.tr')
-    os.remove('cid2fl.tr')
-    os.remove('cid1trfl')
-    os.remove('civfl.drt1')
-    os.remove('civout.drt1')
-    os.remove('cirefv.drt1')
+    if os.path.isfile('cirdrtfl'):   os.remove('cidrtfl')
+    if os.path.isfile('cirdrtfl.1'): os.remove('cidrtfl.1')
+    if os.path.isfile('aoints'):     os.remove('aoints')
+    if os.path.isfile('aoints2'):    os.remove('aoints2')
+    if os.path.isfile('modens'):     os.remove('modens')
+    if os.path.isfile('modens2'):    os.remove('modens2')
+    if os.path.isfile('cid1fl.tr'):  os.remove('cid1fl.tr')
+    if os.path.isfile('cid2fl.tr'):  os.remove('cid2fl.tr')
+    if os.path.isfile('cid1trfl'):   os.remove('cid1trfl')
+    if os.path.isfile('civfl.drt1'): os.remove('civfl.drt1')
+    if os.path.isfile('civout.drt1'):os.remove('civout.drt1')
+    if os.path.isfile('cirefv.drt1'):os.remove('cirefv.drt1')
 
 
 #-----------------------------------------------------------------
@@ -874,9 +875,9 @@ def set_mrci_restart(tid):
     civout = restart_path+'/civout.'+str(tid)
     cirefv = restart_path+'/cirefv.'+str(tid)
     if os.path.exists(civfl) and os.path.exists(civout) and os.path.exists(cirefv):
-        os.symlink(civfl,'civfl')
-        os.symlink(civout,'civout') 
-        os.symlink(cirefv,'cirefv')
+        link_force(civfl,'civfl')
+        link_force(civout,'civout') 
+        link_force(cirefv,'cirefv')
         return True
     else:
         return False
@@ -958,6 +959,16 @@ def file_len(fname):
         for i, l in enumerate(f):
             pass
     return i + 1
+
+#
+# create a symbolic link, overwriting existing link if necessary
+#
+def link_force(target, link_name):
+    try:
+        os.symlink(target, link_name)
+    except FileExistsError:
+        os.unlink(link_name)
+        os.symlink(target, link_name)
 
 #
 # load orbitals into an mocoef file

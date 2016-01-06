@@ -33,7 +33,8 @@ fms = dict(
        coup_thresh       = 0.001,
        nad_thresh        = 0.001,
        sij_thresh        = 1.e-5,
-       spawn_pop_thresh  = 0.025
+       spawn_pop_thresh  = 0.025,
+       output_path       = ''
           )
 #
 # Electronic structure information read from interface-specific
