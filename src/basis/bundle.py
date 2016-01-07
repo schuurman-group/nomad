@@ -33,25 +33,11 @@ class bundle:
         self.traj[-1].alive = True
         self.nalive         = self.nalive + 1
         self.traj[-1].tid   = self.n_total() - 1
-        self.bundle_current = False
-        new_matrix = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        if self.nalive == 1:
-            self.H          = new_matrix
-            self.S          = new_matrix
-            self.Sinv       = new_matrix
-            self.Sdot       = new_matrix
-            self.Heff       = new_matrix
-        else:
-            new_matrix[0:,0:]   = self.H
-            self.H              = new_matrix
-            new_matrix[0:,0:]   = self.S
-            self.S              = new_matrix
-            new_matrix[0:,0:]   = self.Sinv
-            self.Sinv           = new_matrix
-            new_matrix[0:,0:]   = self.Sdot
-            self.Sdot           = new_matrix
-            new_matrix[0:,0:]   = self.Heff
-            self.Heff           = new_matrix
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat) 
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
 
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
@@ -60,57 +46,15 @@ class bundle:
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
         self.bundle_current  = False
-        for i in range(2):
-            self.H    = np.delete(self.H,index,i)
-            self.S    = np.delete(self.S,index,i)
-            self.Sinv = np.delete(self.S,index,i)
-            self.sdot = np.delete(self.Sdot,index,i)
-            self.Heff = np.delete(self.Heff,index,i)
-
-    # update the bundle matrices
-    def update_bundle(self):
-        self.prune()
-        self.update_matrices()
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
 
     # update centroids
     def update_centroid(self,traj1,traj2):    
         pass
-
-    # construct the Hamiltonian matrix in basis of trajectories
-    def update_matrices(self):
-        print("Hmat="+str(self.H))
-        print("Smat="+str(self.S))
-        print("Sdot="+str(self.Sdot))
-        r = -1
-        for i in range(self.n_total()):
-            if self.traj[i].alive:
-                r += 1
-                self.S[r,r]    = self.traj[i].overlap(self.traj[i])
-                self.H[r,r]    = self.ints.ke_integral(self.traj[i],
-                                                       self.traj[i]) + \
-                                 self.ints.v_integral(self.traj[i])
-                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],
-                                                         self.traj[i])
-                print("sdot: "+str(self.Sdot[r,r]))
-                c = -1
-                for j in range(i):
-                    if self.traj[j].alive:
-                        c += 1
-                        self.S[r,c]    = self.traj[i].overlap(self.traj[j])
-                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],
-                                                               self.traj[j]) + \
-                                         self.ints.v_integral(self.traj[i],
-                                                              self.traj[j],
-                                                              self.cent[ij])
-                        self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
-                                                                 self.traj[j])
-                        self.S[c,r]    = self.S(r,c).conjugate()
-                        self.H[c,r]    = self.H[r,c].conjugate()
-                        self.Sdot[c,r] = self.Sdot(r,c).conjugate()
-
-        # compute the S^-1, needed to compute Heff
-        self.Sinv = np.linalg.pinv(self.S)                 
-        self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
 
     #
     # update the amplitudes of the trajectories in the bundle
@@ -132,33 +76,43 @@ class bundle:
         #    exp(Bn) = I + Bn + 1/2 B2**2 + 1/3! Bn**3 + 1/4! Bn**4
         #
         # n is varied until C_tdt is stable
-        old_amp   = np.cfloat(self.amplitudes())
+
+        self.update_matrices()
+        print("Heff="+str(self.Heff))
+
+        old_amp   = self.amplitudes()
+        print("old_amp="+str(old_amp))
         new_amp   = np.zeros(self.nalive,dtype=np.cfloat)
+        print("new_amp="+str(new_amp))
         Id        = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         for i in range(self.nalive):
             Id[i,i] = complex(1.,0.)
+        print("Id="+str(Id))
 
         B = -complex(0.,1.) * self.Heff * dt
-        prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
+        print("B="+str(B))
 
+        prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
         for n in range(n_max):
+            print("n="+str(n))
             Bn  = B / 2**n
             Bn2 = np.dot(Bn,Bn)
             Bn3 = np.dot(Bn2,Bn)
             Bn4 = np.dot(Bn2,Bn2)
 
             taylor = Id + Bn + Bn2/2.0 + Bn3/6.0 + Bn4/24.0 
-            taylor_prod = taylor
             for i in range(n):
-                taylor_prod = np.dot(taylor_prod,taylor_prod)
+                taylor = np.dot(taylor,taylor)
 
-            new_amp = np.dot(taylor_prod,old_amp)
+            new_amp = np.dot(taylor,old_amp)
+            print("new_amp="+str(new_amp))
             error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
+            print("error="+str(error))
             if abs(error) < 1.e-10:
                 break
             else:
                 prev_amp = new_amp            
-
+        
         cnt = -1
         for i in range(self.n_total()):
             if self.traj[i].alive:
@@ -176,7 +130,19 @@ class bundle:
             if self.traj[i].alive:
                 cnt += 1
                 amps[cnt:] = np.cfloat(self.traj[i].amplitude) 
-        return
+        print("bundle.amps="+str(amps))
+        return amps
+
+    # 
+    # renormalizes the amplitudes of the trajectories in the bundle
+    #
+    def renormalize(self):
+        current_pop = self.pop() 
+        norm = 1./ np.sqrt(sum(current_pop))
+        for i in range(self.n_total()):
+            self.traj[i].amplitude = self.traj[i].amplitude * norm
+       
+        return                       
 
     #
     # kills trajectories that are dead
@@ -212,16 +178,18 @@ class bundle:
         pop = np.zeros(self.nstates,dtype=np.float)
         for i in range(self.n_total()):
             state = self.traj[i].state
+            pop[state] = pop[state] + \
+                         abs( self.traj[i].amplitude *
+                              self.traj[i].amplitude.conjugate() )
             for j in range(i):
-                if self.traj[i].alive != self.traj[j].alive:
+                if self.traj[i].alive != self.traj[j].alive or \
+                   self.traj[j].state != state:
                     continue
                 olap = self.traj[i].overlap(self.traj[j])
                 pop[state] = pop[state] + \
-                             abs( olap * self.traj[i].amplitude * 
-                                           self.traj[j].amplitude.conjugate() )
-            pop[state] = pop[state] + \
-                         abs( self.traj[i].amplitude * 
-                                self.traj[i].amplitude.conjugate() )
+                             2. * abs( olap * self.traj[i].amplitude * 
+                                              self.traj[j].amplitude.conjugate() )
+        pop[pop < glbl.fpzero] = 0.
         return pop        
 
     #
@@ -240,11 +208,79 @@ class bundle:
                                             * self.traj[i].amplitude)
         return mulliken
 
+    #
+    # return the classical potential energy of the bundle
+    #
+    def pot_classical(self):
+        return 0.
+
+    #
+    # return the QM (coupled) energy of the bundle
+    #
+    def pot_quantum(self):
+        return 0.
+ 
+    #
+    # return the classical kinetic energy of the bundle
+    # 
+    def kin_classical(self):
+        return 0.
+
+    #
+    # return the QM (coupled) energy of the bundle
+    #
+    def kin_quantum(self):
+        return 0.
+
+    # 
+    # return the total classical energy of the bundle 
+    #
+    def tot_classical(self):
+        return 0.
+
+    #
+    # return the total QM (coupled) energy of the bundle
+    #
+    def tot_quantum(self):
+        return 0.
+
  #-----------------------------------------------------------------------------
  #
  # functions to read/write bundle to checkpoint files
  #
  #-----------------------------------------------------------------------------
+    # construct the Hamiltonian matrix in basis of trajectories
+    def update_matrices(self):
+        r = -1
+        for i in range(self.n_total()):
+            if self.traj[i].alive:
+                r += 1
+                self.S[r,r]    = self.traj[i].overlap(self.traj[i])
+                self.H[r,r]    = self.ints.ke_integral(self.traj[i],
+                                                       self.traj[i]) + \
+                                 self.ints.v_integral(self.traj[i])
+                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],
+                                                         self.traj[i])
+                c = -1
+                for j in range(i):
+                    if self.traj[j].alive:
+                        c += 1
+                        self.S[r,c]    = self.traj[i].overlap(self.traj[j])
+                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],
+                                                               self.traj[j]) + \
+                                         self.ints.v_integral(self.traj[i],
+                                                              self.traj[j],
+                                                              self.cent[ij])
+                        self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
+                                                                 self.traj[j])
+                        self.S[c,r]    = self.S(r,c).conjugate()
+                        self.H[c,r]    = self.H[r,c].conjugate()
+                        self.Sdot[c,r] = self.Sdot(r,c).conjugate()
+
+        # compute the S^-1, needed to compute Heff
+        self.Sinv = np.linalg.pinv(self.S)
+        self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
+
     #
     # update the log files
     #
@@ -258,7 +294,8 @@ class bundle:
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
                 data.extend([self.traj[i].phase,self.traj[i].amplitude.real,
-                             self.traj[i].amplitude.imag,self.traj[i].state])
+                             self.traj[i].amplitude.imag,abs(self.traj[i].amplitude),
+                             self.traj[i].state])
                 fileio.print_traj_row(self.traj[i].tid,0,data)
 
                 # potential energy
@@ -276,7 +313,6 @@ class bundle:
                 data = [self.time]
                 for j in range(self.nstates):
                     data.extend(self.traj[i].dipole(j).tolist())
-                print('dipoles='+str(data))
                 fileio.print_traj_row(self.traj[i].tid,3,data)
 
                 # transition dipoles
@@ -286,16 +322,16 @@ class bundle:
                         data.extend(self.traj[i].tdipole(k,j).tolist()) 
                 fileio.print_traj_row(self.traj[i].tid,4,data)
 
-                # quadrupoles
+                # second moments 
                 data = [self.time]
                 for j in range(self.nstates):
-                    data.extend(self.traj[i].quadpole(j).tolist())
+                    data.extend(self.traj[i].sec_mom(j).tolist())
                 fileio.print_traj_row(self.traj[i].tid,5,data)
  
-                #charges
+                # atomic populations
                 data = [self.time]
                 for j in range(self.nstates):
-                    data.extend(self.traj[i].charge(j).tolist()) 
+                    data.extend(self.traj[i].atom_pop(j).tolist()) 
                 fileio.print_traj_row(self.traj[i].tid,6,data)
 
                 # gradients
@@ -303,6 +339,26 @@ class bundle:
                 data.extend(self.traj[i].derivative(self.traj[i].state).tolist())
                 fileio.print_traj_row(self.traj[i].tid,7,data)
 
+        # now dump bundle information #################################################
+
+        # state populations
+        data = [self.time]
+        st_pop = self.pop().tolist()
+        data.extend(self.pop().tolist())
+        data.append(sum(st_pop))
+        fileio.print_bund_row(0,data)
+
+        # bundle energy
+        data = [self.time, self.pot_classical(), self.pot_quantum(), 
+                           self.kin_classical(), self.kin_quantum(), 
+                           self.tot_classical(), self.tot_quantum()]
+        fileio.print_bund_row(1,data)
+
+        # bundle matrices
+        fileio.print_bund_mat(self.time,'h.dat',self.H)
+        fileio.print_bund_mat(self.time,'s.dat',self.S)
+        fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
+        fileio.print_bund_mat(self.time,'heff.dat',self.Heff)
 
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)

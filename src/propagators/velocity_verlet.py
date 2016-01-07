@@ -18,6 +18,7 @@ def propagate(trajectory,dt):
     v0   = trajectory.velocity()
     f0   = trajectory.force()
     mass = trajectory.masses()
+    print("dt="+str(dt))
 
     #------------------------------------------------
     # update the nuclear phase
@@ -31,7 +32,6 @@ def propagate(trajectory,dt):
     #   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
     # --> need to compute forces at new geometry
     x1 = x0 + v0*dt + 0.5 * (f0/mass) * dt**2
-    print("x1="+str(x1))
 
     #-------------------------------------------
     # update x

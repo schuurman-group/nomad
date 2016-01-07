@@ -3,8 +3,8 @@ import numpy as np
 import src.fmsio.glbl as glbl
 
 output_path = ''
-tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'quad_dump',
-               'tran_dump', 'charge_dump', 'grad_dump']
+tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'secm_dump',
+               'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'hmat_dump', 'smat_dump', 'spawn_dump']
 formats     = dict()
 headers     = dict()
@@ -97,79 +97,79 @@ def init_fms_output():
     arr2 = ['      mom' + str(i+1) + '.' + dstr[x] for i in range(np) for x in range(nd)]
     tfile_names[tkeys[0]] = 'trajectory'
     headers[tkeys[0]]     = '     Time' + ''.join(arr1) + ''.join(arr2) + '     Phase' + \
-                            '   Re[Amp]' + '   Im[Amp]' + '     State\n'
+                            '   Re[Amp]' + '   Im[Amp]' + ' Norm[Amp]'+'     State\n'
     formats[tkeys[0]]     = '{0:9.2f}'+ \
                              ''.join('{'+str(i)+':12.6f}' for i in range(1,np*nd+1))         + \
                              ''.join('{'+str(i)+':12.6f}' for i in range(np*nd+1,2*np*nd+1)) + \
-                             ''.join('{'+str(i)+':10.6f}'  for i in range(2*np*nd+1,2*np*nd+5))+'\n'
+                             ''.join('{'+str(i)+':10.6f}'  for i in range(2*np*nd+1,2*np*nd+6))+'\n'
 
     # potential energy
-    arr1 = ['     potential.'+str(i+1) for i in range(ns)]
+    arr1 = ['     potential.'+str(i) for i in range(ns)]
     tfile_names[tkeys[1]] = 'poten'
     headers[tkeys[1]]     = '     Time' + ''.join(arr1)+'\n'
     formats[tkeys[1]]     = '{0:9.2f}' + \
                              ''.join('{'+str(i)+':16.10f}' for i in range(1,ns+1)) + '\n' 
 
     # coupling
-    arr1 = ['  coupling.'+str(i+1) for i in range(ns)]
-    arr2 = ['    c * v .'+str(i+1) for i in range(ns)]
+    arr1 = ['  coupling.'+str(i) for i in range(ns)]
+    arr2 = ['    c * v .'+str(i) for i in range(ns)]
     tfile_names[tkeys[2]] = 'coupling'
     headers[tkeys[2]]     = '     Time' + ''.join(arr1) + ''.join(arr2) + '\n'
     formats[tkeys[2]]     = '{0:9.2f}' + \
                              ''.join('{'+str(i)+':12.5f}' for i in range(1,2*ns+1)) + '\n'
 
     # permanent dipoles
-    arr1 = [' dip_st'+str(i+1)+'.'+dstr[j] for i in range(ns) for j in range(nd)]
+    arr1 = ['   dip_st'+str(i)+'.'+dstr[j] for i in range(ns) for j in range(nd)]
     tfile_names[tkeys[3]] = 'dipole'
     headers[tkeys[3]]     = '     Time' + ''.join(arr1) + '\n'
     formats[tkeys[3]]     = '{0:9.2f}' + \
-                             ''.join('{'+str(i)+':9.5f}' for i in range(1,ns*nd+1)) + '\n'
+                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ns*nd+1)) + '\n'
 
     # transition dipoles
-    arr1 = ['td_s'+str(j+1)+'.s'+str(i+1)+'.'+dstr[k] for i in range(ns) for j in range(i) for k in range(nd)]
+    arr1 = ['  td_s'+str(j)+'.s'+str(i)+'.'+dstr[k] for i in range(ns) for j in range(i) for k in range(nd)]
     ncol = int(ns*(ns-1)*nd/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     headers[tkeys[4]]     = '     Time' + ''.join(arr1) + '\n'
     formats[tkeys[4]]     = '{0:9.2f}' + \
-                             ''.join('{'+str(i)+':10.5f}' for i in range(1,ncol)) + '\n'
+                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ncol)) + '\n'
 
-    # quadrupoles
-    arr1 = ['quad_s'+str(i+1)+'.'+dstr[j]+dstr[j] for i in range(ns) for j in range(nd)]
-    tfile_names[tkeys[5]] = 'quadrupole'
+    # second moments 
+    arr1 = ['   sec_s'+str(i)+'.'+dstr[j]+dstr[j] for i in range(ns) for j in range(nd)]
+    tfile_names[tkeys[5]] = 'sec_mom'
     headers[tkeys[5]]     = '     Time' + ''.join(arr1) + '\n'
-    formats[tkeys[5]]     = '{0:9.2f} ' + \
-                             ''.join('{'+str(i)+':10.5f}' for i in range(1,ns*nd+1)) + '\n'
+    formats[tkeys[5]]     = '{0:9.2f}' + \
+                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ns*nd+1)) + '\n'
 
-    #charges
-    arr1 = ['  part.'+str(i+1) for i in range(np)]
-    tfile_names[tkeys[6]] = 'charge'
+    # atomic populations
+    arr1 = ['    st'+str(i)+'_p'+str(j+1) for i in range(ns) for j in range(np)]
+    tfile_names[tkeys[6]] = 'atom_pop'
     headers[tkeys[6]]     = '     Time' + ''.join(arr1) + '\n'
-    formats[tkeys[6]]     = '{0:9.2f} ' + \
-                             ''.join('{'+str(i)+':8.5f}' for i in range(1,np+1)) + '\n'
+    formats[tkeys[6]]     = '{0:9.2f}' + \
+                             ''.join('{'+str(i)+':10.5f}' for i in range(1,ns*np+1)) + '\n'
 
     # gradients
-    arr1 = ['grad_part'+str(i+1)+'.'+dstr[j] for i in range(np) for j in range(nd)]
+    arr1 = ['  grad_part'+str(i+1)+'.'+dstr[j] for i in range(np) for j in range(nd)]
     tfile_names[tkeys[7]] = 'gradient'
     headers[tkeys[7]]     = '     Time' + ''.join(arr1) + '\n'
-    formats[tkeys[7]]     = '{0:9.2f} ' + \
-                             ''.join('{'+str(i)+':12.8f}' for i in range(1,np*nd+1)) + '\n'
+    formats[tkeys[7]]     = '{0:9.2f}' + \
+                             ''.join('{'+str(i)+':14.8f}' for i in range(1,np*nd+1)) + '\n'
 
     # bundle output
     # adiabatic state populations
-    arr1 = ['   state.'+str(i+1) for i in range(ns)]
+    arr1 = ['     state.'+str(i) for i in range(ns)]
     bfile_names[bkeys[0]] = 'n.dat'
     headers[bkeys[0]]     = '     Time' + ''.join(arr1) + '      Norm' + '\n'
     formats[bkeys[0]]     = '{0:9.2f}' + \
-                            ''.join('{'+str(i)+':10.6f}' for i in range(1,ns+1)) + \
+                            ''.join('{'+str(i)+':12.6f}' for i in range(1,ns+1)) + \
                             '{'+str(ns+1)+':10.6f}\n'
 
     # the bundle energy
-    arr1 = ('potential(QM)','potential(Cl.)','kinetic(QM)',
-            'kinetic(Cl.)','total(QM)','total(Cl.)')
+    arr1 = ('   potential(QM)','  potential(Cl.)','     kinetic(QM)',
+            '    kinetic(Cl.)','       total(QM)','      total(Cl.)')
     bfile_names[bkeys[1]] = 'e.dat'
-    headers[bkeys[1]]     = '     Time' + ' '.join(arr1)
-    formats[bkeys[1]]     = '{0:9.2f} ' + ' ' + \
-                             ''.join('{'+str(i)+':14.10f}' for i in range(1,6+1))
+    headers[bkeys[1]]     = '     Time' + ''.join(arr1) + '\n'
+    formats[bkeys[1]]     = '{0:9.2f}' + \
+                             ''.join('{'+str(i)+':16.10f}' for i in range(1,6+1)) + '\n'
 
     # the hamiltonian matrix
     bfile_names[bkeys[2]] = 'h.dat'
@@ -196,10 +196,9 @@ def init_fms_output():
 def print_traj_row(tid,fkey,data):
     global output_path, tkeys, tfile_names, headers, formats
     filename = output_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
-    
-    print("filename="+str(filename))
+   
     print("data="+str(data))
-
+ 
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
             outfile.write(headers[tkeys[fkey]])
@@ -213,8 +212,8 @@ def print_traj_row(tid,fkey,data):
 # 'filename'
 #
 def print_bund_row(fkey,data):
-    global bkeys,bfile_names,headers,formats
-    filename = bfile_names[bkeys[fkey]]
+    global output_path, bkeys, bfile_names, headers, formats
+    filename = output_path+'/'+bfile_names[bkeys[fkey]]
 
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
@@ -223,6 +222,17 @@ def print_bund_row(fkey,data):
     else:
         with open(filename, "a") as outfile:
             outfile.write(formats[bkeys[fkey]].format(*data))
+
+#
+# prints a matrix to file with a time label
+#
+def print_bund_mat(time,fname,mat):
+     global output_path    
+     filename = output_path+'/'+fname
+
+     with open(filename,"a") as outfile:
+         outfile.write('{:9.2f}\n'.format(time))
+         outfile.write(np.array2string(mat)+'\n')
 
 #----------------------------------------------------------------------------
 #

@@ -3,6 +3,7 @@
 #
 import sys
 import os
+import math
 import shutil
 import pathlib
 import subprocess
@@ -21,19 +22,32 @@ work_path = ''
 # path to the location of restart files (i.e. mocoef files and civfl)
 restart_path = ''
 
+# by default, since this is the columbus module, assume "particles" are
+# 3-dimensional (i.e. Cartesian)
+p_dim        = 3
+# number of atoms
 n_atoms      = 0
+# total number of cartesian coordinates 
 n_cart       = 0
+# number of drts (should usually be "1" for C1)
 n_drt        = 1
+# number of orbitals
 n_orbs       = 0
+# number of states in sate-averaged MCSCF
 n_mcstates   = 0
+# number of CI roots 
 n_cistates   = 0
+# maximum angular momentum in basis set
+max_l        = 1 
+# excitation level in CI
 mrci_lvl     = 0
+# amount of memory per process, in MB
 mem_str      = ''
 current_geom = dict()
 energies     = dict()
-charges      = dict()
-dipoles      = dict()
-quadpoles    = dict()
+atom_pops     = dict()
+dip_moms     = dict()
+sec_moms     = dict()
 gradients    = dict()
 
 #----------------------------------------------------------------
@@ -47,8 +61,8 @@ gradients    = dict()
 #
 def init_interface():
     global columbus_path, scr_path, input_path, work_path, restart_path, \
-           n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, mrci_lvl, \
-           mem_str
+           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates,       \
+           max_l,mrci_lvl,mem_str
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
@@ -91,7 +105,7 @@ def init_interface():
 
     # now -- pull information from columbus input
     n_atoms                = file_len('input/geom')
-    n_cart                 = 3 * n_atoms
+    n_cart                 = p_dim * n_atoms
     n_orbs                 = int(read_pipe_keyword('input/cidrtmsin',
                                                 'orbitals per irrep'))
     n_mcstates             = int(read_nlist_keyword('input/mcscfin',
@@ -100,6 +114,8 @@ def init_interface():
                                                 'NROOT'))
     mrci_lvl               = int(read_pipe_keyword('input/cidrtmsin',
                                                  'maximum excitation level'))
+    max_l                  = ang_mom_dalton('input/daltaoin')
+
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
     mem_str = str(glbl.columbus['mem_per_core'])
@@ -115,7 +131,6 @@ def init_interface():
 #
 def populate_bundle(master,geom_list,amp_list):
     for i in range(len(geom_list)):
-        print("NSTATES="+str(glbl.fms['n_states']))
         master.add_trajectory(trajectory.trajectory(
                               geom_list[i],
                               glbl.fms['interface'],
@@ -123,6 +138,7 @@ def populate_bundle(master,geom_list,amp_list):
                               parent=0,
                               n_basis=n_orbs))
         master.traj[i].amplitude = amp_list[i]
+        print("amplitude="+str(master.traj[i].amplitude))
 
 #
 # returns the energy at the specified geometry. If value on file 
@@ -181,16 +197,16 @@ def derivative(tid,geom,t_state,lstate,rstate):
 # if lstate != rstate, corresponds to transition dipole
 #
 def dipole(tid,geom,t_state,lstate,rstate):
-    global tdipoles
+    global dip_moms 
 
     if not in_cache(tid,geom):
         if tid >=0:
             run_trajectory(tid,geom,t_state)
         else:
             print("invalid id for trajectory: "+str(tid))
-            sys.exit("ERROR in columbus module[tdipole] -- invalid id") 
+            sys.exit("ERROR in columbus module[dipole] -- invalid id") 
     try:
-        return dipoles[tid][lstate,rstate,:]
+        return dip_moms[tid][lstate,rstate,:]
     except:
         print("ERROR in fetch_dipole")
         sys.exit("ERROR in columbus module fetching dipoles")
@@ -198,8 +214,8 @@ def dipole(tid,geom,t_state,lstate,rstate):
 #
 # return second moment tensor for state=state
 #
-def quadrupole(tid,geom,t_state,rstate):
-    global quadpoles
+def sec_mom(tid,geom,t_state,rstate):
+    global sec_moms 
 
     if not in_cache(tid,geom):
         if tid >= 0:
@@ -208,28 +224,28 @@ def quadrupole(tid,geom,t_state,rstate):
             print("invalid id for trajectory: "+str(tid))
             sys.exit("ERROR in columbus module[qpole] -- invalid id")
     try:
-        return quadpoles[tid][rstate,:]
+        return sec_moms[tid][rstate,:]
     except:
-        print("ERROR in fetch_quadpole")     
-        sys.exit("ERROR in columbus module fetching quadpole")
+        print("ERROR in fetch_sec_mom")     
+        sys.exit("ERROR in columbus module fetching sec_mom")
 
 #
 #
 #
-def atomic_charges(tid,geom,t_state, rstate):
-    global charges
+def atom_pop(tid,geom,t_state, rstate):
+    global atom_pops
 
     if not in_cache(tid,geom):
         if tid >= 0:
             run_trajectory(tid,geom,t_state)
         else:
             print("invalid id for trajectory: "+str(tid))
-            sys.exit("ERROR in columbus module[charges] -- invalid id")
+            sys.exit("ERROR in columbus module[atom_pops] -- invalid id")
     try:
-        return charges[tid][rstate,:]
+        return atom_pops[tid][rstate,:]
     except:
-        print("ERROR in fetch_charges")     
-        sys.exit("ERROR in columbus module fetching charges")
+        print("ERROR in fetch_atom_pops")     
+        sys.exit("ERROR in columbus module fetching atom_pops")
 
 #----------------------------------------------------------------
 #
@@ -237,11 +253,11 @@ def atomic_charges(tid,geom,t_state, rstate):
 #
 #----------------------------------------------------------------
 def in_cache(tid,geom):
-    global current_geom, n_atoms
+    global current_geom, n_atoms, p_dim
 
     if tid not in current_geom:
         return False
-    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(3)),np.float)
+    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(p_dim)),np.float)
     if np.linalg.norm(g - current_geom[tid]) <= glbl.fpzero:
         return True
     return False 
@@ -258,7 +274,7 @@ def in_cache(tid,geom):
 #    2. Compute all couplings
 #
 def run_trajectory(tid,geom,tstate):
-    global n_atoms, current_geom
+    global p_dim, n_atoms, current_geom
 
     # write geometry to file
     write_col_geom(geom)
@@ -288,7 +304,7 @@ def run_trajectory(tid,geom,tstate):
     make_col_restart(tid)
 
     # update the geometry in the cache
-    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(3)),np.float)
+    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(p_dim)),np.float)
     current_geom[tid] = g
 
 #
@@ -296,7 +312,7 @@ def run_trajectory(tid,geom,tstate):
 #  are on the same state), or a coupling (if on different states)
 #
 def run_centroid(tid,geom,lstate,rstate):
-    global n_atoms, current_geom
+    global p_dim, n_atoms, current_geom
 
     # write geometry to file
     write_col_geom(geom)
@@ -318,7 +334,7 @@ def run_centroid(tid,geom,lstate,rstate):
     make_col_restart(tid)
 
     # update the geometry in the cache
-    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(3)),np.float)
+    g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(p_dim)),np.float)
     current_geom[tid] = g
 
 #----------------------------------------------------------------
@@ -333,7 +349,6 @@ def make_one_time_input():
     global work_path
 
     # all calculations take place in work_dir
-    print("work path in dir="+work_path)
     os.chdir(work_path) 
 
     # rotation matrix
@@ -423,7 +438,6 @@ def run_col_mcscf(tid,t_state):
     n_run     = 0
     while not converged and n_run < run_max:
         n_run += 1
-        print("nrun="+str(n_run))
         if n_run == 3:
             # disable orbital-state coupling if convergence an issue            
             ncoupl = int(read_nlist_keyword('mcscfin','ncoupl'))
@@ -453,7 +467,7 @@ def run_col_mcscf(tid,t_state):
 # run mrci if running at that level of theory
 #
 def run_col_mrci(tid,t_state):
-    global energies, charges, work_path, n_atoms, n_cistates
+    global energies, atom_pops, work_path, n_atoms, n_cistates
 
     os.chdir(work_path)
 
@@ -499,28 +513,27 @@ def run_col_mrci(tid,t_state):
                     (ci_ener[i] for i in range(n_cistates)),
                      dtype=np.float)
 
-    # now update charges
+    # now update atom_pops
     ist = -1
-    charges[tid] = np.zeros((n_cistates,n_atoms),dtype=float)
-    with open('ciudgls','r') as ofile:
-        line = ofile.readline()
-        if '      gross atomic populations' in line:
-            ist += 1
-            charg = []
-            for i in range(int(math.ceil(n_atoms/6.))):
-                for j in range(5):
-                    line = ofile.readline()
-                ch_val = line.rstrip().split()
-                charg.append(float(ch_val[1:]))
-                line = ofile.readline()
-            charges[tid][ist,:] = np.asarray(charg,dtype=float)
- 
+    atom_pops[tid] = np.zeros((n_cistates,n_atoms),dtype=float)
+    with open('ciudgls','r') as ciudgls:
+        for line in ciudgls: 
+            if '   gross atomic populations' in line:
+                ist += 1
+                pops = []
+                for i in range(math.ceil(n_atoms/6.)):
+                    for j in range(max_l+3):
+                        line = ciudgls.readline()
+                    l_arr = line.rstrip().split()
+                    pops.extend(l_arr[1:])
+                    line = ciudgls.readline()
+                atom_pops[tid][ist,:] = np.asarray([float(x) for x in pops],dtype=float)
+
     # grab mrci output
     append_log(tid,'mrci')
 
     # transform integrals using cidrtfl.cigrd
     frzn_core = int(read_nlist_keyword('cigrdin','assume_fc'))
-    print("frozen_core="+str(frzn_core))
     if frzn_core == 1:
         os.remove('moints')
         os.remove('cidrtfl')
@@ -533,16 +546,16 @@ def run_col_mrci(tid,t_state):
     return    
 
 #
-# run dipoles/quadrupoles
+# run dipoles / second moments
 #
 def run_col_multipole(tid,t_state):
-    global dipoles, quadpoles, work_path, n_cistates, mrci_lvl
+    global p_dim, dip_moms, sec_moms, work_path, n_cistates, mrci_lvl
 
     os.chdir(work_path)
     
     nst            = n_cistates
-    dipoles[tid]   = np.zeros((n_cistates,n_cistates,3),dtype=np.float)
-    quadpoles[tid] = np.zeros((n_cistates,6),dtype=np.float)
+    dip_moms[tid]  = np.zeros((n_cistates,n_cistates,p_dim),dtype=np.float)
+    sec_moms[tid]  = np.zeros((n_cistates,p_dim),dtype=np.float)
 
     type_str       = 'ci'
     if mrci_lvl == 0:
@@ -553,29 +566,25 @@ def run_col_multipole(tid,t_state):
         link_force('nocoef_'+str(type_str)+'.drt1.state'+str(i1),'mocoef_prop')
         subprocess.run(['exptvl.x','-m',mem_str])
         with open('propls','r') as prop_file:
-            line = prop_file.readline()
-            if 'Dipole moments' in line:
-                for j in range(5):
-                    line = prop_file.readline()
-                mom_info = line.rstrip().split()
-                dip_mom  = np.array([float(mom_info[1]), \
-                                     float(mom_info[2]), \
-                                     float(mom_info[3])])
-                dipoles[tid][istate,istate:] = dip_mom
-            if 'Second moments' in line:
-                for j in range(5):
-                    line = prop_file.readline()   
-                mom_info = line.rstrip().split()
-                for j in range(5):
-                    line = prop_file.readline()
-                mom_info = mom_info.append(line.rstrip().split())
-                sec_mom  = np.array([float(mom_info[1]), \
-                                     float(mom_info[2]), \
-                                     float(mom_info[3]), \
-                                     float(mom_info[4]), \
-                                     float(mom_info[6]), \
-                                     float(mom_info[7])])
-                quadpoles[tid][istate,:] = sec_mom
+            for line in prop_file:
+                if 'Dipole moments' in line:
+                    for j in range(5):
+                        line = prop_file.readline()
+                    l_arr = line.rstrip().split()
+                    dip_moms[tid][istate,istate,:]  = np.array([float(l_arr[1]), 
+                                                                float(l_arr[2]), 
+                                                                float(l_arr[3])])
+                if 'Second moments' in line:
+                    for j in range(5):
+                        line = prop_file.readline()   
+                    l_arr = line.rstrip().split()
+                    for j in range(5):
+                        line = prop_file.readline()
+                    l_arr.extend(line.rstrip().split())
+                    # NOTE: we're only taking the diagonal elements
+                    sec_moms[tid][istate,:] = np.array([float(l_arr[1]), 
+                                                        float(l_arr[4]), 
+                                                        float(l_arr[7])])
         os.remove('mocoef_prop')
 
     return
@@ -585,7 +594,7 @@ def run_col_multipole(tid,t_state):
 # and between trajectory states and other state
 #
 def run_col_tdipole(tid,t_state):
-    global dipoles, n_cistates, work_path, mrci_lvl
+    global p_dim, dip_moms, n_cistates, work_path, mrci_lvl
  
     os.chdir(work_path)
 
@@ -629,16 +638,16 @@ def run_col_tdipole(tid,t_state):
                 for line in trncils:
                     if 'total (elec)' in line:
                         line_arr = line.rstrip().split() 
-                        for dim in range(3):
-                            dipoles[tid][istate,jstate,dim] = float(line_arr[dim+2])
-                            dipoles[tid][jstate,istate,dim] = float(line_arr[dim+2])
+                        for dim in range(p_dim):
+                            dip_moms[tid][istate,jstate,dim] = float(line_arr[dim+2])
+                            dip_moms[tid][jstate,istate,dim] = float(line_arr[dim+2])
              
 
 # perform integral transformation and determine gradient on
 # trajectory state
 #
 def run_col_gradient(tid,t_state):
-    global gradients, input_path, work_path, mrci_lvl, n_cistates, n_cart
+    global p_dim, gradients, input_path, work_path, mrci_lvl, n_cistates, n_cart
 
     os.chdir(work_path)
     shutil.copy(input_path+'/cigrdin','cigrdin')
@@ -672,14 +681,16 @@ def run_col_gradient(tid,t_state):
     shutil.copy(input_path+'/abacusin','daltcomm')
     with open('abacusls','w') as abacusls:
         subprocess.run(['dalton.x','-m',mem_str],stdout=abacusls)
+    shutil.move('abacusls','abacusls.grad')
+
 
     # read in cartesian gradient and save to array
     with open('cartgrd','r') as cartgrd:
         i = 0
         for line in cartgrd:
             l_arr = line.rstrip().split()
-            for j in range(3):
-                gradients[tid][t_state,t_state,3*i+j] = float(l_arr[j].replace("D","e"))
+            for j in range(p_dim):
+                gradients[tid][t_state,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
             i = i + 1
 
     # grab cigrdls output
@@ -689,7 +700,7 @@ def run_col_gradient(tid,t_state):
 # compute couplings to states within prescribed DE window
 #
 def run_col_coupling(tid,t_state):
-    global couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
+    global p_dim, couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
 
     os.chdir(work_path)
     tindex = t_state + 1
@@ -741,10 +752,11 @@ def run_col_coupling(tid,t_state):
             i = 0
             for line in cartgrd:
                 l_arr = line.rstrip().split()
-                for j in range(3):
-                    gradients[tid][t_state,istate,3*i+j] = float(l_arr[j].replace("D","e"))
-                    gradients[tid][istate,t_state,3*i+j] = float(l_arr[j].replace("D","e"))
+                for j in range(p_dim):
+                    gradients[tid][t_state,istate,p_dim*i+j] = float(l_arr[j].replace("D","e"))
+                    gradients[tid][istate,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
                 i = i + 1
+        shutil.move('cartgrd','cartgrd.nad')
 
     # grab mcscfls output
     append_log(tid,'nad')
@@ -948,8 +960,36 @@ def insert_dalton_key(infile,keyword,value):
         for line in ifile:
             ofile.write(line)
             if keyword in line:
-                ofile.write(value)
+                ofile.write(value+'\n')
     shutil.move("tempfile",infile)
+
+#
+# finds maximum ang. mom in basis set from dalton. Pretty specific...
+#
+def ang_mom_dalton(infile):
+
+    max_l = 0
+    with open(infile,'r') as daltaoin:
+        for i in range(4):
+            line = daltaoin.readline()
+        l_arr = line.rstrip().split()
+        n_grps = int(l_arr[1])
+        for i in range(n_grps):
+            line = daltaoin.readline()
+            l_arr = line.rstrip().split()
+            n_atm = int(l_arr[1])
+            max_l = max(max_l,int(l_arr[2])-1) # max_l on first line
+            n_con = [int(l_arr[j]) for j in range(3,3+max_l+1)]
+            for j in range(n_atm):
+                line = daltaoin.readline()
+            for j in range(len(n_con)):
+                for k in range(n_con[j]):
+                    line = daltaoin.readline()
+                    nprim = int(line.rstrip().split()[1])
+                    for l in range(nprim):
+                        line = daltaoin.readline() 
+    return max_l
+
 
 #
 # return the number of lines in file

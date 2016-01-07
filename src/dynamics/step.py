@@ -19,8 +19,8 @@ integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a']
 #
 def time_step(master):
     dt = glbl.fms['default_time_step']
-    master.update_bundle()
     if master.in_coupled_regime():
+      print("IN COUPLING REGIME")
       dt = glbl.fms['coupled_time_step'] 
     return dt
 #
@@ -35,7 +35,7 @@ def fms_step_bundle(master,init_time,dt):
     end_time     = init_time + dt
     time_step    = dt
 
-    while current_time < end_time:
+    while master.time < end_time:
 
         # save the bundle from previous step in case step rejected
         master0 = master
@@ -60,15 +60,16 @@ def fms_step_bundle(master,init_time,dt):
         if accept:
             # update the current_time
             current_time = proposed_time
+            # update the bundle time
+            master.time = current_time
             # spawn new basis functions if necessary
             spawn(master,current_time,time_step)
-            # update the Hamtilonian
-            master.update_matrices()
             # set trajectory amplitudes
             master.update_amplitudes(dt,10)
             # kill the dead trajectories
             master.prune()
         else:
+            print("step rejected")
             # recall -- this time trying to propagate
             # to the failed step
             time_step  = 0.5 * time_step
@@ -82,8 +83,15 @@ def fms_step_bundle(master,init_time,dt):
             # go back to the beginning of the while loop
             continue
 
+#-----------------------------------------------------------------------------
 #
-# Propagate a single trajectory
+# Private functions
+#
+#-----------------------------------------------------------------------------
+
+#
+# Propagate a single trajectory -- used to backward/forward propagate a trajectory
+#                                  during spawning
 # NOTE: fms_step_bundle and fms_step_trajectory could/should probably
 #       be integrated somehow...
 #
@@ -92,13 +100,14 @@ def fms_step_trajectory(trajectory,init_time,dt):
     current_time = init_time
     end_time     = init_time + dt 
     time_step    = dt
+
     while current_time < end_time:
 
         # save the bundle from previous step in case step rejected
         traj0 = trajectory
 
         # propagate single trajectory 
-        propagate.propagate(trajectory,time_step)
+        integrator.propagate(trajectory,time_step)
 
         # update current time
         proposed_time = current_time + time_step
@@ -124,13 +133,7 @@ def fms_step_trajectory(trajectory,init_time,dt):
             trajectory = traj0
             # go back to the beginning of the while loop
             continue
-     
 
-#-----------------------------------------------------------------------------
-#
-# Private functions
-#
-#-----------------------------------------------------------------------------
 #
 # check if we should reject a macro step because we're in a coupling region 
 #
@@ -176,10 +179,13 @@ def check_step_trajectory(traj0, traj, time_step):
     return True
 
 #
-# This is the top-level routine for spawningls
+# This is the top-level routine for spawning
 #
 # Schematic
-#              propagate
+#
+#   start, t0
+#     |
+#    \/        propagate
 # parent_i(s) -----------> parent_s(s)
 #                              |
 #                              \/
@@ -221,7 +227,7 @@ def spawn(master,current_time,dt):
                 continue
 
             # if we satisfy spawning conditions, begin spawn process                    
-            if spawn_trajectory(master.traj[i], current_time, coup_hist[i,st,:], st):
+            if spawn_trajectory(master.traj[i], st, coup_hist[i,st,:], current_time):
                 parent_i = master.traj[i]
                 print(" SPAwNING TRAJECTORY -- ")
                
@@ -252,7 +258,7 @@ def propagate_forward(parent_f,child_s,dt):
     child_created = False
 
     while True:
-        coup = parent_f.coup_dot_vel()
+        coup = parent_f.coup_dot_vel(child_s.state)
         coup_hist[1] = coup_hist[0]
         coup_hist[0] = coup
 
@@ -317,7 +323,7 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
         return False
 
     # there is insufficient coupling
-    if trajectory.coup_dot_vel(spawn_state) < spawn_coup_thresh:
+    if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing
@@ -398,7 +404,7 @@ def adjust_child(parent, child, scale_dir):
 #
 #
 def overlap_with_bundle(trajectory,bundle):
-    pass
+    return False 
 
 #
 #

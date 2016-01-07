@@ -47,7 +47,7 @@ def ke_integral(traj1,traj2):
 def sdot_integral(traj1,traj2):
     sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2) ) +  \
              np.dot( traj2.force()   , traj1.deldp(traj2) ) +  \
-             np.cfloat(0.+1.j) * traj2.phase_dot() * traj1.overlap(traj2)
+             complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
     print("sdot="+str(sdot))
     return sdot
 

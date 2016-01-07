@@ -39,7 +39,6 @@ def main():
             break
 
         # update the fms output files, as well as checkpoint, if necessary
-        master.time += time_step
         master.update_logs() 
 
     fileio.cleanup()

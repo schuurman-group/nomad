@@ -40,5 +40,5 @@ def deld2x(x1,p1,a1,x2,p2,a2):
              + 2. * a1 * a2 * (a1 + a2)                  \
              - 4. * dx**2 * a1**2 * a2**2 + psum**2)     \
              / (a1 + a2)**2
-     return d2xval * overlap(x1,p1,a1,x2,p2,a2)
+     return -d2xval * overlap(x1,p1,a1,x2,p2,a2)
 

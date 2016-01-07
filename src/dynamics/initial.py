@@ -32,6 +32,7 @@ def init_bundle(master):
         init_restart(master)
     else:
         init_trajectories(master)
+        master.update_matrices()
         master.update_logs()
 
     return master.time

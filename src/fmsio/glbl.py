@@ -34,6 +34,8 @@ fms = dict(
        nad_thresh        = 0.001,
        sij_thresh        = 1.e-5,
        spawn_pop_thresh  = 0.025,
+       spawn_coup_thresh = 0.02,
+       pot_shift         = 0.,
        output_path       = ''
           )
 #

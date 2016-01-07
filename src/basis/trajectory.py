@@ -1,5 +1,6 @@
 import cmath
 import numpy as np
+import src.fmsio.glbl as glbl
 import src.basis.particle as particle
 class trajectory:
 
@@ -47,9 +48,9 @@ class trajectory:
         # dipoles and transition dipoles
         self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))      
         # second moment tensor for each state
-        self.quadpoles  = np.zeros((self.nstates,6))
-        # charges on the atoms
-        self.charges    = np.zeros((self.nstates,self.n_particle))
+        self.secmoms    = np.zeros((self.nstates,self.d_particle))
+        # electronic populations on the atoms
+        self.atom_pops  = np.zeros((self.nstates,self.n_particle))
    
     #-------------------------------------------------------------------
     #
@@ -86,8 +87,8 @@ class trajectory:
     #
     def update_phase(self,phase):
         self.phase = phase
-        if self.phase > 2*np.pi:
-            self.phase = self.phase - int(self.phase/(2 * np.pi)) * 2 * n.pi
+        if abs(self.phase) > 2*np.pi:
+            self.phase = self.phase - int(self.phase/(2. * np.pi)) * 2. * np.pi
 
     #-----------------------------------------------------------------------
     # 
@@ -131,11 +132,11 @@ class trajectory:
         return width
 
     #
-    # return the potential energies. If not current, recompute them
+    # return the potential energies. Add the energy shift right here. If not current, recompute them
     #
     def energy(self,rstate):
         self.poten[rstate] = self.pes.energy(self.tid, self.particles, self.state, rstate)
-        return self.poten[rstate]
+        return self.poten[rstate] + glbl.fms['pot_shift']
 
     #
     # return the derivative with ket state = rstate. bra state assumed to be 
@@ -162,16 +163,16 @@ class trajectory:
     #
     #
     #
-    def quadpole(self,rstate):
-        self.quadpoles[rstate,:] = self.pes.quadrupole(self.tid, self.particles, self.state, rstate)
-        return self.quadpoles[rstate,:]
+    def sec_mom(self,rstate):
+        self.secmoms[rstate,:] = self.pes.sec_mom(self.tid, self.particles, self.state, rstate)
+        return self.secmoms[rstate,:]
 
     #
     #
     # 
-    def charge(self,rstate):
-        self.charges[rstate,:] = self.pes.atomic_charges(self.tid, self.particles, self.state, rstate)
-        return self.charges[rstate,:]
+    def atom_pop(self,rstate):
+        self.atom_pops[rstate,:] = self.pes.atom_pop(self.tid, self.particles, self.state, rstate)
+        return self.atom_pops[rstate,:]
 
     #
     #
