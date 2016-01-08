@@ -19,7 +19,7 @@ def deldp(x1,p1,a1,x2,p2,a2):
     dx        = x1 - x2
     dp        = p1 - p2
     dpval     = (dp + 2.*complex(0.,1.) * a1 * dx) / (2.0 * (a1 + a2))
-    return dpval * overlap(x1,p1,a1,x2,p2,a2)
+    return dpval
 
 #
 # del/dx matrix element between two primitive gaussians
@@ -28,7 +28,7 @@ def deldx(x1,p1,a1,x2,p2,a2):
      dx    = x1 - x2
      psum  = a1 * p2 + a2 * p1
      dxval = (complex(0.,1.) * psum - 2.0 * a1 * a2 * dx) / (a1 + a2)
-     return dxval * overlap(x1,p1,a1,x2,p2,a2)
+     return dxval
 
 #
 # del^2/dx^2 matrix element between two primitive gaussians
@@ -40,5 +40,5 @@ def deld2x(x1,p1,a1,x2,p2,a2):
              + 2. * a1 * a2 * (a1 + a2)                  \
              - 4. * dx**2 * a1**2 * a2**2 + psum**2)     \
              / (a1 + a2)**2
-     return -d2xval * overlap(x1,p1,a1,x2,p2,a2)
+     return -d2xval
 

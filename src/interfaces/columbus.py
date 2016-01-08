@@ -541,7 +541,7 @@ def run_col_mrci(tid,t_state):
         link_force('cidrtfl.cigrd','cidrtfl')
         link_force('cidrtfl.cigrd','cidrtfl.1')
         shutil.copy(input_path+'/tranin','tranin')
-        suprocess.run(['tran.x','-m',mem_str])
+        subprocess.run(['tran.x','-m',mem_str])
  
     return    
 
@@ -598,30 +598,26 @@ def run_col_tdipole(tid,t_state):
  
     os.chdir(work_path)
 
-    init_states = [0, t_state-1]
     # make sure we point to the correct formula tape file
     link_force('civfl','civfl.drt1')
     link_force('civout','civout.drt1')
     link_force('cirefv','cirefv.drt1')
 
-    for istate in init_states:
+    for istate in range(n_cistates):
         i1 = istate + 1
-        for jstate in range(n_cistates):
+        for jstate in range(istate):
             j1 = jstate + 1
             # only do transition dipoles
-            if istate == jstate or (jstate in init_states and jstate < istate):
+            if istate == jstate:
                 continue     
-
-            ii = min(i1,j1)
-            jj = max(i1,j1)
 
             if mrci_lvl == 0:
                 with open('transftin','w') as ofile:
-                    ofile.write('y\n1\n'+str(ii)+'\n1\n'+str(jj))
+                    ofile.write('y\n1\n'+str(j1)+'\n1\n'+str(i1))
                 subprocess.run(['transft.x'],stdin='transftin',stdout='transftls')
 
                 with open('transmomin','w') as ofile:
-                    ofile.write('MCSCF\n1 '+str(ii)+'\n1\n'+str(jj))
+                    ofile.write('MCSCF\n1 '+str(j1)+'\n1\n'+str(i1))
                 subprocess.run(['transmom.x','-m',mem_str])
 
                 os.remove('mcoftfl')
@@ -629,10 +625,10 @@ def run_col_tdipole(tid,t_state):
 
             else:
                 with open('trnciin','w') as ofile:
-                    ofile.write('&input\nlvlprt=1,\nnroot1='+str(ii)+',\n'+
-                                 'nroot2='+str(jj)+',\ndrt1=1,\ndrt2=1,\n&end')
+                    ofile.write('&input\nlvlprt=1,\nnroot1='+str(j1)+',\n'+
+                                 'nroot2='+str(i1)+',\ndrt1=1,\ndrt2=1,\n&end')
                 subprocess.run(['transci.x','-m',mem_str])
-                shutil.move('cid1trfl','cid1trfl.'+str(ii)+'.'+str(jj)) 
+                shutil.move('cid1trfl','cid1trfl.'+str(j1)+'.'+str(i1)) 
 
             with open('trncils','r') as trncils:
                 for line in trncils:
@@ -943,9 +939,8 @@ def set_nlist_keyword(file_name,keyword,value):
                 ofile.write(str(keyword)+' = '+str(value)+'\n')
                 key_found = True
             elif '&end' in line and not key_found:
-                ofile.write(keyword+' = '+str(value)+',')
+                ofile.write(str(keyword)+' = '+str(value)+',\n')
                 ofile.write(line)
-                break
             else:
                 ofile.write(line)
     shutil.move(outfile,file_name)
@@ -978,8 +973,9 @@ def ang_mom_dalton(infile):
             line = daltaoin.readline()
             l_arr = line.rstrip().split()
             n_atm = int(l_arr[1])
-            max_l = max(max_l,int(l_arr[2])-1) # max_l on first line
-            n_con = [int(l_arr[j]) for j in range(3,3+max_l+1)]
+            n_ang = int(l_arr[2])-1
+            max_l = max(max_l,n_ang) # max_l on first line
+            n_con = [int(l_arr[j]) for j in range(3,3+n_ang+1)]
             for j in range(n_atm):
                 line = daltaoin.readline()
             for j in range(len(n_con)):

@@ -290,42 +290,53 @@ class trajectory:
    #
    #--------------------------------------------------------------------------
     def write_trajectory(self,chkpt):
-        chkpt.write('{:5s}             alive'.format(self.alive))
-        chkpt.write('{:10d}            nstates'.format(self.nstates))
-        chkpt.write('{:10d}            traj ID'.format(self.tid))
-        chkpt.write('{:10d}            state  '.format(self.state))
-        chkpt.write('{:10d}            parent ID'.format(self.parent))
-        chkpt.write('{:10d}            n basis function'.format(self.nbf))
-        chkpt.write('{:8.2f}           dead time'.format(self.deadtime))
-        chkpt.write('{:16.12f}         phase'.format(self.phase))
-        chkpt.write('{:16.12f}         amplitude'.format(self.amplitude))
-        chkpt.write('# potential energy -- nstates')
-        self.poten.tofile(chkpt,' ',':14.10f')
-        chkpt.write('# exit coupling region')
-        self.exit_time.tofile(chkpt,' ',':8.2f')
-        chkpt.write('# last spawn')
-        self.spawn_time.tofile(chkpt,' ',':8.2f')
-        chkpt.write('# currently coupled')
-        self.spawn_coup.tofile(chkpt,' ',':10d')
-        chkpt.write('# position')
-        self.position().tofile(chkpt,' ',':12.8f')
-        chkpt.write('# momentum')
-        self.momentum().tofile(chkpt,' ',':12.8f')
+        chkpt.write('{:5s}             alive\n'.format(str(self.alive)))
+        chkpt.write('{:10d}            nstates\n'.format(self.nstates))
+        chkpt.write('{:10d}            traj ID\n'.format(self.tid))
+        chkpt.write('{:10d}            state\n'.format(self.state))
+        chkpt.write('{:10d}            parent ID\n'.format(self.parent))
+        chkpt.write('{:10d}            n basis function\n'.format(self.nbf))
+        chkpt.write('{:8.2f}           dead time\n'.format(self.deadtime))
+        chkpt.write('{:16.12f}         phase\n'.format(self.phase))
+        chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
+        chkpt.write('# potential energy -- nstates\n')
+        self.poten.tofile(chkpt,' ','%14.10f')
+        chkpt.write('\n')
+        chkpt.write('# exit coupling region\n')
+        self.exit_time.tofile(chkpt,' ','%8.2f')
+        chkpt.write('\n')
+        chkpt.write('# last spawn\n')
+        self.last_spawn.tofile(chkpt,' ','%8.2f')
+        chkpt.write('\n')
+        chkpt.write('# currently coupled\n')
+        self.spawn_coup.tofile(chkpt,' ','%10d')
+        chkpt.write('\n')
+        chkpt.write('# position\n')
+        self.position().tofile(chkpt,' ','%12.8f')
+        chkpt.write('\n')
+        chkpt.write('# momentum\n')
+        self.momentum().tofile(chkpt,' ','%12.8f')
+        chkpt.write('\n')
         # Writes out dipole moments in cartesian coordinates
         chkpt.write("# dipoles (n=state is permanent dipole, "  
-                                "others are transition dipoles)")
+                                "others are transition dipoles)\n")
         for i in range(self.nstates):
-            chkpt.write('# n = {:4d}    '.format(i))
-            self.dipoles[i,:].tofile(chkpt,' ',':10.6f')
+            chkpt.write('# n = {:4d}\n'.format(i))
+            self.dipoles[i,:].tofile(chkpt,' ','%10.6f')
+            chkpt.write('\n')
+
         # Writes out dipole moments
         chkpt.write("# derivative matrix (n=state is gradient, "
-                                "others are nad coupling)")
+                                "others are nad coupling)\n")
         for i in range(self.nstates):
-            chkpt.write('# n = {:4d}    '.format(i))
-            self.deriv[i,:].tofile(chkpt,' ',':16.10e')
+            chkpt.write('# n = {:4d}\n'.format(i))
+            self.deriv[i,:].tofile(chkpt,' ','%16.10e')
+            chkpt.write('\n')
+
         #
-        chkpt.write('# molecular orbitals')
-        self.orbitals().tofile(chkpt,' ',':12.8e')
+        chkpt.write('# molecular orbitals\n')
+        self.orbitals().tofile(chkpt,' ','%12.8e')
+        chkpt.write('\n')
 
     #
     # Read trajectory from file. This assumes the trajectory invoking this

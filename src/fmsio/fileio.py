@@ -89,7 +89,6 @@ def init_fms_output():
     np = int(glbl.fms['num_particles'])
     nd = int(glbl.fms['dim_particles'])
     ns = int(glbl.fms['n_states'])
-    print("np, nd, ns="+str(np)+' '+str(nd)+' '+str(ns)) 
     dstr = ("x","y","z")
 
     # trajectory output
@@ -197,8 +196,6 @@ def print_traj_row(tid,fkey,data):
     global output_path, tkeys, tfile_names, headers, formats
     filename = output_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
    
-    print("data="+str(data))
- 
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
             outfile.write(headers[tkeys[fkey]])

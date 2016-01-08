@@ -72,7 +72,7 @@ class particle:
     def deldp(self,other):
          return np.fromiter((gaussian.deldp(self.x[i],self.p[i],self.width,
                                            other.x[i],other.p[i],other.width) 
-                                          for i in range(self.dim)),np.cfloat) * self.overlap(other)
+                                          for i in range(self.dim)),np.cfloat)
 
 
     #
@@ -81,7 +81,7 @@ class particle:
     def deldx(self,other):
          return np.fromiter((gaussian.deldx(self.x[i],self.p[i],self.width,
                                           other.x[i],other.p[i],other.width) 
-                                          for i in range(self.dim)),np.cfloat) * self.overlap(other)
+                                          for i in range(self.dim)),np.cfloat)
 
     #
     # del^2/dx^2 matrix element between two particles
@@ -101,13 +101,13 @@ class particle:
     # write particle to file stream chkpt
     #
     def write_particle(self,chkpt):
-        chkpt.write('{:2s}              particle name'.format(self.name))
-        chkpt.write('{:10d}             particle ID'.format(self.pid))
-        chkpt.write('{:10d}             atomic number'.format(self.atomic_num))
-        chkpt.write('{:10d}             dimension'.format(self.dim))
-        chkpt.write('{:16.10e}          width'.format(self.width))
-        chkpt.write('{:16.10e}          mass'.format(self.mass))
-        chkpt.write('{:16.10e}          charge'.format(self.charge))
+        chkpt.write('        {:2s}              particle name\n'.format(self.name))
+        chkpt.write('{:10d}             particle ID\n'.format(self.pid))
+        chkpt.write('{:10.1f}             atomic number\n'.format(self.anum))
+        chkpt.write('{:10d}             dimension\n'.format(self.dim))
+        chkpt.write('{:16.10e}          width\n'.format(self.width))
+        chkpt.write('{:16.10e}          mass\n'.format(self.mass))
+        chkpt.write('{:16.10e}          charge\n'.format(self.charge))
 
     #
     # Reads particle written to file by write_particle

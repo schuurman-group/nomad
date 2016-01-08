@@ -16,7 +16,7 @@ def v_integral(traj1,traj2=None,centroid=None):
     # state [this also requires the centroid be present
     #
     elif traj1.state == traj2.state:
-        return traj1.overlap(traj2) * centroid.energy(traj1.state)
+        return centroid.energy(traj1.state) * traj1.overlap(traj2)
     #
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
@@ -48,7 +48,6 @@ def sdot_integral(traj1,traj2):
     sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2) ) +  \
              np.dot( traj2.force()   , traj1.deldp(traj2) ) +  \
              complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
-    print("sdot="+str(sdot))
     return sdot
 
 

@@ -78,23 +78,17 @@ class bundle:
         # n is varied until C_tdt is stable
 
         self.update_matrices()
-        print("Heff="+str(self.Heff))
 
         old_amp   = self.amplitudes()
-        print("old_amp="+str(old_amp))
         new_amp   = np.zeros(self.nalive,dtype=np.cfloat)
-        print("new_amp="+str(new_amp))
         Id        = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         for i in range(self.nalive):
             Id[i,i] = complex(1.,0.)
-        print("Id="+str(Id))
 
         B = -complex(0.,1.) * self.Heff * dt
-        print("B="+str(B))
 
         prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
         for n in range(n_max):
-            print("n="+str(n))
             Bn  = B / 2**n
             Bn2 = np.dot(Bn,Bn)
             Bn3 = np.dot(Bn2,Bn)
@@ -105,9 +99,7 @@ class bundle:
                 taylor = np.dot(taylor,taylor)
 
             new_amp = np.dot(taylor,old_amp)
-            print("new_amp="+str(new_amp))
             error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
-            print("error="+str(error))
             if abs(error) < 1.e-10:
                 break
             else:
@@ -130,7 +122,6 @@ class bundle:
             if self.traj[i].alive:
                 cnt += 1
                 amps[cnt:] = np.cfloat(self.traj[i].amplitude) 
-        print("bundle.amps="+str(amps))
         return amps
 
     # 
@@ -363,34 +354,34 @@ class bundle:
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
     #          
-    def write_bundle(self,filname,mode):
+    def write_bundle(self,filename,mode):
         if mode not in ('x','a'):
             sys.exit('invalid write mode in bundle.write_bundle')
         npart = self.traj[0].n_particle
-        ndim  = self.traj[0].ndim
+        ndim  = self.traj[0].d_particle
         with open(filename, mode) as chkpt:
             # 
             # first write out the bundle-level information
             #
-            chkpt.write('------------- BEGIN BUNDLE SUMMARY --------------')
-            chkpt.write('{:8.2f}            current time'.format(self.time))
-            chkpt.write('{:10d}            live trajectories'.format(self.nalive))
-            chkpt.write('{:10d}            dead trajectories'.format(self.ndead))
-            chkpt.write('{:10d}            number of states'.format(self.nstates))
-            chkpt.write('{:10d}            number of particles'.format(npart))
-            chkpt.write('{:10d}            dimensions of particles'.format(ndim))
+            chkpt.write('------------- BEGIN BUNDLE SUMMARY --------------\n')
+            chkpt.write('{:8.2f}            current time\n'.format(self.time))
+            chkpt.write('{:10d}            live trajectories\n'.format(self.nalive))
+            chkpt.write('{:10d}            dead trajectories\n'.format(self.ndead))
+            chkpt.write('{:10d}            number of states\n'.format(self.nstates))
+            chkpt.write('{:10d}            number of particles\n'.format(npart))
+            chkpt.write('{:10d}            dimensions of particles\n'.format(ndim))
             #
             # Particle information common to all trajectories
             #
             for i in range(npart):
-                chkpt.write('--------- common particle information --------')
+                chkpt.write('--------- common particle information --------\n')
                 self.traj[0].particles[i].write_particle(chkpt)
             #
             # first write out the live trajectories. The function write_trajectory
             # can only write to a pre-existing file stream
             #
             for i in range(len(self.traj)):
-                chkpt.write('-------- trajectory {:4d} --------'.format(i))    
+                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))    
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
 
@@ -406,7 +397,7 @@ class bundle:
                     if float(line[0]) == t_restart:
                         break
         # populate the bundle with the correct number of trajectories
-        traj_template = trajectory.trajectory(0,0,self.nstates,0,npart,ndim)
+        traj_template = trajectory.trajectory(0,0,self.nstates,tid=0,parent=0,n_basis=0)
         for i in range(npart):
             traj_template.add_particle(plist[i])
         for i in range(self.nalive + self.ndead):
