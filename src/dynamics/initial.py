@@ -1,3 +1,4 @@
+import sys 
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -14,16 +15,17 @@ pes = __import__("src.interfaces."+glbl.fms['interface'],fromlist=['NA'])
 # initalize the trajectories
 #
 def init_bundle(master):
-    #
-    # initialize the interface we'll be using the determine the 
-    #   the PES. There are some details here that trajectories
-    #    will want to know about
-    pes.init_interface()
 
     #
     # initialize the trajectory and bundle output files
     #
     fileio.init_fms_output()
+
+    #
+    # initialize the interface we'll be using the determine the 
+    #   the PES. There are some details here that trajectories
+    #    will want to know about
+    pes.init_interface()
 
     # 
     # now load the initial trajectories into the bundle
@@ -32,8 +34,11 @@ def init_bundle(master):
         init_restart(master)
     else:
         init_trajectories(master)
-        master.update_matrices()
-        master.update_logs()
+
+    print("init_restart is done")
+    sys.stdout.flush()
+    master.update_matrices()
+    master.update_logs()
 
     return master.time
 
@@ -49,15 +54,14 @@ def init_bundle(master):
 # initialize a restart
 #
 def init_restart(master):
-    if glbl.fms['restart_time'] == 0.:
-        return
-    elif glbl.fms['restart_time'] == -1.:
-        chkpt = open('last_step.dat','r',encoding='utf-8')
-        master.read_bundle(chkpt)
+    
+    if glbl.fms['restart_time'] == -1.:
+        fname = fileio.home_path+'/last_step.dat'
     else:
-        chkpt = open('checkpoint.dat','r',encoding='utf-8')
-        master.read_chkpt(chkpt,variable['restart_time'])
-    chkpt.close()
+        fname = fileio.home_path+'/checkpoint.dat'
+
+    master.read_bundle(fname,glbl.fms['restart_time'])
+
     return
 
 #

@@ -101,23 +101,23 @@ class particle:
     # write particle to file stream chkpt
     #
     def write_particle(self,chkpt):
-        chkpt.write('        {:2s}              particle name\n'.format(self.name))
-        chkpt.write('{:10d}             particle ID\n'.format(self.pid))
-        chkpt.write('{:10.1f}             atomic number\n'.format(self.anum))
-        chkpt.write('{:10d}             dimension\n'.format(self.dim))
-        chkpt.write('{:16.10e}          width\n'.format(self.width))
-        chkpt.write('{:16.10e}          mass\n'.format(self.mass))
-        chkpt.write('{:16.10e}          charge\n'.format(self.charge))
+        chkpt.write('        {:2s}            particle name\n'.format(self.name))
+        chkpt.write('{:10d}            particle ID\n'.format(self.pid))
+        chkpt.write('{:10.1f}            atomic number\n'.format(self.anum))
+        chkpt.write('{:10d}            dimension\n'.format(self.dim))
+        chkpt.write('{:16.10e}      width\n'.format(self.width))
+        chkpt.write('{:16.10e}      mass\n'.format(self.mass))
+        chkpt.write('{:16.10e}      charge\n'.format(self.charge))
 
     #
     # Reads particle written to file by write_particle
     #
     def read_particle(self,chkpt):
-        self.name       = chkpt.readline()[0]
-        self.pid        = int(chkpt.readline()[0])
-        self.atomic_num = int(chkpt.readline()[0])
-        self.dim        = int(chkpt.readline()[0])
-        self.width      = float(chkpt.readline()[0])
-        self.mass       = float(chkpt.readline()[0])
-        self.charge     = float(chkpt.readline()[0])
+        self.name       = str(chkpt.readline().split()[0])
+        self.pid        = int(chkpt.readline().split()[0])
+        self.atomic_num = float(chkpt.readline().split()[0])
+        self.dim        = int(chkpt.readline().split()[0])
+        self.width      = float(chkpt.readline().split()[0])
+        self.mass       = float(chkpt.readline().split()[0])
+        self.charge     = float(chkpt.readline().split()[0])
 

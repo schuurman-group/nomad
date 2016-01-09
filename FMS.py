@@ -1,4 +1,5 @@
 def main(): 
+    import sys
     import random
     import src.fmsio.glbl as glbl
     import src.fmsio.fileio as fileio
@@ -42,7 +43,7 @@ def main():
         master.update_logs() 
         
         # write the bundle to file
-        master.write_bundle(fileio.output_path+'/Last_Bundle.dat','x')
+        master.write_bundle(fileio.output_path+'/Last_Bundle.dat','w')
 
     fileio.cleanup()
 

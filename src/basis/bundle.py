@@ -4,6 +4,7 @@ import scipy as sp
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
+import src.basis.particle as particle
 import src.basis.trajectory as trajectory
 class bundle:
     def __init__(self,nstates,surface_rep):
@@ -45,7 +46,6 @@ class bundle:
         self.traj[tid].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
-        self.bundle_current  = False
         self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
@@ -107,6 +107,7 @@ class bundle:
         
         cnt = -1
         for i in range(self.n_total()):
+            sys.stdout.flush()
             if self.traj[i].alive:
                 cnt += 1
                 self.traj[i].amplitude = new_amp[cnt]
@@ -119,6 +120,7 @@ class bundle:
         amps = np.zeros(self.nalive,dtype=np.cfloat)
         cnt = -1
         for i in range(self.n_total()):
+            sys.stdout.flush()
             if self.traj[i].alive:
                 cnt += 1
                 amps[cnt:] = np.cfloat(self.traj[i].amplitude) 
@@ -278,6 +280,7 @@ class bundle:
     def update_logs(self):
         
         for i in range(self.n_total()):
+            sys.stdout.flush()    
             if self.traj[i].alive:
 
                 # trajectory file
@@ -355,7 +358,7 @@ class bundle:
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
     #          
     def write_bundle(self,filename,mode):
-        if mode not in ('x','a'):
+        if mode not in ('w','a'):
             sys.exit('invalid write mode in bundle.write_bundle')
         npart = self.traj[0].n_particle
         ndim  = self.traj[0].d_particle
@@ -364,7 +367,7 @@ class bundle:
             # first write out the bundle-level information
             #
             chkpt.write('------------- BEGIN BUNDLE SUMMARY --------------\n')
-            chkpt.write('{:8.2f}            current time\n'.format(self.time))
+            chkpt.write('{:10.2f}            current time\n'.format(self.time))
             chkpt.write('{:10d}            live trajectories\n'.format(self.nalive))
             chkpt.write('{:10d}            dead trajectories\n'.format(self.ndead))
             chkpt.write('{:10d}            number of states\n'.format(self.nstates))
@@ -388,26 +391,62 @@ class bundle:
     #
     # Reads a bundle at time 't_restart' from a chkpt file
     #
-    def read_chkpt(self,filename,t_restart):   
-        t_found = False
-        with open(filename,'r') as chkpt:
+    def read_bundle(self,filename,t_restart):   
+   
+        try:
+            chkpt = open(filename,'r',encoding='utf-8')
+        except:
+            sys.exit('could not open: '+filename)
+        
+        # if we're reading from a checkpoint file -- fast-forward
+        # to the requested time
+        if t_restart != -1:
+            t_found = False
             last_pos = chkpt.tell()
             for line in chkpt:
                 if 'current time' in line:
                     if float(line[0]) == t_restart:
+                        t_found = True
                         break
-        # populate the bundle with the correct number of trajectories
-        traj_template = trajectory.trajectory(0,0,self.nstates,tid=0,parent=0,n_basis=0)
-        for i in range(npart):
-            traj_template.add_particle(plist[i])
-        for i in range(self.nalive + self.ndead):
-            self.add_trajectory(traj_template)
-        
-        # read-in trajectories
-        for i in range(self.alive + self.ndead):
-            chkpt.readline() # comment: trajectory X
-            self.trajectory[i].read_trajectory(chkpt)
+        # else, we're reading from a last_step file -- and we want to skip over 
+        # the initial comment line
+        else:
+            t_found = True
+            chkpt.readline()
 
+        if not t_found:
+            sys.exit('could not find time='+str(t_restart)+' in '+str(chkpt.name))
+
+        # read common bundle information
+        self.time    = float(chkpt.readline().split()[0])
+        self.nalive       = int(chkpt.readline().split()[0])
+        self.ndead        = int(chkpt.readline().split()[0])
+        self.nstates = int(chkpt.readline().split()[0])
+        npart        = int(chkpt.readline().split()[0])
+        ndim         = int(chkpt.readline().split()[0])
+
+        # the particle list will be the same for all trajectories
+        p_list = []
+        for i in range(npart):
+            chkpt.readline()
+            part = particle.particle(ndim,0)
+            part.read_particle(chkpt)
+            p_list.append(part)
+
+        # read-in trajectories
+        for i in range(self.nalive + self.ndead):
+            chkpt.readline()
+            t_read = trajectory.trajectory(p_list,glbl.fms['interface'],self.nstates,tid=i,parent=0,n_basis=0)
+            t_read.read_trajectory(chkpt)
+            self.traj.append(t_read)
+
+        # create the bundle matrices
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        
         # once bundle is read, close the stream
         chkpt.close()
 

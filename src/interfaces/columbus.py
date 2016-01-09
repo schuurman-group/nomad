@@ -64,6 +64,7 @@ def init_interface():
            p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates,       \
            max_l,mrci_lvl,mem_str
 
+    print("init interface called...")
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
     columbus_path = os.environ['COLUMBUS']
@@ -121,6 +122,7 @@ def init_interface():
     mem_str = str(glbl.columbus['mem_per_core'])
 
     # generate one time input files for columbus calculations
+    print("calling make_one_time_input")
     make_one_time_input()
 
 #
@@ -348,6 +350,8 @@ def run_centroid(tid,geom,lstate,rstate):
 def make_one_time_input():
     global work_path
 
+    print("Making one time input...")
+    sys.stdout.flush()
     # all calculations take place in work_dir
     os.chdir(work_path) 
 

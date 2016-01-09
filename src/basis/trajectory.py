@@ -25,8 +25,6 @@ class trajectory:
         self.d_particle = particle_list[0].dim
         # whether trajectory is alive (i.e. propagated)
         self.alive      = True
-        # wheterh trajectory is a centroid
-        self.centroid   = False
         # amplitude of trajectory
         self.amplitude  = complex(0.,0.) 
         # phase of the trajectory
@@ -48,7 +46,7 @@ class trajectory:
         # dipoles and transition dipoles
         self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))      
         # second moment tensor for each state
-        self.secmoms    = np.zeros((self.nstates,self.d_particle))
+        self.sec_moms    = np.zeros((self.nstates,self.d_particle))
         # electronic populations on the atoms
         self.atom_pops  = np.zeros((self.nstates,self.n_particle))
    
@@ -164,8 +162,8 @@ class trajectory:
     #
     #
     def sec_mom(self,rstate):
-        self.secmoms[rstate,:] = self.pes.sec_mom(self.tid, self.particles, self.state, rstate)
-        return self.secmoms[rstate,:]
+        self.sec_moms[rstate,:] = self.pes.sec_mom(self.tid, self.particles, self.state, rstate)
+        return self.sec_moms[rstate,:]
 
     #
     #
@@ -290,14 +288,15 @@ class trajectory:
    #
    #--------------------------------------------------------------------------
     def write_trajectory(self,chkpt):
-        chkpt.write('{:5s}             alive\n'.format(str(self.alive)))
+        np.set_printoptions(precision=8,linewidth=80,suppress=False)
+        chkpt.write('     {:5s}            alive\n'.format(str(self.alive)))
         chkpt.write('{:10d}            nstates\n'.format(self.nstates))
         chkpt.write('{:10d}            traj ID\n'.format(self.tid))
         chkpt.write('{:10d}            state\n'.format(self.state))
         chkpt.write('{:10d}            parent ID\n'.format(self.parent))
         chkpt.write('{:10d}            n basis function\n'.format(self.nbf))
-        chkpt.write('{:8.2f}           dead time\n'.format(self.deadtime))
-        chkpt.write('{:16.12f}         phase\n'.format(self.phase))
+        chkpt.write('{:10.2f}            dead time\n'.format(self.deadtime))
+        chkpt.write('{:16.12f}      phase\n'.format(self.phase))
         chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
         chkpt.write('# potential energy -- nstates\n')
         self.poten.tofile(chkpt,' ','%14.10f')
@@ -309,76 +308,79 @@ class trajectory:
         self.last_spawn.tofile(chkpt,' ','%8.2f')
         chkpt.write('\n')
         chkpt.write('# currently coupled\n')
-        self.spawn_coup.tofile(chkpt,' ','%10d')
+        self.spawn_coup.tofile(chkpt,' ','%8d')
         chkpt.write('\n')
         chkpt.write('# position\n')
-        self.position().tofile(chkpt,' ','%12.8f')
+        self.x().tofile(chkpt,' ','%12.8f')
         chkpt.write('\n')
         chkpt.write('# momentum\n')
-        self.momentum().tofile(chkpt,' ','%12.8f')
+        self.p().tofile(chkpt,' ','%12.8f')
         chkpt.write('\n')
+
         # Writes out dipole moments in cartesian coordinates
-        chkpt.write("# dipoles (n=state is permanent dipole, "  
-                                "others are transition dipoles)\n")
         for i in range(self.nstates):
-            chkpt.write('# n = {:4d}\n'.format(i))
-            self.dipoles[i,:].tofile(chkpt,' ','%10.6f')
+            for j in range(i+1):
+                chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
+                self.dipoles[j,i,:].tofile(chkpt,' ','%10.6f')
+                chkpt.write('\n')
+
+        # Writes out gradients 
+        for i in range(self.nstates):
+            for j in range(i+1):
+                chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
+                self.deriv[j,i,:].tofile(chkpt,' ','%16.10e')
+                chkpt.write('\n')
+
+        # write out second moments 
+        for i in range(self.nstates):
+            chkpt.write('# second moments, state = {0:4d}\n'.format(i))
+            self.sec_moms[i,:].tofile(chkpt,' ','%16.10e')
             chkpt.write('\n')
 
-        # Writes out dipole moments
-        chkpt.write("# derivative matrix (n=state is gradient, "
-                                "others are nad coupling)\n")
+        # write out atomic populations 
         for i in range(self.nstates):
-            chkpt.write('# n = {:4d}\n'.format(i))
-            self.deriv[i,:].tofile(chkpt,' ','%16.10e')
+            chkpt.write('# atomic populations, state = {0:4d}\n'.format(i))
+            self.atom_pops[i,:].tofile(chkpt,' ','%16.10e')
             chkpt.write('\n')
-
-        #
-        chkpt.write('# molecular orbitals\n')
-        self.orbitals().tofile(chkpt,' ','%12.8e')
-        chkpt.write('\n')
 
     #
     # Read trajectory from file. This assumes the trajectory invoking this
     # function has been initially correctly and can hold all the information
     #
     def read_trajectory(self,chkpt):
-        self.alive     = bool(chkpt.readline()[0])
-        self.nstates   = int(chkpt.readline()[0])
-        self.tid       = int(chkpt.readline()[0])
-        self.state     = int(chkpt.readline()[0])
-        self.parent    = int(chkpt.readline()[0])
-        self.nbf       = int(chkpt.readline()[0])
-        self.deadtime  = float(chkpt.readline()[0])
-        self.phase     = float(chkpt.readline()[0])
-        self.amplitude = complex(chkpt.readline()[0])
+        self.alive     = bool(chkpt.readline().split()[0])
+        self.nstates   = int(chkpt.readline().split()[0])
+        self.tid       = int(chkpt.readline().split()[0])
+        self.state     = int(chkpt.readline().split()[0])
+        self.parent    = int(chkpt.readline().split()[0])
+        self.nbf       = int(chkpt.readline().split()[0])
+        self.deadtime  = float(chkpt.readline().split()[0])
+        self.phase     = float(chkpt.readline().split()[0])
+        self.amplitude = complex(chkpt.readline().split()[0])
 
         chkpt.readline() # potential energy -- nstates
-        self.poten = np.fromfile(chkpt,float,self.nstates)
+        self.poten = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
         chkpt.readline() # exit coupling region 
-        self.exit_time = np.fromstring(chkpt.readline())
+        self.exit_time = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
         chkpt.readline() # last spawn 
-        self.spawn_time = np.fromstring(chkpt.readline())
+        self.spawn_time = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
         chkpt.readline() # currently coupled
-        self.spawn_coup = np.fromstring(chkpt.readline())
+        self.spawn_coup = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
         chkpt.readline() # position
-        pos = np.fromstring(chkpt.readline())
-        self.update_position(pos)
+        self.update_x(np.fromstring(chkpt.readline(),sep=' ',dtype=float))
         chkpt.readline() # momentum
-        mom = np.fromstring(chkpt.readline())
-        self.update_momentum(mom)
+        self.update_p(np.fromstring(chkpt.readline(),sep=' ',dtype=float))
 
-        chkpt.readline() # dipoles
         for i in range(self.nstates):
-            chkpt.readline()
-            self.dipoles[i,:] = np.fromstring(chkpt.readline())
+            for j in range(i+1):
+                chkpt.readline()
+                self.dipoles[i,j,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
-        chkpt.readline() # derivatives
         for i in range(self.nstates):
-            chkpt.readline()
-            self.deriv[i,:] = np.fromstring(chkpt.readline())
+            for j in range(i+1):
+                chkpt.readline()
+                self.deriv[i,j,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
         chkpt.readline() # orbitals
-        #self.orbitals = np.fromfile(chkpt,float,self.nbf**2)
 

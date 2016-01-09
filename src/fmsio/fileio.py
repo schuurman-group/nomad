@@ -2,6 +2,7 @@ import os
 import numpy as np
 import src.fmsio.glbl as glbl
 
+home_path   = ''
 output_path = ''
 tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'secm_dump',
                'tran_dump', 'apop_dump', 'grad_dump']
@@ -16,7 +17,10 @@ bfile_names = dict()
 # to the running of the dynamics simulation.
 #
 def read_input_files():
-    global output_path
+    global output_path, home_path
+
+    # save the name of directory where program is called from
+    home_path = os.getcwd()
 
     # set a sensible default for output_path
     output_path = os.environ['TMPDIR']
