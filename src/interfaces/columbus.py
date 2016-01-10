@@ -134,9 +134,9 @@ def init_interface():
 def populate_bundle(master,geom_list,amp_list):
     for i in range(len(geom_list)):
         master.add_trajectory(trajectory.trajectory(
-                              geom_list[i],
                               glbl.fms['interface'],
                               glbl.fms['n_states'],
+                              particles=geom_list[i],
                               parent=0,
                               n_basis=n_orbs))
         master.traj[i].amplitude = amp_list[i]

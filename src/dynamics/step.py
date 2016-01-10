@@ -1,4 +1,5 @@
 import sys
+import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -30,7 +31,6 @@ def time_step(master):
 def fms_step_bundle(master,init_time,dt):
 
     # save the bundle from previous step in case step rejected
-    master0 = bundle.bundle(glbl.fms['n_states'],glbl.fms['surface_type'])
     current_time = init_time
     end_time     = init_time + dt
     time_step    = dt
@@ -38,7 +38,7 @@ def fms_step_bundle(master,init_time,dt):
     while master.time < end_time:
 
         # save the bundle from previous step in case step rejected
-        master0 = master
+        master0 = bundle.copy_bundle(master)
 
         # propagate each trajectory in the bundle
         for i in range(master.nalive): 
@@ -69,7 +69,6 @@ def fms_step_bundle(master,init_time,dt):
             # kill the dead trajectories
             master.prune()
         else:
-            print("step rejected")
             # recall -- this time trying to propagate
             # to the failed step
             time_step  = 0.5 * time_step
@@ -79,7 +78,7 @@ def fms_step_bundle(master,init_time,dt):
                 sys.exit("ERROR: fms_step")
 
             # reset the beginning of the time step
-            master = master0
+            master = bundle.copy_bundle(master0)
             # go back to the beginning of the while loop
             continue
 
@@ -95,7 +94,7 @@ def fms_step_bundle(master,init_time,dt):
 # NOTE: fms_step_bundle and fms_step_trajectory could/should probably
 #       be integrated somehow...
 #
-def fms_step_trajectory(trajectory,init_time,dt):
+def fms_step_trajectory(traj, init_time, dt):
 
     current_time = init_time
     end_time     = init_time + dt 
@@ -104,16 +103,16 @@ def fms_step_trajectory(trajectory,init_time,dt):
     while current_time < end_time:
 
         # save the bundle from previous step in case step rejected
-        traj0 = trajectory
+        traj0 = trajectory.copy_traj(traj)
 
         # propagate single trajectory 
-        integrator.propagate(trajectory,time_step)
+        integrator.propagate(traj,time_step)
 
         # update current time
         proposed_time = current_time + time_step
 
         # check time_step is fine, energy/amplitude conserved
-        accept = check_step_trajectory(traj0, trajectory, time_step)
+        accept = check_step_trajectory(traj0, traj, time_step)
 
         # if everything is ok..
         if accept:
@@ -130,7 +129,7 @@ def fms_step_trajectory(trajectory,init_time,dt):
                 sys.exit("ERROR: fms_step")
 
             # reset the beginning of the time step
-            trajectory = traj0
+            traj = trajectory.copy_traj(traj0)
             # go back to the beginning of the while loop
             continue
 
@@ -170,8 +169,8 @@ def check_step_trajectory(traj0, traj, time_step):
     #  ... or energy conservation
     #  (only need to check traj which exist in master0. If spawned, will be
     #  last entry(ies) in master
-    energy_old = master0.traj[i].classical()
-    energy_new =  master.traj[i].classical()
+    energy_old = traj0.classical()
+    energy_new = traj.classical()
     if abs(energy_old - energy_new) > 0.005:
         return False
 
@@ -223,12 +222,12 @@ def spawn(master,current_time,dt):
                     if abs(master.traj[i].overlap(master.traj[j])) > max_sij:
                         print("trajectory overlap too big, no spawning...")
                         max_sij = abs(master.traj[i].overlap(master.traj[j]))
-            if max_sij > glbl.fms['sij_thresh']:
+            if max_sij > glbl.sij_thresh:
                 continue
 
             # if we satisfy spawning conditions, begin spawn process                    
             if spawn_trajectory(master.traj[i], st, coup_hist[i,st,:], current_time):
-                parent_i = master.traj[i]
+                parent_i = trajectory.copy_traj(master.traj[i])
                 print(" SPAwNING TRAJECTORY -- ")
                
                 # propagate the parent forward in time until coupling maximized
@@ -243,7 +242,7 @@ def spawn(master,current_time,dt):
                     else:
                         print("Overlap with bundle too large, no spawn")
 
-                write_spawn_log(parent_i,child_i)
+                write_spawn_log(current_time,exit_time,parent_i,child_i)
 
 
 #
@@ -401,14 +400,28 @@ def adjust_child(parent, child, scale_dir):
     return True
 
 #
-#
+# check to see if trajectory has significant overlap with any of the
+# trajectories already in the bundle
 #
 def overlap_with_bundle(trajectory,bundle):
-    return False 
+
+    t_overlap_bundle = False
+
+    for i in range(bundle.n_total()):
+        if bundel.traj[i].alive:
+
+            sij = trajectory.overlap(bundle.traj[i])
+            if abs(sij) > glbl.sij_thresh:
+                t_overlap_bundle = True
+                break
+
+    return t_overlap_bundle
 
 #
 #
 #
-def write_spawn_log(parent,child):
-    pass
+def write_spawn_log(entry_time, spawn_time, parent, child):
+  
+    #fileio.print_bund_row(4,data) 
+    return
 

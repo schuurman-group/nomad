@@ -35,10 +35,9 @@ def init_bundle(master):
     else:
         init_trajectories(master)
 
-    print("init_restart is done")
-    sys.stdout.flush()
     master.update_matrices()
     master.update_logs()
+    fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
 
     return master.time
 
@@ -129,10 +128,6 @@ def user_specified(master):
     geom_list = [load_geometry()]
     amp_list  = [complex(1.,0.)]
     pes.populate_bundle(master,geom_list,amp_list)
-
-    tmpx = master.traj[0].particles[0].x
-    print("tmpx[0]="+str(tmpx))
-    print("geom = "+str(master.traj[0].x()))
     set_initial_state(master)
     return
 
@@ -158,7 +153,6 @@ def load_geometry():
         particle.load_particle(p_list[i])
         p_list[i].x = np.fromiter((float(geom_data[i][j]) for j in range(1,4)),dtype=np.float)
         p_list[i].p = np.fromiter((float(geom_data[i][j]) for j in range(4,7)),dtype=np.float)
-        print('x,p='+str(p_list[i].x)+','+str(p_list[i].p))
     return p_list
 
 #

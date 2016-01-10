@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.gaussian as gaussian
@@ -30,6 +31,17 @@ def create_particle(pid,dim,name,width,mass):
     new_particle.width = width
     new_particle.mass  = mass
     return new_particle
+
+def copy_part(orig_part):
+    new_part = particle(orig_part.dim,orig_part.pid)
+    new_part.width  = copy.copy(orig_part.width)
+    new_part.mass   = copy.copy(orig_part.mass)
+    new_part.anum   = copy.copy(orig_part.anum)
+    new_part.charge = copy.copy(orig_part.charge)
+    new_part.name   = copy.copy(orig_part.name)
+    new_part.x      = copy.deepcopy(orig_part.x)
+    new_part.p      = copy.deepcopy(orig_part.p)
+    return new_part
 
 class particle:
     def __init__(self,dim,pid):

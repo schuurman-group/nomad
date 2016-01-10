@@ -1,35 +1,62 @@
+import copy
 import cmath
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.particle as particle
+
+def copy_traj(orig_traj):
+    new_traj = trajectory(orig_traj.interface, orig_traj.nstates)
+    p_list = []
+    for i in range(orig_traj.n_particle):
+        p_list.append(particle.copy_part(orig_traj.particles[i]))
+    new_traj.update_particles(p_list)
+    new_traj.tid        = copy.copy(orig_traj.tid)
+    new_traj.parent     = copy.copy(orig_traj.parent)
+    new_traj.state      = copy.copy(orig_traj.state)
+    new_traj.alive      = copy.copy(orig_traj.alive)
+    new_traj.amplitude  = copy.copy(orig_traj.amplitude)
+    new_traj.phase      = copy.copy(orig_traj.phase)
+    new_traj.deadline   = copy.copy(orig_traj.deadtime)
+    new_traj.nbf        = copy.copy(orig_traj.nbf)
+    new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
+    new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
+    new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
+    new_traj.poten      = copy.deepcopy(orig_traj.poten)
+    new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
+    new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
+    new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
+    new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
+    return new_traj
+
 class trajectory:
 
-    def __init__(self,particle_list,interface,nstates,tid=0,parent=0,n_basis=0):
-        try:
-            self.pes = __import__('src.interfaces.'+interface,fromlist=['NA'])
-        except:
-            print("INTERFACE FAIL: "+iterface)
+    def __init__(self,interface,nstates,particles=None,tid=0,parent=0,n_basis=0):
+        # potential interface employed
+        self.interface  = interface
+        # total number of states
+        self.nstates    = nstates
+        # allow for population of trajectory particles via set_particles
+        if not particles:
+            self.particles=[]
+            self.d_particle = 0
+        else:
+            self.particles = particles
+            self.d_particle = self.particles[0].dim 
         # unique identifier for trajectory
         self.tid        = tid
         # trajectory that spawned this one:
         self.parent     = parent         
-        # total number of states
-        self.nstates    = nstates        
         # state trajectory exists on
         self.state      = 0      
-        # list of particles in the trajectory
-        self.particles  = particle_list
         # number of particles comprising the trajectory
-        self.n_particle = len(particle_list) 
-        # dimension of the particles comprising the trajectory
-        self.d_particle = particle_list[0].dim
+        self.n_particle = len(self.particles) 
         # whether trajectory is alive (i.e. propagated)
         self.alive      = True
         # amplitude of trajectory
         self.amplitude  = complex(0.,0.) 
         # phase of the trajectory
         self.phase      = 0.
-        # time from which the death watch begins
+        # time from which the death watch begini as
         self.deadtime   = -1.            
         # time of last spawn
         self.last_spawn = np.zeros(self.nstates)
@@ -49,7 +76,11 @@ class trajectory:
         self.sec_moms    = np.zeros((self.nstates,self.d_particle))
         # electronic populations on the atoms
         self.atom_pops  = np.zeros((self.nstates,self.n_particle))
-   
+        try:
+            self.pes = __import__('src.interfaces.'+self.interface,fromlist=['NA'])
+        except:
+            print("INTERFACE FAIL: "+self.interface)
+
     #-------------------------------------------------------------------
     #
     # Trajectory status functions
@@ -66,6 +97,19 @@ class trajectory:
     # Functions for setting basic pes information from trajectory
     #
     #----------------------------------------------------------------------
+    #
+    # update particle list
+    #
+    def update_particles(self,p_list):
+        self.particles  = p_list
+        self.d_particle = self.particles[0].dim
+        self.n_particle = len(self.particles)
+        self.deriv      = np.zeros((self.nstates,self.nstates,self.n_particle*self.d_particle))
+        self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))
+        self.sec_moms   = np.zeros((self.nstates,self.d_particle))
+        self.atom_pops  = np.zeros((self.nstates,self.n_particle))
+        return
+
     #
     # Updates the position of the particles in trajectory. Flips up2date switch to False
     #

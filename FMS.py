@@ -41,6 +41,9 @@ def main():
 
         # update the fms output files, as well as checkpoint, if necessary
         master.update_logs() 
+
+        # update the running log
+        fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
         
         # write the bundle to file
         master.write_bundle(fileio.output_path+'/Last_Bundle.dat','w')

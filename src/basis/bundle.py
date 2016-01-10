@@ -1,4 +1,5 @@
 import sys
+import copy
 import cmath
 import scipy as sp
 import numpy as np
@@ -6,12 +7,32 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
+
+#
+# this method is the simplest way i can see to make a copy
+# of a bundle with new references. Overriding deepcopy for
+# significantly more work.
+#
+def copy_bundle(orig_bundle):
+    new_bundle = bundle(orig_bundle.nstates,orig_bundle.surface)
+    new_bundle.time = copy.copy(orig_bundle.time)
+    new_bundle.nalive = copy.copy(orig_bundle.nalive)
+    new_bundle.ndead = copy.copy(orig_bundle.ndead)
+    new_bundle.H = copy.deepcopy(orig_bundle.H)
+    new_bundle.S = copy.deepcopy(orig_bundle.S)
+    new_bundle.Sinv = copy.deepcopy(orig_bundle.Sinv)
+    new_bundle.Sdot = copy.deepcopy(orig_bundle.Sdot)
+    new_bundle.Heff = copy.deepcopy(orig_bundle.Heff)
+    for i in range(new_bundle.n_total()):
+        traj_i = trajectory.copy_traj(orig_bundle.traj[i])
+        new_bundle.traj.append(traj_i)
+    return new_bundle
+#
+#
+#
 class bundle:
     def __init__(self,nstates,surface_rep):
-        try:
-            self.ints = __import__('src.basis.int_'+surface_rep,fromlist=['a'])
-        except:
-            print("BUNDLE INIT FAIL: src.basis.int_"+surface_rep)
+        self.surface = surface_rep
         self.time = 0.
         self.nalive = 0
         self.ndead = 0
@@ -23,6 +44,10 @@ class bundle:
         self.Sinv = np.zeros((0.,0.),dtype=np.cfloat)
         self.Sdot = np.zeros((0.,0.),dtype=np.cfloat)
         self.Heff = np.zeros((0.,0.),dtype=np.cfloat)
+        try:
+            self.ints = __import__('src.basis.int_'+self.surface,fromlist=['a'])
+        except:
+            print("BUNDLE INIT FAIL: src.basis.int_"+self.surface)
 
     # total number of trajectories
     def n_total(self):
@@ -152,13 +177,13 @@ class bundle:
         # check if trajectories are coupled
         for i in range(self.nalive):
             for j in range(i):
-                if abs(self.H[i,j]) > glbl.fms['coup_thresh']:
+                if abs(self.H[i,j]) > glbl.coup_thresh:
                     return True
 
         # check if any trajectories exceed NAD threshold
         for i in range(self.nalive):
             for j in range(self.nstates):
-                if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['nad_thresh']:
+                if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['spawn_coup_thresh']:
                     return True
 
         # else, return false
@@ -436,7 +461,7 @@ class bundle:
         # read-in trajectories
         for i in range(self.nalive + self.ndead):
             chkpt.readline()
-            t_read = trajectory.trajectory(p_list,glbl.fms['interface'],self.nstates,tid=i,parent=0,n_basis=0)
+            t_read = trajectory.trajectory(glbl.fms['interface'],self.nstates,particles=p_list,tid=i,parent=0,n_basis=0)
             t_read.read_trajectory(chkpt)
             self.traj.append(t_read)
 

@@ -1,12 +1,21 @@
 #
 # CONVERSTION FACTORS AND CONSTANTS 
 #
-fs2au    = 41.34137221718
-bohr2ang = 0.529177249
-mass2au  = 1822.887
-au2cm    = 219474.63
-fpzero   = 1.e-10
-
+# convert fs to au
+fs2au       = 41.34137221718
+# convert bohr to angstrom
+bohr2ang    = 0.529177249
+# convert mass in amu to au
+mass2au     = 1822.887
+# convert hartree to cm-1
+au2cm       = 219474.63
+# floating point zero
+fpzero      = 1.e-10
+# if off-diagonal element of H matrix is greater than coup_thresh,
+# trajectories are 'coupled' and small time step required
+coup_thresh = 0.001,
+# if new_traj overlap with any traj in bundle is > sij_thresh, don't spawn
+sij_thresh  = 1.e-5,
 # current working directory
 working_dir = ''
 
@@ -30,9 +39,6 @@ fms = dict(
        init_brightest    = False,                
        restart_time      = 0.,
        propagator        ='velocity_verlet',
-       coup_thresh       = 0.001,
-       nad_thresh        = 0.001,
-       sij_thresh        = 1.e-5,
        spawn_pop_thresh  = 0.025,
        spawn_coup_thresh = 0.02,
        pot_shift         = 0.,
