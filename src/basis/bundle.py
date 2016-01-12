@@ -15,20 +15,48 @@ import src.basis.trajectory as trajectory
 #
 def copy_bundle(orig_bundle):
     new_bundle = bundle(orig_bundle.nstates,orig_bundle.surface)
-    new_bundle.time = copy.copy(orig_bundle.time)
+    new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
-    new_bundle.ndead = copy.copy(orig_bundle.ndead)
-    new_bundle.H = copy.deepcopy(orig_bundle.H)
-    new_bundle.S = copy.deepcopy(orig_bundle.S)
-    new_bundle.Sinv = copy.deepcopy(orig_bundle.Sinv)
-    new_bundle.Sdot = copy.deepcopy(orig_bundle.Sdot)
-    new_bundle.Heff = copy.deepcopy(orig_bundle.Heff)
+    new_bundle.ndead  = copy.copy(orig_bundle.ndead)
+    new_bundle.H      = copy.deepcopy(orig_bundle.H)
+    new_bundle.S      = copy.deepcopy(orig_bundle.S)
+    new_bundle.Sinv   = copy.deepcopy(orig_bundle.Sinv)
+    new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
+    new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
     for i in range(new_bundle.n_total()):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
+    for i in range(len(orig_bundle.cent)):
+        if not orig_bundle.cent[i]:
+            traj_i = trajectory.copy_traj(orig_bundle.cent[i])
+        else:
+            traj_i = None
+        new_bundle.cent.append(traj_i)
     return new_bundle
+
 #
+# return the index in the cent array of the centroid between
+# trajectories i and j
 #
+def cent_ind(i, j):
+    if i == j:
+        return -1
+    else:
+        a = max(i,j)
+        b = min(i,j)
+        return int(a*(a-1)/2 + b)
+
+#
+# return the length of the centroid array for n_traj length
+# traj array
+#
+def cent_len(n_traj):
+    if n_traj == 0:
+        return 0
+    return int(n_traj * (n_traj - 1) / 2)
+
+#
+# Class constructor
 #
 class bundle:
     def __init__(self,nstates,surface_rep):
@@ -38,7 +66,7 @@ class bundle:
         self.ndead = 0
         self.nstates = int(nstates)
         self.traj = []
-        self.cent = [] 
+        self.cent = []
         self.H    = np.zeros((0.,0.),dtype=np.cfloat)
         self.S    = np.zeros((0.,0.),dtype=np.cfloat)
         self.Sinv = np.zeros((0.,0.),dtype=np.cfloat)
@@ -77,10 +105,6 @@ class bundle:
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
 
-    # update centroids
-    def update_centroid(self,traj1,traj2):    
-        pass
-
     #
     # update the amplitudes of the trajectories in the bundle
     #
@@ -102,6 +126,10 @@ class bundle:
         #
         # n is varied until C_tdt is stable
 
+        #
+        # now that centroids reflect the trajectories, update matrices (mainly we just
+        # need to determine the effective Hamiltonian (Heff))
+        #
         self.update_matrices()
 
         old_amp   = self.amplitudes()
@@ -137,19 +165,6 @@ class bundle:
                 cnt += 1
                 self.traj[i].amplitude = new_amp[cnt]
         return
-
-    #
-    # return amplitudes of the trajectories
-    #
-    def amplitudes(self):
-        amps = np.zeros(self.nalive,dtype=np.cfloat)
-        cnt = -1
-        for i in range(self.n_total()):
-            sys.stdout.flush()
-            if self.traj[i].alive:
-                cnt += 1
-                amps[cnt:] = np.cfloat(self.traj[i].amplitude) 
-        return amps
 
     # 
     # renormalizes the amplitudes of the trajectories in the bundle
@@ -237,7 +252,7 @@ class bundle:
     #
     def pot_quantum(self):
         return 0.
- 
+
     #
     # return the classical kinetic energy of the bundle
     # 
@@ -262,13 +277,63 @@ class bundle:
     def tot_quantum(self):
         return 0.
 
- #-----------------------------------------------------------------------------
- #
- # functions to read/write bundle to checkpoint files
- #
- #-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------
+# 
+# Private methods/functions (called only within the class)
+#
+#----------------------------------------------------------------------
+    # update centroids
+    def update_centroids(self):
+
+        for i in range(self.n_total()):  
+            if not self.traj[i].alive:
+                continue
+                wid_i = self.traj[i].widths()
+                for j in range(i):
+                    if not self.traj[j].alive:
+                        continue
+                    # first check that we have added trajectory i or j (i.e.
+                    # that the cent array is long enough, if not, append the
+                    # appropriate number of slots (just do this once for 
+                    if len(self.cent) < self.cent_len(i):
+                        n_add = self.cent_len(i) - len(self.cent)
+                        for k in range(n_add):
+                            self.cent.append(None)
+                    # now check to see if needed index has an existing trajectory
+                    # if not, copy trajectory from one of the parents into the
+                    # required slots 
+                    ij_ind = cent_ind(i,j)
+                    if self.cent[ij_ind] is None:
+                        self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
+                        self.cent[ij_ind].tid = -ij_ind
+                    # now update the position in phase space of the centroid
+                    # if wid_i == wid_j, this is clearly just the simply mean position.
+                    wid_j = self.traj[j].width() 
+                    new_x = ( wid_i * self.traj[i].x() + wid_j * self.traj[j].x() ) / (wid_i + wid_j)
+                    new_p = ( wid_i * self.traj[i].p() + wid_j * self.traj[j].p() ) / (wid_i + wid_j)
+                    self.cent[ij_ind].update_x(new_x)
+                    self.cent[ij_ind].update_p(new_p)
+   
+    #
+    # return amplitudes of the trajectories
+    #
+    def amplitudes(self):
+        amps = np.zeros(self.nalive,dtype=np.cfloat)
+        cnt = -1
+        for i in range(self.n_total()):
+            sys.stdout.flush()
+            if self.traj[i].alive:
+                cnt += 1
+                amps[cnt:] = np.cfloat(self.traj[i].amplitude)
+        return amps
+
     # construct the Hamiltonian matrix in basis of trajectories
     def update_matrices(self):
+
+        # make sure the centroids are up-to-date in order to evaluate
+        # self.H
+        self.update_centroids()
+   
         r = -1
         for i in range(self.n_total()):
             if self.traj[i].alive:
@@ -288,7 +353,7 @@ class bundle:
                                                                self.traj[j]) + \
                                          self.ints.v_integral(self.traj[i],
                                                               self.traj[j],
-                                                              self.cent[ij])
+                                                              self.cent[cent_ind(i,j)])
                         self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
                                                                  self.traj[j])
                         self.S[c,r]    = self.S(r,c).conjugate()
@@ -299,6 +364,11 @@ class bundle:
         self.Sinv = np.linalg.pinv(self.S)
         self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
 
+ #-----------------------------------------------------------------------------
+ #
+ # functions to read/write bundle to checkpoint files
+ #
+ #-----------------------------------------------------------------------------
     #
     # update the log files
     #

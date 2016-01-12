@@ -13,19 +13,17 @@ au2cm       = 219474.63
 fpzero      = 1.e-10
 # if off-diagonal element of H matrix is greater than coup_thresh,
 # trajectories are 'coupled' and small time step required
-coup_thresh = 0.001,
+coup_thresh = 0.001
 # if new_traj overlap with any traj in bundle is > sij_thresh, don't spawn
-sij_thresh  = 1.e-5,
-# current working directory
-working_dir = ''
-
+sij_thresh  = 1.e-5
+ 
 #
 # Simulation parameters read form the fms.input file
 #
 fms = dict( 
        simulation_time   = 0.,
-       default_time_step = 1., 
-       coupled_time_step = 0.25,
+       default_time_step = 10., 
+       coupled_time_step = 5.,
        interface         = 'columbus',
        init_sampling     = 'gs_wigner',
        surface_type      = 'adiabatic',
@@ -41,8 +39,10 @@ fms = dict(
        propagator        ='velocity_verlet',
        spawn_pop_thresh  = 0.025,
        spawn_coup_thresh = 0.02,
-       pot_shift         = 0.,
-       output_path       = ''
+       spawn_olap_thresh = 0.7,
+       energy_jump_toler = 0.0001,
+       pop_jump_toler    = 0.0001,
+       pot_shift         = 0.
           )
 #
 # Electronic structure information read from interface-specific
@@ -64,4 +64,12 @@ vibronic = dict (
        # highest polynomial order in vibronic expansion
        ordr_max          = 1,
           )
-
+#
+# dictionary to hold timiing information for various operations
+#
+timings = dict (
+       propagate       = 0,
+       spawning        = 0,
+       hamiltonian     = 0,
+       centroids       = 0
+        ) 

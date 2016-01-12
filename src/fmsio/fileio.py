@@ -1,9 +1,10 @@
 import os
+import shutil
 import numpy as np
 import src.fmsio.glbl as glbl
 
 home_path   = ''
-output_path = ''
+scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'secm_dump',
                'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'hmat_dump', 'smat_dump', 'spawn_dump']
@@ -18,13 +19,16 @@ bfile_names = dict()
 # to the running of the dynamics simulation.
 #
 def read_input_files():
-    global output_path, home_path
+    global scr_path, home_path
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
 
-    # set a sensible default for output_path
-    output_path = os.environ['TMPDIR']
+    # set a sensible default for scr_path
+    scr_path = os.environ['TMPDIR']
+    if os.path.exists(scr_path):
+        shutil.rmtree(scr_path)
+        os.makedirs(scr_path)
 
     #
     # Read fms.input. This contains general simulation variables
@@ -35,7 +39,6 @@ def read_input_files():
             glbl.fms[k] = v
         else:
             print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
-    glbl.working_dir = os.getcwd()
 
     #
     # Read pes.input. This contains interface-specific user options. Get what
@@ -89,7 +92,8 @@ def read_namelist(filename):
 # initialize all the ouptut format descriptors
 #
 def init_fms_output():
-    global log_format, tkeys, bkeys, dump_header, dump_format, \
+    global home_path, scr_path, \
+           log_format, tkeys, bkeys, dump_header, dump_format, \
            tfile_names, bfile_names
 
     np = int(glbl.fms['num_particles'])
@@ -197,23 +201,27 @@ def init_fms_output():
                             '{12.8f} {12.8f} {12.8f} {12.8f}'
 
     # ------------------------- log file formats --------------------------
-    log_str = ' ---------------------------------------------------\n' + \
-              ' Ab Initio Multiple Spawning Dynamics\n' + \
-              ' ---------------------------------------------------\n' + \
-              '\n' + \
-              ' Keyword Summary:\n' + \
-              ' home_path   = '+str(home_path) +'\n' + \
-              ' output_path = '+str(output_path) + '\n' + \
-              ' working_dir = '+str(glbl.working_dir) + '\n' + \
-              ' coup_thresh = '+str(glbl.coup_thresh) + '\n' + \
-              ' sij_thresh  = '+str(glbl.sij_thresh) + '\n'
-
     with open(home_path+"/fms.log","w") as logfile:
+        log_str = ' ---------------------------------------------------\n' + \
+                  ' ab initio multiple spawning dynamics\n' + \
+                  ' ---------------------------------------------------\n' + \
+                  '\n' + \
+                  ' *************\n' + \
+                  ' input summary\n' + \
+                  ' *************\n' + \
+                  '\n' + \
+                  ' file paths\n' + \
+                  ' ---------------------------------------\n' + \
+                  ' home_path   = '+str(home_path) + '\n' + \
+                  ' scr_path    = '+str(scr_path) + '\n'
         logfile.write(log_str)
 
-        log_str = '\n fms simulation keywords\n'  
+        log_str = '\n fms simulation keywords\n' + \
+                    ' ----------------------------------------\n'
         for k,v in glbl.fms.items():
-            log_str += '{0:20s} = {1:20s}\n'.format(str(k),str(v))
+            log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
+        log_str += ' {0:20s} = {1:20s}\n'.format('coup_thresh',str(glbl.coup_thresh))
+        log_str += ' {0:20s} = {1:20s}\n'.format('sij_thresh',str(glbl.sij_thresh))
         logfile.write(log_str)    
 
         if glbl.fms['interface'] == 'columbus':
@@ -221,16 +229,24 @@ def init_fms_output():
         elif glbl.fms['interface'] == 'vibronic':
             out_key = glbl.vibronic
 
-        log_str = '\n '+str(glbl.fms['interface'])+' simulation keywords\n' 
+        log_str = '\n '+str(glbl.fms['interface'])+' simulation keywords\n'
+        log_str += ' ----------------------------------------\n' 
         for k,v in out_key.items():
-            log_str += '{0:20s} = {1:20s}\n'.format(str(k),str(v))
+            log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
         logfile.write(log_str)
 
+        log_str = '\n ***********\n' + \
+                    ' propagation\n' + \
+                    ' ***********\n\n'
+        logfile.write(log_str)
+
+    log_format['general']     = '   ** {:60s} **\n'
     log_format['t_step']      = ' > time: {0:12.2f} step:{1:8.2f} [{2:4d} trajectories]\n\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.2f}\n'
     log_format['spawn_start'] = '  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +\
                                 '              time      coup   overlap     spawn\n'
     log_format['spawn_step']  = '      {0:12.2f} {1:9.4f} {2:9.4f} {3:9s}\n'
+    log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
     log_format['spawn_success'] = ' - spawn successful, new trajectory created at {0:12.2f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
     log_format['complete']      = ' ------- simulation completed --------\n'
@@ -247,8 +263,8 @@ def init_fms_output():
 # 'filename'
 #
 def print_traj_row(tid,fkey,data):
-    global output_path, tkeys, tfile_names, dump_header, dump_format
-    filename = output_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
+    global scr_path, tkeys, tfile_names, dump_header, dump_format
+    filename = scr_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
    
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
@@ -264,8 +280,8 @@ def print_traj_row(tid,fkey,data):
 # 'filename'
 #
 def print_bund_row(fkey,data):
-    global output_path, bkeys, bfile_names, dump_header, dump_format
-    filename = output_path+'/'+bfile_names[bkeys[fkey]]
+    global scr_path, bkeys, bfile_names, dump_header, dump_format
+    filename = scr_path+'/'+bfile_names[bkeys[fkey]]
 
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
@@ -280,8 +296,8 @@ def print_bund_row(fkey,data):
 # prints a matrix to file with a time label
 #
 def print_bund_mat(time,fname,mat):
-     global output_path    
-     filename = output_path+'/'+fname
+     global scr_path    
+     filename = scr_path+'/'+fname
 
      with open(filename,"a") as outfile:
          outfile.write('{:9.2f}\n'.format(time))
@@ -313,9 +329,10 @@ def print_fms_logfile(otype,data):
 # read in geometry.dat: position and momenta
 #
 def read_geometry():
+    global home_path 
     geom_data = [] 
 
-    gm_file = open(glbl.working_dir+'/geometry.dat','r',encoding='utf-8')
+    gm_file = open(home_path+'/geometry.dat','r',encoding='utf-8')
     # comment line
     gm_file.readline()
     # number of atoms
@@ -337,7 +354,9 @@ def read_geometry():
 # Read a hessian matrix (not mass weighted)
 #
 def read_hessian():
-    hessian = np.loadtxt(glbl.working_dir+'/hessian.dat',dtype='float') 
+    global home_path
+
+    hessian = np.loadtxt(home_path+'/hessian.dat',dtype='float') 
     return hessian
 
 #----------------------------------------------------------------------------
@@ -346,5 +365,26 @@ def read_hessian():
 #
 #----------------------------------------------------------------------------
 def cleanup():
-    print("timings info not implemented")
 
+    # print timing information
+    print_fms_logfile('complete',[])
+
+    t_order = ['propagate','spawning','hamiltonian','centroid']
+    data = [glbl.timings[t_type] for t_type in t_order]
+    print_fms_logfile('timings',data)
+
+    # move trajectory summary files to an output directory in the home area
+    odir = home_path+'/output'
+    if os.path.exists(odir):
+        shutil.rmtree(odir)
+        os.makedirs(odir)
+        
+    # move trajectory files
+    for key,fname in tfile_names.items():
+        shutil.move(scr_path+'/'+fname+'.*',odir)
+
+    # move trajectory files
+    for key,fname in bfile_names.items():
+        shutil.move(scr_path+'/'+fname,odir)
+
+    return

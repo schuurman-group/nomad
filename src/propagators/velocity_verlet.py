@@ -36,10 +36,10 @@ def propagate(trajectory,dt):
     #-------------------------------------------
     # update x
     trajectory.update_x(x1)
-    f1 = trajectory.force()
 
     #------------------------------------------
     # update p
+    f1 = trajectory.force()
     p1 = p0 + 0.5 * (f0 + f1) * dt 
     trajectory.update_p(p1)
     v1 = trajectory.velocity()

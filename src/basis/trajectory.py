@@ -69,11 +69,11 @@ class trajectory:
         # value of the potential energy
         self.poten      = np.zeros(self.nstates)  
         # derivatives of the potential -- if off-diagonal, corresponds to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros((self.nstates,self.nstates,self.n_particle*self.d_particle)) 
+        self.deriv      = np.zeros((self.nstates,self.n_particle*self.d_particle)) 
         # dipoles and transition dipoles
         self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))      
         # second moment tensor for each state
-        self.sec_moms    = np.zeros((self.nstates,self.d_particle))
+        self.sec_moms   = np.zeros((self.nstates,self.d_particle))
         # electronic populations on the atoms
         self.atom_pops  = np.zeros((self.nstates,self.n_particle))
         try:
@@ -104,7 +104,7 @@ class trajectory:
         self.particles  = p_list
         self.d_particle = self.particles[0].dim
         self.n_particle = len(self.particles)
-        self.deriv      = np.zeros((self.nstates,self.nstates,self.n_particle*self.d_particle))
+        self.deriv      = np.zeros((self.nstates,self.n_particle*self.d_particle))
         self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))
         self.sec_moms   = np.zeros((self.nstates,self.d_particle))
         self.atom_pops  = np.zeros((self.nstates,self.n_particle))
@@ -165,12 +165,9 @@ class trajectory:
     # return a vector containing the widths of the b.f. along each d.o.f
     #
     def widths(self):
-        width = np.zeros(self.n_particle * self.d_particle)
-        icnt = -1
-        for i in range(self.n_particle):
-            for j in range(self.d_particle):
-                icnt += 1
-                width[icnt] = self.particles[i].width
+        width = np.fromiter((self.particles[i].width
+                          for i in range(self.n_particle)
+                          for j in range(self.d_particle)),dtype=np.float)
         return width
 
     #
@@ -186,7 +183,7 @@ class trajectory:
     #
     def derivative(self,rstate):
         self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, self.state, rstate)
-        return self.deriv[self.state,rstate,:]
+        return self.deriv[rstate,:]
     
     #
     #
@@ -234,14 +231,6 @@ class trajectory:
         return self.energy(self.state)
 
     #
-    # norm of the coupling vector
-    #
-    def coupling_norm(self,rstate):
-        if self.state == rstate:
-            return 0.
-        return np.linalg.norm(self.derivative(rstate))
-
-    #
     # Classical kinetic energy
     #
     def kinetic(self):
@@ -273,10 +262,18 @@ class trajectory:
         return self.kinetic() - self.potential() - 0.5*sum(self.widths()/self.masses())       
 
     #
+    # norm of the coupling vector
+    #
+    def coupling_norm(self,rstate):
+        if self.state == rstate:
+            return 0.
+        return np.linalg.norm(self.derivative(rstate))
+
+    #
     # Return the coupling.velocity
     #
     def coup_dot_vel(self,c_state):
-        if c_state == self.state:
+        if self.state == c_state:
            return 0.
         return abs(np.dot( self.velocity(), self.derivative(c_state) ))
         
@@ -370,10 +367,9 @@ class trajectory:
 
         # Writes out gradients 
         for i in range(self.nstates):
-            for j in range(i+1):
-                chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
-                self.deriv[j,i,:].tofile(chkpt,' ','%16.10e')
-                chkpt.write('\n')
+            chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
+            self.deriv[i,:].tofile(chkpt,' ','%16.10e')
+            chkpt.write('\n')
 
         # write out second moments 
         for i in range(self.nstates):
@@ -422,9 +418,8 @@ class trajectory:
                 self.dipoles[i,j,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
         for i in range(self.nstates):
-            for j in range(i+1):
-                chkpt.readline()
-                self.deriv[i,j,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
+            chkpt.readline()
+            self.deriv[i,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
         chkpt.readline() # orbitals
 

@@ -7,6 +7,8 @@ import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
 
+coup_hist = []
+
 #-----------------------------------------------------------------------------
 #
 # Public functions
@@ -21,8 +23,8 @@ integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a']
 def time_step(master):
     dt = glbl.fms['default_time_step']
     if master.in_coupled_regime():
-      print("IN COUPLING REGIME")
       dt = glbl.fms['coupled_time_step'] 
+      fileio.print_fms_logfile('coup_time_step',[dt])
     return dt
 #
 #
@@ -41,15 +43,10 @@ def fms_step_bundle(master,init_time,dt):
         master0 = bundle.copy_bundle(master)
 
         # propagate each trajectory in the bundle
-        for i in range(master.nalive): 
-            integrator.propagate(master.traj[i],time_step)  
+        for i in range(master.n_total()):
+            if master.traj[i].alive: 
+                integrator.propagate(master.traj[i],time_step)  
 
-        # update centroids (not technically necessary -- but easier
-        # to update all at once so more readily parallelized
-        for i in range(master.nalive):
-            for j in range(master.nalive):
-                master.update_centroid(i,j)
- 
         # update current time
         proposed_time = current_time + time_step
 
@@ -74,7 +71,8 @@ def fms_step_bundle(master,init_time,dt):
             time_step  = 0.5 * time_step
 
             if  time_step < min_time_step:
-                print("minimum step exceed, stopping...")
+                fileio.print_fms_logfile('general',
+                               ['minimum time step exceeded -- STOPPING.'])
                 sys.exit("ERROR: fms_step")
 
             # reset the beginning of the time step
@@ -125,7 +123,8 @@ def fms_step_trajectory(traj, init_time, dt):
             time_step  = 0.5 * time_step
 
             if  time_step < min_time_step:
-                print("minimum step exceed, stopping...")
+                fileio.print_fms_logfile('general',
+                               ['minimum time step exceeded -- STOPPING.'])
                 sys.exit("ERROR: fms_step")
 
             # reset the beginning of the time step
@@ -144,7 +143,7 @@ def check_step_bundle(master0, master, time_step):
     #
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
-    if abs(sum(master.pop()) - sum(master.pop())) > 0.01:
+    if abs(sum(master.pop()) - sum(master.pop())) > glbl.fms['pop_jump_toler']:
         return False
     #
     #  ... or energy conservation
@@ -155,7 +154,7 @@ def check_step_bundle(master0, master, time_step):
                      master0.traj[i].kinetic()
         energy_new =  master.traj[i].potential() +  \
                       master.traj[i].kinetic()
-        if abs(energy_old - energy_new) > 0.005:
+        if abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']:
             return False
     #
     # If we pass all the tests, return 'success'
@@ -171,7 +170,7 @@ def check_step_trajectory(traj0, traj, time_step):
     #  last entry(ies) in master
     energy_old = traj0.classical()
     energy_new = traj.classical()
-    if abs(energy_old - energy_new) > 0.005:
+    if abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']:
         return False
 
     # If we pass all the tests, return 'success'
@@ -182,21 +181,28 @@ def check_step_trajectory(traj0, traj, time_step):
 #
 # Schematic
 #
-#   start, t0
+#   start, ti
 #     |
-#    \/        propagate
-# parent_i(s) -----------> parent_s(s)
-#                              |
-#                              \/
-# child_i(s') <----------- child_s(s')
+#    \/        spawn_forward 
+# parent(s,ti) -------------> parent(s,ts)
+#                                  |
+#              spawn_backward     \/
+# child(s',ti) <------------- child(s',ts)
 #
 # 1. The spawn routine is called with parent_i at time t0.
 # 2. If parent_i is coupled to another 
 #
  
 def spawn(master,current_time,dt):
+    global coup_hist
 
-    coup_hist = np.zeros((master.n_total(),master.nstates,2),dtype=np.float)
+    # we want to have know the history of the coupling for each trajectory
+    # in order to assess spawning criteria -- make sure coup_hist has a slot
+    # for every trajectory
+    if len(coup_hist) < master.n_total():
+        n_add = master.n_total() - len(coup_hist)
+        for i in range(n_add):
+            coup_hist.append(np.zeros((master.nstates,3),dtype=np.float)) 
 
     for i in range(master.n_total()): 
     
@@ -210,102 +216,126 @@ def spawn(master,current_time,dt):
             if master.traj[i].state == st:
                 continue
 
-            # compute magnitude of coupling to state j
-            coup = master.traj[i].coup_dot_vel(st)
-            coup_hist[i,st,1] = coup_hist[i,st,0]
-            coup_hist[i,st,0] = coup
-
             # check overlap with other trajectories
             max_sij = 0.
             for j in range(master.n_total()):
                 if master.traj[j].state == st:
                     if abs(master.traj[i].overlap(master.traj[j])) > max_sij:
-                        print("trajectory overlap too big, no spawning...")
+                        fileio.print_fms_logfile('general',
+                                     ['trajectory overlap with bundle too large, cannot spawn'])
                         max_sij = abs(master.traj[i].overlap(master.traj[j]))
+                        if max_sij > glbl.sij_thresh:
+                            break
             if max_sij > glbl.sij_thresh:
                 continue
 
+            # compute magnitude of coupling to state j
+            coup = master.traj[i].coup_dot_vel(st)
+            coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
+            coup_hist[i][st,0] = coup
+
             # if we satisfy spawning conditions, begin spawn process                    
-            if spawn_trajectory(master.traj[i], st, coup_hist[i,st,:], current_time):
-                parent_i = trajectory.copy_traj(master.traj[i])
-                print(" SPAwNING TRAJECTORY -- ")
-               
+            if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:], t_spawn):
+                parent       = trajectory.copy_traj(master.traj[i])
+                child        = trajectory.copy_traj(parent)
+                child.state  = st
+                child.parent = parent.tid
+                # the child and parent share an id before the child is added to the bundle
+                # this helps the interface use electronic structure information that is reasonable,
+                # but not sure it matters for anything else
+                child.tid    = parent.tid
+ 
                 # propagate the parent forward in time until coupling maximized
-                (exit_time,success) = propagate_forward(parent_i,child_s,current_time,dt)
+                (spawn_time, exit_time, success) = spawn_forward(parent, child, current_time, dt)
+                master.traj[i].last_spawn[st] = spawn_time
+                master.traj[i].exit_time[st]  = exit_time 
 
                 if success:
-                    child_i = child_s
-                    propagate_backward(child_i, exit_time, current_time, -dt)
-                    bundle_overlap = overlap_with_bundle(child_i,exit_time,current_time,master)
+                    # at this point, child is at the spawn point. Propagate backwards in time
+                    # until we reach the current time
+                    spawn_backward(child, exit_time, current_time, -dt)
+                    bundle_overlap = overlap_with_bundle(child,master)
                     if not bundle_overlap:
-                        master.addtrajectory(child_i)
+                        master.addtrajectory(child)
                     else:
-                        print("Overlap with bundle too large, no spawn")
+                        fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
 
-                write_spawn_log(current_time,exit_time,parent_i,child_i)
-
+                write_spawn_log(current_time, spawn_time, exit_time, master.traj[i], master.traj[-1])
 
 #
 # propagate the parent forward (into the future) until the coupling decreases
 #
-def propagate_forward(parent_f,child_s,dt):
+def spawn_forward(parent, child, initial_time, dt):
 
-    parent_state = parent_f.state
-    child_state  = child_s.state
+    parent_state = parent.state
+    child_state  = child.state
+    current_time = initial_time
+    spawn_time   = initial_time
+    exit_time    = initial_time
 
-    coup_hist = np.zeros(2)
-    child_created = False
+    coup_hist = np.zeros(3,dtype=np.float)
+    print_fms_logfile('spawn_start',[parent.tid, parent_state, child_state])
 
     while True:
-        coup = parent_f.coup_dot_vel(child_s.state)
-        coup_hist[1] = coup_hist[0]
-        coup_hist[0] = coup
 
-        # if the copuling has already peaked, either we exit with a successful
+        child_create = False
+        coup_hist = np.roll(coup_hist,1)
+        coup_hist[0] = parent.coup_dot_vel(child.state)
+
+        # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail
-        if coup[0] < coup[1]:         
+        if np.all(coup_hist[0] < coup_hist[1:]):       
             if child_created:
-                print("child created")
+                fileio.print_fms_logfile('spawn_success',[current_time])
             else:
-                print("child not created")
+                fileio.print_fms_logfile('spawn_failure',[current_time])
+                parent.last_spawn[child_state] = current_time
+                child.last_spawn[parent_state] = current_time
+            exit_time = current_time
+            parent.exit_time[child_state] = exit_time
+            child.exit_time[parent_state] = exit_time
             break
 
         # coupling still increasing
         else:
+            child = trajectory.copy_tray(parent)
+            child.state = child_state
+            adjust_success = adjust_child(parent, child, parent.derivative(child_state))
+            sij = parent.overlap(child)
+
             # try to set up the child
-            sij = parent_f.overlap(child_s)
-            if np.absolute(sij) > glbl.fms['overlap_thresh']:
-                child_created = True
-                child_s.last_spawn[parent_state] = current_time
-                coup_max = coup
-
-                parent_f.last_spawn[child_state] = current_time
-                
-            if child_created:
-                print("spawning info")
+            if not adjust_success:
+                fileio.print_fms_logfile('spawn_bad_step',
+                                        ['could not adjust child momentum'])
+                sp_str = 'no'
+            elif abs(sij) < glbl.fms['spawn_olap_thresh']:
+                fileio.print_fms_logfile('spawn_bad_step',
+                                        ['child-parent overlap too small'])
+                sp_str = 'no'
             else:
-                print("could not spawn")
+                child_created = True
+                spawn_time = current_time
+                parent.last_spawn[child_state] = spawn_time
+                child.last_spawn[parent_state] = spawn_time
+                coup_max = coup_hist[0]
+                sp_str   = 'yes'
+            fileio.print_fms_logfile('spawn_step',[current_time,coup_max,abs(sij),sp_str])
 
-            fms_step_trajectory(parent_f,current_time,dt)
+            fms_step_trajectory(parent, current_time, dt)
             current_time = current_time + dt
 
-    # we've exited out of the spawn loop either because we've succesfully
-    # spawned, or the coupling is decreasing and we weren't able to spawn
-    parent_f.last_spawn[child_state] = current_time
-    child_s.last_spawn[parent_state] = current_time
-    return current_time, child_created
+    return spawn_time, exit_time, child_created
 
 #
 # propagate the child backwards in time until we reach the current time
 #
-def propagate_backward(child, current_time, end_time, dt):
+def spawn_backward(child, current_time, end_time, dt):
     nstep = int( np.absolute( (current_time-end_time) / dt) )
-    print("propagating child backwards..")
-    for i in range(nstep):
-        fms_step_trajectory(child,current_time,dt)
-        current_time = current_time + dt
 
-    print("done back propagating")
+    back_time = current_time
+    while back_time > end_time:
+        fms_step_trajectory(child,back_time,dt)
+        back_time = back_time + dt
 
 #
 # check if we satisfy all spawning criteria
@@ -346,7 +376,8 @@ def adjust_child(parent, child, scale_dir):
     ke_goal  = e_parent - child.potential()
     ke_child = child.kinetic()
     if ke_goal < 0:
-        print("Cannot adjust child kinetic energy to parent") 
+        fileio.print_fms_logfile('spawn_bad_step',
+                                ['cannot adjust kinetic energy of child'])
         return False
 
     # try to scale the momentum along the scale direction
@@ -384,7 +415,8 @@ def adjust_child(parent, child, scale_dir):
 
     discrim = b**2 - 4.*a*c 
     if discrim < 0:
-        print("Unable to scale momentum")
+        fileio.print_fms_logfile('spawn_bad_step',
+                                ['cannot scale momentum of child'])
         return False
 
     if np.absolute(a) > glbl.fpzero:
@@ -418,10 +450,14 @@ def overlap_with_bundle(trajectory,bundle):
     return t_overlap_bundle
 
 #
+# package up the data to print to the spawn log
 #
-#
-def write_spawn_log(entry_time, spawn_time, parent, child):
-  
-    #fileio.print_bund_row(4,data) 
+def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
+ 
+    # add a line entry to the spawn log 
+    data = [entry_time, spawn_time, exit_time]
+    data.extend([parent.tid, parent.state, child.tid, child.state])
+    data.extend([parent.kinetic(), parent.potential(), child.kinetic(), child.potential()])
+    fileio.print_bund_row(4,data) 
     return
 

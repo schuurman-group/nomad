@@ -9,12 +9,11 @@ import pathlib
 import subprocess
 import numpy as np
 import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle 
 
-# path to the top level of scratch directory
-scr_path = ''
 # path to columbus input files
 input_path = ''
 # path to location of 'work'/'restart' directories
@@ -60,8 +59,8 @@ gradients    = dict()
 # calculations
 #
 def init_interface():
-    global columbus_path, scr_path, input_path, work_path, restart_path, \
-           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates,       \
+    global columbus_path, input_path, work_path, restart_path, \
+           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
            max_l,mrci_lvl,mem_str
 
     print("init interface called...")
@@ -71,20 +70,15 @@ def init_interface():
     if not os.path.isfile(columbus_path+'/ciudg.x'):
         print("Cannot find COLUMBUS executables in: "+columbus_path)
         sys.exit()
-    # ensure scratch directory exists
-    scr_path     = os.environ['TMPDIR']
-    if os.path.exists(scr_path):
-        shutil.rmtree(scr_path)
-        os.makedirs(scr_path)
     # ensure COLUMBUS input files are present locally
     if not os.path.exists('input'):
         print("Cannot find COLUMBUS input files in: input")
         sysexit()
 
     # setup working directories
-    input_path    = scr_path+'/input'
-    work_path     = scr_path+'/work'
-    restart_path  = scr_path+'/restart'
+    input_path    = fileio.scr_path+'/input'
+    work_path     = fileio.scr_path+'/work'
+    restart_path  = fileio.scr_path+'/restart'
 
     if os.path.exists(input_path):
         shutil.rmtree(input_path)
@@ -122,7 +116,6 @@ def init_interface():
     mem_str = str(glbl.columbus['mem_per_core'])
 
     # generate one time input files for columbus calculations
-    print("calling make_one_time_input")
     make_one_time_input()
 
 #
@@ -140,7 +133,6 @@ def populate_bundle(master,geom_list,amp_list):
                               parent=0,
                               n_basis=n_orbs))
         master.traj[i].amplitude = amp_list[i]
-        print("amplitude="+str(master.traj[i].amplitude))
 
 #
 # returns the energy at the specified geometry. If value on file 
@@ -260,7 +252,9 @@ def in_cache(tid,geom):
     if tid not in current_geom:
         return False
     g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(p_dim)),np.float)
-    if np.linalg.norm(g - current_geom[tid]) <= glbl.fpzero:
+    difg = np.linalg.norm(g - current_geom[tid])
+    print("tid, difg="+str(tid)+' '+str(difg))
+    if difg <= glbl.fpzero:
         return True
     return False 
 
@@ -276,7 +270,7 @@ def in_cache(tid,geom):
 #    2. Compute all couplings
 #
 def run_trajectory(tid,geom,tstate):
-    global p_dim, n_atoms, current_geom
+    global p_dim, n_cistates, n_atoms, current_geom
 
     # write geometry to file
     write_col_geom(geom)
@@ -294,13 +288,18 @@ def run_trajectory(tid,geom,tstate):
     run_col_multipole(tid,tstate)
 
     # run transition dipoles
-    run_col_tdipole(tid,tstate)
+    for i in range(n_cistates):
+        for j in range(n_cistates):
+            if i != j:
+                run_col_tdipole(tid, j, i)
 
     # compute gradient on current state
     run_col_gradient(tid,tstate)
 
     # run coupling to other states
-    run_col_coupling(tid,tstate)
+    for i in range(n_cistates):
+        if i != tstate:
+            run_col_coupling(tid, tstate, i)
 
     # save restart files
     make_col_restart(tid)
@@ -323,14 +322,14 @@ def run_centroid(tid,geom,lstate,rstate):
     generate_integrals(tid)
 
     # run mcscf
-    run_col_mcscf(tid,lstate)
+    run_col_mcscf(tid, lstate)
 
     # run mrci, if necessary
-    run_col_mrci(tid,lstate)
+    run_col_mrci(tid, lstate)
 
     if lstate != rstate:
         # run coupling to other states
-        run_col_coupling(tid,lstate)
+        run_col_coupling(tid, lstate, rstate)
 
     # save restart files
     make_col_restart(tid)
@@ -350,7 +349,6 @@ def run_centroid(tid,geom,lstate,rstate):
 def make_one_time_input():
     global work_path
 
-    print("Making one time input...")
     sys.stdout.flush()
     # all calculations take place in work_dir
     os.chdir(work_path) 
@@ -373,6 +371,20 @@ def make_one_time_input():
 
     # make sure ciudgin file exists
     shutil.copy('ciudgin.drt1','ciudgin')
+
+    # and check that there's a transition section
+    transition = False
+    ciudgin = open('ciudgin','r+')
+    for line in ciudgin:
+        if 'transition' in line:
+            transition = True
+            break
+    if not transition:
+        ciudgin.write('transition\n')
+        for i in range(n_cistates):
+            for j in range(i):
+                ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(j+1,i+1))
+    ciudgin.close()
 
 #
 # run dalton to generate AO integrals
@@ -597,7 +609,7 @@ def run_col_multipole(tid,t_state):
 # Compute transition dipoles between ground and excited state,
 # and between trajectory states and other state
 #
-def run_col_tdipole(tid,t_state):
+def run_col_tdipole(tid, state_i, state_j):
     global p_dim, dip_moms, n_cistates, work_path, mrci_lvl
  
     os.chdir(work_path)
@@ -607,41 +619,38 @@ def run_col_tdipole(tid,t_state):
     link_force('civout','civout.drt1')
     link_force('cirefv','cirefv.drt1')
 
-    for istate in range(n_cistates):
-        i1 = istate + 1
-        for jstate in range(istate):
-            j1 = jstate + 1
-            # only do transition dipoles
-            if istate == jstate:
-                continue     
+    i1 = min(state_i,state_j) + 1
+    j1 = max(state_i,state_j) + 1
 
-            if mrci_lvl == 0:
-                with open('transftin','w') as ofile:
-                    ofile.write('y\n1\n'+str(j1)+'\n1\n'+str(i1))
-                subprocess.run(['transft.x'],stdin='transftin',stdout='transftls')
+    if state_i == state_j:
+        return
+ 
+    if mrci_lvl == 0:
+        with open('transftin','w') as ofile:
+            ofile.write('y\n1\n'+str(j1)+'\n1\n'+str(i1))
+            subprocess.run(['transft.x'],stdin='transftin',stdout='transftls')
 
-                with open('transmomin','w') as ofile:
-                    ofile.write('MCSCF\n1 '+str(j1)+'\n1\n'+str(i1))
-                subprocess.run(['transmom.x','-m',mem_str])
+        with open('transmomin','w') as ofile:
+            ofile.write('MCSCF\n1 '+str(j1)+'\n1\n'+str(i1))
+            subprocess.run(['transmom.x','-m',mem_str])
 
-                os.remove('mcoftfl')
-                shutil.copy('mcoftfl.1','mcoftfl') 
+        os.remove('mcoftfl')
+        shutil.copy('mcoftfl.1','mcoftfl')
 
-            else:
-                with open('trnciin','w') as ofile:
-                    ofile.write('&input\nlvlprt=1,\nnroot1='+str(j1)+',\n'+
-                                 'nroot2='+str(i1)+',\ndrt1=1,\ndrt2=1,\n&end')
-                subprocess.run(['transci.x','-m',mem_str])
-                shutil.move('cid1trfl','cid1trfl.'+str(j1)+'.'+str(i1)) 
+    else:
+        with open('trnciin','w') as ofile:
+            ofile.write(' &input\n lvlprt=1,\n nroot1='+str(i1)+',\n'+
+                        ' nroot2='+str(j1)+',\n drt1=1,\n drt2=1,\n &end')
+        subprocess.run(['transci.x','-m',mem_str])
+        shutil.move('cid1trfl','cid1trfl.'+str(i1)+'.'+str(j1))
 
-            with open('trncils','r') as trncils:
-                for line in trncils:
-                    if 'total (elec)' in line:
-                        line_arr = line.rstrip().split() 
-                        for dim in range(p_dim):
-                            dip_moms[tid][istate,jstate,dim] = float(line_arr[dim+2])
-                            dip_moms[tid][jstate,istate,dim] = float(line_arr[dim+2])
-             
+    with open('trncils','r') as trncils:
+        for line in trncils:
+            if 'total (elec)' in line:
+                line_arr = line.rstrip().split()
+                for dim in range(p_dim):
+                    dip_moms[tid][state_i,state_j,dim] = float(line_arr[dim+2])
+                    dip_moms[tid][state_j,state_i,dim] = float(line_arr[dim+2])
 
 # perform integral transformation and determine gradient on
 # trajectory state
@@ -699,11 +708,13 @@ def run_col_gradient(tid,t_state):
 #
 # compute couplings to states within prescribed DE window
 #
-def run_col_coupling(tid,t_state):
+def run_col_coupling(tid, t_state, c_state):
     global p_dim, couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
 
+    if t_state == c_state:
+        return
+
     os.chdir(work_path)
-    tindex = t_state + 1
 
     # copy some clean files to the work directory
     shutil.copy(input_path+'/cigrdin','cigrdin')
@@ -717,46 +728,45 @@ def run_col_coupling(tid,t_state):
     shutil.copy(input_path+'/abacusin','daltcomm')
     insert_dalton_key('daltcomm','COLBUS','.NONUCG')
 
-    for istate in range(n_cistates):
-        i1 = istate+1
-        if istate == t_state:
-            continue
+    s1 = str(min(t_state, c_state) + 1).strip()
+    s2 = str(max(t_state, c_state) + 1).strip()
 
-        s1 = str(min(i1,tindex)).strip()
-        s2 = str(max(i1,tindex)).strip()
-        if mrci_lvl == 0:
-            link_force('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-            link_force('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
-            link_force('mcad1fl.'+s1+s2,'cid1trfl')   
-        else:
-            link_force('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-            link_force('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
-            link_force('cid1trfl.'+s1+'.'+s2,'cid1trfl')
+    if mrci_lvl == 0:
+        link_force('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+        link_force('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
+        link_force('mcad1fl.'+s1+s2,'cid1trfl')   
+    else:
+        link_force('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+        link_force('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
+        link_force('cid1trfl.'+s1+'.'+s2,'cid1trfl')
 
-        set_nlist_keyword('cigrdin','drt1',1)
-        set_nlist_keyword('cigrdin','drt2',1)
-        set_nlist_keyword('cigrdin','root1',s1)
-        set_nlist_keyword('cigrdin','root2',s2)
+    set_nlist_keyword('cigrdin','drt1',1)
+    set_nlist_keyword('cigrdin','drt2',1)
+    set_nlist_keyword('cigrdin','root1',s1)
+    set_nlist_keyword('cigrdin','root2',s2)
 
-        subprocess.run(['cigrd.x','-m',mem_str])
- 
-        shutil.move('effd1fl','modens')
-        shutil.move('effd2fl','modens2')
- 
-        subprocess.run(['tran.x','-m',mem_str])
-        with open('abacusls','w') as abacusls:
-            subprocess.run(['dalton.x','-m',mem_str],stdout=abacusls)
+    subprocess.run(['cigrd.x','-m',mem_str])
 
-        # read in cartesian gradient and save to array
-        with open('cartgrd','r') as cartgrd:
-            i = 0
-            for line in cartgrd:
-                l_arr = line.rstrip().split()
-                for j in range(p_dim):
-                    gradients[tid][t_state,istate,p_dim*i+j] = float(l_arr[j].replace("D","e"))
-                    gradients[tid][istate,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
-                i = i + 1
-        shutil.move('cartgrd','cartgrd.nad')
+    shutil.move('effd1fl','modens')
+    shutil.move('effd2fl','modens2')
+
+    subprocess.run(['tran.x','-m',mem_str])
+    with open('abacusls','w') as abacusls:
+        subprocess.run(['dalton.x','-m',mem_str],stdout=abacusls)
+
+    # read in cartesian gradient and save to array
+    with open('cartgrd','r') as cartgrd:
+        i = 0
+        for line in cartgrd:
+            l_arr = line.rstrip().split()
+            for j in range(p_dim):
+                gradients[tid][t_state,c_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
+                gradients[tid][c_state,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
+            i = i + 1
+    delta_e = energies[tid][t_state] - energies[tid][c_state]
+    gradients[tid][t_state,c_state,:] /=  delta_e
+    gradients[tid][c_state,t_state,:] /= -delta_e
+    shutil.move('cartgrd','cartgrd.nad.'+str(s1)+'.'+str(s2))
 
     # grab mcscfls output
     append_log(tid,'nad')
@@ -779,7 +789,7 @@ def make_col_restart(tid):
 
     # do some cleanup
     if os.path.isfile('cirdrtfl'):   os.remove('cidrtfl')
-    if os.path.isfile('cirdrtfl.1'): os.remove('cidrtfl.1')
+
     if os.path.isfile('aoints'):     os.remove('aoints')
     if os.path.isfile('aoints2'):    os.remove('aoints2')
     if os.path.isfile('modens'):     os.remove('modens')
