@@ -359,9 +359,9 @@ class trajectory:
         chkpt.write('\n')
 
         # Writes out dipole moments in cartesian coordinates
-        init_states[0, self.state]
+        init_states = [0, self.state]
         for i in init_states:
-            for j in self.nstates:
+            for j in range(self.nstates):
                 if j==i or j in init_states[0:i]:
                     continue
                 chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
@@ -370,7 +370,7 @@ class trajectory:
 
         # Writes out gradients 
         for i in range(self.nstates):
-            chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
+            chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}\n'.format(self.state,i))
             self.deriv[i,:].tofile(chkpt,' ','%16.10e')
             chkpt.write('\n')
 

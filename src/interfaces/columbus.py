@@ -253,7 +253,6 @@ def in_cache(tid,geom):
         return False
     g = np.fromiter((geom[i].x[j] for i in range(n_atoms) for j in range(p_dim)),np.float)
     difg = np.linalg.norm(g - current_geom[tid])
-    print("tid, difg="+str(tid)+' '+str(difg))
     if difg <= glbl.fpzero:
         return True
     return False 
@@ -392,7 +391,7 @@ def generate_integrals(tid):
     with open('hermitls', "w") as hermitls:
         subprocess.run(['dalton.x','-m',mem_str],stdout=hermitls,universal_newlines=True,shell=True)
 
-    append_log(tid,'integral')
+#    append_log(tid,'integral')
 
 #
 # run mcscf program
@@ -460,7 +459,7 @@ def run_col_mcscf(tid,t_state):
     shutil.copy('mocoef_mc','mocoef')
 
     # grab mcscfls output
-    append_log(tid,'mcscf')
+#    append_log(tid,'mcscf')
 
     return
 
@@ -552,7 +551,7 @@ def run_col_mrci(tid,t_state):
                 atom_pops[tid][ist,:] = np.asarray([float(x) for x in pops],dtype=float)
 
     # grab mrci output
-    append_log(tid,'mrci')
+#    append_log(tid,'mrci')
 
     # transform integrals using cidrtfl.cigrd
     frzn_core = int(read_nlist_keyword('cigrdin','assume_fc'))
@@ -709,7 +708,7 @@ def run_col_gradient(tid,t_state):
             i = i + 1
 
     # grab cigrdls output
-    append_log(tid,'cigrd')
+#    append_log(tid,'cigrd')
        
 #
 # compute couplings to states within prescribed DE window
@@ -783,7 +782,7 @@ def run_col_coupling(tid, t_state, coup_state=None):
         shutil.move('cartgrd','cartgrd.nad.'+str(s1)+'.'+str(s2))
 
     # grab mcscfls output
-    append_log(tid,'nad')
+#    append_log(tid,'nad')
 
 #
 # save mocoef and ci files to restart directory
@@ -822,7 +821,7 @@ def make_col_restart(tid):
 def get_adiabatic_phase(new_coup, old_coup):
    
     # if the previous coupling is vanishing, phase of new coupling is arbitrary
-    if np.linalg.norm(old_coup) < glbl.fpzero:
+    if np.linalg.norm(old_coup) <= glbl.fpzero:
         return 1.
 
     # check the difference between the vectors assuming phases of +1/-1
