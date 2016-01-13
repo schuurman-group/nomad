@@ -50,8 +50,6 @@ fms = dict(
 #
 # COLUMBUS input variables
 columbus  = dict(
-       # level of mrci: 0-mcscf, 1-foci, 2-soci, etc.
-       mrci_lvl          = 1,
        # memory per core in MB   
        mem_per_core      = 100,
           )

@@ -46,7 +46,7 @@ def main():
         fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
         
         # write the bundle to file
-        master.write_bundle(fileio.output_path+'/last_step.dat','w')
+        master.write_bundle(fileio.scr_path+'/last_step.dat','w')
 
     fileio.cleanup()
 

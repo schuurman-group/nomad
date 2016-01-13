@@ -275,7 +275,7 @@ class trajectory:
     def coup_dot_vel(self,c_state):
         if self.state == c_state:
            return 0.
-        return abs(np.dot( self.velocity(), self.derivative(c_state) ))
+        return np.dot( self.velocity(), self.derivative(c_state) )
         
     #-----------------------------------------------------------------------------
     #
@@ -359,8 +359,11 @@ class trajectory:
         chkpt.write('\n')
 
         # Writes out dipole moments in cartesian coordinates
-        for i in range(self.nstates):
-            for j in range(i+1):
+        init_states[0, self.state]
+        for i in init_states:
+            for j in self.nstates:
+                if j==i or j in init_states[0:i]:
+                    continue
                 chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
                 self.dipoles[j,i,:].tofile(chkpt,' ','%10.6f')
                 chkpt.write('\n')

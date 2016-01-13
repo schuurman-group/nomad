@@ -235,7 +235,7 @@ def spawn(master,current_time,dt):
             coup_hist[i][st,0] = coup
 
             # if we satisfy spawning conditions, begin spawn process                    
-            if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:], t_spawn):
+            if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:], current_time):
                 parent       = trajectory.copy_traj(master.traj[i])
                 child        = trajectory.copy_traj(parent)
                 child.state  = st

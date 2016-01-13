@@ -288,18 +288,17 @@ def run_trajectory(tid,geom,tstate):
     run_col_multipole(tid,tstate)
 
     # run transition dipoles
-    for i in range(n_cistates):
+    init_states = [0, tstate]
+    for i in init_states:
         for j in range(n_cistates):
-            if i != j:
-                run_col_tdipole(tid, j, i)
+            if i != j or (j in init_states and j < i):
+                run_col_tdipole(tid, i, j)
 
     # compute gradient on current state
-    run_col_gradient(tid,tstate)
+    run_col_gradient(tid, tstate)
 
     # run coupling to other states
-    for i in range(n_cistates):
-        if i != tstate:
-            run_col_coupling(tid, tstate, i)
+    run_col_coupling(tid, tstate)
 
     # save restart files
     make_col_restart(tid)
@@ -371,20 +370,6 @@ def make_one_time_input():
 
     # make sure ciudgin file exists
     shutil.copy('ciudgin.drt1','ciudgin')
-
-    # and check that there's a transition section
-    transition = False
-    ciudgin = open('ciudgin','r+')
-    for line in ciudgin:
-        if 'transition' in line:
-            transition = True
-            break
-    if not transition:
-        ciudgin.write('transition\n')
-        for i in range(n_cistates):
-            for j in range(i):
-                ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(j+1,i+1))
-    ciudgin.close()
 
 #
 # run dalton to generate AO integrals
@@ -483,12 +468,33 @@ def run_col_mcscf(tid,t_state):
 # run mrci if running at that level of theory
 #
 def run_col_mrci(tid,t_state):
-    global energies, atom_pops, work_path, n_atoms, n_cistates
+    global energies, atom_pops, input_path, work_path, n_atoms, n_cistates
 
     os.chdir(work_path)
 
     # if restart file exists, create symbolic link to it
     set_mrci_restart(tid)
+
+    # get a fresh ciudgin file 
+    shutil.copy(input_path+'/ciudgin.drt1','ciudgin')
+
+    # update the transition section in ciudgin
+    init_states = [0, t_state]
+    with open('ciudgin','r') as ciudgin:
+        ci_file = ciudgin.readlines()
+    with open('ciudgin','w') as ciudgin:
+        for line in ci_file:
+            ciudgin.write(line)
+            if '&end' in line:
+                break
+        ciudgin.write('transition\n')
+        for i in init_states:
+            for j in range(n_cistates):
+                if i == j or (j in init_states and j < i):
+                    continue
+                left_state  = min(i,j)+1
+                right_state = max(i,j)+1
+                ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(left_state,right_state))
 
     # make sure we point to the correct formula tape file
     link_force('cidrtfl.ci','cidrtfl')
@@ -708,65 +714,73 @@ def run_col_gradient(tid,t_state):
 #
 # compute couplings to states within prescribed DE window
 #
-def run_col_coupling(tid, t_state, c_state):
+def run_col_coupling(tid, t_state, coup_state=None):
     global p_dim, couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
 
-    if t_state == c_state:
-        return
+    if coup_state:
+       c_states = [coup_state]
+    else:
+       c_states = [i for i in range(n_cistates)]
 
     os.chdir(work_path)
 
-    # copy some clean files to the work directory
-    shutil.copy(input_path+'/cigrdin','cigrdin')
-    set_nlist_keyword('cigrdin','nadcalc',1)
-    if mrci_lvl == 0:
-        set_nlist_keyword('cigrdin','samcflag',1)
-        shutil.copy(input_path+'/tranmcdenin','tranin')
-    else:
-        shutil.copy(input_path+'/trancidenin','tranin')
+    for c_state in c_states:
 
-    shutil.copy(input_path+'/abacusin','daltcomm')
-    insert_dalton_key('daltcomm','COLBUS','.NONUCG')
+        if c_state == t_state:
+            continue
 
-    s1 = str(min(t_state, c_state) + 1).strip()
-    s2 = str(max(t_state, c_state) + 1).strip()
+        s1 = str(min(t_state, c_state) + 1).strip()
+        s2 = str(max(t_state, c_state) + 1).strip()
 
-    if mrci_lvl == 0:
-        link_force('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-        link_force('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
-        link_force('mcad1fl.'+s1+s2,'cid1trfl')   
-    else:
-        link_force('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
-        link_force('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
-        link_force('cid1trfl.'+s1+'.'+s2,'cid1trfl')
+        # copy some clean files to the work directory
+        shutil.copy(input_path+'/cigrdin','cigrdin')
+        set_nlist_keyword('cigrdin','nadcalc',1)
+        if mrci_lvl == 0:
+            set_nlist_keyword('cigrdin','samcflag',1)
+            shutil.copy(input_path+'/tranmcdenin','tranin')
+        else:
+            shutil.copy(input_path+'/trancidenin','tranin')
 
-    set_nlist_keyword('cigrdin','drt1',1)
-    set_nlist_keyword('cigrdin','drt2',1)
-    set_nlist_keyword('cigrdin','root1',s1)
-    set_nlist_keyword('cigrdin','root2',s2)
+        shutil.copy(input_path+'/abacusin','daltcomm')
+        insert_dalton_key('daltcomm','COLBUS','.NONUCG')
 
-    subprocess.run(['cigrd.x','-m',mem_str])
+        if mrci_lvl == 0:
+            link_force('mcsd1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+            link_force('mcsd2fl.trd'+s1+'to'+s2,'cid2fl.tr')   
+            link_force('mcad1fl.'+s1+s2,'cid1trfl')   
+        else:
+            link_force('cid1fl.trd'+s1+'to'+s2,'cid1fl.tr')
+            link_force('cid2fl.trd'+s1+'to'+s2,'cid2fl.tr')
+            link_force('cid1trfl.'+s1+'.'+s2,'cid1trfl')
 
-    shutil.move('effd1fl','modens')
-    shutil.move('effd2fl','modens2')
+        set_nlist_keyword('cigrdin','drt1',1)
+        set_nlist_keyword('cigrdin','drt2',1)
+        set_nlist_keyword('cigrdin','root1',s1)
+        set_nlist_keyword('cigrdin','root2',s2)
 
-    subprocess.run(['tran.x','-m',mem_str])
-    with open('abacusls','w') as abacusls:
-        subprocess.run(['dalton.x','-m',mem_str],stdout=abacusls)
+        subprocess.run(['cigrd.x','-m',mem_str])
+ 
+        shutil.move('effd1fl','modens')
+        shutil.move('effd2fl','modens2')
 
-    # read in cartesian gradient and save to array
-    with open('cartgrd','r') as cartgrd:
-        i = 0
-        for line in cartgrd:
-            l_arr = line.rstrip().split()
-            for j in range(p_dim):
-                gradients[tid][t_state,c_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
-                gradients[tid][c_state,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
-            i = i + 1
-    delta_e = energies[tid][t_state] - energies[tid][c_state]
-    gradients[tid][t_state,c_state,:] /=  delta_e
-    gradients[tid][c_state,t_state,:] /= -delta_e
-    shutil.move('cartgrd','cartgrd.nad.'+str(s1)+'.'+str(s2))
+        subprocess.run(['tran.x','-m',mem_str])
+        with open('abacusls','w') as abacusls:
+            subprocess.run(['dalton.x','-m',mem_str],stdout=abacusls)
+
+        # read in cartesian gradient and save to array
+        with open('cartgrd','r') as cartgrd:
+            lines = cartgrd.read().splitlines()
+        grad = [lines[i].split() for i in range(len(lines))]
+        new_coup = np.asarray([item.replace('D','e') for row in grad for item in row],dtype=np.float)
+        print("new_coup="+str(new_coup))
+
+        delta_e = energies[tid][t_state] - energies[tid][c_state]
+        new_coup /= delta_e
+
+        c_phase = get_adiabatic_phase(new_coup, gradients[tid][t_state,c_state,:])
+        gradients[tid][t_state,c_state,:] =  c_phase * new_coup
+        gradients[tid][c_state,t_state,:] = -c_phase * new_coup
+        shutil.move('cartgrd','cartgrd.nad.'+str(s1)+'.'+str(s2))
 
     # grab mcscfls output
     append_log(tid,'nad')
@@ -801,6 +815,24 @@ def make_col_restart(tid):
     if os.path.isfile('civout.drt1'):os.remove('civout.drt1')
     if os.path.isfile('cirefv.drt1'):os.remove('cirefv.drt1')
 
+#
+# determine the phase of the computed coupling that yields smallest
+# change from previous coupling
+#
+def get_adiabatic_phase(new_coup, old_coup):
+   
+    # if the previous coupling is vanishing, phase of new coupling is arbitrary
+    if np.linalg.norm(old_coup) < glbl.fpzero:
+        return 1.
+
+    # check the difference between the vectors assuming phases of +1/-1
+    norm_pos = np.linalg.norm( new_coup - old_coup)
+    norm_neg = np.ligalg.norm(-new_coup - old_coup)
+
+    if norm_pos < norm_neg:
+        return 1.
+    else:
+        return -1.
 
 #-----------------------------------------------------------------
 #
