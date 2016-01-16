@@ -70,22 +70,24 @@ def read_input_files():
 #
 def read_namelist(filename):
     kwords = dict()
-    f = open(filename,'r',encoding="utf-8")
-    for line in f:
-        if "=" in line:
-            line = line.rstrip("\r\n")
-            (key,value) = line.split('=',1)
-            key = str(key.strip())
-            value = str(value.strip())
-            try:
-                kwords[key] = float(value)
-                if kwords[key].is_integer():
-                    kwords[key] = int(value)
-            except ValueError:
-                pass
-            if key not in kwords:
-                kwords[key] = value
-    f.close()
+    
+    if os.path.exists(filename):
+        with open(filename,'r',encoding="utf-8") as infile: 
+            for line in infile:    
+                if "=" in line:
+                    line = line.rstrip("\r\n")
+                    (key,value) = line.split('=',1)
+                    key = str(key.strip())
+                    value = str(value.strip())
+                    try:
+                        kwords[key] = float(value)
+                        if kwords[key].is_integer():
+                            kwords[key] = int(value)
+                    except ValueError:
+                        pass
+                    if key not in kwords:
+                        kwords[key] = value
+
     return kwords
 
 #

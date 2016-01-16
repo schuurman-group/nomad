@@ -110,9 +110,77 @@ def set_initial_state(master):
 # sample a v=0 wigner distribution
 # 
 def gs_wigner(master):
-    phase_gm   = load_geometry()
-    hessian    = load_hessian()
-    return
+    phase_gm    = load_geometry()
+    hessian     = load_hessian()
+    origin_traj = trajectory.trajectory(
+                          glbl.fms['interface'],
+                          glbl.fms['n_states'],
+                          particles=phase_gm,
+                          parent=0)
+
+    dim    = phase_gm[0].dim
+    masses = np.asarray([phase_gm[i].mass for i in range(len(phase_gm)) for j in range(dim)])
+    mw_hess = hessian*masses*masses[:,np.newaxis]
+
+    np.linalg.eigh(mw_hess,evecs,evals)
+    freq_list = []
+    mode_list = []
+    for i in range(len(evals)):
+        if evals[i] < 0:
+            continue
+        if math.sqrt(evals[i]) < f_cutoff
+            continue
+        freq_list.append(math.sqrt(evals[i]))
+        freq_list.append(evecs[:,i])       
+    n_modes = len(freq_list)
+    freqs = np.asarray(freq_list)
+    modes = np.asarray(mode_list)
+
+    # confirm that modes * tr(modes) = 1
+    m_chk = np.dot(modes,np.transpose(modes))
+    print("m_chk="+m_chk)
+    
+    max_try   = 1000
+    for i in range(glbl.fms['num_init_traj']):
+        delta_x = np.zeros(n_modes,dtype=np.float)
+        delta_p = np.zeros(n_modes,dtype=np.float)
+        disp_gm = [particle.copy_part(phase_gm[i]) for i in range(len(phase_gm))]
+
+        for j in range(n_modes):
+            alpha   = 0.5 * freqs(j)
+            sigma_x = sqrt(0.25 / alpha)
+            sigma_p = sqrt(alpha)
+            
+            itry = 0
+            while 0 < try <= max_try and mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:    
+                dx = random.gauss(0.,sigma_x)
+                dp = random.gauss(0.,sigma_p)
+                itry += 1
+            if mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:
+                print("Cannot get mode overlap > "
+                       +str(glbl.fms['init_mode_min_olap'])
+                       +" within "+str(max_try)" attempts. Exiting...")
+            delta_x[j] = dx
+            delta_p[j] = dp
+ 
+        # now displace along each normal mode to generate the final geometry
+        disp_x = np.dot(modes,delta_x) / np.sqrt(masses)
+        disp_p = np.dot(modes,delta_p) / np.sqrt(masses)
+
+        for j in range(len(disp_gm)):
+            disp_gm[i].x[:] += disp_x[j*dim:(j+1)*dim] 
+            disp_gm[i].p[:] += disp_p[j*dim:(j+1)*dim]
+
+        new_traj = trajectory.trajectory(
+                          glbl.fms['interface'],
+                          glbl.fms['n_states'],
+                          particles=geom,
+                          parent=0)
+        new_traj.amplitdue = new_traj.overlap(origin_traj)
+
+    # after all trajectories have been added, renormalize the total population
+    # in the bundle to unity
+    master.renormalize()
 
 #
 #  Sample a generic distribution
@@ -125,9 +193,15 @@ def ho_distribution(master):
 #  Take initial position and momentum from geometry.dat file
 #
 def user_specified(master):
-    geom_list = [load_geometry()]
-    amp_list  = [complex(1.,0.)]
-    pes.populate_bundle(master,geom_list,amp_list)
+    geom = load_geometry()
+    amp  = complex(1.,0.)
+    # add a single trajectory specified by geometry.dat
+    master.add_trajectory(trajectory.trajectory(
+                          glbl.fms['interface'],
+                          glbl.fms['n_states'],
+                          particles=geom,
+                          parent=0)
+    master.traj[i].amplitude = amp
     set_initial_state(master)
     return
 
@@ -136,6 +210,16 @@ def user_specified(master):
 # Utilities
 #
 #-------------------------------------------------------------------
+
+#
+# Given a displacement along a set of x, p coordiantes (dx, dp), return
+# the overlap of the resultant gaussian primitive with the gaussian primitive
+# centered at (x0,p0) (integrate over x, independent of x0)
+#
+def mode_overlap(p0, dx, dp):
+    return abs(math.exp( (-4*dx**2 
+                          - dp**2 
+                          - 4*complex(0.,1.)*dx*(dp + 2*p0)) / 8.))
 
 #
 # Read in geometry file and hessian and sample about v=0 distribution

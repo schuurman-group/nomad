@@ -63,7 +63,6 @@ def init_interface():
            p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
            max_l,mrci_lvl,mem_str
 
-    print("init interface called...")
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
     columbus_path = os.environ['COLUMBUS']
@@ -118,23 +117,6 @@ def init_interface():
     # generate one time input files for columbus calculations
     make_one_time_input()
 
-#
-# Initialize the bundle with the initial trajectories at time t=0. Trajectories
-#  may contain interface-specific information (i.e. "number of orbitals"). This 
-#  approach is taken to maintain modularity. The main driver program should have
-#  no idea what an "orbital" is...
-#
-def populate_bundle(master,geom_list,amp_list):
-    for i in range(len(geom_list)):
-        master.add_trajectory(trajectory.trajectory(
-                              glbl.fms['interface'],
-                              glbl.fms['n_states'],
-                              particles=geom_list[i],
-                              parent=0,
-                              n_basis=n_orbs))
-        master.traj[i].amplitude = amp_list[i]
-
-#
 # returns the energy at the specified geometry. If value on file 
 #  not current, or we don't care about saving data -- recompute
 #

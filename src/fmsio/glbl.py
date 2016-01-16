@@ -43,6 +43,7 @@ fms = dict(
        energy_jump_toler = 0.0001,
        pop_jump_toler    = 0.0001,
        pot_shift         = 0.
+       init_mode_min_olap= 0.
           )
 #
 # Electronic structure information read from interface-specific
