@@ -182,7 +182,7 @@ class trajectory:
     # the current state
     #
     def derivative(self,rstate):
-        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, self.state, rstate)
+        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, rstate)
         return self.deriv[rstate,:]
     
     #

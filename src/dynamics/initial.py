@@ -1,4 +1,6 @@
 import sys 
+import random
+import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -60,7 +62,6 @@ def init_restart(master):
         fname = fileio.home_path+'/checkpoint.dat'
 
     master.read_bundle(fname,glbl.fms['restart_time'])
-
     return
 
 #
@@ -112,54 +113,59 @@ def set_initial_state(master):
 def gs_wigner(master):
     phase_gm    = load_geometry()
     hessian     = load_hessian()
+
     origin_traj = trajectory.trajectory(
                           glbl.fms['interface'],
                           glbl.fms['n_states'],
                           particles=phase_gm,
                           parent=0)
 
-    dim    = phase_gm[0].dim
-    masses = np.asarray([phase_gm[i].mass for i in range(len(phase_gm)) for j in range(dim)])
-    mw_hess = hessian*masses*masses[:,np.newaxis]
+    dim     = phase_gm[0].dim
+    masses  = np.asarray([phase_gm[i].mass for i in range(len(phase_gm)) for j in range(dim)],dtype=np.float)
+    invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0. else 0 for i in range(len(masses))],dtype=np.float)
+    mw_hess = invmass * hessian * invmass[:,np.newaxis]
 
-    np.linalg.eigh(mw_hess,evecs,evals)
+    # set up nodes and frequencies
+    evals, evecs = np.linalg.eigh(mw_hess)
+    f_cutoff = 0.0001
     freq_list = []
     mode_list = []
     for i in range(len(evals)):
         if evals[i] < 0:
             continue
-        if math.sqrt(evals[i]) < f_cutoff
+        if np.sqrt(evals[i]) < f_cutoff:
             continue
-        freq_list.append(math.sqrt(evals[i]))
-        freq_list.append(evecs[:,i])       
+        freq_list.append(np.sqrt(evals[i]))
+        mode_list.append(evecs[:,i].tolist())       
     n_modes = len(freq_list)
     freqs = np.asarray(freq_list)
-    modes = np.asarray(mode_list)
+    modes = np.asarray(mode_list).transpose()
 
     # confirm that modes * tr(modes) = 1
     m_chk = np.dot(modes,np.transpose(modes))
-    print("m_chk="+m_chk)
     
+    # loop over the number of initial trajectories
     max_try   = 1000
-    for i in range(glbl.fms['num_init_traj']):
+    for i in range(glbl.fms['n_init_traj']):
         delta_x = np.zeros(n_modes,dtype=np.float)
         delta_p = np.zeros(n_modes,dtype=np.float)
-        disp_gm = [particle.copy_part(phase_gm[i]) for i in range(len(phase_gm))]
+        disp_gm = [particle.copy_part(phase_gm[j]) for j in range(len(phase_gm))]
 
         for j in range(n_modes):
-            alpha   = 0.5 * freqs(j)
-            sigma_x = sqrt(0.25 / alpha)
-            sigma_p = sqrt(alpha)
-            
+            alpha   = 0.5 * freqs[j]
+            sigma_x = np.sqrt(0.25 / alpha)
+            sigma_p = np.sqrt(alpha)
             itry = 0
-            while 0 < try <= max_try and mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:    
+            while 0 <= itry <= max_try:    
                 dx = random.gauss(0.,sigma_x)
                 dp = random.gauss(0.,sigma_p)
                 itry += 1
+                if mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:
+                    break
             if mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:
                 print("Cannot get mode overlap > "
                        +str(glbl.fms['init_mode_min_olap'])
-                       +" within "+str(max_try)" attempts. Exiting...")
+                       +" within "+str(max_try)+" attempts. Exiting...")
             delta_x[j] = dx
             delta_p[j] = dp
  
@@ -168,19 +174,22 @@ def gs_wigner(master):
         disp_p = np.dot(modes,delta_p) / np.sqrt(masses)
 
         for j in range(len(disp_gm)):
-            disp_gm[i].x[:] += disp_x[j*dim:(j+1)*dim] 
-            disp_gm[i].p[:] += disp_p[j*dim:(j+1)*dim]
+            disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim] 
+            disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]
 
+        print(' '.join([str(disp_x[k]) for k in range(len(disp_x))])+' '.join([str(disp_p[k]) for k in range(len(disp_p))]))
         new_traj = trajectory.trajectory(
                           glbl.fms['interface'],
                           glbl.fms['n_states'],
-                          particles=geom,
+                          particles=disp_gm,
                           parent=0)
-        new_traj.amplitdue = new_traj.overlap(origin_traj)
-
+        new_traj.amplitude = new_traj.overlap(origin_traj)
+        master.add_trajectory(new_traj)
+ 
     # after all trajectories have been added, renormalize the total population
     # in the bundle to unity
     master.renormalize()
+    set_initial_state(master)
 
 #
 #  Sample a generic distribution
@@ -200,7 +209,7 @@ def user_specified(master):
                           glbl.fms['interface'],
                           glbl.fms['n_states'],
                           particles=geom,
-                          parent=0)
+                          parent=0))
     master.traj[i].amplitude = amp
     set_initial_state(master)
     return
@@ -227,21 +236,31 @@ def mode_overlap(p0, dx, dp):
 #          basis (i.e. atom centered cartesians vs. normal modes)
 #
 def load_geometry():
-    p_list      = []
-    geom_data   = fileio.read_geometry()
-    
-    for i in range(len(geom_data)):
-        dim = int((len(geom_data[i])-1)/2)
+    p_list                = []
+    g_data,p_data,w_data  = fileio.read_geometry()
+
+    print("w_data="+str(w_data))  
+ 
+    for i in range(len(g_data)):
+        dim = len(p_data[i])
         p_list.append(particle.particle(dim,i))
-        p_list[i].name = geom_data[i][0]
+        p_list[i].name = g_data[i][0]
         particle.load_particle(p_list[i])
-        p_list[i].x = np.fromiter((float(geom_data[i][j]) for j in range(1,4)),dtype=np.float)
-        p_list[i].p = np.fromiter((float(geom_data[i][j]) for j in range(4,7)),dtype=np.float)
+        p_list[i].x = np.fromiter((float(g_data[i][j]) for j in range(1,dim+1)),dtype=np.float)
+        p_list[i].p = np.fromiter((float(p_data[i][j]) for j in range(0,dim)),dtype=np.float)
+        if len(w_data) > i:
+            p_list[i].width = w_data[i]
+
+    # debug
+    for i in range(len(p_list)):
+        p_list[i].write_particle(sys.stdout)
+
     return p_list
 
 #
 # do some error checking on the hessian file
 #
 def load_hessian():
-    hessian_data = file.read_hessian()
+    hessian = fileio.read_hessian()
+    return hessian
 

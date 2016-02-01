@@ -19,7 +19,7 @@ def main():
     #
     # Create the collection of trajectories
     #
-    master = bundle.bundle(glbl.fms['n_states'],glbl.fms['surface_type'])
+    master = bundle.bundle(glbl.fms['n_states'],glbl.fms['integrals'])
     #
     # set the initial conditions for trajectories
     #
@@ -39,14 +39,15 @@ def main():
         if(master.nalive == 0):
             break
 
-        # update the fms output files, as well as checkpoint, if necessary
-        master.update_logs() 
-
         # update the running log
         fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
-        
-        # write the bundle to file
-        master.write_bundle(fileio.scr_path+'/last_step.dat','w')
+
+        if master.time % glbl.fms['default_time_step'] == 0:
+            # update the fms output files, as well as checkpoint, if necessary
+            master.update_logs()
+`        
+            # write the bundle to file
+            master.write_bundle(fileio.scr_path+'/last_step.dat','w')
 
     fileio.cleanup()
 

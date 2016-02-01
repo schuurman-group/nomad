@@ -72,7 +72,7 @@ def init_interface():
     # ensure COLUMBUS input files are present locally
     if not os.path.exists('input'):
         print("Cannot find COLUMBUS input files in: input")
-        sysexit()
+        sys.exit()
 
     # setup working directories
     input_path    = fileio.scr_path+'/input'

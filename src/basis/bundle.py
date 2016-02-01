@@ -14,7 +14,7 @@ import src.basis.trajectory as trajectory
 # significantly more work.
 #
 def copy_bundle(orig_bundle):
-    new_bundle = bundle(orig_bundle.nstates,orig_bundle.surface)
+    new_bundle = bundle(orig_bundle.nstates, orig_bundle.integrals)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
@@ -59,8 +59,8 @@ def cent_len(n_traj):
 # Class constructor
 #
 class bundle:
-    def __init__(self,nstates,surface_rep):
-        self.surface = surface_rep
+    def __init__(self, nstates, int_defs):
+        self.integrals = int_defs
         self.time = 0.
         self.nalive = 0
         self.ndead = 0
@@ -73,9 +73,9 @@ class bundle:
         self.Sdot = np.zeros((0.,0.),dtype=np.cfloat)
         self.Heff = np.zeros((0.,0.),dtype=np.cfloat)
         try:
-            self.ints = __import__('src.basis.int_'+self.surface,fromlist=['a'])
+            self.ints = __import__('src.integrals.'+self.integrals,fromlist=['a'])
         except:
-            print("BUNDLE INIT FAIL: src.basis.int_"+self.surface)
+            print("BUNDLE INIT FAIL: src.integrals."+self.integrals)
 
     # total number of trajectories
     def n_total(self):
@@ -331,34 +331,34 @@ class bundle:
     def update_matrices(self):
 
         # make sure the centroids are up-to-date in order to evaluate
-        # self.H
-        self.update_centroids()
+        # self.H -- if we need them
+        if self.ints.require_centroids:
+            self.update_centroids()
    
         r = -1
         for i in range(self.n_total()):
             if self.traj[i].alive:
                 r += 1
                 self.S[r,r]    = self.traj[i].overlap(self.traj[i])
-                self.H[r,r]    = self.ints.ke_integral(self.traj[i],
-                                                       self.traj[i]) + \
-                                 self.ints.v_integral(self.traj[i])
-                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],
-                                                         self.traj[i])
+                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],self.traj[i])
+                self.H[r,r]    = self.ints.ke_integral(self.traj[i],self.traj[i])\
+                               + self.ints.v_integral(self.traj[i])
                 c = -1
                 for j in range(i):
                     if self.traj[j].alive:
                         c += 1
                         self.S[r,c]    = self.traj[i].overlap(self.traj[j])
-                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],
-                                                               self.traj[j]) + \
-                                         self.ints.v_integral(self.traj[i],
-                                                              self.traj[j],
-                                                              self.cent[cent_ind(i,j)])
-                        self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],
-                                                                 self.traj[j])
-                        self.S[c,r]    = self.S(r,c).conjugate()
+                        self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],self.traj[j])
+                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],self.traj[j])
+                        if self.ints.require_centroids:
+                           self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j],
+                                                                self.cent[cent_ind(i,j)])
+                        else:
+                           self.H[r,c] +=   self.ints.v_integral(self.traj[i],self.traj[j])
+
+                        self.S[c,r]    = self.S[r,c].conjugate()
                         self.H[c,r]    = self.H[r,c].conjugate()
-                        self.Sdot[c,r] = self.Sdot(r,c).conjugate()
+                        self.Sdot[c,r] = self.Sdot[r,c].conjugate()
 
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)

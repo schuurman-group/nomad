@@ -60,6 +60,10 @@ def read_input_files():
                 glbl.vibronic[k] = v
             else:
                 print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
+    elif glbl.fms['interface'] == 'boson_model_diabatic':
+        for k,v in kwords.items():
+            if k in glbl.vibronic:
+                glbl.boson[k] = v
     else:
         print("Interface: "+str(glbl.fms['interface'])+" not recognized.")
 
@@ -199,8 +203,8 @@ def init_fms_output():
     bfile_names[bkeys[4]] = 'spawn.dat'
     dump_header[bkeys[4]]     = ' '.join(arr1)
     dump_format[bkeys[4]]     = '{0:8.2f} {1:8.2f} {2:8.2f} '  + \
-                            '{3:4d} {3:4d} {3:4d} {3:4d} ' + \
-                            '{12.8f} {12.8f} {12.8f} {12.8f}'
+                            '{3:4d} {4:4d} {5:4d} {6:4d} ' + \
+                            '{7:12.8f} {8:12.8f} {9:12.8f} {10:12.8f}'
 
     # ------------------------- log file formats --------------------------
     with open(home_path+"/fms.log","w") as logfile:
@@ -230,6 +234,10 @@ def init_fms_output():
             out_key = glbl.columbus
         elif glbl.fms['interface'] == 'vibronic':
             out_key = glbl.vibronic
+        elif glbl.fms['interface'] == 'boson_model_diabatic':
+            out_key = glbl.boson
+        else:
+            out_key = dict()  
 
         log_str = '\n '+str(glbl.fms['interface'])+' simulation keywords\n'
         log_str += ' ----------------------------------------\n' 
@@ -245,9 +253,11 @@ def init_fms_output():
     log_format['general']     = '   ** {:60s} **\n'
     log_format['t_step']      = ' > time: {0:12.2f} step:{1:8.2f} [{2:4d} trajectories]\n\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.2f}\n'
+    log_format['new_step']    = '   -- step failed, re-trying with new time step: {:8.2f}\n'
     log_format['spawn_start'] = '  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +\
                                 '              time      coup   overlap     spawn\n'
-    log_format['spawn_step']  = '      {0:12.2f} {1:9.4f} {2:9.4f} {3:9s}\n'
+    log_format['spawn_step']  = '      {0:12.2f} {1:9.4f} {2:9.4f} {3:>9s}\n'
+    log_format['spawn_back']  = '      back propagating:  {0:12.2f}\n'
     log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
     log_format['spawn_success'] = ' - spawn successful, new trajectory created at {0:12.2f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
@@ -332,7 +342,9 @@ def print_fms_logfile(otype,data):
 #
 def read_geometry():
     global home_path 
-    geom_data = [] 
+    geom_data = []
+    mom_data  = [] 
+    width_data = []
 
     gm_file = open(home_path+'/geometry.dat','r',encoding='utf-8')
     # comment line
@@ -346,11 +358,18 @@ def read_geometry():
 
     # read in momenta
     for i in range(natm):
-        geom_data[i].extend(gm_file.readline().rstrip().split())
+        mom_data.append(gm_file.readline().rstrip().split())
+
+    # read in widths, if present
+    for i in range(natm):
+        ln = gm_file.readline()
+        if ln is None:
+            break
+        width_data.append(float(ln.rstrip()))
 
     gm_file.close()
 
-    return geom_data
+    return geom_data,mom_data,width_data
 
 #
 # Read a hessian matrix (not mass weighted)
@@ -358,7 +377,7 @@ def read_geometry():
 def read_hessian():
     global home_path
 
-    hessian = np.loadtxt(home_path+'/hessian.dat',dtype='float') 
+    hessian = np.loadtxt(home_path+'/hessian.dat',dtype=np.float) 
     return hessian
 
 #----------------------------------------------------------------------------

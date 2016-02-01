@@ -17,6 +17,7 @@ def propagate(trajectory,dt):
     p0   = trajectory.p()
     v0   = trajectory.velocity()
     f0   = trajectory.force()
+    print("origin force: "+str(f0))
     mass = trajectory.masses()
     print("dt="+str(dt))
 
@@ -36,6 +37,7 @@ def propagate(trajectory,dt):
     #-------------------------------------------
     # update x
     trajectory.update_x(x1)
+    print("dx = "+str(x1-x0))
 
     #------------------------------------------
     # update p

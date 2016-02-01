@@ -21,29 +21,31 @@ sij_thresh  = 1.e-5
 # Simulation parameters read form the fms.input file
 #
 fms = dict( 
-       simulation_time   = 0.,
-       default_time_step = 10., 
-       coupled_time_step = 5.,
-       interface         = 'columbus',
-       init_sampling     = 'gs_wigner',
-       surface_type      = 'adiabatic',
-       n_init_traj       = 1,
-       seed              = 0, 
-       restart           = False, 
-       num_particles     = 1,
-       dim_particles     = 3, 
-       n_states          = 1,
-       init_state        = 1,
-       init_brightest    = False,                
-       restart_time      = 0.,
-       propagator        ='velocity_verlet',
-       spawn_pop_thresh  = 0.025,
-       spawn_coup_thresh = 0.02,
-       spawn_olap_thresh = 0.7,
-       energy_jump_toler = 0.0001,
-       pop_jump_toler    = 0.0001,
-       pot_shift         = 0.
-       init_mode_min_olap= 0.
+       spawning               = 'forward_backward',
+       simulation_time        = 0.,
+       default_time_step      = 10., 
+       coupled_time_step      = 5.,
+       interface              = 'boson_model_diabatic',
+       init_sampling          = 'gs_wigner',
+       integrals              = 'saddle_point',
+       n_init_traj            = 1,
+       seed                   = 0, 
+       restart                = False, 
+       num_particles          = 1,
+       dim_particles          = 3, 
+       n_states               = 1,
+       init_state             = 1,
+       init_brightest         = False,                
+       restart_time           = 0.,
+       propagator             = 'velocity_verlet',
+       spawn_pop_thresh       = 0.025,
+       spawn_coup_thresh      = 0.02,
+       spawn_olap_thresh      = 0.7,
+       energy_jump_toler      = 0.0001,
+       pop_jump_toler         = 0.0001,
+       pot_shift              = 0.,
+       init_mode_min_olap     = 0.,
+       continuous_min_overlap = 0.5
           )
 #
 # Electronic structure information read from interface-specific
@@ -62,6 +64,10 @@ columbus  = dict(
 vibronic = dict (
        # highest polynomial order in vibronic expansion
        ordr_max          = 1,
+          )
+
+boson    = dict (
+       coupling          = 0.009
           )
 #
 # dictionary to hold timiing information for various operations
