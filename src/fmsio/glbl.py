@@ -76,5 +76,5 @@ timings = dict (
        propagate       = 0,
        spawning        = 0,
        hamiltonian     = 0,
-       centroids       = 0
+       centroid        = 0
         ) 

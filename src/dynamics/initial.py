@@ -38,6 +38,7 @@ def init_bundle(master):
         init_trajectories(master)
 
     master.update_matrices()
+    print("init_bundle -- update logs")
     master.update_logs()
     fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
 

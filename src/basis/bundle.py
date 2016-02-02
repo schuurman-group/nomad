@@ -195,11 +195,13 @@ class bundle:
                 if abs(self.H[i,j]) > glbl.coup_thresh:
                     return True
 
+        # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
+        # ELSEWHERE
         # check if any trajectories exceed NAD threshold
-        for i in range(self.nalive):
-            for j in range(self.nstates):
-                if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['spawn_coup_thresh']:
-                    return True
+        #for i in range(self.nalive):
+        #    for j in range(self.nstates):
+        #        if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['spawn_coup_thresh']:
+        #            return True
 
         # else, return false
         return False
@@ -373,7 +375,7 @@ class bundle:
     # update the log files
     #
     def update_logs(self):
-        
+ 
         for i in range(self.n_total()):
             sys.stdout.flush()    
             if self.traj[i].alive:

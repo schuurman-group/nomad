@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -82,14 +83,11 @@ def adjust_child(parent, child, scale_dir):
     ke_goal  = e_parent - child.potential()
     ke_child = child.kinetic()
     if ke_goal < 0:
-        fileio.print_fms_logfile('spawn_bad_step',
-                                ['cannot adjust kinetic energy of child'])
         return False
 
     # try to scale the momentum along the scale direction
     scale_vec  = scale_dir
     scale_norm = np.linalg.norm(scale_vec)
-    print("scale_norm="+str(scale_norm))
     if scale_norm > glbl.fpzero:
         scale_vec = scale_vec / scale_norm
     else:
@@ -97,15 +95,10 @@ def adjust_child(parent, child, scale_dir):
         scale_vec = np.ones(len(scale_dir))
         scale_vec = scale_vec / np.linalg.norm(scale_vec)
 
-    print("scale_vec="+str(scale_vec))
     p_child = child.p()
     # scale the momentum along the scale_vec direction
     p_para = np.dot(p_child,scale_vec) * scale_vec
     p_perp = p_child - p_para
-
-    print("p_child="+str(p_child))
-    print("p_para="+str(p_para))
-    print("p_perp="+str(p_perp))
 
     # the kinetic energy is given by:
     # KE = (P . P) / 2m
@@ -125,10 +118,7 @@ def adjust_child(parent, child, scale_dir):
     c = ke_perp_perp - ke_goal
 
     discrim = b**2 - 4.*a*c
-    print("a,b,c,discrim="+str(a)+' '+str(b)+' '+str(c)+' '+str(discrim))
     if discrim < 0:
-        fileio.print_fms_logfile('spawn_bad_step',
-                                ['cannot scale momentum of child'])
         return False
 
     if abs(a) > glbl.fpzero:
@@ -155,7 +145,6 @@ def overlap_with_bundle(trajectory,bundle):
         if bundle.traj[i].alive:
 
             sij = trajectory.overlap(bundle.traj[i],st_orthog=True)
-            print("overlap with bundle="+str(sij))
             if abs(sij) > glbl.sij_thresh:
                 t_overlap_bundle = True
                 break

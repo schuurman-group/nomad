@@ -2,6 +2,7 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
+import src.basis.bundle as bundle
 import src.spawn.utilities as utilities
 # This is the top-level routine for spawning
 #
@@ -16,8 +17,9 @@ import src.spawn.utilities as utilities
 #    same position, with a scaled momentum to enforce constraint that classical energies
 #    be equal. 
 #
-def spawn(master,current_time,dt):
+def spawn(master,dt):
 
+    current_time = master.time
     #
     #
     #
@@ -39,19 +41,19 @@ def spawn(master,current_time,dt):
                          else 0. 
                          for j in range(master.n_total())]
 
-            print('s_array='+str(s_array))
-            if min(s_array) < glbl.fms['continuous_min_overlap']:
+            if max(s_array) < glbl.fms['continuous_min_overlap']:
                 child        = trajectory.copy_traj(parent)
                 child.state  = st
                 child.parent = parent.tid
 
-                print("scale_dir="+str(parent.derivative(st)))
                 success = utilities.adjust_child(parent, child, parent.derivative(st))
                 sij = parent.overlap(child) 
  
                 # try to set up the child
                 if not success:
-                    pass
+                    fileio.print_fms_logfile('spawn_bad_step',
+                                ['cannot adjust kinetic energy of child'])
+
                 elif abs(sij) < glbl.fms['spawn_olap_thresh']:
                     fileio.print_fms_logfile('spawn_bad_step',
                                             ['child-parent overlap too small'])
@@ -68,4 +70,4 @@ def spawn(master,current_time,dt):
                         utilities.write_spawn_log(current_time, current_time, current_time, parent, master.traj[-1])
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
-
+    return 

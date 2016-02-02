@@ -25,19 +25,22 @@ def time_step(master):
 #
 # Propagate the wave packet using a run-time selected propagator
 #
-def fms_step_bundle(master,init_time,dt):
+def fms_step_bundle(master, dt):
     integrator   = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
     spawn_method = __import__('src.spawn.'+glbl.fms['spawning'],fromlist=['a'])
 
     # save the bundle from previous step in case step rejected
-    current_time = init_time
-    end_time     = init_time + dt
+    end_time     = master.time + dt
     time_step    = dt
     min_time_step = dt / 2.**5 
 
     while master.time < end_time:
 
         # save the bundle from previous step in case step rejected
+        try:
+            del master0
+        except:
+            pass
         master0 = bundle.copy_bundle(master)
 
         # propagate each trajectory in the bundle
@@ -45,29 +48,27 @@ def fms_step_bundle(master,init_time,dt):
             if master.traj[i].alive: 
                 integrator.propagate(master.traj[i],time_step)  
 
-        # update current time
-        proposed_time = current_time + time_step
-
         # check time_step is fine, energy/amplitude conserved
-        accept = check_step_bundle(master0, master, time_step)
+        accept,error_msg = check_step_bundle(master0, master, time_step)
 
         # if everything is ok..
         if accept:
-            # update the current_time
-            current_time = proposed_time
             # update the bundle time
-            master.time = current_time
+            master.time += time_step
             # spawn new basis functions if necessary
-            spawn_method.spawn(master,current_time,time_step)
+            spawn_method.spawn(master,time_step)
             # set trajectory amplitudes
             master.update_amplitudes(dt,10)
             # kill the dead trajectories
             master.prune()
+            # update the running log
+            fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
+
         else:
             # recall -- this time trying to propagate
             # to the failed step
             time_step  = 0.5 * time_step
-            fileio.print_fms_logfile('new_step',[time_step])
+            fileio.print_fms_logfile('new_step',[error_msg,time_step])
 
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
@@ -75,9 +76,12 @@ def fms_step_bundle(master,init_time,dt):
                 sys.exit("ERROR: fms_step")
 
             # reset the beginning of the time step
+            del master
             master = bundle.copy_bundle(master0)
             # go back to the beginning of the while loop
             continue
+
+    return master
 
 #-----------------------------------------------------------------------------
 #
@@ -92,13 +96,13 @@ def check_step_bundle(master0, master, time_step):
     #
     # if we're in the coupled regime and using default time step, reject
     if master.in_coupled_regime() and time_step == glbl.fms['default_time_step']:
-        return False
+        return False,' require coupling time step, current step = {:8.4f}'.format(time_step)
     #
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
-    if abs(sum(master.pop()) - sum(master.pop())) > glbl.fms['pop_jump_toler']:
-        print("pop jump")
-        return False
+    dpop = abs(sum(master.pop()) - sum(master.pop()))
+    if dpop > glbl.fms['pop_jump_toler']:
+        return False,' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
     #
     #  ... or energy conservation
     #  (only need to check traj which exist in master0. If spawned, will be
@@ -108,11 +112,10 @@ def check_step_bundle(master0, master, time_step):
                      master0.traj[i].kinetic()
         energy_new =  master.traj[i].potential() +  \
                       master.traj[i].kinetic()
-        if abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']:
-            print("de="+str(abs(energy_old - energy_new)))
-            print("energy jump")
-            return False
+        dener = abs(energy_old - energy_new)
+        if dener > glbl.fms['energy_jump_toler']:
+            return False,' jump in bundle energy, delta[ener] = {:10.6f}'.format(dener)
     #
     # If we pass all the tests, return 'success'
-    return True
+    return True,' success'
 

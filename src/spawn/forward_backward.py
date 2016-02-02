@@ -27,8 +27,10 @@ coup_hist = []
 # 2. If parent_i is coupled to another 
 #
 
-def spawn(master,current_time,dt):
+def spawn(master,dt):
     global coup_hist
+
+    current_time = master.time
 
     # we want to have know the history of the coupling for each trajectory
     # in order to assess spawning criteria -- make sure coup_hist has a slot
