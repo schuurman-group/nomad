@@ -114,15 +114,14 @@ class bundle:
         #
         # Solution:
         #  C(t+dt) = exp( -i H(t) dt ) C(t)
-        #  C_t     = exp( B )          Ct_tdt
+        #  C(t+dt) = exp( B )          C(t)
         #
         # Basic property of expontial:
         #   exp(B) = exp( B/n ) ** n
-        #          = exp( Bn  ) ** n
         # This reduces the size of the exponential we must take.
         #
         # The expontential is written Taylor series expansion to 4th order
-        #    exp(Bn) = I + Bn + 1/2 B2**2 + 1/3! Bn**3 + 1/4! Bn**4
+        #    exp(Bn) = I + Bn + 1/2! Bn**2 + 1/3! Bn**3 + 1/4! Bn**4
         #
         # n is varied until C_tdt is stable
 
@@ -134,14 +133,12 @@ class bundle:
 
         old_amp   = self.amplitudes()
         new_amp   = np.zeros(self.nalive,dtype=np.cfloat)
-        Id        = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        for i in range(self.nalive):
-            Id[i,i] = complex(1.,0.)
+        Id        = np.identity(self.nalive,dtype=np.cfloat)
 
         B = -complex(0.,1.) * self.Heff * dt
 
         prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
-        for n in range(n_max):
+        for n in range(1,n_max+1):
             Bn  = B / 2**n
             Bn2 = np.dot(Bn,Bn)
             Bn3 = np.dot(Bn2,Bn)
@@ -152,7 +149,7 @@ class bundle:
                 taylor = np.dot(taylor,taylor)
 
             new_amp = np.dot(taylor,old_amp)
-            error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
+            error   = cmath.sqrt(abs(np.sum((new_amp-prev_amp)**2)))
             if abs(error) < 1.e-10:
                 break
             else:

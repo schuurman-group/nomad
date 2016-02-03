@@ -44,9 +44,7 @@ def fms_step_bundle(master, dt):
         master0 = bundle.copy_bundle(master)
 
         # propagate each trajectory in the bundle
-        for i in range(master.n_total()):
-            if master.traj[i].alive: 
-                integrator.propagate(master.traj[i],time_step)  
+        integrator.propagate(master,time_step)  
 
         # check time_step is fine, energy/amplitude conserved
         accept,error_msg = check_step_bundle(master0, master, time_step)
@@ -57,8 +55,6 @@ def fms_step_bundle(master, dt):
             master.time += time_step
             # spawn new basis functions if necessary
             spawn_method.spawn(master,time_step)
-            # set trajectory amplitudes
-            master.update_amplitudes(dt,10)
             # kill the dead trajectories
             master.prune()
             # update the running log

@@ -27,7 +27,7 @@ def v_integral(traj1,traj2):
             v_int *= (0.5*boson.omega[k]*( (2*a+b**2)/(4*a**2) ) + sgn * boson.C[k]*(b/(2*a)))
         return v_int * traj1.overlap(traj2)
     else:
-        return traj1.overlap(traj2)*boson.delta
+        return boson.delta * traj1.overlap(traj2)
 
 #
 # kinetic energy integral over trajectories
