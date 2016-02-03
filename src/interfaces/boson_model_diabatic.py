@@ -17,7 +17,7 @@ def init_interface():
    global C, omega, omega_c, delta, alpha
 
    omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
-   delta   = 5. 
+   delta   = 1. 
    omega_c = 2.5 * delta 
    d_omega = 1.33
    alpha   = glbl.boson['coupling'] 
@@ -29,10 +29,10 @@ def init_interface():
 #
 #
 def energy(tid, geom, t_state, rstate):
-    global ncrd, omega
+    global ncrd, omega, C
     h0 = 0.
     for i in range(ncrd):   
-        h0 += 0.5 * omega[i] * ( geom[i].x[0]**2 + geom[i].p[0]**2 )
+        h0 += 0.5 * omega[i] * ( geom[i].x[0]**2 )
 
     hk = 0.
     for i in range(ncrd):
@@ -52,7 +52,7 @@ def derivative(tid,geom,t_state,rstate):
         deriv = np.fromiter((omega[i]*geom[i].x[0] + sgn*C[i] for i in range(ncrd)),dtype=np.float)
     else:
         deriv = abs(np.fromiter((delta / sum(2 * C[i] * geom[i].x[0] for i in range(ncrd)) 
-                                                         for j in range(ncrd)),dtype=np.float))
+                                                               for j in range(ncrd)),dtype=np.float))
     return deriv
 
 #

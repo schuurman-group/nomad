@@ -1,6 +1,6 @@
 import sys 
 import random
-import math
+import cmath
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -161,9 +161,9 @@ def gs_wigner(master):
                 dx = random.gauss(0.,sigma_x)
                 dp = random.gauss(0.,sigma_p)
                 itry += 1
-                if mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:
+                if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
                     break
-            if mode_overlap(0., dx, dp) < glbl.fms['init_mode_min_olap']:
+            if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
                 print("Cannot get mode overlap > "
                        +str(glbl.fms['init_mode_min_olap'])
                        +" within "+str(max_try)+" attempts. Exiting...")
@@ -226,10 +226,8 @@ def user_specified(master):
 # the overlap of the resultant gaussian primitive with the gaussian primitive
 # centered at (x0,p0) (integrate over x, independent of x0)
 #
-def mode_overlap(p0, dx, dp):
-    return abs(math.exp( (-4*dx**2 
-                          - dp**2 
-                          - 4*complex(0.,1.)*dx*(dp + 2*p0)) / 8.))
+def mode_overlap(alpha, dx, dp):
+    return abs(cmath.exp( (-4*alpha*dx**2 + 4*complex(0.,1.)*dx*dp - (1/alpha)*dp**2) / 8.))
 
 #
 # Read in geometry file and hessian and sample about v=0 distribution
@@ -240,8 +238,6 @@ def load_geometry():
     p_list                = []
     g_data,p_data,w_data  = fileio.read_geometry()
 
-    print("w_data="+str(w_data))  
- 
     for i in range(len(g_data)):
         dim = len(p_data[i])
         p_list.append(particle.particle(dim,i))

@@ -341,15 +341,11 @@ class bundle:
         for i in range(self.n_total()):
             if self.traj[i].alive:
                 r += 1
-                self.S[r,r]    = self.traj[i].overlap(self.traj[i])
-                self.Sdot[r,r] = self.ints.sdot_integral(self.traj[i],self.traj[i])
-                self.H[r,r]    = self.ints.ke_integral(self.traj[i],self.traj[i])\
-                               + self.ints.v_integral(self.traj[i])
                 c = -1
-                for j in range(i):
+                for j in range(i+1):
                     if self.traj[j].alive:
                         c += 1
-                        self.S[r,c]    = self.traj[i].overlap(self.traj[j])
+                        self.S[r,c]    = self.traj[i].overlap(self.traj[j],st_orthog=True)
                         self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],self.traj[j])
                         self.H[r,c]    = self.ints.ke_integral(self.traj[i],self.traj[j])
                         if self.ints.require_centroids:
