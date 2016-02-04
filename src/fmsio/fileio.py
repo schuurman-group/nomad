@@ -8,7 +8,8 @@ home_path   = ''
 scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'secm_dump',
                'tran_dump', 'apop_dump', 'grad_dump']
-bkeys       = ['pop_dump', 'bener_dump', 'hmat_dump', 'smat_dump', 'spawn_dump']
+bkeys       = ['pop_dump', 'bener_dump', 'spawn_dump',
+               's_mat',     'sdot_mat',  'h_mat',   'heff_mat']
 dump_header = dict()
 dump_format = dict()
 log_format  = dict()
@@ -185,30 +186,28 @@ def init_fms_output():
                             '{'+str(ns+1)+':12.6f}\n'
 
     # the bundle energy
-    arr1 = ('   potential(QM)','  potential(Cl.)','     kinetic(QM)',
-            '    kinetic(Cl.)','       total(QM)','      total(Cl.)')
+    arr1 = ('   potential(QM)','     kinetic(QM)','       total(QM)',
+            '  potential(Cl.)','    kinetic(Cl.)','      total(Cl.)')
     bfile_names[bkeys[1]] = 'e.dat'
     dump_header[bkeys[1]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[bkeys[1]]     = '{0:>12.4f}' + \
                              ''.join('{'+str(i)+':16.10f}' for i in range(1,6+1)) + '\n'
 
-    # the hamiltonian matrix
-    bfile_names[bkeys[2]] = 'h.dat'
-    dump_format[bkeys[2]]     = ''
-
-    # the trajectory overlap matrix
-    bfile_names[bkeys[3]] = 's.dat'
-    dump_format[bkeys[3]]     = ''    
-
     # the spawn log
     arr1 = ('time(entry)','time(spawn)','time(exit)',
             'parent','state','child','state',
             'ke(parent)','pot(parent)','ke(child)','pot(child)')
-    bfile_names[bkeys[4]] = 'spawn.dat'
-    dump_header[bkeys[4]]     = ' '.join(arr1) + '\n'
-    dump_format[bkeys[4]]     = '{0:12.4f} {1:12.4f} {2:12.4f} '  + \
+    bfile_names[bkeys[2]] = 'spawn.dat'
+    dump_header[bkeys[2]]     = ' '.join(arr1) + '\n'
+    dump_format[bkeys[2]]     = '{0:12.4f} {1:12.4f} {2:12.4f} '  + \
                             '{3:4d} {4:4d} {5:4d} {6:4d} ' + \
                             '{7:12.8f} {8:12.8f} {9:12.8f} {10:12.8f}' + '\n'
+
+    bfile_names[bkeys[3]] = 's.dat'
+    bfile_names[bkeys[4]] = 'sdot.dat'
+    bfile_names[bkeys[5]] = 'h.dat'
+    bfile_names[bkeys[6]] = 'heff.dat'
+
 
     # ------------------------- log file formats --------------------------
     with open(home_path+"/fms.log","w") as logfile:
@@ -230,8 +229,6 @@ def init_fms_output():
                     ' ----------------------------------------\n'
         for k,v in glbl.fms.items():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
-        log_str += ' {0:20s} = {1:20s}\n'.format('coup_thresh',str(glbl.coup_thresh))
-        log_str += ' {0:20s} = {1:20s}\n'.format('sij_thresh',str(glbl.sij_thresh))
         logfile.write(log_str)    
 
         if glbl.fms['interface'] == 'columbus':

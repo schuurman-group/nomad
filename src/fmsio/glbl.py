@@ -11,11 +11,6 @@ mass2au     = 1822.887
 au2cm       = 219474.63
 # floating point zero
 fpzero      = 1.e-10
-# if off-diagonal element of H matrix is greater than coup_thresh,
-# trajectories are 'coupled' and small time step required
-coup_thresh = 0.001
-# if new_traj overlap with any traj in bundle is > sij_thresh, don't spawn
-sij_thresh  = 1.e-5
  
 #
 # Simulation parameters read form the fms.input file
@@ -45,7 +40,9 @@ fms = dict(
        pop_jump_toler         = 0.0001,
        pot_shift              = 0.,
        init_mode_min_olap     = 0.,
-       continuous_min_overlap = 0.5
+       continuous_min_overlap = 0.5,
+       sij_thresh             = 1.e-5,
+       coup_thresh            = 0.001
           )
 #
 # Electronic structure information read from interface-specific

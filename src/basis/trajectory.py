@@ -300,7 +300,7 @@ class trajectory:
         dpval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dpval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
-        return dpval * self.overlap(other)
+        return dpval * self.overlap(other,st_orthog=True)
 
     #
     # del/dx matrix element between two trajectories
@@ -309,7 +309,7 @@ class trajectory:
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
-        return dxval * self.overlap(other)
+        return dxval * self.overlap(other,st_orthog=True)
 
     #
     # this is the expectation value of the momentum operator over the 2 x mass
@@ -321,7 +321,7 @@ class trajectory:
         for i in range(self.n_particles):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
                                                              self.particles[i].mass
-        return dxval * self.overlap(other)
+        return dxval * self.overlap(other,st_orthog=True)
 
    #--------------------------------------------------------------------------
    # 

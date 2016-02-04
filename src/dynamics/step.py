@@ -26,8 +26,8 @@ def time_step(master):
 # Propagate the wave packet using a run-time selected propagator
 #
 def fms_step_bundle(master, dt):
-    integrator   = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
-    spawn_method = __import__('src.spawn.'+glbl.fms['spawning'],fromlist=['a'])
+    integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
+    spawning   = __import__('src.spawn.'+glbl.fms['spawning'],fromlist=['a'])
 
     # save the bundle from previous step in case step rejected
     end_time     = master.time + dt
@@ -54,7 +54,7 @@ def fms_step_bundle(master, dt):
             # update the bundle time
             master.time += time_step
             # spawn new basis functions if necessary
-            spawn_method.spawn(master,time_step)
+            spawning.spawn(master,time_step)
             # kill the dead trajectories
             master.prune()
             # update the running log

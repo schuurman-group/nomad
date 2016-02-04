@@ -145,7 +145,7 @@ def overlap_with_bundle(trajectory,bundle):
         if bundle.traj[i].alive:
 
             sij = trajectory.overlap(bundle.traj[i],st_orthog=True)
-            if abs(sij) > glbl.sij_thresh:
+            if abs(sij) > glbl.fms['sij_thresh']:
                 t_overlap_bundle = True
                 break
 
@@ -160,6 +160,6 @@ def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     data = [entry_time, spawn_time, exit_time]
     data.extend([parent.tid, parent.state, child.tid, child.state])
     data.extend([parent.kinetic(), parent.potential(), child.kinetic(), child.potential()])
-    fileio.print_bund_row(4,data)
+    fileio.print_bund_row(2,data)
     return
 

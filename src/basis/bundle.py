@@ -65,13 +65,13 @@ class bundle:
         self.nalive = 0
         self.ndead = 0
         self.nstates = int(nstates)
-        self.traj = []
-        self.cent = []
-        self.H    = np.zeros((0.,0.),dtype=np.cfloat)
-        self.S    = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Sinv = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Sdot = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Heff = np.zeros((0.,0.),dtype=np.cfloat)
+        self.traj  = []
+        self.cent  = []
+        self.H     = np.zeros((0.,0.),dtype=np.cfloat)
+        self.S     = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Sinv  = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Sdot  = np.zeros((0.,0.),dtype=np.cfloat)
+        self.Heff  = np.zeros((0.,0.),dtype=np.cfloat)
         try:
             self.ints = __import__('src.integrals.'+self.integrals,fromlist=['a'])
         except:
@@ -92,6 +92,10 @@ class bundle:
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        if self.ints.require_centroids:
+            self.update_centroids()
+        self.update_matrices() 
+
 
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
@@ -104,6 +108,7 @@ class bundle:
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.update_matrices()
 
     #
     # update the amplitudes of the trajectories in the bundle
@@ -149,7 +154,7 @@ class bundle:
                 taylor = np.dot(taylor,taylor)
 
             new_amp = np.dot(taylor,old_amp)
-            error   = cmath.sqrt(abs(np.sum((new_amp-prev_amp)**2)))
+            error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
             if abs(error) < 1.e-10:
                 break
             else:
@@ -157,7 +162,6 @@ class bundle:
         
         cnt = -1
         for i in range(self.n_total()):
-            sys.stdout.flush()
             if self.traj[i].alive:
                 cnt += 1
                 self.traj[i].amplitude = new_amp[cnt]
@@ -189,7 +193,7 @@ class bundle:
         # check if trajectories are coupled
         for i in range(self.nalive):
             for j in range(i):
-                if abs(self.H[i,j]) > glbl.coup_thresh:
+                if abs(self.H[i,j]) > glbl.fms['coup_thresh']:
                     return True
 
         # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
@@ -242,39 +246,77 @@ class bundle:
 
     #
     # return the classical potential energy of the bundle
-    #
+    #  -- currently includes energy from dead trajectories as well...
+    # 
     def pot_classical(self):
-        return 0.
+        energy = complex(0.,0.)
+        for i in range(self.n_total()):
+            weight = self.traj[i].amplitude * \
+                     self.traj[i].amplitude.conjugate()
+            energy += weight * self.ints.v_integral(self.traj[i],self.traj[i]) 
+        return energy.real
 
     #
-    # return the QM (coupled) energy of the bundle
+    # return the QM (coupled) energy of the bundle,
+    #  -- currently includes <live|live> and <dead|dead> contributions...
     #
     def pot_quantum(self):
-        return 0.
+        energy = complex(0.,0.) 
+        for i in range(self.n_total()):
+            for j in range(i):
+                if self.traj[j].alive == self.traj[j].alive:
+                    weight = 2.0 * self.traj[i].amplitude * \
+                                   self.traj[j].amplitude.conjugate()
+                    if self.ints.require_centroids:
+                        v_int = self.ints.v_integral(self.traj[i],
+                                                     self.traj[j],
+                                                     self.cent[cent_ind(i,j)])
+                    else:
+                        v_int = self.ints.v_integral(self.traj[i],
+                                                     self.traj[j])
+                    energy += weight * v_int
+        return energy.real + self.pot_classical()
 
     #
     # return the classical kinetic energy of the bundle
     # 
     def kin_classical(self):
-        return 0.
+        energy = complex(0.,0.)
+        for i in range(self.n_total()):
+            weight = self.traj[i].amplitude * \
+                     self.traj[i].amplitude.conjugate()
+            energy += weight * self.ints.ke_integral(self.traj[i],self.traj[i])    
+        return energy.real       
+
 
     #
     # return the QM (coupled) energy of the bundle
     #
     def kin_quantum(self):
-        return 0.
+        energy = complex(0.,0.)
+        for i in range(self.n_total()):
+            for j in range(i):
+                if self.traj[j].alive == self.traj[j].alive:
+                    weight = 2.0 * self.traj[i].amplitude * \
+                                   self.traj[j].amplitude.conjugate()
+                    ke_int = self.ints.v_integral(self.traj[i],
+                                                 self.traj[j])
+                    energy += weight * ke_int
+        return energy.real + self.kin_classical()
+
+
 
     # 
     # return the total classical energy of the bundle 
     #
     def tot_classical(self):
-        return 0.
+        return self.pot_classical() + self.kin_classical()
 
     #
     # return the total QM (coupled) energy of the bundle
     #
     def tot_quantum(self):
-        return 0.
+        return self.pot_quantum() + self.kin_quantum()
 
 #-----------------------------------------------------------------------
 # 
@@ -349,7 +391,7 @@ class bundle:
                            self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j],
                                                                 self.cent[cent_ind(i,j)])
                         else:
-                           self.H[r,c] +=   self.ints.v_integral(self.traj[i],self.traj[j])
+                           self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j])
 
                         self.S[c,r]    = self.S[r,c].conjugate()
                         self.H[c,r]    = self.H[r,c].conjugate()
@@ -433,16 +475,28 @@ class bundle:
         fileio.print_bund_row(0,data)
 
         # bundle energy
-        data = [self.time, self.pot_classical(), self.pot_quantum(), 
-                           self.kin_classical(), self.kin_quantum(), 
-                           self.tot_classical(), self.tot_quantum()]
+        data = [self.time, self.pot_quantum(),  self.kin_quantum(),   self.tot_quantum(),
+                           self.pot_classical(),self.kin_classical(), self.tot_classical()]
         fileio.print_bund_row(1,data)
 
-        # bundle matrices
+        # bundle matrices 
+        sfull = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        r = -1
+        for i in range(self.n_total()):
+            if not self.traj[i].alive:
+                continue
+            r += 1
+            c = -1
+            for j in range(i+1):
+                if not self.traj[j].alive:
+                    continue
+                c += 1
+                sfull[r,c] = self.traj[i].overlap(self.traj[j],st_orthog=False)
+                sfull[c,r] = sfull[r,c].conjugate()
+        fileio.print_bund_mat(self.time,'s.dat',sfull)
         fileio.print_bund_mat(self.time,'h.dat',self.H)
-        fileio.print_bund_mat(self.time,'s.dat',self.S)
-        fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
         fileio.print_bund_mat(self.time,'heff.dat',self.Heff)
+        fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
 
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)

@@ -140,6 +140,7 @@ def gs_wigner(master):
         mode_list.append(evecs[:,i].tolist())       
     n_modes = len(freq_list)
     freqs = np.asarray(freq_list)
+    print("freqs="+str(freqs))
     modes = np.asarray(mode_list).transpose()
 
     # confirm that modes * tr(modes) = 1

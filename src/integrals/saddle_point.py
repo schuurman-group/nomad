@@ -40,7 +40,7 @@ def ke_integral(traj1,traj2):
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
         for i in range(traj1.n_particle):
-            ke = ke - traj1.particles[i].deld2x(traj2.particles[i]) /  \
+            ke -= traj1.particles[i].deld2x(traj2.particles[i]) /  \
                       (2.0*traj1.particles[i].mass)
         return ke * traj1.overlap(traj2)
     else:

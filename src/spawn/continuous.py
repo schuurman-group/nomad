@@ -42,10 +42,11 @@ def spawn(master,dt):
                          for j in range(master.n_total())]
 
             if max(s_array) < glbl.fms['continuous_min_overlap']:
-                child        = trajectory.copy_traj(parent)
-                child.state  = st
-                child.parent = parent.tid
-
+                child           = trajectory.copy_traj(parent)
+                child.amplitude = complex(0.,0.)
+                child.state     = st
+                child.parent    = parent.tid
+ 
                 success = utilities.adjust_child(parent, child, parent.derivative(st))
                 sij = parent.overlap(child) 
  
@@ -65,9 +66,13 @@ def spawn(master,dt):
 
                     bundle_overlap = utilities.overlap_with_bundle(child,master)
                     if not bundle_overlap:
+                        print("adding trajectory, amplitude="+str(child.amplitude))
                         master.add_trajectory(child)
                         fileio.print_fms_logfile('spawn_success',[current_time,parent.tid,st])
                         utilities.write_spawn_log(current_time, current_time, current_time, parent, master.traj[-1])
                     else:
-                        fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
+                        err_msg = 'Traj '+str(parent.tid)+' from state '+str(parent.state)+\
+                                  ' to state '+str(st)+': '+'overlap with bundle too large,'+\
+                                  ' s_max='+str(glbl.fms['sij_thresh'])
+                        fileio.print_fms_logfile('spawn_bad_step',[err_msg])
     return 

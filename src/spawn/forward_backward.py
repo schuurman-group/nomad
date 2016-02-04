@@ -55,14 +55,15 @@ def spawn(master,dt):
             # check overlap with other trajectories
             max_sij = 0.
             for j in range(master.n_total()):
-                if master.traj[j].state == st:
-                    if abs(master.traj[i].overlap(master.traj[j])) > max_sij:
-                        fileio.print_fms_logfile('general',
-                                     ['trajectory overlap with bundle too large, cannot spawn'])
-                        max_sij = abs(master.traj[i].overlap(master.traj[j]))
-                        if max_sij > glbl.sij_thresh:
+                if master.traj[j].alive and master.traj[j].state == st:
+                    sij = abs(master.traj[i].overlap(master.traj[j]))
+                    if sij > max_sij:
+                        max_sij = sij 
+                        if max_sij > glbl.fms['sij_thresh']:
                             break
-            if max_sij > glbl.sij_thresh:
+            if max_sij > glbl.fms['sij_thresh']:
+                fileio.print_fms_logfile('general',
+                        ['trajectory overlap with bundle too large, cannot spawn'])
                 continue
 
             # compute magnitude of coupling to state j
@@ -74,12 +75,13 @@ def spawn(master,dt):
             if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:], current_time):
                 parent       = trajectory.copy_traj(master.traj[i])
                 child        = trajectory.copy_traj(parent)
-                child.state  = st
-                child.parent = parent.tid
+                child.amplitude = complex(0.,0.)
+                child.state     = st
+                child.parent    = parent.tid
                 # the child and parent share an id before the child is added to the bundle
                 # this helps the interface use electronic structure information that is reasonable,
                 # but not sure it matters for anything else
-                child.tid    = parent.tid
+                child.tid       = parent.tid
 
                 # propagate the parent forward in time until coupling maximized
                 (spawn_time, exit_time, success) = spawn_forward(parent, child, current_time, dt)
