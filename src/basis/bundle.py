@@ -67,11 +67,11 @@ class bundle:
         self.nstates = int(nstates)
         self.traj  = []
         self.cent  = []
-        self.H     = np.zeros((0.,0.),dtype=np.cfloat)
-        self.S     = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Sinv  = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Sdot  = np.zeros((0.,0.),dtype=np.cfloat)
-        self.Heff  = np.zeros((0.,0.),dtype=np.cfloat)
+        self.H     = np.zeros((0.,0.),dtype=np.complex)
+        self.S     = np.zeros((0.,0.),dtype=np.complex)
+        self.Sinv  = np.zeros((0.,0.),dtype=np.complex)
+        self.Sdot  = np.zeros((0.,0.),dtype=np.complex)
+        self.Heff  = np.zeros((0.,0.),dtype=np.complex)
         try:
             self.ints = __import__('src.integrals.'+self.integrals,fromlist=['a'])
         except:
@@ -87,11 +87,11 @@ class bundle:
         self.traj[-1].alive = True
         self.nalive         = self.nalive + 1
         self.traj[-1].tid   = self.n_total() - 1
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat) 
-        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         if self.ints.require_centroids:
             self.update_centroids()
         self.update_matrices() 
@@ -103,11 +103,11 @@ class bundle:
         self.traj[tid].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.update_matrices()
 
     #
@@ -123,10 +123,9 @@ class bundle:
         #
         # Basic property of expontial:
         #   exp(B) = exp( B/n ) ** n
-        # This reduces the size of the exponential we must take.
         #
         # The expontential is written Taylor series expansion to 4th order
-        #    exp(Bn) = I + Bn + 1/2! Bn**2 + 1/3! Bn**3 + 1/4! Bn**4
+        #    exp(B/n) = I + [B/n] + 1/2![B/n]**2 + 1/3![B/n]**3 + 1/4![B/n]**4
         #
         # n is varied until C_tdt is stable
 
@@ -137,12 +136,12 @@ class bundle:
         self.update_matrices()
 
         old_amp   = self.amplitudes()
-        new_amp   = np.zeros(self.nalive,dtype=np.cfloat)
-        Id        = np.identity(self.nalive,dtype=np.cfloat)
+        new_amp   = np.zeros(self.nalive,dtype=np.complex)
+        Id        = np.identity(self.nalive,dtype=np.complex)
 
         B = -complex(0.,1.) * self.Heff * dt
 
-        prev_amp = np.zeros(self.nalive,dtype=np.cfloat) 
+        prev_amp = np.zeros(self.nalive,dtype=np.complex) 
         for n in range(1,n_max+1):
             Bn  = B / 2**n
             Bn2 = np.dot(Bn,Bn)
@@ -214,17 +213,15 @@ class bundle:
         pop = np.zeros(self.nstates,dtype=np.float)
         for i in range(self.n_total()):
             state = self.traj[i].state
-            pop[state] = pop[state] + \
-                         abs( self.traj[i].amplitude *
-                              self.traj[i].amplitude.conjugate() )
+            popii = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
+            pop[state] += popii.real
             for j in range(i):
                 if self.traj[i].alive != self.traj[j].alive or \
                    self.traj[j].state != state:
                     continue
-                olap = self.traj[i].overlap(self.traj[j])
-                pop[state] = pop[state] + \
-                             2. * abs( olap * self.traj[i].amplitude * 
-                                              self.traj[j].amplitude.conjugate() )
+                olap = self.traj[i].overlap(self.traj[j],st_orthog=True)
+                popij = 2. * olap * self.traj[i].amplitude * self.traj[j].amplitude.conjugate()
+                pop[state] += popij.real 
         pop[pop < glbl.fpzero] = 0.
         return pop        
 
@@ -359,13 +356,13 @@ class bundle:
     # return amplitudes of the trajectories
     #
     def amplitudes(self):
-        amps = np.zeros(self.nalive,dtype=np.cfloat)
+        amps = np.zeros(self.nalive,dtype=np.complex)
         cnt = -1
         for i in range(self.n_total()):
             sys.stdout.flush()
             if self.traj[i].alive:
                 cnt += 1
-                amps[cnt:] = np.cfloat(self.traj[i].amplitude)
+                amps[cnt:] = np.complex(self.traj[i].amplitude)
         return amps
 
     # construct the Hamiltonian matrix in basis of trajectories
@@ -395,11 +392,11 @@ class bundle:
 
                         self.S[c,r]    = self.S[r,c].conjugate()
                         self.H[c,r]    = self.H[r,c].conjugate()
-                        self.Sdot[c,r] = self.Sdot[r,c].conjugate()
+                        self.Sdot[c,r] = self.ints.sdot_integral(self.traj[j],self.traj[i]) 
 
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)
-        self.Heff = np.dot( self.Sinv, self.H - complex(0.,1.)*self.Sdot )
+        self.Heff = np.dot( self.Sinv, self.H - np.complex(0.,1.)*self.Sdot )
 
  #-----------------------------------------------------------------------------
  #
@@ -480,7 +477,7 @@ class bundle:
         fileio.print_bund_row(1,data)
 
         # bundle matrices 
-        sfull = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        sfull = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         r = -1
         for i in range(self.n_total()):
             if not self.traj[i].alive:
@@ -585,11 +582,11 @@ class bundle:
             self.traj.append(t_read)
 
         # create the bundle matrices
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
-        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.cfloat)
+        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         
         # once bundle is read, close the stream
         chkpt.close()

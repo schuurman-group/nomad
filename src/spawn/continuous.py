@@ -44,6 +44,7 @@ def spawn(master,dt):
             if max(s_array) < glbl.fms['continuous_min_overlap']:
                 child           = trajectory.copy_traj(parent)
                 child.amplitude = complex(0.,0.)
+                print("spawning from parent state="+str(parent.state)+" to child state="+str(st))
                 child.state     = st
                 child.parent    = parent.tid
  

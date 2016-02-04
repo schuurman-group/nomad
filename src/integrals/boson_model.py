@@ -14,7 +14,7 @@ require_centroids = False
 #
 def v_integral(traj1,traj2):
 
-    sgn   = (-1)**(traj1.state+1)
+    sgn   = -1. + 2.*traj1.state
     if traj1.state == traj2.state:
         pos1  = traj1.x()
         mom1  = traj1.p()
@@ -22,8 +22,8 @@ def v_integral(traj1,traj2):
         mom2  = traj2.p()
         v_int = complex(0.,0.)
         for k in range(boson.ncrd):
-            a = (boson.omega[k] + boson.omega[k])
-            b = 2. * boson.omega[k] * (pos1[k] + pos2[k]) + complex(0.,1)*(mom1[k] - mom2[k])
+            a = (1. + 1.)
+            b = 2. * 1. * (pos1[k] + pos2[k]) + complex(0.,1)*(mom1[k] - mom2[k])
             v_int += (0.5*boson.omega[k]*( (2*a+b**2)/(4*a**2) ) + sgn * boson.C[k]*(b/(2*a)))
         return v_int * traj1.overlap(traj2)
     else:
@@ -34,10 +34,10 @@ def v_integral(traj1,traj2):
 #
 def ke_integral(traj1,traj2):
     ke = complex(0.,0.)
-    if traj1.state == traj2.state:
-        for i in range(boson.ncrd):
-            ke -= 0.5 * boson.omega[i] * traj1.particles[i].deld2x(traj2.particles[i])
-        return ke * traj1.overlap(traj2)
+    if traj1.state == traj2.state:    
+        for k in range(boson.ncrd):
+            ke -= traj1.particles[k].deld2x(traj2.particles[k])
+        return 0.5 * ke * traj1.overlap(traj2)
     else:
         return ke
 
