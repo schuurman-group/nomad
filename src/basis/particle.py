@@ -90,7 +90,7 @@ class particle:
     def deldp(self,other):
          return np.fromiter((gaussian.deldp(self.x[i],self.p[i],self.width,
                                            other.x[i],other.p[i],other.width) 
-                                          for i in range(self.dim)),np.cfloat)
+                                          for i in range(self.dim)),dtype=np.complex)
 
 
     #
@@ -99,7 +99,7 @@ class particle:
     def deldx(self,other):
          return np.fromiter((gaussian.deldx(self.x[i],self.p[i],self.width,
                                           other.x[i],other.p[i],other.width) 
-                                          for i in range(self.dim)),np.cfloat)
+                                          for i in range(self.dim)),dtype=np.complex)
 
     #
     # del^2/dx^2 matrix element between two particles
@@ -107,8 +107,8 @@ class particle:
     def deld2x(self,other):
          d2xval = np.fromiter((gaussian.deld2x(self.x[i],self.p[i],self.width,
                                other.x[i],other.p[i],other.width) 
-                               for i in range(self.dim)),np.cfloat)
-         return np.sum(d2xval) 
+                               for i in range(self.dim)),dtype=np.complex)
+         return sum(d2xval) 
 
     #------------------------------------------------------------------------
     #

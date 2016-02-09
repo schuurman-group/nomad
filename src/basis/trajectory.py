@@ -287,8 +287,8 @@ class trajectory:
     #
     def overlap(self,other,st_orthog=False):
         if st_orthog and self.state != other.state:
-            return complex(0.,0.)         
-        S = cmath.exp( complex(0.,1.)*(self.phase - other.phase) )
+            return np.complex(0.,0.)         
+        S = cmath.exp( np.complex(0.,1.)*(other.phase - self.phase) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
         return S

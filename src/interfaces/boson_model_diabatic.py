@@ -4,7 +4,7 @@ import src.fmsio.glbl as glbl
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 
-ncrd    = 4
+ncrd    = 1 
 C       = np.zeros(ncrd,dtype=np.float)
 omega   = np.zeros(ncrd,dtype=np.float)
 omega_c = 0.
@@ -16,8 +16,9 @@ alpha   = 0.
 def init_interface():
    global C, omega, omega_c, delta, alpha
 
-   omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
-   delta   = 1. 
+#   omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
+   omega   = np.asarray([4.00], dtype=np.float)
+   delta   = 1.
    omega_c = 2.5 * delta 
    d_omega = 1.33
    alpha   = glbl.boson['coupling'] 
@@ -37,7 +38,7 @@ def energy(tid, geom, t_state, rstate):
     hk = 0.
     for i in range(ncrd):
         hk += C[i] * geom[i].x[0]
-
+    
     return h0 + (-1 + 2*rstate) * hk
 
 #

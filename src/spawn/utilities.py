@@ -159,7 +159,8 @@ def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     # add a line entry to the spawn log 
     data = [entry_time, spawn_time, exit_time]
     data.extend([parent.tid, parent.state, child.tid, child.state])
-    data.extend([parent.kinetic(), parent.potential(), child.kinetic(), child.potential()])
+    data.extend([parent.kinetic(), child.kinetic(), parent.potential(), child.potential()])
+    data.extend([parent.classical(), child.classical()])
     fileio.print_bund_row(2,data)
     return
 

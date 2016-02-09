@@ -194,14 +194,18 @@ def init_fms_output():
                              ''.join('{'+str(i)+':16.10f}' for i in range(1,6+1)) + '\n'
 
     # the spawn log
-    arr1 = ('time(entry)','time(spawn)','time(exit)',
-            'parent','state','child','state',
-            'ke(parent)','pot(parent)','ke(child)','pot(child)')
+    lenst = 7
+    arr1 = ('time(entry)'.rjust(acc1),'time(spawn)'.rjust(acc1),'time(exit)'.rjust(acc1),
+            'parent'.rjust(lenst),'state'.rjust(lenst),'child'.rjust(lenst),'state'.rjust(lenst),
+            'ke(parent)'.rjust(acc1), 'ke(child)'.rjust(acc1),
+            'pot(parent)'.rjust(acc1),'pot(child)'.rjust(acc1),
+            'total(parent)'.rjust(acc2),'total(child)'.rjust(acc2))
     bfile_names[bkeys[2]] = 'spawn.dat'
-    dump_header[bkeys[2]]     = ' '.join(arr1) + '\n'
-    dump_format[bkeys[2]]     = '{0:12.4f} {1:12.4f} {2:12.4f} '  + \
-                            '{3:4d} {4:4d} {5:4d} {6:4d} ' + \
-                            '{7:12.8f} {8:12.8f} {9:12.8f} {10:12.8f}' + '\n'
+    dump_header[bkeys[2]]     = ''.join(arr1) + '\n'
+    dump_format[bkeys[2]]     = '{0:>12.4f}{1:>12.4f}{2:>12.4f}'  + \
+                                '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' + \
+                                '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +\
+                                '{11:>16.8f}{12:>16.8f}' + '\n'
 
     bfile_names[bkeys[3]] = 's.dat'
     bfile_names[bkeys[4]] = 'sdot.dat'
@@ -297,7 +301,7 @@ def print_traj_row(tid,fkey,data):
 def update_logs(bundle):
     dt    = glbl.fms['default_time_step']
     mod_t = bundle.time % dt
-    if mod_t < 0.0001*dt or mod_t > 0.9999*dt:
+    if mod_t < 0.1*dt or mod_t > 0.9*dt:
         return True
     else:
         return False

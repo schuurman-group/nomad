@@ -94,8 +94,7 @@ class bundle:
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         if self.ints.require_centroids:
             self.update_centroids()
-        self.update_matrices() 
-
+        self.update_matrices()
 
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
@@ -158,7 +157,9 @@ class bundle:
                 break
             else:
                 prev_amp = new_amp            
-        
+                if n == n_max:
+                    sys.exit('Cannot converge amplitudes...')       
+ 
         cnt = -1
         for i in range(self.n_total()):
             if self.traj[i].alive:
@@ -207,6 +208,22 @@ class bundle:
         return False
 
     #
+    # return the Mulliken-like population 
+    #
+    def mulliken_pop(self,tid):
+        mulliken = 0.
+
+        if not self.traj[tid].alive:
+            return mulliken
+        for i in range(len(self.traj)):
+            if not self.traj[i].alive:
+               continue
+            olap = self.traj[tid].overlap(self.traj[i])
+            mulliken = mulliken + abs( olap * self.traj[tid].amplitude.conjugate()
+                                            * self.traj[i].amplitude)
+        return mulliken
+
+    #
     # return the populations on each of the states
     # 
     def pop(self):
@@ -214,94 +231,77 @@ class bundle:
         for i in range(self.n_total()):
             state = self.traj[i].state
             popii = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
+            if self.time > 17 and self.time < 18:
+                print("i="+str(i)+" popii="+str(popii))
             pop[state] += popii.real
-            for j in range(i):
-                if self.traj[i].alive != self.traj[j].alive or \
-                   self.traj[j].state != state:
+            for j in range(self.n_total()):
+                if self.traj[i].alive != self.traj[j].alive or i==j: 
                     continue
                 olap = self.traj[i].overlap(self.traj[j],st_orthog=True)
-                popij = 2. * olap * self.traj[i].amplitude * self.traj[j].amplitude.conjugate()
+                popij =olap * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
+                if self.time > 17 and self.time < 18:
+                    print("ij="+str(i)+" "+str(j)+" popij="+str(popij))
                 pop[state] += popij.real 
         pop[pop < glbl.fpzero] = 0.
         return pop        
-
-    #
-    # return the Mulliken-like population 
-    #
-    def mulliken_pop(self,tid):
-        mulliken = 0.
-
-        if not self.traj[tid].alive:
-            return mulliken 
-        for i in range(len(self.traj)):
-            if not self.traj[i].alive:
-               continue
-            olap = self.traj[tid].overlap(self.traj[i])                      
-            mulliken = mulliken + abs( olap * self.traj[tid].amplitude.conjugate()
-                                            * self.traj[i].amplitude)
-        return mulliken
 
     #
     # return the classical potential energy of the bundle
     #  -- currently includes energy from dead trajectories as well...
     # 
     def pot_classical(self):
-        energy = complex(0.,0.)
-        for i in range(self.n_total()):
-            weight = self.traj[i].amplitude * \
-                     self.traj[i].amplitude.conjugate()
-            energy += weight * self.ints.v_integral(self.traj[i],self.traj[i]) 
-        return energy.real
+        energy = 0.
+        weight = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
+        v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        print("time="+str(self.time)+" weight="+str(weight)+" v_int="+str(v_int))
+        return sum(weight * v_int).real
 
     #
     # return the QM (coupled) energy of the bundle,
     #  -- currently includes <live|live> and <dead|dead> contributions...
     #
     def pot_quantum(self):
-        energy = complex(0.,0.) 
+        energy = 0.
         for i in range(self.n_total()):
-            for j in range(i):
-                if self.traj[j].alive == self.traj[j].alive:
-                    weight = 2.0 * self.traj[i].amplitude * \
-                                   self.traj[j].amplitude.conjugate()
-                    if self.ints.require_centroids:
-                        v_int = self.ints.v_integral(self.traj[i],
-                                                     self.traj[j],
-                                                     self.cent[cent_ind(i,j)])
-                    else:
-                        v_int = self.ints.v_integral(self.traj[i],
-                                                     self.traj[j])
-                    energy += weight * v_int
-        return energy.real + self.pot_classical()
+            for j in range(self.n_total()):
+                if self.traj[i].alive != self.traj[j].alive:
+                    continue
+                weight = self.traj[j].amplitude * \
+                         self.traj[i].amplitude.conjugate()
+                if self.ints.require_centroids:
+                    v_int = self.ints.v_integral(self.traj[i],self.traj[j],
+                                                 self.cent[cent_ind(i,j)])
+                else:
+                    v_int = self.ints.v_integral(self.traj[i],self.traj[j])
+                energy += (weight * v_int).real
+        return energy
 
     #
     # return the classical kinetic energy of the bundle
     # 
     def kin_classical(self):
-        energy = complex(0.,0.)
+        energy = 0.
         for i in range(self.n_total()):
-            weight = self.traj[i].amplitude * \
-                     self.traj[i].amplitude.conjugate()
-            energy += weight * self.ints.ke_integral(self.traj[i],self.traj[i])    
-        return energy.real       
+            weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
+            ke_int = self.ints.ke_integral(self.traj[i],self.traj[i]) 
+            energy += (weight * ke_int).real
+        return energy
 
 
     #
     # return the QM (coupled) energy of the bundle
     #
     def kin_quantum(self):
-        energy = complex(0.,0.)
+        energy = 0.
         for i in range(self.n_total()):
-            for j in range(i):
-                if self.traj[j].alive == self.traj[j].alive:
-                    weight = 2.0 * self.traj[i].amplitude * \
-                                   self.traj[j].amplitude.conjugate()
-                    ke_int = self.ints.v_integral(self.traj[i],
-                                                 self.traj[j])
-                    energy += weight * ke_int
-        return energy.real + self.kin_classical()
-
-
+            for j in range(self.n_total()):
+                if self.traj[i].alive !=  self.traj[j].alive:
+                    continue
+                weight = self.traj[j].amplitude * \
+                         self.traj[i].amplitude.conjugate()
+                ke_int = self.ints.ke_integral(self.traj[i],self.traj[j])
+                energy += (weight * ke_int).real
+        return energy
 
     # 
     # return the total classical energy of the bundle 

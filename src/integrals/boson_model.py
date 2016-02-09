@@ -14,17 +14,17 @@ require_centroids = False
 #
 def v_integral(traj1,traj2):
 
-    sgn   = -1. + 2.*traj1.state
     if traj1.state == traj2.state:
+        sgn   = -1. + 2.*traj1.state
         pos1  = traj1.x()
         mom1  = traj1.p()
         pos2  = traj2.x()
         mom2  = traj2.p()
-        v_int = complex(0.,0.)
+        v_int = np.complex(0.,0.)
         for k in range(boson.ncrd):
             a = (1. + 1.)
-            b = 2. * 1. * (pos1[k] + pos2[k]) + complex(0.,1)*(mom1[k] - mom2[k])
-            v_int += (0.5*boson.omega[k]*( (2*a+b**2)/(4*a**2) ) + sgn * boson.C[k]*(b/(2*a)))
+            b = 2. * 1. * (pos1[k] + pos2[k]) + np.complex(0.,1)*(mom2[k] - mom1[k])
+            v_int += 0.5 * boson.omega[k] * (2*a + b**2)/(4 * a**2) + sgn * boson.C[k]*(b/(2*a))
         return v_int * traj1.overlap(traj2)
     else:
         return boson.delta * traj1.overlap(traj2)
@@ -33,13 +33,13 @@ def v_integral(traj1,traj2):
 # kinetic energy integral over trajectories
 #
 def ke_integral(traj1,traj2):
-    ke = complex(0.,0.)
+    ke_int = np.complex(0.,0.)
     if traj1.state == traj2.state:    
         for k in range(boson.ncrd):
-            ke -= traj1.particles[k].deld2x(traj2.particles[k])
-        return 0.5 * ke * traj1.overlap(traj2)
+            ke_int -= boson.omega[k] * traj1.particles[k].deld2x(traj2.particles[k])
+        return 0.5 * ke_int * traj1.overlap(traj2)
     else:
-        return ke
+        return ke_int
 
 #
 # return the matrix element <Psi_1 | d/dt | Psi_2> 
@@ -47,6 +47,6 @@ def ke_integral(traj1,traj2):
 def sdot_integral(traj1,traj2):
     sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2) ) \
             +np.dot( traj2.force()   , traj1.deldp(traj2) ) \
-            +complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2,st_orthog=True)
+            +np.complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2,st_orthog=True)
     return sdot
 
