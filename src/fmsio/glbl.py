@@ -46,6 +46,7 @@ fms = dict(
        print_traj             = 1,
        print_es               = 1,
        print_matrices         = 1,
+       print_chkpt            = 1,
        mirror_basis           = 0
           )
 

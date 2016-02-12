@@ -430,4 +430,10 @@ def cleanup():
         except:
             pass
 
+    # move chkpt file
+    try:
+        shutil.move(scr_path+'/last_step.dat',odir)
+    except:
+        pass
+
     return

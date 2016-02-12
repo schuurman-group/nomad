@@ -50,8 +50,6 @@ def main():
         if fileio.update_logs(master):
             # update the fms output files, as well as checkpoint, if necessary
             master.update_logs() 
-            # write the bundle to file
-            master.write_bundle(fileio.scr_path+'/last_step.dat','w')
 
     fileio.cleanup()
 

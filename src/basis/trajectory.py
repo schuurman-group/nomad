@@ -296,32 +296,38 @@ class trajectory:
     #
     # del/dp matrix element between two trajectories 
     #
-    def deldp(self,other):
+    def deldp(self, other, S_ij=None):
+        if not S_ij:
+            S_ij = self.overlap(other,st_orthog=True)
         dpval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dpval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
-        return dpval * self.overlap(other,st_orthog=True)
+        return dpval * S_ij
 
     #
     # del/dx matrix element between two trajectories
     #
-    def deldx(self,other):
+    def deldx(self, other, S_ij=None):
+        if not S_ij:
+            S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
-        return dxval * self.overlap(other,st_orthog=True)
+        return dxval * S_ij
 
     #
     # this is the expectation value of the momentum operator over the 2 x mass
     # this appears in the equations of motion on the off diagonal coupling
     # different states together theough the NACME
     #
-    def deldx_m(self,other):
+    def deldx_m(self, other, S_ij=None):
+        if not S_ij:
+            S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particles):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
                                                              self.particles[i].mass
-        return dxval * self.overlap(other,st_orthog=True)
+        return dxval * S_ij
 
    #--------------------------------------------------------------------------
    # 
