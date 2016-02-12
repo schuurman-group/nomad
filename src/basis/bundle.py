@@ -402,7 +402,12 @@ class bundle:
             self.update_centroids()
   
         timings.start('bundle.update_matrices')
- 
+
+        sdot_int      = self.ints.sdot_integral
+        v_int         = self.ints.v_integral
+        ke_int        = self.ints.ke_integral
+        req_centroids = self.ints.require_centroids
+
         r = -1
         for i in range(self.n_total()):
             if not self.traj[i].alive:
@@ -424,16 +429,16 @@ class bundle:
                     self.S[c,r] = np.complex(0.,0.)
 
                   
-                self.Sdot[r,c]  = self.ints.sdot_integral(self.traj[i], self.traj[j], self.S[r,c])
-                self.Sdot[c,r]  = self.ints.sdot_integral(self.traj[j], self.traj[i], self.S[c,r])
+                self.Sdot[r,c]  = sdot_int(self.traj[i], self.traj[j], self.S[r,c])
+                self.Sdot[c,r]  = sdot_int(self.traj[j], self.traj[i], self.S[c,r])
 
-                self.H[r,c]     = self.ints.ke_integral(self.traj[i], self.traj[j], self.S[r,c])
-                if self.ints.require_centroids:
-                   self.H[r,c] +=  self.ints.v_integral(self.traj[i], self.traj[j],
-                                                        self.cent[cent_ind(i,j)],
-                                                        self.Sfull[r,c])
+                self.H[r,c]     = ke_int(self.traj[i], self.traj[j], self.S[r,c])
+                if req_centroids:
+                   self.H[r,c] +=  v_int(self.traj[i], self.traj[j],
+                                         self.cent[cent_ind(i,j)],
+                                         self.Sfull[r,c])
                 else:
-                   self.H[r,c] +=  self.ints.v_integral(self.traj[i], self.traj[j], self.Sfull[r,c])
+                   self.H[r,c] +=  v_int(self.traj[i], self.traj[j], self.Sfull[r,c])
 
                 self.H[c,r]     = self.H[r,c].conjugate()
                 
