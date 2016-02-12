@@ -38,7 +38,6 @@ def init_bundle(master):
         init_trajectories(master)
 
     master.update_matrices()
-    print("init_bundle -- update logs")
     master.update_logs()
     fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
 
@@ -140,7 +139,6 @@ def gs_wigner(master):
         mode_list.append(evecs[:,i].tolist())       
     n_modes = len(freq_list)
     freqs = np.asarray(freq_list)
-    print("freqs="+str(freqs))
     modes = np.asarray(mode_list).transpose()
 
     # confirm that modes * tr(modes) = 1
@@ -179,7 +177,6 @@ def gs_wigner(master):
             disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim] 
             disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]
 
-        print(' '.join([str(disp_x[k]) for k in range(len(disp_x))])+' '.join([str(disp_p[k]) for k in range(len(disp_p))]))
         new_traj = trajectory.trajectory(
                           glbl.fms['interface'],
                           glbl.fms['n_states'],
@@ -250,8 +247,8 @@ def load_geometry():
             p_list[i].width = w_data[i]
 
     # debug
-    for i in range(len(p_list)):
-        p_list[i].write_particle(sys.stdout)
+#    for i in range(len(p_list)):
+#        p_list[i].write_particle(sys.stdout)
 
     return p_list
 

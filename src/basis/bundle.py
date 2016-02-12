@@ -209,7 +209,7 @@ class bundle:
         # check if trajectories are coupled
         for i in range(self.nalive):
             for j in range(i):
-                if abs(self.H[i,j]) > glbl.fms['coup_thresh']:
+                if abs(self.H[i,j]) > glbl.fms['hij_coup_thresh']:
                     return True
 
         # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
@@ -247,16 +247,12 @@ class bundle:
         for i in range(self.n_total()):
             state = self.traj[i].state
             popii = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
-            if self.time > 17 and self.time < 18:
-                print("i="+str(i)+" popii="+str(popii))
             pop[state] += popii.real
             for j in range(self.n_total()):
                 if self.traj[i].alive != self.traj[j].alive or i==j: 
                     continue
                 olap = self.traj[i].overlap(self.traj[j],st_orthog=True)
                 popij =olap * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
-                if self.time > 17 and self.time < 18:
-                    print("ij="+str(i)+" "+str(j)+" popij="+str(popij))
                 pop[state] += popij.real 
         pop[pop < glbl.fpzero] = 0.
         return pop        
@@ -296,7 +292,6 @@ class bundle:
     def kin_classical(self):
         weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
         ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
-        print("time="+str(self.time)+" weight="+str(weight)+" ke_int="+str(ke_int))
         return sum(weight * ke_int).real
  
     #

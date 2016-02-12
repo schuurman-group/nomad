@@ -23,8 +23,6 @@ def init_interface():
    d_omega = 1.33
    alpha   = glbl.boson['coupling'] 
    C = np.asarray([math.sqrt(d_omega * alpha * omega[i] * math.exp(-omega[i]/omega_c)) for i in range(ncrd)])
-   print("Carray="+str(C))
-   print("alpha="+str(alpha))
 
 #
 #

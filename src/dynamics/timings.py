@@ -80,23 +80,24 @@ def print_timings():
 
     # pass timing information as a string
     
-    ostr =  '\n'+'-'*32+' timings summary '+'-'*32+' \n'
-    ostr +=  '-routine-'.ljust(30) \
-            +'-wall time-'.rjust(12)+'-frac.-'.rjust(12) \
-            +'-cpu time-'.rjust(12) +'-frac.-'.rjust(12)+'\n'
-    ofrm = "{0:<30s}{1:>12.4f}{3:>12.2f}{2:>12.4f}{3:>12.2f}\n"
+    ostr =  '\n'+'-'*37+' timings summary '+'-'*37+' \n'
+    ostr +=  'routine'.ljust(30)+'calls'.rjust(12) \
+            +'wall time'.rjust(16)+'frac.'.rjust(8) \
+            +'cpu time'.rjust(16) +'frac.'.rjust(8)+'\n'
+    ofrm = "{0:<30s}{1:>12d}{2:>16.4f}{3:>8.2f}{4:>16.4f}{5:>8.2f}\n"
     timed_total = 0.
     for i in range(len(sort_list)):
         rout = str(sort_list[i][0])
         if rout == 'global':
             continue
-        wtim = sort_list[i][1].wall_time
-        ctim = sort_list[i][1].cpu_time
-        ostr += ofrm.format(rout,wtim,wtim/tot_wall,ctim,ctim/tot_cpu)
+        ncall = sort_list[i][1].calls
+        wtim  = sort_list[i][1].wall_time
+        ctim  = sort_list[i][1].cpu_time
+        ostr += ofrm.format(rout,ncall,wtim,wtim/tot_wall,ctim,ctim/tot_cpu)
         timed_total += wtim
 
-    ostr += '-'*81+'\n'
-    ostr += '**total**'.ljust(30)+'{0:>12.4f}{1:>24.4f}\n\n'.format(tot_wall,tot_cpu) 
+    ostr += '-'*90+'\n'
+    ostr += '**total**'.ljust(30)+'{0:>28.4f}{1:>24.4f}\n\n'.format(tot_wall,tot_cpu) 
     ostr += ' timed segments account for {0:6.3f} of the total time.'.format(timed_total/tot_wall)
 
     return ostr       
