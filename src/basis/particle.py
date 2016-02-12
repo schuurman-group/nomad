@@ -105,9 +105,11 @@ class particle:
     # del^2/dx^2 matrix element between two particles
     #
     def deld2x(self,other):
+#         print("x1,p1,w1,x2,p2,w2="+str(self.x[0])+" "+str(self.p[0])+" "+str(self.width)+" "+str(other.x[0])+" "+str(other.p[0])+" "+str(other.width)+" ")
          d2xval = np.fromiter((gaussian.deld2x(self.x[i],self.p[i],self.width,
                                other.x[i],other.p[i],other.width) 
                                for i in range(self.dim)),dtype=np.complex)
+#         print("d2xval = "+str(d2xval))
          return sum(d2xval) 
 
     #------------------------------------------------------------------------

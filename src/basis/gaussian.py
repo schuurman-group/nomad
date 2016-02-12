@@ -38,9 +38,10 @@ def deldx(x1,p1,a1,x2,p2,a2):
 def deld2x(x1,p1,a1,x2,p2,a2):
      dx     = x1 - x2
      psum   = a1 * p2 + a2 * p1
-     d2xval = (4. * a1 * a2 * dx * psum * np.complex(0.,1.) \
-             + 2. * a1 * a2 * (a1 + a2)                  \
-             - 4. * dx**2 * a1**2 * a2**2 + psum**2)     \
-             / (a1 + a2)**2
-     return -d2xval
+     d2xval = -(+4. * a1 * a2 * dx * psum * np.complex(0.,1.) \
+                +2. * a1 * a2 * (a1 + a2)                     \
+                -4. * dx**2 * a1**2 * a2**2                   \
+                +psum**2)                                     \
+                / (a1 + a2)**2
+     return d2xval
 

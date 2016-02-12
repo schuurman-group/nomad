@@ -24,7 +24,7 @@ def v_integral(traj1,traj2):
         for k in range(boson.ncrd):
             a = (1. + 1.)
             b = 2. * 1. * (pos1[k] + pos2[k]) + np.complex(0.,1)*(mom2[k] - mom1[k])
-            v_int += 0.5 * boson.omega[k] * (2*a + b**2)/(4 * a**2) + sgn * boson.C[k]*(b/(2*a))
+            v_int += 0.5 * boson.omega[k] * (2*a + b**2)/(4 * a**2) + sgn * boson.C[k] * b/(2*a)
         return v_int * traj1.overlap(traj2)
     else:
         return boson.delta * traj1.overlap(traj2)

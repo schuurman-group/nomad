@@ -2,6 +2,7 @@ import os
 import glob
 import shutil
 import numpy as np
+import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
 home_path   = ''
@@ -91,6 +92,7 @@ def read_namelist(filename):
                             kwords[key] = int(value)
                     except ValueError:
                         pass
+                    
                     if key not in kwords:
                         kwords[key] = value
 
@@ -267,13 +269,7 @@ def init_fms_output():
     log_format['spawn_success'] = ' - spawn successful, new trajectory created at {0:14.4f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
     log_format['complete']      = ' ------- simulation completed --------\n'
-    log_format['timings' ]      = '\n timing information\n' + \
-                                    ' ------------------\n' + \
-                                    ' propagate (non-spawning): {0:12.6f}\n' + \
-                                    ' spawning:                 {1:12.6f}\n' + \
-                                    ' hamiltonian construction: {2:12.6f}\n' + \
-                                    ' centroid evaluation:      {3:12.6f}\n' + \
-                                    ' total runtime:            {4:12.6f}\n'
+    log_format['timings' ]      = '{}'
 
 #
 # Appends a row of data, formatted by entry 'fkey' in formats to file
@@ -407,13 +403,13 @@ def read_hessian():
 def cleanup():
     global home_path, scr_path
 
-    # print timing information
+    # simulation complete
     print_fms_logfile('complete',[])
 
-    t_order = ['propagate','spawning','hamiltonian','centroid']
-    data = [glbl.timings[t_type] for t_type in t_order]
-    data.append(sum(data))
-    print_fms_logfile('timings',data)
+    # print timing information
+    timings.stop('global')
+    t_table = timings.print_timings()
+    print_fms_logfile('timings',[t_table])
 
     # move trajectory summary files to an output directory in the home area
     odir = home_path+'/output'

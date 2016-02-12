@@ -3,6 +3,7 @@ import copy
 import cmath
 import scipy as sp
 import numpy as np
+import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.particle as particle
@@ -14,12 +15,16 @@ import src.basis.trajectory as trajectory
 # significantly more work.
 #
 def copy_bundle(orig_bundle):
+
+    timings.start('bundle.copy_bundle')
+
     new_bundle = bundle(orig_bundle.nstates, orig_bundle.integrals)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
     new_bundle.H      = copy.deepcopy(orig_bundle.H)
     new_bundle.S      = copy.deepcopy(orig_bundle.S)
+    new_bundle.Sfull  = copy.deepcopy(orig_bundle.Sfull)
     new_bundle.Sinv   = copy.deepcopy(orig_bundle.Sinv)
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
@@ -32,6 +37,9 @@ def copy_bundle(orig_bundle):
         else:
             traj_i = None
         new_bundle.cent.append(traj_i)
+
+    timings.stop('bundle.copy_bundle')
+
     return new_bundle
 
 #
@@ -69,6 +77,7 @@ class bundle:
         self.cent  = []
         self.H     = np.zeros((0.,0.),dtype=np.complex)
         self.S     = np.zeros((0.,0.),dtype=np.complex)
+        self.Sfull = np.zeros((0.,0.),dtype=np.complex)
         self.Sinv  = np.zeros((0.,0.),dtype=np.complex)
         self.Sdot  = np.zeros((0.,0.),dtype=np.complex)
         self.Heff  = np.zeros((0.,0.),dtype=np.complex)
@@ -89,6 +98,7 @@ class bundle:
         self.traj[-1].tid   = self.n_total() - 1
         self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sfull      = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
@@ -104,6 +114,7 @@ class bundle:
         self.ndead           = self.ndead + 1
         self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.Sfull      = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
@@ -133,6 +144,8 @@ class bundle:
         # need to determine the effective Hamiltonian (Heff))
         #
         self.update_matrices()
+
+        timings.start('bundle.update_amplitudes')
 
         old_amp   = self.amplitudes()
         new_amp   = np.zeros(self.nalive,dtype=np.complex)
@@ -165,6 +178,9 @@ class bundle:
             if self.traj[i].alive:
                 cnt += 1
                 self.traj[i].amplitude = new_amp[cnt]
+
+        timings.stop('bundle.update_amplitudes')
+
         return
 
     # 
@@ -250,10 +266,8 @@ class bundle:
     #  -- currently includes energy from dead trajectories as well...
     # 
     def pot_classical(self):
-        energy = 0.
         weight = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
         v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
-        print("time="+str(self.time)+" weight="+str(weight)+" v_int="+str(v_int))
         return sum(weight * v_int).real
 
     #
@@ -280,14 +294,11 @@ class bundle:
     # return the classical kinetic energy of the bundle
     # 
     def kin_classical(self):
-        energy = 0.
-        for i in range(self.n_total()):
-            weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
-            ke_int = self.ints.ke_integral(self.traj[i],self.traj[i]) 
-            energy += (weight * ke_int).real
-        return energy
-
-
+        weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
+        ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        print("time="+str(self.time)+" weight="+str(weight)+" ke_int="+str(ke_int))
+        return sum(weight * ke_int).real
+ 
     #
     # return the QM (coupled) energy of the bundle
     #
@@ -323,6 +334,8 @@ class bundle:
     # update centroids
     def update_centroids(self):
 
+        timings.start('bundle.update_centroids')
+
         for i in range(self.n_total()):  
             if not self.traj[i].alive:
                 continue
@@ -352,6 +365,8 @@ class bundle:
                     self.cent[ij_ind].update_x(new_x)
                     self.cent[ij_ind].update_p(new_p)
    
+        timings.stop('bundle.update_centroids')
+
     #
     # return amplitudes of the trajectories
     #
@@ -372,7 +387,9 @@ class bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             self.update_centroids()
-   
+  
+        timings.start('bundle.update_matrices')
+ 
         r = -1
         for i in range(self.n_total()):
             if self.traj[i].alive:
@@ -381,22 +398,28 @@ class bundle:
                 for j in range(i+1):
                     if self.traj[j].alive:
                         c += 1
-                        self.S[r,c]    = self.traj[i].overlap(self.traj[j],st_orthog=True)
-                        self.Sdot[r,c] = self.ints.sdot_integral(self.traj[i],self.traj[j])
-                        self.H[r,c]    = self.ints.ke_integral(self.traj[i],self.traj[j])
+                        self.Sfull[r,c] = self.traj[i].overlap(self.traj[j])
+                        self.Sdot[r,c]  = self.ints.sdot_integral(self.traj[i],self.traj[j])
+                        self.H[r,c]     = self.ints.ke_integral(self.traj[i],self.traj[j])
                         if self.ints.require_centroids:
                            self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j],
                                                                 self.cent[cent_ind(i,j)])
                         else:
                            self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j])
 
-                        self.S[c,r]    = self.S[r,c].conjugate()
-                        self.H[c,r]    = self.H[r,c].conjugate()
-                        self.Sdot[c,r] = self.ints.sdot_integral(self.traj[j],self.traj[i]) 
+                        self.S[c,r]     = self.S[r,c].conjugate()
+                        self.H[c,r]     = self.H[r,c].conjugate()
+                        self.Sdot[c,r]  = self.ints.sdot_integral(self.traj[j],self.traj[i]) 
+                        
+                        if self.traj[i].state == self.traj[j].state:
+                            self.S[r,c] = self.Sfull[r,c]
+                            self.S[c,r] = self.Sfull[c,r]
 
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)
         self.Heff = np.dot( self.Sinv, self.H - np.complex(0.,1.)*self.Sdot )
+
+        timings.stop('bundle.update_matrices')
 
  #-----------------------------------------------------------------------------
  #
@@ -407,12 +430,15 @@ class bundle:
     # update the log files
     #
     def update_logs(self):
+
+        timings.start('bundle.update_logs')
  
         for i in range(self.n_total()):
-            sys.stdout.flush()    
-            if self.traj[i].alive:
+            if not self.traj[i].alive:
+                continue
 
-                # trajectory file
+            # trajectory files
+            if glbl.fms['print_traj']:
                 data = [self.time]
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
@@ -432,6 +458,8 @@ class bundle:
                 data.extend([self.traj[i].coup_dot_vel(j) for j in range(self.nstates)])
                 fileio.print_traj_row(self.traj[i].tid,2,data)
 
+            # print electronic structure info
+            if glbl.fms['print_es']:
                 # permanent dipoles
                 data = [self.time]
                 for j in range(self.nstates):
@@ -477,28 +505,22 @@ class bundle:
         fileio.print_bund_row(1,data)
 
         # bundle matrices 
-        sfull = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        r = -1
-        for i in range(self.n_total()):
-            if not self.traj[i].alive:
-                continue
-            r += 1
-            c = -1
-            for j in range(i+1):
-                if not self.traj[j].alive:
-                    continue
-                c += 1
-                sfull[r,c] = self.traj[i].overlap(self.traj[j],st_orthog=False)
-                sfull[c,r] = sfull[r,c].conjugate()
-        fileio.print_bund_mat(self.time,'s.dat',sfull)
-        fileio.print_bund_mat(self.time,'h.dat',self.H)
-        fileio.print_bund_mat(self.time,'heff.dat',self.Heff)
-        fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
+        if glbl.fms['print_matrices']:
+            fileio.print_bund_mat(self.time,'s.dat',self.Sfull)
+            fileio.print_bund_mat(self.time,'h.dat',self.H)
+            fileio.print_bund_mat(self.time,'heff.dat',self.Heff)
+            fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
+
+        timings.stop('bundle.update_logs')
+        return
 
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
     #          
     def write_bundle(self,filename,mode):
+
+        timings.start('bundle.write_bundle')
+
         if mode not in ('w','a'):
             sys.exit('invalid write mode in bundle.write_bundle')
         npart = self.traj[0].n_particle
@@ -528,6 +550,9 @@ class bundle:
                 chkpt.write('-------- trajectory {:4d} --------\n'.format(i))    
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
+
+        timings.stop('bundle.write_bundle')
+        return
 
     #
     # Reads a bundle at time 't_restart' from a chkpt file

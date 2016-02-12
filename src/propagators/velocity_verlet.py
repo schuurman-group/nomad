@@ -1,5 +1,6 @@
 #
 import numpy as np
+import src.dynamics.timings as timings
 #
 # all propagators have to define a function "propagate" that takes
 # a trajectory argument and a time step argument
@@ -14,6 +15,8 @@ def propagate(master,dt):
     # propagate amplitudes for 1/2 time step using x0
     #
     master.update_amplitudes(0.5*dt,10) 
+
+    timings.start('dynamics.propagate')
 
     for i in range(master.n_total()):
         
@@ -73,6 +76,8 @@ def propagate(master,dt):
 
         dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
         traj.update_phase(traj.phase + dgamma)
+
+    timings.stop('dynamics.propagate')
 
     #-------------------------------------------------
     # propagate amplitudes for 1/2 time step using x1

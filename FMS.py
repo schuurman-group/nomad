@@ -5,8 +5,15 @@ def main():
     import src.fmsio.glbl as glbl
     import src.fmsio.fileio as fileio
     import src.basis.bundle as bundle
+    import src.dynamics.timings as timings
     import src.dynamics.initial as initial
     import src.dynamics.step as step
+
+    #
+    # start the master timer
+    #
+    timings.start('global')
+
     #
     # read in options/variables pertaining to the running 
     # of the dynamics, pass the starting time of the simluation

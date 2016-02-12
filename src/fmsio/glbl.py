@@ -42,8 +42,12 @@ fms = dict(
        init_mode_min_olap     = 0.,
        continuous_min_overlap = 0.5,
        sij_thresh             = 1.e-5,
-       coup_thresh            = 0.001
+       coup_thresh            = 0.001,
+       print_traj             = 1,
+       print_es               = 1,
+       print_matrices         = 1
           )
+
 #
 # Electronic structure information read from interface-specific
 # routines 
@@ -66,12 +70,4 @@ vibronic = dict (
 boson    = dict (
        coupling          = 0.009
           )
-#
-# dictionary to hold timiing information for various operations
-#
-timings = dict (
-       propagate       = 0,
-       spawning        = 0,
-       hamiltonian     = 0,
-       centroid        = 0
-        ) 
+
