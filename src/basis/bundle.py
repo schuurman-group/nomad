@@ -402,13 +402,16 @@ class bundle:
                         else:
                            self.H[r,c] +=  self.ints.v_integral(self.traj[i],self.traj[j])
 
-                        self.S[c,r]     = self.S[r,c].conjugate()
+                        self.Sfull[c,r] = self.Sfull[r,c].conjugate()
                         self.H[c,r]     = self.H[r,c].conjugate()
                         self.Sdot[c,r]  = self.ints.sdot_integral(self.traj[j],self.traj[i]) 
                         
                         if self.traj[i].state == self.traj[j].state:
                             self.S[r,c] = self.Sfull[r,c]
                             self.S[c,r] = self.Sfull[c,r]
+                        else:
+                            self.S[r,c] = np.complex(0.,0.)
+                            self.S[c,r] = np.complex(0.,0.)
 
         # compute the S^-1, needed to compute Heff
         self.Sinv = np.linalg.pinv(self.S)
