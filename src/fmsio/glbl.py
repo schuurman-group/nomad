@@ -45,7 +45,8 @@ fms = dict(
        hij_coup_thresh        = 0.001,
        print_traj             = 1,
        print_es               = 1,
-       print_matrices         = 1
+       print_matrices         = 1,
+       mirror_basis           = 0
           )
 
 #
