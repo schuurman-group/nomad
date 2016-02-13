@@ -92,6 +92,7 @@ class bundle:
 
     # add trajectory to the bundle. 
     def add_trajectory(self,new_traj):
+        timings.start('bundle.add_trajectory')
         self.traj.append(new_traj)
         self.traj[-1].alive = True
         self.nalive        += 1
@@ -104,6 +105,8 @@ class bundle:
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         if self.ints.require_centroids:
             self.update_centroids()
+        timings.stop('bundle.add_trajectory')
+        return
 
     # add a set of trajectories
     def add_trajectories(self,traj_list):
@@ -124,6 +127,7 @@ class bundle:
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
     def kill_trajectory(self,tid):
+        timings.start('bundle.kill_trajectory')
         self.traj[tid].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
@@ -133,6 +137,7 @@ class bundle:
         self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        timings.start('bundle.kill_trajectory')
 
     #
     # update the amplitudes of the trajectories in the bundle
@@ -157,9 +162,9 @@ class bundle:
         # now that centroids reflect the trajectories, update matrices (mainly we just
         # need to determine the effective Hamiltonian (Heff))
         #
-        self.update_matrices()
-
         timings.start('bundle.update_amplitudes')
+
+        self.update_matrices()
 
         old_amp   = self.amplitudes()
         new_amp   = np.zeros(self.nalive,dtype=np.complex)
@@ -201,11 +206,12 @@ class bundle:
     # renormalizes the amplitudes of the trajectories in the bundle
     #
     def renormalize(self):
+        timings.start('bundle.renormalize')
         current_pop = self.pop() 
         norm = 1./ np.sqrt(sum(current_pop))
         for i in range(self.n_total()):
             self.traj[i].amplitude = self.traj[i].amplitude * norm
-       
+        timings.stop('bundle.renormalize')
         return                       
 
     #
@@ -269,6 +275,7 @@ class bundle:
     # return the populations on each of the states
     # 
     def pop(self):
+        timings.start('bundle.pop')
         pop = np.zeros(self.nstates,dtype=np.float)
         for i in range(self.n_total()):
             state = self.traj[i].state
@@ -280,6 +287,7 @@ class bundle:
                 S_ij = self.traj[i].overlap(self.traj[j],st_orthog=True)
                 popij = 2.0 * S_ij * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
                 pop[state] += popij.real 
+        timings.stop('bundle.pop')
         return pop        
 
     #
@@ -287,8 +295,10 @@ class bundle:
     #  -- currently includes energy from dead trajectories as well...
     # 
     def pot_classical(self):
+        timings.start('bundle.pot_classical')
         weight = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
         v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        timings.stop('bundle.pot_classical')
         return sum(weight * v_int).real
 
     #
@@ -296,6 +306,7 @@ class bundle:
     #  -- currently includes <live|live> and <dead|dead> contributions...
     #
     def pot_quantum(self):
+        timings.start('bundle.pot_quantum')
         energy = 0.
         for i in range(self.n_total()):
             weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
@@ -312,20 +323,24 @@ class bundle:
                 else:
                     v_int = self.ints.v_integral(self.traj[i],self.traj[j])
                 energy += 2.0 * (weight * v_int).real
+        timings.stop('bundle.pot_quantum')
         return energy
 
     #
     # return the classical kinetic energy of the bundle
     # 
     def kin_classical(self):
+        timings.start('bundle.kin_classical')
         weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
         ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        timings.stop('bundle.kin_classical')
         return sum(weight * ke_int).real
  
     #
     # return the QM (coupled) energy of the bundle
     #
     def kin_quantum(self):
+        timings.start('bundle.kin_quantum')
         energy = 0.
         for i in range(self.n_total()):
             weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
@@ -338,6 +353,7 @@ class bundle:
                          self.traj[i].amplitude.conjugate()
                 ke_int = self.ints.ke_integral(self.traj[i],self.traj[j])
                 energy += 2.0 * (weight * ke_int).real
+        timings.stop('bundle.kin_quantum')
         return energy
 
     # 
@@ -396,13 +412,13 @@ class bundle:
     # construct the Hamiltonian matrix in basis of trajectories
     def update_matrices(self):
 
+        timings.start('bundle.update_matrices')
+
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
             self.update_centroids()
   
-        timings.start('bundle.update_matrices')
-
         sdot_int      = self.ints.sdot_integral
         v_int         = self.ints.v_integral
         ke_int        = self.ints.ke_integral
@@ -427,8 +443,7 @@ class bundle:
                 else:
                     self.S[r,c] = np.complex(0.,0.)
                     self.S[c,r] = np.complex(0.,0.)
-
-                  
+  
                 self.Sdot[r,c]  = sdot_int(self.traj[i], self.traj[j], self.S[r,c])
                 self.Sdot[c,r]  = sdot_int(self.traj[j], self.traj[i], self.S[c,r])
 
@@ -447,6 +462,7 @@ class bundle:
         self.Heff = np.dot( self.Sinv, self.H - np.complex(0.,1.)*self.Sdot )
 
         timings.stop('bundle.update_matrices')
+        return
 
  #-----------------------------------------------------------------------------
  #
@@ -541,7 +557,7 @@ class bundle:
 
         # dump full bundle to an checkpoint file
         if glbl.fms['print_chkpt']:
-            write_bundle(fileio.scr_path+'/last_step.dat','w')
+            self.write_bundle(fileio.scr_path+'/last_step.dat','w')
 
         timings.stop('bundle.update_logs')
         return
@@ -647,5 +663,5 @@ class bundle:
         
         # once bundle is read, close the stream
         chkpt.close()
-
+        return
 

@@ -1,10 +1,12 @@
 import copy
 import cmath
 import numpy as np
+import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.particle as particle
 
 def copy_traj(orig_traj):
+    timings.start('trajectory.copy_traj')
     new_traj = trajectory(orig_traj.interface, orig_traj.nstates)
     p_list = []
     for i in range(orig_traj.n_particle):
@@ -26,6 +28,7 @@ def copy_traj(orig_traj):
     new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
     new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
     new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
+    timings.stop('trajectory.copy_traj')
     return new_traj
 
 class trajectory:
@@ -286,33 +289,39 @@ class trajectory:
     # overlap of two trajectories
     #
     def overlap(self,other,st_orthog=False):
+#        timings.start('trajectory.overlap')
         if st_orthog and self.state != other.state:
             return np.complex(0.,0.)         
         S = cmath.exp( np.complex(0.,1.)*(other.phase - self.phase) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
+#        timings.stop('trajectory.overlap')
         return S
 
     #
     # del/dp matrix element between two trajectories 
     #
     def deldp(self, other, S_ij=None):
+#        timings.start('trajectory.deldp')
         if not S_ij:
             S_ij = self.overlap(other,st_orthog=True)
         dpval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dpval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
+#        timings.stop('trajectory.deldp')
         return dpval * S_ij
 
     #
     # del/dx matrix element between two trajectories
     #
     def deldx(self, other, S_ij=None):
+#        timings.start('trajectory.deldx')
         if not S_ij:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
+#        timings.stop('trajectory.deldx')
         return dxval * S_ij
 
     #
@@ -321,12 +330,14 @@ class trajectory:
     # different states together theough the NACME
     #
     def deldx_m(self, other, S_ij=None):
+#        timings.start('trajectory.deldx_m')
         if not S_ij:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particles):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
                                                              self.particles[i].mass
+#        timings.stop('trajectory.deldx_m')
         return dxval * S_ij
 
    #--------------------------------------------------------------------------

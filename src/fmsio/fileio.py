@@ -407,7 +407,7 @@ def cleanup():
     print_fms_logfile('complete',[])
 
     # print timing information
-    timings.stop('global')
+    timings.stop('global',cumulative=True)
     t_table = timings.print_timings()
     print_fms_logfile('timings',[t_table])
 
