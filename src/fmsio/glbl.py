@@ -70,6 +70,6 @@ vibronic = dict (
           )
 
 boson    = dict (
-       coupling          = 0.009
+       coupling          = 0.09
           )
 

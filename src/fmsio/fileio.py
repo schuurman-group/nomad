@@ -65,7 +65,7 @@ def read_input_files():
                 print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
     elif glbl.fms['interface'] == 'boson_model_diabatic':
         for k,v in kwords.items():
-            if k in glbl.vibronic:
+            if k in glbl.boson:
                 glbl.boson[k] = v
     else:
         print("Interface: "+str(glbl.fms['interface'])+" not recognized.")
