@@ -78,6 +78,7 @@ def spawn(master,dt):
                                   ' s_max='+str(glbl.fms['sij_thresh'])
                         fileio.print_fms_logfile('spawn_bad_step',[err_msg])
 
+    master.update_matrices()
     timings.stop('spawn.spawn')
 
     return 

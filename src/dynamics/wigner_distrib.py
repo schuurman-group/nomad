@@ -82,9 +82,5 @@ def sample_distribution(master):
         new_traj.amplitude = new_traj.overlap(origin_traj)
         master.add_trajectory(new_traj)
 
-    # after all trajectories have been added, renormalize the total population
-    # in the bundle to unity
-    master.renormalize()
-
     return
 

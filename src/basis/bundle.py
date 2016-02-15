@@ -8,7 +8,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
-
+import src.basis.build_hamiltonian as mbuild
 #
 # this method is the simplest way i can see to make a copy
 # of a bundle with new references. Overriding deepcopy for
@@ -22,10 +22,10 @@ def copy_bundle(orig_bundle):
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
-    new_bundle.H      = copy.deepcopy(orig_bundle.H)
+    new_bundle.alive  = copy.deepcopy(orig_bundle.alive)
+    new_bundle.T      = copy.deepcopy(orig_bundle.T)
+    new_bundle.V      = copy.deepcopy(orig_bundle.V)
     new_bundle.S      = copy.deepcopy(orig_bundle.S)
-    new_bundle.Sfull  = copy.deepcopy(orig_bundle.Sfull)
-    new_bundle.Sinv   = copy.deepcopy(orig_bundle.Sinv)
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
     for i in range(new_bundle.n_total()):
@@ -75,10 +75,10 @@ class bundle:
         self.nstates = int(nstates)
         self.traj  = []
         self.cent  = []
-        self.H     = np.zeros((0.,0.),dtype=np.complex)
+        self.alive = [] 
+        self.T     = np.zeros((0.,0.),dtype=np.complex)
+        self.V     = np.zeros((0.,0.),dtype=np.complex)
         self.S     = np.zeros((0.,0.),dtype=np.complex)
-        self.Sfull = np.zeros((0.,0.),dtype=np.complex)
-        self.Sinv  = np.zeros((0.,0.),dtype=np.complex)
         self.Sdot  = np.zeros((0.,0.),dtype=np.complex)
         self.Heff  = np.zeros((0.,0.),dtype=np.complex)
         try:
@@ -97,10 +97,10 @@ class bundle:
         self.traj[-1].alive = True
         self.nalive        += 1
         self.traj[-1].tid   = self.n_total() - 1
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
+        self.alive.append(self.traj[-1].tid)
+        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
+        self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sfull      = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         if self.ints.require_centroids:
@@ -115,10 +115,10 @@ class bundle:
             self.nalive        += 1
             self.traj[-1].alive = True
             self.traj[-1].tid   = self.n_total()-1
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+            self.alive.append(self.traj[-1].tid)
+        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sfull      = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         if self.ints.require_centroids:
@@ -131,10 +131,10 @@ class bundle:
         self.traj[tid].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.alive.pop(tid)
+        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sfull      = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         timings.start('bundle.kill_trajectory')
@@ -191,12 +191,9 @@ class bundle:
                 prev_amp = new_amp            
                 if n == n_max:
                     sys.exit('Cannot converge amplitudes...')       
- 
-        cnt = -1
-        for i in range(self.n_total()):
-            if self.traj[i].alive:
-                cnt += 1
-                self.traj[i].amplitude = new_amp[cnt]
+
+        for i in range(len(self.alive)):
+            self.traj[self.alive[i]].amplitude = new_amp[i]
 
         timings.stop('bundle.update_amplitudes')
 
@@ -229,7 +226,7 @@ class bundle:
         # check if trajectories are coupled
         for i in range(self.nalive):
             for j in range(i):
-                if abs(self.H[i,j]) > glbl.fms['hij_coup_thresh']:
+                if abs(self.T[i,j]+self.V[i,j]) > glbl.fms['hij_coup_thresh']:
                     return True
 
         # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
@@ -248,11 +245,8 @@ class bundle:
     #
     def amplitudes(self):
         amps = np.zeros(self.nalive,dtype=np.complex)
-        cnt = -1
-        for i in range(self.n_total()):
-            if self.traj[i].alive:
-                cnt += 1
-                amps[cnt:] = self.traj[i].amplitude
+        for i in range(len(self.alive)):
+            amps[i] = self.traj[self.alive[i]].amplitude
         return amps
 
     #
@@ -277,16 +271,22 @@ class bundle:
     def pop(self):
         timings.start('bundle.pop')
         pop = np.zeros(self.nstates,dtype=np.float)
-        for i in range(self.n_total()):
-            state = self.traj[i].state
-            popii = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
+
+        # live contribution
+        for i in range(len(self.alive)):
+            ii = self.alive[i]
+            state = self.traj[ii].state
+            popii = self.traj[ii].amplitude * self.traj[ii].amplitude.conjugate()
             pop[state] += popii.real
             for j in range(i):
-                if self.traj[i].alive != self.traj[j].alive: 
-                    continue
-                S_ij = self.traj[i].overlap(self.traj[j],st_orthog=True)
-                popij = 2.0 * S_ij * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
+                jj = self.alive[j]
+                if self.traj[ii].state != self.traj[jj].state:
+                    continue 
+                popij = 2.0 * self.S[i,j] * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
                 pop[state] += popij.real 
+
+        # dead contribution
+
         timings.stop('bundle.pop')
         return pop        
 
@@ -308,20 +308,15 @@ class bundle:
     def pot_quantum(self):
         timings.start('bundle.pot_quantum')
         energy = 0.
-        for i in range(self.n_total()):
-            weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
-            v_int  = self.ints.v_integral(self.traj[i], self.traj[i])
+        for i in range(len(self.alive)):
+            ii = self.alive[i]
+            weight = self.traj[ii].amplitude * self.traj[ii].amplitude.conjugate()
+            v_int  = self.V[i,i]
             energy += (weight * v_int).real
             for j in range(i):
-                if self.traj[i].alive != self.traj[j].alive:
-                    continue
-                weight = self.traj[j].amplitude * \
-                         self.traj[i].amplitude.conjugate()
-                if self.ints.require_centroids:
-                    v_int = self.ints.v_integral(self.traj[i],self.traj[j],
-                                                 self.cent[cent_ind(i,j)])
-                else:
-                    v_int = self.ints.v_integral(self.traj[i],self.traj[j])
+                jj = self.alive[j]
+                weight = self.traj[jj].amplitude * self.traj[ii].amplitude.conjugate()
+                v_int = self.V[i,j]
                 energy += 2.0 * (weight * v_int).real
         timings.stop('bundle.pot_quantum')
         return energy
@@ -342,16 +337,17 @@ class bundle:
     def kin_quantum(self):
         timings.start('bundle.kin_quantum')
         energy = 0.
-        for i in range(self.n_total()):
-            weight = self.traj[i].amplitude * self.traj[i].amplitude.conjugate()
-            ke_int = self.ints.ke_integral(self.traj[i],self.traj[i])
+        for i in range(len(self.alive)):
+            ii = self.alive[i]
+            weight = self.traj[ii].amplitude * self.traj[ii].amplitude.conjugate()
+            ke_int = self.T[i,i]
             energy += (weight * ke_int).real
             for j in range(i):
-                if self.traj[i].alive !=  self.traj[j].alive:
+                jj = self.alive[j]
+                if self.traj[ii].state !=  self.traj[j].state:
                     continue
-                weight = self.traj[j].amplitude * \
-                         self.traj[i].amplitude.conjugate()
-                ke_int = self.ints.ke_integral(self.traj[i],self.traj[j])
+                weight = self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
+                ke_int = self.T[i,j]
                 energy += 2.0 * (weight * ke_int).real
         timings.stop('bundle.kin_quantum')
         return energy
@@ -409,7 +405,6 @@ class bundle:
    
         timings.stop('bundle.update_centroids')
 
-    # construct the Hamiltonian matrix in basis of trajectories
     def update_matrices(self):
 
         timings.start('bundle.update_matrices')
@@ -418,7 +413,29 @@ class bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             self.update_centroids()
-  
+            self.T,self.V,self.S,self.Sdot,self.Heff = \
+              mbuild.build_hamiltonian(self.integrals,self.traj,self,alive,cent_list=self.cent)
+        else:
+            self.T,self.V,self.S,self.Sdot,self.Heff = \
+              mbuild.build_hamiltonian(self.integrals,self.traj,self.alive)
+
+        timings.stop('bundle.update_matrices')
+        return
+
+    # construct the Hamiltonian matrix in basis of trajectories
+    def update_matrices2(self):
+
+        timings.start('bundle.update_matrices2')
+
+        # make sure the centroids are up-to-date in order to evaluate
+        # self.H -- if we need them
+        if self.ints.require_centroids:
+            self.update_centroids()
+
+        Sinv     = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        S_orthog = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        H        = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+
         sdot_int      = self.ints.sdot_integral
         v_int         = self.ints.v_integral
         ke_int        = self.ints.ke_integral
@@ -434,34 +451,45 @@ class bundle:
                 if not self.traj[j].alive:
                     continue
                 c += 1
-                self.Sfull[r,c] = self.traj[i].overlap(self.traj[j])
-                self.Sfull[c,r] = self.Sfull[r,c].conjugate()
 
+                # overlap matrix (excluding electronic component)
+                self.S[r,c] = self.traj[i].overlap(self.traj[j])
+                self.S[c,r] = self.S[r,c].conjugate()
+ 
+                # overlap matrix (including electronic component)               
                 if self.traj[i].state == self.traj[j].state:
-                    self.S[r,c] = self.Sfull[r,c]
-                    self.S[c,r] = self.Sfull[c,r]
+                    S_orthog[r,c] = self.S[r,c]
+                    S_orthog[c,r] = self.S[c,r]
                 else:
-                    self.S[r,c] = np.complex(0.,0.)
-                    self.S[c,r] = np.complex(0.,0.)
+                    S_orthog[r,c] = np.complex(0.,0.)
+                    S_orthog[c,r] = np.complex(0.,0.)
   
-                self.Sdot[r,c]  = sdot_int(self.traj[i], self.traj[j], self.S[r,c])
-                self.Sdot[c,r]  = sdot_int(self.traj[j], self.traj[i], self.S[c,r])
+                # time derivative of the overlap matrix
+                self.Sdot[r,c]  = sdot_int(self.traj[i], self.traj[j], S_orthog[r,c])
+                self.Sdot[c,r]  = sdot_int(self.traj[j], self.traj[i], S_orthog[c,r])
 
-                self.H[r,c]     = ke_int(self.traj[i], self.traj[j], self.S[r,c])
+                # kinetic energy matrix
+                self.T[r,c]     = ke_int(self.traj[i], self.traj[j], S_orthog[r,c])
+                self.T[c,r]     = self.T[r,c].conjugate()
+
+                # potential energy matrix
                 if req_centroids:
-                   self.H[r,c] +=  v_int(self.traj[i], self.traj[j],
+                   self.V[r,c]  =  v_int(self.traj[i], self.traj[j],
                                          self.cent[cent_ind(i,j)],
-                                         self.Sfull[r,c])
+                                         self.S[r,c])
                 else:
-                   self.H[r,c] +=  v_int(self.traj[i], self.traj[j], self.Sfull[r,c])
+                   self.V[r,c]  =  v_int(self.traj[i], self.traj[j], self.S[r,c])
+                self.V[c,r]     = self.V[r,c].conjugate()
+       
+                # Hamiltonian matrix in non-orthongonal basis
+                H[r,c]          = self.T[r,c] + self.V[r,c]
+                H[c,r]          = H[r,c].conjugate()                
 
-                self.H[c,r]     = self.H[r,c].conjugate()
-                
         # compute the S^-1, needed to compute Heff
-        self.Sinv = np.linalg.pinv(self.S)
-        self.Heff = np.dot( self.Sinv, self.H - np.complex(0.,1.)*self.Sdot )
+        Sinv = np.linalg.pinv(S_orthog)
+        self.Heff = np.dot( Sinv, H - np.complex(0.,1.)*self.Sdot )
 
-        timings.stop('bundle.update_matrices')
+        timings.stop('bundle.update_matrices2')
         return
 
  #-----------------------------------------------------------------------------
@@ -550,8 +578,8 @@ class bundle:
         # bundle matrices 
         if glbl.fms['print_matrices']:
             self.update_matrices()
-            fileio.print_bund_mat(self.time,'s.dat',self.Sfull)
-            fileio.print_bund_mat(self.time,'h.dat',self.H)
+            fileio.print_bund_mat(self.time,'s.dat',self.S)
+            fileio.print_bund_mat(self.time,'h.dat',self.T+self.V)
             fileio.print_bund_mat(self.time,'heff.dat',self.Heff)
             fileio.print_bund_mat(self.time,'sdot.dat',self.Sdot)
 
@@ -655,9 +683,9 @@ class bundle:
             self.traj.append(t_read)
 
         # create the bundle matrices
-        self.H          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
+        self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        self.Sinv       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         

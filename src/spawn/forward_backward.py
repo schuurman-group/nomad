@@ -100,6 +100,9 @@ def spawn(master,dt):
 
                 utilities.write_spawn_log(current_time, spawn_time, exit_time, master.traj[i], master.traj[-1])
 
+    # update matrices
+    master.update_matrices()
+
 #
 # propagate the parent forward (into the future) until the coupling decreases
 #

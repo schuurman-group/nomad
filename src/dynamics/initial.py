@@ -37,7 +37,9 @@ def init_bundle(master):
     # print out the time t=0 summaries
     #
     master.update_matrices()
+    master.renormalize()
     master.update_logs()
+
     fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
 
     return master.time
