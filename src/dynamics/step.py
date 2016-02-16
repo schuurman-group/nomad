@@ -55,9 +55,12 @@ def fms_step_bundle(master, dt):
             # update the bundle time
             master.time += time_step
             # spawn new basis functions if necessary
-            spawning.spawn(master,time_step)
+            basis_grown  = spawning.spawn(master,time_step)
             # kill the dead trajectories
-            master.prune()
+            basis_pruned = master.prune()
+            # update the bundle hamiltonian after adding/subtracting trajectories
+            if basis_grown or basis_pruned:
+                master.update_matrices()
             # update the running log
             fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
 

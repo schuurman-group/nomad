@@ -103,8 +103,6 @@ class bundle:
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        if self.ints.require_centroids:
-            self.update_centroids()
         timings.stop('bundle.add_trajectory')
         return
 
@@ -121,8 +119,6 @@ class bundle:
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        if self.ints.require_centroids:
-            self.update_centroids()
             
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
@@ -217,6 +213,7 @@ class bundle:
     def prune(self):
         for i in range(self.nalive):
             continue
+        return False
 
     #
     # returns true if we are in a regime of coupled trajectories
@@ -244,10 +241,8 @@ class bundle:
     # return amplitudes of the trajectories
     #
     def amplitudes(self):
-        amps = np.zeros(self.nalive,dtype=np.complex)
-        for i in range(len(self.alive)):
-            amps[i] = self.traj[self.alive[i]].amplitude
-        return amps
+        return np.array([self.traj[self.alive[i]].amplitude 
+                               for i in range(len(self.alive))],dtype=np.complex)
 
     #
     # return the Mulliken-like population 
@@ -257,12 +252,11 @@ class bundle:
 
         if not self.traj[tid].alive:
             return mulliken
-        for i in range(len(self.traj)):
-            if not self.traj[i].alive:
-               continue
-            olap = self.traj[tid].overlap(self.traj[i])
-            mulliken = mulliken + abs( olap * self.traj[tid].amplitude.conjugate()
-                                            * self.traj[i].amplitude)
+        i = self.alive.index(tid)
+        for j in range(len(self.alive)):
+            jj = self.alive[j]
+            mulliken += abs(self.S[i,j] * self.traj[tid].amplitude.conjugate()
+                                        * self.traj[jj].amplitude)
         return mulliken
 
     #
@@ -412,7 +406,6 @@ class bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
-            self.update_centroids()
             self.T,self.V,self.S,self.Sdot,self.Heff = \
               mbuild.build_hamiltonian(self.integrals,self.traj,self,alive,cent_list=self.cent)
         else:
@@ -420,76 +413,6 @@ class bundle:
               mbuild.build_hamiltonian(self.integrals,self.traj,self.alive)
 
         timings.stop('bundle.update_matrices')
-        return
-
-    # construct the Hamiltonian matrix in basis of trajectories
-    def update_matrices2(self):
-
-        timings.start('bundle.update_matrices2')
-
-        # make sure the centroids are up-to-date in order to evaluate
-        # self.H -- if we need them
-        if self.ints.require_centroids:
-            self.update_centroids()
-
-        Sinv     = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        S_orthog = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        H        = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-
-        sdot_int      = self.ints.sdot_integral
-        v_int         = self.ints.v_integral
-        ke_int        = self.ints.ke_integral
-        req_centroids = self.ints.require_centroids
-
-        r = -1
-        for i in range(self.n_total()):
-            if not self.traj[i].alive:
-                continue
-            r += 1
-            c = -1
-            for j in range(i+1):
-                if not self.traj[j].alive:
-                    continue
-                c += 1
-
-                # overlap matrix (excluding electronic component)
-                self.S[r,c] = self.traj[i].overlap(self.traj[j])
-                self.S[c,r] = self.S[r,c].conjugate()
- 
-                # overlap matrix (including electronic component)               
-                if self.traj[i].state == self.traj[j].state:
-                    S_orthog[r,c] = self.S[r,c]
-                    S_orthog[c,r] = self.S[c,r]
-                else:
-                    S_orthog[r,c] = np.complex(0.,0.)
-                    S_orthog[c,r] = np.complex(0.,0.)
-  
-                # time derivative of the overlap matrix
-                self.Sdot[r,c]  = sdot_int(self.traj[i], self.traj[j], S_orthog[r,c])
-                self.Sdot[c,r]  = sdot_int(self.traj[j], self.traj[i], S_orthog[c,r])
-
-                # kinetic energy matrix
-                self.T[r,c]     = ke_int(self.traj[i], self.traj[j], S_orthog[r,c])
-                self.T[c,r]     = self.T[r,c].conjugate()
-
-                # potential energy matrix
-                if req_centroids:
-                   self.V[r,c]  =  v_int(self.traj[i], self.traj[j],
-                                         self.cent[cent_ind(i,j)],
-                                         self.S[r,c])
-                else:
-                   self.V[r,c]  =  v_int(self.traj[i], self.traj[j], self.S[r,c])
-                self.V[c,r]     = self.V[r,c].conjugate()
-       
-                # Hamiltonian matrix in non-orthongonal basis
-                H[r,c]          = self.T[r,c] + self.V[r,c]
-                H[c,r]          = H[r,c].conjugate()                
-
-        # compute the S^-1, needed to compute Heff
-        Sinv = np.linalg.pinv(S_orthog)
-        self.Heff = np.dot( Sinv, H - np.complex(0.,1.)*self.Sdot )
-
-        timings.stop('bundle.update_matrices2')
         return
 
  #-----------------------------------------------------------------------------
@@ -577,7 +500,6 @@ class bundle:
 
         # bundle matrices 
         if glbl.fms['print_matrices']:
-            self.update_matrices()
             fileio.print_bund_mat(self.time,'s.dat',self.S)
             fileio.print_bund_mat(self.time,'h.dat',self.T+self.V)
             fileio.print_bund_mat(self.time,'heff.dat',self.Heff)

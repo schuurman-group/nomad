@@ -15,6 +15,7 @@ def copy_traj(orig_traj):
     new_traj.tid        = copy.copy(orig_traj.tid)
     new_traj.parent     = copy.copy(orig_traj.parent)
     new_traj.state      = copy.copy(orig_traj.state)
+    new_traj.c_state    = copy.copy(orig_traj.c_state)
     new_traj.alive      = copy.copy(orig_traj.alive)
     new_traj.amplitude  = copy.copy(orig_traj.amplitude)
     new_traj.phase      = copy.copy(orig_traj.phase)
@@ -51,6 +52,8 @@ class trajectory:
         self.parent     = parent         
         # state trajectory exists on
         self.state      = 0      
+        # if a centroid, state for second trajectory
+        self.c_state    = -1
         # number of particles comprising the trajectory
         self.n_particle = len(self.particles) 
         # whether trajectory is alive (i.e. propagated)
@@ -172,6 +175,12 @@ class trajectory:
                           for i in range(self.n_particle)
                           for j in range(self.d_particle)),dtype=np.float)
         return width
+
+    #
+    # evaluate the necessary information at a centroid
+    #
+    def evaluate_centroid(self, rstate):
+        self.pes.evaluate_centroid(self.tid, self.particles, self.state, rstate)
 
     #
     # return the potential energies. Add the energy shift right here. If not current, recompute them

@@ -30,6 +30,7 @@ coup_hist = []
 def spawn(master,dt):
     global coup_hist
 
+    basis_grown  = False
     current_time = master.time
 
     # we want to have know the history of the coupling for each trajectory
@@ -94,14 +95,16 @@ def spawn(master,dt):
                     spawn_backward(child, exit_time, current_time, -dt)
                     bundle_overlap = overlap_with_bundle(child,master)
                     if not bundle_overlap:
+                        basis_grown = True
                         master.add_trajectory(child)
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
 
                 utilities.write_spawn_log(current_time, spawn_time, exit_time, master.traj[i], master.traj[-1])
+   
+    # let caller known if the basis has been changed
+    return basis_grown
 
-    # update matrices
-    master.update_matrices()
 
 #
 # propagate the parent forward (into the future) until the coupling decreases

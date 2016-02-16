@@ -22,6 +22,7 @@ def spawn(master,dt):
 
     timings.start('spawn.spawn')
 
+    basis_grown  = False
     current_time = master.time
     #
     #
@@ -69,6 +70,7 @@ def spawn(master,dt):
 
                     bundle_overlap = utilities.overlap_with_bundle(child,master)
                     if not bundle_overlap:
+                        basis_grown = True
                         master.add_trajectory(child)
                         fileio.print_fms_logfile('spawn_success',[current_time,parent.tid,st])
                         utilities.write_spawn_log(current_time, current_time, current_time, parent, master.traj[-1])
@@ -78,7 +80,6 @@ def spawn(master,dt):
                                   ' s_max='+str(glbl.fms['sij_thresh'])
                         fileio.print_fms_logfile('spawn_bad_step',[err_msg])
 
-    master.update_matrices()
     timings.stop('spawn.spawn')
 
-    return 
+    return basis_grown

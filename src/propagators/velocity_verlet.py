@@ -17,6 +17,9 @@ def propagate(master,dt):
     #
     master.update_amplitudes(0.5*dt,10) 
 
+    #
+    # update trajectories
+    #
     for i in range(master.n_total()):
         
         if not master.traj[i].alive:
@@ -75,6 +78,20 @@ def propagate(master,dt):
 
         dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
         traj.update_phase(traj.phase + dgamma)
+
+    #
+    # update the centroids, if we need them to evaluate the hamiltonian
+    # matrix elements
+    #
+    if master.ints.require_centroids:
+        # update the geometries
+        master.update_centroids()
+        # now update electronic structure in a controled way to allow for
+        # parallelization
+        for i in range(len(master.cent)):
+            if not master.cent[i]:
+                continue
+            master.cent[i].evaluate_centroid(master.cent[i].c_state)
 
     #-------------------------------------------------
     # propagate amplitudes for 1/2 time step using x1
