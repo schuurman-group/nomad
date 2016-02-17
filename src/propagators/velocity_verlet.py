@@ -18,7 +18,7 @@ def propagate(master,dt):
     master.update_amplitudes(0.5*dt,10) 
 
     #
-    # update trajectories
+    # update position
     #
     for i in range(master.n_total()):
         
@@ -51,11 +51,49 @@ def propagate(master,dt):
         #-------------------------------------------
         # update x
         traj.update_x(x1)
+ 
+        #-------------------------------------------
+        # half update p and phase
+        traj.update_p(p0 + 0.5 * f0 * dt)
+        dgamma = g1_0 * dt / 2.0 - g2_0 * dt**2 / 8.0
+        traj.update_phase(traj.phase + dgamma)
+
+    #
+    # update electronic structure 
+    #
+    for i in range(master.n_total()):
+        if not master.traj[i].alive:
+            continue
+        master.traj[i].evaluate_trajectory()
+    #
+    # update the centroids, if we need them to evaluate the hamiltonian
+    # matrix elements
+    #
+    if master.ints.require_centroids:
+        # update the geometries
+        master.update_centroids()
+        # now update electronic structure in a controled way to allow for
+        # parallelization
+        for i in range(len(master.cent)):
+            #
+            # if centroid not initialized, skip it
+            if not master.cent[i]:
+                continue
+            master.cent[i].evaluate_centroid()
+
+    #
+    # finish update of momentum and phase 
+    #
+    for i in range(master.n_total()):
+        if not master.traj[i].alive:
+            continue
+
+        traj = master.traj[i]
 
         #------------------------------------------
-        # update p
+        # half update p
         f1 = traj.force()
-        p1 = p0 + 0.5 * (f0 + f1) * dt 
+        p1 = traj.p() + 0.5 * f1 * dt 
         traj.update_p(p1)
         v1 = traj.velocity()
 
@@ -72,26 +110,13 @@ def propagate(master,dt):
         c = dt
         d = (1./2.) * dt**2
 
-        vec   = np.array([g1_1 - g1_0 - g2_0 * dt, g2_1 - g2_1])
-        alpha =( d*vec[0] - b*vec[1]) / (a*d - b*c)
-        beta  =(-c*vec[0] - a*vec[1]) / (a*d - b*c)
+#        vec   = np.array([g1_1 - g1_0 - g2_0 * dt, g2_1 - g2_1])
+#        alpha =( d*vec[0] - b*vec[1]) / (a*d - b*c)
+#        beta  =(-c*vec[0] - a*vec[1]) / (a*d - b*c)
 
-        dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
+#        dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
+        dgamma = g1_1 * dt / 2.0 + g2_1 * dt**2 / 8.0
         traj.update_phase(traj.phase + dgamma)
-
-    #
-    # update the centroids, if we need them to evaluate the hamiltonian
-    # matrix elements
-    #
-    if master.ints.require_centroids:
-        # update the geometries
-        master.update_centroids()
-        # now update electronic structure in a controled way to allow for
-        # parallelization
-        for i in range(len(master.cent)):
-            if not master.cent[i]:
-                continue
-            master.cent[i].evaluate_centroid(master.cent[i].c_state)
 
     #-------------------------------------------------
     # propagate amplitudes for 1/2 time step using x1

@@ -24,6 +24,7 @@ def copy_traj(orig_traj):
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
     new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
     new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
+    new_traj.pes_geom   = copy.deepcopy(orig_traj.pes_geom)
     new_traj.poten      = copy.deepcopy(orig_traj.poten)
     new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
     new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
@@ -72,16 +73,18 @@ class trajectory:
         self.spawn_coup = np.zeros(self.nstates)
         # number of mos
         self.nbf        = n_basis              
+        # geometry of the current potential information
+        self.pes_geom   = np.zeros(self.n_particle*self.d_particle, dtype=np.float)
         # value of the potential energy
-        self.poten      = np.zeros(self.nstates)  
+        self.poten      = np.zeros(self.nstates, dtype=np.float)  
         # derivatives of the potential -- if off-diagonal, corresponds to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros((self.nstates,self.n_particle*self.d_particle)) 
+        self.deriv      = np.zeros((self.nstates,self.n_particle*self.d_particle),dtype=np.float) 
         # dipoles and transition dipoles
-        self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))      
+        self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle),dtype=np.float)      
         # second moment tensor for each state
-        self.sec_moms   = np.zeros((self.nstates,self.d_particle))
+        self.sec_moms   = np.zeros((self.nstates,self.d_particle),dtype=np.float)
         # electronic populations on the atoms
-        self.atom_pops  = np.zeros((self.nstates,self.n_particle))
+        self.atom_pops  = np.zeros((self.nstates,self.n_particle),dtype=np.float)
         try:
             self.pes = __import__('src.interfaces.'+self.interface,fromlist=['NA'])
         except:
@@ -122,6 +125,7 @@ class trajectory:
     def update_x(self,pos):
         for i in range(self.n_particle):
             self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle]
+        return
 
     #
     # Update the momentum of the particles in the trajectory. Flips up2date switch to False
@@ -129,14 +133,23 @@ class trajectory:
     def update_p(self,mom):
         for i in range(self.n_particle):
             self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle]
+        return
 
     #
     # update the nuclear phase 
     #
-    def update_phase(self,phase):
+    def update_phase(self, phase):
         self.phase = phase
         if abs(self.phase) > 2*np.pi:
             self.phase = self.phase - int(self.phase/(2. * np.pi)) * 2. * np.pi
+        return
+
+    #
+    # update the amplitude on this trajectory
+    #
+    def update_amplitude(self, amplitude):
+        self.amplitude = amplitude
+        return
 
     #-----------------------------------------------------------------------
     # 
@@ -176,60 +189,99 @@ class trajectory:
                           for j in range(self.d_particle)),dtype=np.float)
         return width
 
+    #--------------------------------------------------------------------
+    #
+    # Functions to update information about the potential energy surface
+    #
+    #--------------------------------------------------------------------
+
+    #
+    # evaluate trajectory
+    #
+    def evaluate_trajectory(self):
+        surf_info = self.pes.evaluate_trajectory(self.tid, self.particles, self.state)
+        self.pes_geom  = surf_info[0]
+        self.poten     = surf_info[1]
+        self.deriv     = surf_info[2]
+        if self.pes.comp_properties:
+            self.dipoles   = surf_info[3]
+            self.sec_moms  = surf_info[4]
+            self.atom_pops = surf_info[5]
+        return
+
     #
     # evaluate the necessary information at a centroid
     #
-    def evaluate_centroid(self, rstate):
-        self.pes.evaluate_centroid(self.tid, self.particles, self.state, rstate)
+    def evaluate_centroid(self):
+        if self.c_state == -1:
+            print("attempting to evaluate centroid, "+
+                  "but second state not defined. ID="+str(self.tid))
+        surf_info  = self.pes.evaluate_centroid(self.tid, self.particles, self.state, self.c_state)
+        self.pes_geom = surf_info[0]
+        self.poten    = surf_info[1]
+        if self.state != self.c_state:
+            self.deriv = surf_info[2]
 
     #
     # return the potential energies. Add the energy shift right here. If not current, recompute them
     #
-    def energy(self,rstate):
-        self.poten[rstate] = self.pes.energy(self.tid, self.particles, self.state, rstate)
-        return self.poten[rstate] + glbl.fms['pot_shift']
+    def energy(self,state):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.energy() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.poten[state] + glbl.fms['pot_shift']
 
     #
     # return the derivative with ket state = rstate. bra state assumed to be 
     # the current state
     #
-    def derivative(self,rstate):
-        self.deriv[rstate,:] = self.pes.derivative(self.tid, self.particles, self.state, rstate)
-        return self.deriv[rstate,:]
+    def derivative(self,state):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.derivative() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.deriv[state,:]
     
     #
+    # permanent dipoles
     #
-    #
-    def dipole(self,rstate):
-        self.dipoles[rstate,rstate:] = self.pes.dipole(self.tid, self.particles, self.state, rstate, rstate)
-        return self.dipoles[rstate,rstate,:]
+    def dipole(self,state):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.dipole() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.dipoles[state,state,:]
 
     #
+    # transition dipoles
     #
-    #
-    def tdipole(self,lstate,rstate):
-        self.dipoles[lstate,rstate,:] = self.pes.dipole(self.tid, self.particles, self.state, lstate, rstate)
-        return self.dipoles[lstate,rstate,:]
+    def tdipole(self,state_i, state_j):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.tdipole() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.dipoles[state_i,state_j,:]
 
     #
+    # second moments
     #
-    #
-    def sec_mom(self,rstate):
-        self.sec_moms[rstate,:] = self.pes.sec_mom(self.tid, self.particles, self.state, rstate)
-        return self.sec_moms[rstate,:]
+    def sec_mom(self,state):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.sec_mom() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.sec_moms[state,:]
 
     #
-    #
+    # atomic populations 
     # 
-    def atom_pop(self,rstate):
-        self.atom_pops[rstate,:] = self.pes.atom_pop(self.tid, self.particles, self.state, rstate)
-        return self.atom_pops[rstate,:]
+    def atom_pop(self,state):
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.atom_pop() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.atom_pops[state,:]
 
     #
     #
     #
-    def orbitals(self):
-        return self.pes.orbitals(self.tid, self.particles, self.state)
+#    def orbitals(self):
+#        return self.pes.orbitals(self.tid, self.particles, self.state)
     
     #-------------------------------------------------------------------------
     #

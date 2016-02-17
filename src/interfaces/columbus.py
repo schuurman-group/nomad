@@ -14,6 +14,9 @@ import src.basis.particle as particle
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle 
 
+# set to true if we want to compute electronic structure properties
+comp_properties = True
+
 # path to columbus input files
 input_path = ''
 # path to location of 'work'/'restart' directories
@@ -117,111 +120,40 @@ def init_interface():
     # generate one time input files for columbus calculations
     make_one_time_input()
 
-# returns the energy at the specified geometry. If value on file 
-#  not current, or we don't care about saving data -- recompute
 #
-# geom is a list of particles
-def energy(tid, geom, t_state, rstate):
-    global energies
+# evaluate all requested electronic structure information for a single trajectory
+#
+def evalutate_trajectory(tid, geom, state):
+    global current_geom, energies, gradients, dip_moms, sec_moms, atom_pops
+
+    if not in_cache(tid,geom):
+        if tid < 0:
+            print("evaluate_trajectory called with "+
+                  "id associated with centroid, tid="+str(tid))
+        run_trajectory(tid, geom, state)
+
+    rlist = [current_geom[tid], energies[tid], gradients[tid],  
+                 dip_moms[tid], sec_moms[tid], atom_pops[tid]]
+    return rlist
+
+#
+# evaluate all requested electronic structure information at a centroid
+#
+def evalutate_centroid(tid, geom, state_i , state_j):
+    global current_geom, energies, gradients
 
     if not in_cache(tid,geom):
         if tid >= 0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            run_centroid(tid,geom,t_state,t_state)
-    try:
-        return energies[tid][rstate]
-    except:
-        print("ERROR in fetch_energy")       
-        sys.exit("ERROR in columbus module fetching energy")
+            print("evaluate_centroid called with "+
+                  "id associated with trajectory, tid="+str(tid))
+        run_centroid(tid, geom, state_i, state_j)
 
-#
-# returns the MOs as an numpy array
-#
-def orbitals(tid,geom,t_state):
-    if not in_cache(tid,geom):
-        if tid >= 0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            run_centroid(tid,geom,t_state,t_state)
-    try:
-        return load_orbitals(tid)
-    except:
-        print("ERROR in fetch_orbitals")     
-        sys.exit("ERROR in columbus module fetching orbitals")
+    # this is appropriate for first-order saddle point
+    rlist = [current_geom[tid], energies[tid]]
+    if state_i != state_j:
+        rlist.append(gradients[tid])
+    return rlist
 
-#
-# return gradient. If lstate == rstate, gradient on state lstate. Else
-#   returns non-adiabatic coupling vector
-#
-def derivative(tid,geom,t_state,lstate,rstate):
-    global gradients 
-
-    if not in_cache(tid,geom):
-        if tid >= 0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            run_centroid(tid,geom,lstate,rstate)
-    try:
-        return gradients[tid][lstate,rstate,:]
-
-    except:
-        print("ERROR in fetch_gradients")     
-        sys.exit("ERROR in columbus module fetching gradients")
-
-#
-# if lstate != rstate, corresponds to transition dipole
-#
-def dipole(tid,geom,t_state,lstate,rstate):
-    global dip_moms 
-
-    if not in_cache(tid,geom):
-        if tid >=0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            print("invalid id for trajectory: "+str(tid))
-            sys.exit("ERROR in columbus module[dipole] -- invalid id") 
-    try:
-        return dip_moms[tid][lstate,rstate,:]
-    except:
-        print("ERROR in fetch_dipole")
-        sys.exit("ERROR in columbus module fetching dipoles")
-
-#
-# return second moment tensor for state=state
-#
-def sec_mom(tid,geom,t_state,rstate):
-    global sec_moms 
-
-    if not in_cache(tid,geom):
-        if tid >= 0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            print("invalid id for trajectory: "+str(tid))
-            sys.exit("ERROR in columbus module[qpole] -- invalid id")
-    try:
-        return sec_moms[tid][rstate,:]
-    except:
-        print("ERROR in fetch_sec_mom")     
-        sys.exit("ERROR in columbus module fetching sec_mom")
-
-#
-#
-#
-def atom_pop(tid,geom,t_state, rstate):
-    global atom_pops
-
-    if not in_cache(tid,geom):
-        if tid >= 0:
-            run_trajectory(tid,geom,t_state)
-        else:
-            print("invalid id for trajectory: "+str(tid))
-            sys.exit("ERROR in columbus module[atom_pops] -- invalid id")
-    try:
-        return atom_pops[tid][rstate,:]
-    except:
-        print("ERROR in fetch_atom_pops")     
-        sys.exit("ERROR in columbus module fetching atom_pops")
 
 #----------------------------------------------------------------
 #
@@ -250,7 +182,7 @@ def in_cache(tid,geom):
 #    1. Compute an MCSCF/MRCI energy
 #    2. Compute all couplings
 #
-def run_trajectory(tid,geom,tstate):
+def run_trajectory(tid, geom, tstate):
     global p_dim, n_cistates, n_atoms, current_geom
 
     # write geometry to file
@@ -260,13 +192,13 @@ def run_trajectory(tid,geom,tstate):
     generate_integrals(tid)
 
     # run mcscf
-    run_col_mcscf(tid,tstate)
+    run_col_mcscf(tid, tstate)
   
     # run mrci, if necessary
-    run_col_mrci(tid,tstate)
+    run_col_mrci(tid, tstate)
 
     # run properties, dipoles, etc.
-    run_col_multipole(tid,tstate)
+    run_col_multipole(tid, tstate)
 
     # run transition dipoles
     init_states = [0, tstate]
@@ -292,8 +224,10 @@ def run_trajectory(tid,geom,tstate):
 # For a centroid we really only need an energy (if both trajectories
 #  are on the same state), or a coupling (if on different states)
 #
-def run_centroid(tid,geom,lstate,rstate):
+def run_centroid(tid, geom, state_i, state_j):
     global p_dim, n_atoms, current_geom
+    s1 = min(state_i,state_j)
+    s2 = max(state_i,state_j)
 
     # write geometry to file
     write_col_geom(geom)
@@ -302,14 +236,18 @@ def run_centroid(tid,geom,lstate,rstate):
     generate_integrals(tid)
 
     # run mcscf
-    run_col_mcscf(tid, lstate)
+    run_col_mcscf(tid, state_i)
 
-    # run mrci, if necessary
-    run_col_mrci(tid, lstate)
+    # run mrci, if necessary. We also need transition densities if we need gradients
+    if state_i != state_j:
+        t_den = [[s1,s2]]
+    else:
+        t_den = []
+    run_col_mrci(tid, state_i, density=t_den, int_trans=False, apop=False)
 
-    if lstate != rstate:
+    if state_i != state_j:
         # run coupling to other states
-        run_col_coupling(tid, lstate, rstate)
+        run_col_coupling(tid, state_i, state_j)
 
     # save restart files
     make_col_restart(tid)
@@ -378,7 +316,7 @@ def generate_integrals(tid):
 #
 # run mcscf program
 #
-def run_col_mcscf(tid,t_state):
+def run_col_mcscf(tid, t_state):
     global work_path, n_mcstates, mrci_lvl
 
     os.chdir(work_path)
@@ -448,7 +386,7 @@ def run_col_mcscf(tid,t_state):
 #
 # run mrci if running at that level of theory
 #
-def run_col_mrci(tid,t_state):
+def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
     global energies, atom_pops, input_path, work_path, n_atoms, n_cistates
 
     os.chdir(work_path)
@@ -460,7 +398,21 @@ def run_col_mrci(tid,t_state):
     shutil.copy(input_path+'/ciudgin.drt1','ciudgin')
 
     # update the transition section in ciudgin
-    init_states = [0, t_state]
+    if density:
+        tran_den = density
+
+    # otherwise, assume we need transition densities to evaluate
+    # transition dipoles and derivative couplings
+    else:
+        tran_den = []
+        init_states = [0, t_state]
+        for i in init_states:
+            for j in range(n_cistates):
+                if i == j or (j in init_states and j < i):
+                    continue
+                tran_den.append([min(i,j)+1,max(i,j)+1])
+
+    # append entries in tran_den to ciudgin file
     with open('ciudgin','r') as ciudgin:
         ci_file = ciudgin.readlines()
     with open('ciudgin','w') as ciudgin:
@@ -469,13 +421,8 @@ def run_col_mrci(tid,t_state):
             if '&end' in line:
                 break
         ciudgin.write('transition\n')
-        for i in init_states:
-            for j in range(n_cistates):
-                if i == j or (j in init_states and j < i):
-                    continue
-                left_state  = min(i,j)+1
-                right_state = max(i,j)+1
-                ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(left_state,right_state))
+        for i in len(tran_den):
+            ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(tran_den[i,1],tran_den[i,2]))
 
     # make sure we point to the correct formula tape file
     link_force('cidrtfl.ci','cidrtfl')
@@ -517,34 +464,36 @@ def run_col_mrci(tid,t_state):
                      dtype=np.float)
 
     # now update atom_pops
-    ist = -1
-    atom_pops[tid] = np.zeros((n_cistates,n_atoms),dtype=float)
-    with open('ciudgls','r') as ciudgls:
-        for line in ciudgls: 
-            if '   gross atomic populations' in line:
-                ist += 1
-                pops = []
-                for i in range(math.ceil(n_atoms/6.)):
-                    for j in range(max_l+3):
+    if apop:
+        ist = -1
+        atom_pops[tid] = np.zeros((n_cistates,n_atoms),dtype=float)
+        with open('ciudgls','r') as ciudgls:
+            for line in ciudgls: 
+                if '   gross atomic populations' in line:
+                    ist += 1
+                    pops = []
+                    for i in range(math.ceil(n_atoms/6.)):
+                        for j in range(max_l+3):
+                            line = ciudgls.readline()
+                        l_arr = line.rstrip().split()
+                        pops.extend(l_arr[1:])
                         line = ciudgls.readline()
-                    l_arr = line.rstrip().split()
-                    pops.extend(l_arr[1:])
-                    line = ciudgls.readline()
-                atom_pops[tid][ist,:] = np.asarray([float(x) for x in pops],dtype=float)
+                    atom_pops[tid][ist,:] = np.asarray([float(x) for x in pops],dtype=float)
 
     # grab mrci output
 #    append_log(tid,'mrci')
 
     # transform integrals using cidrtfl.cigrd
-    frzn_core = int(read_nlist_keyword('cigrdin','assume_fc'))
-    if frzn_core == 1:
-        os.remove('moints')
-        os.remove('cidrtfl')
-        os.remove('cidrtfl.1')
-        link_force('cidrtfl.cigrd','cidrtfl')
-        link_force('cidrtfl.cigrd','cidrtfl.1')
-        shutil.copy(input_path+'/tranin','tranin')
-        subprocess.run(['tran.x','-m',mem_str])
+    if int_trans:
+        frzn_core = int(read_nlist_keyword('cigrdin','assume_fc'))
+        if frzn_core == 1:
+            os.remove('moints')
+            os.remove('cidrtfl')
+            os.remove('cidrtfl.1')
+            link_force('cidrtfl.cigrd','cidrtfl')
+            link_force('cidrtfl.cigrd','cidrtfl.1')
+            shutil.copy(input_path+'/tranin','tranin')
+            subprocess.run(['tran.x','-m',mem_str])
  
     return    
 
@@ -642,12 +591,12 @@ def run_col_tdipole(tid, state_i, state_j):
 # perform integral transformation and determine gradient on
 # trajectory state
 #
-def run_col_gradient(tid,t_state):
+def run_col_gradient(tid, t_state):
     global p_dim, gradients, input_path, work_path, mrci_lvl, n_cistates, n_cart
 
     os.chdir(work_path)
     shutil.copy(input_path+'/cigrdin','cigrdin')
-    gradients[tid] = np.zeros((n_cistates,n_cistates,n_cart),dtype=np.float)
+    gradients[tid] = np.zeros((n_cistates,n_cart),dtype=np.float)
     tindex = t_state + 1
 
     if mrci_lvl > 0:
@@ -686,7 +635,7 @@ def run_col_gradient(tid,t_state):
         for line in cartgrd:
             l_arr = line.rstrip().split()
             for j in range(p_dim):
-                gradients[tid][t_state,t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
+                gradients[tid][t_state,p_dim*i+j] = float(l_arr[j].replace("D","e"))
             i = i + 1
 
     # grab cigrdls output
@@ -759,8 +708,7 @@ def run_col_coupling(tid, t_state, coup_state=None):
         new_coup /= delta_e
 
         c_phase = get_adiabatic_phase(new_coup, gradients[tid][t_state,c_state,:])
-        gradients[tid][t_state,c_state,:] =  c_phase * new_coup
-        gradients[tid][c_state,t_state,:] = -c_phase * new_coup
+        gradients[tid][c_state,:] =  c_phase * new_coup
         shutil.move('cartgrd','cartgrd.nad.'+str(s1)+'.'+str(s2))
 
     # grab mcscfls output

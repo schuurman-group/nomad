@@ -108,13 +108,15 @@ def check_step_bundle(master0, master, time_step):
     #  (only need to check traj which exist in master0. If spawned, will be
     #  last entry(ies) in master
     for i in range(master0.n_total()):
+        if not master0.traj[i].alive:
+            continue
         energy_old = master0.traj[i].potential() +  \
                      master0.traj[i].kinetic()
         energy_new =  master.traj[i].potential() +  \
                       master.traj[i].kinetic()
         dener = abs(energy_old - energy_new)
         if dener > glbl.fms['energy_jump_toler']:
-            return False,' jump in bundle energy, delta[ener] = {:10.6f}'.format(dener)
+            return False,' jump in trajectory energy, tid = {0:4d}, delta[ener] = {1:10.6f}'.format(i,dener)
     #
     # If we pass all the tests, return 'success'
     return True,' success'

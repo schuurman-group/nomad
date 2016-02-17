@@ -34,8 +34,28 @@ def init_bundle(master):
         init_trajectories(master)
 
     #
-    # print out the time t=0 summaries
+    # run the t=0 summaries
     #
+    for i in range(master.n_total()):
+        if not master.traj[i].alive:
+            continue
+        master.traj[i].evaluate_trajectory()
+    #
+    # update the centroids, if we need them to evaluate the hamiltonian
+    # matrix elements
+    #
+    if master.ints.require_centroids:
+        # update the geometries
+        master.update_centroids()
+        # now update electronic structure in a controled way to allow for
+        # parallelization
+        for i in range(len(master.cent)):
+            #
+            # if centroid not initialized, skip it
+            if not master.cent[i]:
+                continue
+            master.cent[i].evaluate_centroid()
+
     master.update_matrices()
     master.renormalize()
     master.update_logs()

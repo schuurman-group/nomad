@@ -189,7 +189,7 @@ class bundle:
                     sys.exit('Cannot converge amplitudes...')       
 
         for i in range(len(self.alive)):
-            self.traj[self.alive[i]].amplitude = new_amp[i]
+            self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
         timings.stop('bundle.update_amplitudes')
 
@@ -203,7 +203,7 @@ class bundle:
         current_pop = self.pop() 
         norm = 1./ np.sqrt(sum(current_pop))
         for i in range(self.n_total()):
-            self.traj[i].amplitude = self.traj[i].amplitude * norm
+            self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
         timings.stop('bundle.renormalize')
         return                       
 
@@ -276,7 +276,8 @@ class bundle:
                 jj = self.alive[j]
                 if self.traj[ii].state != self.traj[jj].state:
                     continue 
-                popij = 2.0 * self.S[i,j] * self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
+                popij = 2.0 * self.S[i,j] * self.traj[j].amplitude * \
+                                            self.traj[i].amplitude.conjugate()
                 pop[state] += popij.real 
 
         # dead contribution
@@ -290,8 +291,10 @@ class bundle:
     # 
     def pot_classical(self):
         timings.start('bundle.pot_classical')
-        weight = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
-        v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        weight = np.array([self.traj[i].amplitude * 
+                           self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
+        v_int  = np.array([self.ints.v_integral(self.traj[i], 
+                                                self.traj[i]) for i in range(self.n_total())])
         timings.stop('bundle.pot_classical')
         return sum(weight * v_int).real
 
