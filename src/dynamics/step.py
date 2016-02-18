@@ -45,7 +45,7 @@ def fms_step_bundle(master, dt):
 
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
-        integrator.propagate(master,time_step)  
+        integrator.propagate_bundle(master,time_step)  
 
         # check time_step is fine, energy/amplitude conserved
         accept,error_msg = check_step_bundle(master0, master, time_step)

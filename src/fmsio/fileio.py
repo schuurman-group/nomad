@@ -16,6 +16,7 @@ dump_format = dict()
 log_format  = dict()
 tfile_names = dict()
 bfile_names = dict()
+print_level   = dict()
 
 # 
 # Read the fms.input file. This contains variables related
@@ -104,7 +105,7 @@ def read_namelist(filename):
 def init_fms_output():
     global home_path, scr_path, \
            log_format, tkeys, bkeys, dump_header, dump_format, \
-           tfile_names, bfile_names
+           tfile_names, bfile_names, print_level
 
     np = int(glbl.fms['num_particles'])
     nd = int(glbl.fms['dim_particles'])
@@ -262,14 +263,29 @@ def init_fms_output():
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
     log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
     log_format['spawn_start'] = '  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +\
-                                '              time      coup   overlap     spawn\n'
-    log_format['spawn_step']  = '      {0:14.4f} {1:9.4f} {2:9.4f} {3:>9s}\n'
+                                'time'.rjust(14)+'coup'.rjust(10)+'overlap'.rjust(10)+'   spawn\n'
+    log_format['spawn_step']  = '{0:14.4f}{1:10.4f}{2:10.4f}   {3:<40s}\n'
     log_format['spawn_back']  = '      back propagating:  {0:12.2f}\n'
     log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
     log_format['spawn_success'] = ' - spawn successful, new trajectory created at {0:14.4f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
     log_format['complete']      = ' ------- simulation completed --------\n'
     log_format['timings' ]      = '{}'
+
+    print_level['general']        = 5
+    print_level['t_step']         = 0
+    print_level['coupled']        = 3
+    print_level['new_step']       = 3
+    print_level['spawn_start']    = 1
+    print_level['spawn_step']     = 1
+    print_level['spawn_back']     = 2
+    print_level['spawn_bad_step'] = 2
+    print_level['spawn_success']  = 1
+    print_level['spawn_failure']  = 1
+    print_level['complete']       = 0
+    print_level['timings']        = 0
+
+    return
 
 #
 # Appends a row of data, formatted by entry 'fkey' in formats to file
@@ -323,28 +339,29 @@ def print_bund_row(fkey,data):
 # prints a matrix to file with a time label
 #
 def print_bund_mat(time,fname,mat):
-     global scr_path    
-     filename = scr_path+'/'+fname
+    global scr_path    
+    filename = scr_path+'/'+fname
 
-     with open(filename,"a") as outfile:
-         outfile.write('{:9.2f}\n'.format(time))
-         outfile.write(np.array2string(mat)+'\n')
-     return
+    with open(filename,"a") as outfile:
+        outfile.write('{:9.2f}\n'.format(time))
+        outfile.write(np.array2string(mat)+'\n')
+    return
 
 #
 # print a string to the log file
 #
 def print_fms_logfile(otype,data):
-     global log_format
+    global log_format, print_level
 
-     if otype not in log_format:
-         print("CANNOT WRITE otype="+str(otype)+'\n')
-         return
+    if otype not in log_format:
+        print("CANNOT WRITE otype="+str(otype)+'\n')
+        return
 
-     filename = home_path+'/fms.log'      
-     with open(filename,'a') as logfile:
-         logfile.write(log_format[otype].format(*data))
-     return
+    if glbl.fms['print_level'] >= print_level[otype]: 
+        filename = home_path+'/fms.log'      
+        with open(filename,'a') as logfile:
+            logfile.write(log_format[otype].format(*data)) 
+    return
 
 
 #----------------------------------------------------------------------------

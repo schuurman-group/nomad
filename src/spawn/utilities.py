@@ -23,7 +23,7 @@ def fms_step_trajectory(traj, init_time, dt):
         traj0 = trajectory.copy_traj(traj)
 
         # propagate single trajectory 
-        integrator.propagate(traj,time_step)
+        integrator.propagate_trajectory(traj,time_step)
 
         # update current time
         proposed_time = current_time + time_step

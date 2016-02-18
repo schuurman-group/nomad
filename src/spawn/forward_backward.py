@@ -92,8 +92,8 @@ def spawn(master,dt):
                 if success:
                     # at this point, child is at the spawn point. Propagate backwards in time
                     # until we reach the current time
-                    spawn_backward(child, exit_time, current_time, -dt)
-                    bundle_overlap = overlap_with_bundle(child,master)
+                    spawn_backward(child, spawn_time, current_time, -dt)
+                    bundle_overlap = utilities.overlap_with_bundle(child,master)
                     if not bundle_overlap:
                         basis_grown = True
                         master.add_trajectory(child)
@@ -116,53 +116,56 @@ def spawn_forward(parent, child, initial_time, dt):
     current_time = initial_time
     spawn_time   = initial_time
     exit_time    = initial_time
+    child_created = False
 
     coup_hist = np.zeros(3,dtype=np.float)
     fileio.print_fms_logfile('spawn_start',[parent.tid, parent_state, child_state])
 
     while True:
 
-        child_create = False
         coup_hist = np.roll(coup_hist,1)
-        coup_hist[0] = parent.coup_dot_vel(child.state)
+        coup_hist[0] = abs(parent.coup_dot_vel(child_state))
+
+        child_attempt       = trajectory.copy_traj(parent)
+        child_attempt.state = child_state
+        adjust_success      = utilities.adjust_child(parent, child_attempt, parent.derivative(child_state))
+        sij = abs(parent.overlap(child_attempt))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail
         if np.all(coup_hist[0] < coup_hist[1:]):
+            sp_str = 'no [decreasing coupling]'
+            fileio.print_fms_logfile('spawn_step',[current_time,coup_hist[0],sij,sp_str])
             if child_created:
-                fileio.print_fms_logfile('spawn_success',[current_time])
+                fileio.print_fms_logfile('spawn_success',[spawn_time])
             else:
                 fileio.print_fms_logfile('spawn_failure',[current_time])
                 parent.last_spawn[child_state] = current_time
                 child.last_spawn[parent_state] = current_time
-            exit_time = current_time
+            exit_time                     = current_time
             parent.exit_time[child_state] = exit_time
             child.exit_time[parent_state] = exit_time
             break
+
         # coupling still increasing
         else:
-            child = trajectory.copy_traj(parent)
-            child.state = child_state
-            adjust_success = utilities.adjust_child(parent, child, parent.derivative(child_state))
-            sij = parent.overlap(child)
 
             # try to set up the child
             if not adjust_success:
-                fileio.print_fms_logfile('spawn_bad_step',
-                                        ['could not adjust child momentum'])
-                sp_str = 'no'
-            elif abs(sij) < glbl.fms['spawn_olap_thresh']:
-                fileio.print_fms_logfile('spawn_bad_step',
-                                        ['child-parent overlap too small'])
-                sp_str = 'no'
+                sp_str = 'no [momentum adjust fail]'
+            elif sij < glbl.fms['spawn_olap_thresh']:
+                sp_str = 'no [overlap too small]'
+            elif not np.all(coup_hist[0] > coup_hist[1:]):
+                sp_str = 'no [decreasing coupling]'
             else:
-                child_created = True
-                spawn_time = current_time
+                child = trajectory.copy_traj(child_attempt)
+                child_created                  = True
+                spawn_time                     = current_time
                 parent.last_spawn[child_state] = spawn_time
                 child.last_spawn[parent_state] = spawn_time
-                coup_max = coup_hist[0]
-                sp_str   = 'yes'
-            fileio.print_fms_logfile('spawn_step',[current_time,coup_max,abs(sij),sp_str])
+                sp_str                         = 'yes'
+
+            fileio.print_fms_logfile('spawn_step',[current_time,coup_hist[0],sij,sp_str])
 
             utilities.fms_step_trajectory(parent, current_time, dt)
             current_time = current_time + dt
@@ -173,10 +176,10 @@ def spawn_forward(parent, child, initial_time, dt):
 # propagate the child backwards in time until we reach the current time
 #
 def spawn_backward(child, current_time, end_time, dt):
-    nstep = int( np.absolute( (current_time-end_time) / dt) )
+    nstep = int(round( np.absolute( (current_time-end_time) / dt) ))
 
     back_time = current_time
-    while back_time > end_time:
+    for i in range(nstep):
         utilities.fms_step_trajectory(child,back_time,dt)
         back_time = back_time + dt
         fileio.print_fms_logfile('spawn_back',[back_time])
