@@ -9,7 +9,7 @@ def propagate(master,dt):
     dt_2 = dt / 2.
     dt_6 = dt / 6.
 
-    for i in range(master.n_total()):
+    for i in range(master.n_traj()):
    
         if not master.traj[i].alive:
             continue

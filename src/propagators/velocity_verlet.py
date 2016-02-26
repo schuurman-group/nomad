@@ -1,5 +1,6 @@
 import numpy as np
 import src.dynamics.timings as timings
+import src.dynamics.surface as surface 
 #
 # all propagators have to define a function "propagate" that takes
 # a trajectory argument and a time step argument
@@ -20,40 +21,23 @@ def propagate_bundle(master,dt):
     #
     # update position
     #
-    for i in range(master.n_total()):
+    for i in range(master.n_traj()):
         
         if not master.traj[i].alive:
             continue
 
         propagate_position(master.traj[i], dt)
 
+    # 
+    # update electronic structure for all trajectories
+    # and centroids (where necessary)
     #
-    # update electronic structure 
-    #
-    for i in range(master.n_total()):
-        if not master.traj[i].alive:
-            continue
-        master.traj[i].evaluate_trajectory()
-    #
-    # update the centroids, if we need them to evaluate the hamiltonian
-    # matrix elements
-    #
-    if master.ints.require_centroids:
-        # update the geometries
-        master.update_centroids()
-        # now update electronic structure in a controled way to allow for
-        # parallelization
-        for i in range(len(master.cent)):
-            #
-            # if centroid not initialized, skip it
-            if not master.cent[i]:
-                continue
-            master.cent[i].evaluate_centroid()
+    surface.update_pes(master)
 
     #
     # finish update of momentum and phase 
     #
-    for i in range(master.n_total()):
+    for i in range(master.n_traj()):
         if not master.traj[i].alive:
             continue
 
@@ -78,7 +62,7 @@ def propagate_trajectory(traj, dt):
     propagate_position(traj, dt)
 
     # update electronic structure 
-    traj.evaluate_trajectory()
+    surface.update_pes_traj(traj)
   
     # momentum/phase update
     propagate_momentum(traj, dt)

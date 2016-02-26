@@ -141,7 +141,7 @@ def overlap_with_bundle(trajectory,bundle):
 
     t_overlap_bundle = False
 
-    for i in range(bundle.n_total()):
+    for i in range(bundle.n_traj()):
         if bundle.traj[i].alive:
 
             sij = trajectory.overlap(bundle.traj[i],st_orthog=True)

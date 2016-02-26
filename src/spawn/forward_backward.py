@@ -36,12 +36,12 @@ def spawn(master,dt):
     # we want to have know the history of the coupling for each trajectory
     # in order to assess spawning criteria -- make sure coup_hist has a slot
     # for every trajectory
-    if len(coup_hist) < master.n_total():
-        n_add = master.n_total() - len(coup_hist)
+    if len(coup_hist) < master.n_traj():
+        n_add = master.n_traj() - len(coup_hist)
         for i in range(n_add):
             coup_hist.append(np.zeros((master.nstates,3),dtype=np.float))
 
-    for i in range(master.n_total()):
+    for i in range(master.n_traj()):
 
         # only live trajectories can spawn
         if not master.traj[i].alive:
@@ -55,7 +55,7 @@ def spawn(master,dt):
 
             # check overlap with other trajectories
             max_sij = 0.
-            for j in range(master.n_total()):
+            for j in range(master.n_traj()):
                 if master.traj[j].alive and master.traj[j].state == st:
                     sij = abs(master.traj[i].overlap(master.traj[j]))
                     if sij > max_sij:
@@ -118,13 +118,13 @@ def spawn_forward(parent, child, initial_time, dt):
     exit_time    = initial_time
     child_created = False
 
-    coup_hist = np.zeros(3,dtype=np.float)
+    coup = np.zeros(3,dtype=np.float)
     fileio.print_fms_logfile('spawn_start',[parent.tid, parent_state, child_state])
 
     while True:
 
-        coup_hist = np.roll(coup_hist,1)
-        coup_hist[0] = abs(parent.coup_dot_vel(child_state))
+        coup = np.roll(coup,1)
+        coup[0] = abs(parent.coup_dot_vel(child_state))
 
         child_attempt       = trajectory.copy_traj(parent)
         child_attempt.state = child_state
@@ -133,9 +133,9 @@ def spawn_forward(parent, child, initial_time, dt):
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail
-        if np.all(coup_hist[0] < coup_hist[1:]):
+        if np.all(coup[0] < coup[1:]):
             sp_str = 'no [decreasing coupling]'
-            fileio.print_fms_logfile('spawn_step',[current_time,coup_hist[0],sij,sp_str])
+            fileio.print_fms_logfile('spawn_step',[current_time,coup[0],sij,sp_str])
             if child_created:
                 fileio.print_fms_logfile('spawn_success',[spawn_time])
             else:
@@ -155,7 +155,7 @@ def spawn_forward(parent, child, initial_time, dt):
                 sp_str = 'no [momentum adjust fail]'
             elif sij < glbl.fms['spawn_olap_thresh']:
                 sp_str = 'no [overlap too small]'
-            elif not np.all(coup_hist[0] > coup_hist[1:]):
+            elif not np.all(coup[0] > coup[1:]):
                 sp_str = 'no [decreasing coupling]'
             else:
                 child = trajectory.copy_traj(child_attempt)
@@ -165,7 +165,7 @@ def spawn_forward(parent, child, initial_time, dt):
                 child.last_spawn[parent_state] = spawn_time
                 sp_str                         = 'yes'
 
-            fileio.print_fms_logfile('spawn_step',[current_time,coup_hist[0],sij,sp_str])
+            fileio.print_fms_logfile('spawn_step',[current_time,coup[0],sij,sp_str])
 
             utilities.fms_step_trajectory(parent, current_time, dt)
             current_time = current_time + dt

@@ -1,27 +1,25 @@
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
+from src.fmsio import glbl
 
 comp_properties = False
 
-ncrd    = 4 
-C       = np.zeros(ncrd,dtype=np.float)
-omega   = np.zeros(ncrd,dtype=np.float)
-omega_c = 0.
-delta   = 0.
-#
 #
 #
 def init_interface():
    global C, omega, omega_c, delta, ncrd
 
+   ncrd    = 4
    omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
    delta   = 1.
-   omega_c = 2.5 * delta 
+   omega_c = 2.5 * delta
    d_omega = 1.33
    alpha   = glbl.boson['coupling'] 
-   C = np.asarray([math.sqrt(d_omega * alpha * omega[i] * math.exp(-omega[i]/omega_c)) for i in range(ncrd)])
+   C = np.array([math.sqrt(d_omega * alpha * omega[i] * math.exp(-omega[i]/omega_c)) for i in range(ncrd)])
 
+#
+# evaluate trajectory energy and gradients
+#
 def evaluate_trajectory(tid, geom, t_state):
    global ncrd
 
@@ -34,7 +32,7 @@ def evaluate_trajectory(tid, geom, t_state):
    return[gm,eners,grads]
 
 #
-#
+# evaluate energy in boson model
 #
 def energy(geom):
     global ncrd, omega, C
@@ -57,8 +55,8 @@ def energy(geom):
 #
 def derivative(geom, t_state):
     global ncrd, omega, C, delta
-    grads = np.zeros((2,ncrd),dtype=np.float)
 
+    grads = np.zeros((2,ncrd),dtype=np.float)
     sgn = -1 + 2*t_state
     for i in range(2):
         if t_state == i:
@@ -67,4 +65,50 @@ def derivative(geom, t_state):
             coup = delta / abs(sum(2 * C[i] * geom[i] for i in range(ncrd)))
             grads[i,:] = np.array([coup for j in range(ncrd)],dtype=np.float)      
     return grads 
+
+
+#
+# evaluate worker for parallel job (global variables passed as parameters)
+#
+def evaluate_worker(packet, global_var):
+   global ncrd, omega, C, delta
+
+   tid = packet[0]
+   geom = packet[1]
+   t_state = packet[2]
+
+   set_global_vars(global_var)
+
+   xval = [geom[i].x[0] for i in range(len(geom))]
+   dims = [geom[i].dim for i in range(len(geom))]
+
+   gm = np.array([geom[i].x[j] for i in range(ncrd)
+                               for j in range(geom[i].dim)],dtype=np.float)
+
+   eners = energy(gm)
+   grads = derivative(gm, t_state)
+
+   return[gm,eners,grads]
+
+#
+# return the value of global variables 
+#
+def set_global_vars(gvars):
+    global ncrd,omega,C,delta
+
+    ncrd  = gvars[0]
+    omega = gvars[1]
+    delta = gvars[2]
+    C     = gvars[3]
+ 
+    return
+
+#
+# package global variables into a list
+#
+def get_global_vars():
+    global ncrd,omega,C,delta
+
+    return [ncrd, omega, delta, C]
+
 

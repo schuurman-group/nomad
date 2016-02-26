@@ -107,7 +107,7 @@ def check_step_bundle(master0, master, time_step):
     #  ... or energy conservation
     #  (only need to check traj which exist in master0. If spawned, will be
     #  last entry(ies) in master
-    for i in range(master0.n_total()):
+    for i in range(master0.n_traj()):
         if not master0.traj[i].alive:
             continue
         energy_old = master0.traj[i].potential() +  \

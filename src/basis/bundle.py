@@ -3,12 +3,19 @@ import copy
 import cmath
 import scipy as sp
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.particle as particle
-import src.basis.trajectory as trajectory
-import src.basis.build_hamiltonian as mbuild
+from src.dynamics import timings
+from src.fmsio import glbl as glbl
+from src.fmsio import fileio as fileio
+from src.basis import particle as particle
+from src.basis import trajectory as trajectory
+from src.basis import build_hamiltonian as mbuild
+
+#import src.dynamics.timings as timings
+#import src.fmsio.glbl as glbl
+#import src.fmsio.fileio as fileio
+#import src.basis.particle as particle
+#import src.basis.trajectory as trajectory
+#import src.basis.build_hamiltonian as mbuild
 #
 # this method is the simplest way i can see to make a copy
 # of a bundle with new references. Overriding deepcopy for
@@ -28,7 +35,7 @@ def copy_bundle(orig_bundle):
     new_bundle.S      = copy.deepcopy(orig_bundle.S)
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
-    for i in range(new_bundle.n_total()):
+    for i in range(new_bundle.n_traj()):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
     for i in range(len(orig_bundle.cent)):
@@ -87,8 +94,12 @@ class bundle:
             print("BUNDLE INIT FAIL: src.integrals."+self.integrals)
 
     # total number of trajectories
-    def n_total(self):
+    def n_traj(self):
         return self.nalive + self.ndead
+
+    # return length of centroid array
+    def n_cent(self):
+        return len(self.cent)
 
     # add trajectory to the bundle. 
     def add_trajectory(self,new_traj):
@@ -96,7 +107,7 @@ class bundle:
         self.traj.append(new_traj)
         self.traj[-1].alive = True
         self.nalive        += 1
-        self.traj[-1].tid   = self.n_total() - 1
+        self.traj[-1].tid   = self.n_traj() - 1
         self.alive.append(self.traj[-1].tid)
         self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
         self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
@@ -112,7 +123,7 @@ class bundle:
             self.traj.append(traj_list[i])
             self.nalive        += 1
             self.traj[-1].alive = True
-            self.traj[-1].tid   = self.n_total()-1
+            self.traj[-1].tid   = self.n_traj()-1
             self.alive.append(self.traj[-1].tid)
         self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
@@ -202,7 +213,7 @@ class bundle:
         timings.start('bundle.renormalize')
         current_pop = self.pop() 
         norm = 1./ np.sqrt(sum(current_pop))
-        for i in range(self.n_total()):
+        for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
         timings.stop('bundle.renormalize')
         return                       
@@ -292,9 +303,9 @@ class bundle:
     def pot_classical(self):
         timings.start('bundle.pot_classical')
         weight = np.array([self.traj[i].amplitude * 
-                           self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
+                           self.traj[i].amplitude.conjugate() for i in range(self.n_traj())])
         v_int  = np.array([self.ints.v_integral(self.traj[i], 
-                                                self.traj[i]) for i in range(self.n_total())])
+                                                self.traj[i]) for i in range(self.n_traj())])
         timings.stop('bundle.pot_classical')
         return sum(weight * v_int).real
 
@@ -323,8 +334,8 @@ class bundle:
     # 
     def kin_classical(self):
         timings.start('bundle.kin_classical')
-        weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_total())])
-        ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_total())])
+        weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_traj())])
+        ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_traj())])
         timings.stop('bundle.kin_classical')
         return sum(weight * ke_int).real
  
@@ -361,6 +372,22 @@ class bundle:
     def tot_quantum(self):
         return self.pot_quantum() + self.kin_quantum()
 
+    #
+    # overlap integral of bundle with another bundle
+    #
+    def overlap(self,other):
+        S = np.complex(0.,0.)
+        for i in range(self.n_traj()):
+            if not self.traj[i].alive:
+                continue
+            for j in range(other.n_traj()):
+                if not other.traj[j].alive:
+                    continue
+                S += self.traj[i].overlap(other.traj[j]) * \
+                     self.traj[i].amplitude.conjugate()  * \
+                     other.traj[j].amplitude
+        return S
+
 #-----------------------------------------------------------------------
 # 
 # Private methods/functions (called only within the class)
@@ -371,27 +398,27 @@ class bundle:
 
         timings.start('bundle.update_centroids')
 
-        for i in range(self.n_total()):  
+        for i in range(self.n_traj()):  
             if not self.traj[i].alive:
                 continue
-                wid_i = self.traj[i].widths()
-                for j in range(i):
-                    if not self.traj[j].alive:
-                        continue
-                    # first check that we have added trajectory i or j (i.e.
-                    # that the cent array is long enough, if not, append the
-                    # appropriate number of slots (just do this once for 
-                    if len(self.cent) < self.cent_len(i):
-                        n_add = self.cent_len(i) - len(self.cent)
-                        for k in range(n_add):
-                            self.cent.append(None)
-                    # now check to see if needed index has an existing trajectory
-                    # if not, copy trajectory from one of the parents into the
-                    # required slots 
-                    ij_ind = cent_ind(i,j)
-                    if self.cent[ij_ind] is None:
-                        self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
-                        self.cent[ij_ind].tid = -ij_ind
+            wid_i = self.traj[i].widths()
+            for j in range(i):
+                if not self.traj[j].alive:
+                    continue
+                # first check that we have added trajectory i or j (i.e.
+                # that the cent array is long enough, if not, append the
+                # appropriate number of slots (just do this once for 
+                if len(self.cent) < self.cent_len(i):
+                    n_add = self.cent_len(i) - len(self.cent)
+                    for k in range(n_add):
+                        self.cent.append(None)
+                # now check to see if needed index has an existing trajectory
+                # if not, copy trajectory from one of the parents into the
+                # required slots 
+                ij_ind = cent_ind(i,j)
+                if self.cent[ij_ind] is None:
+                    self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
+                    self.cent[ij_ind].tid = -ij_ind
                     # now update the position in phase space of the centroid
                     # if wid_i == wid_j, this is clearly just the simply mean position.
                     wid_j = self.traj[j].width() 
@@ -430,7 +457,7 @@ class bundle:
 
         timings.start('bundle.update_logs')
  
-        for i in range(self.n_total()):
+        for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
 

@@ -3,6 +3,8 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
+import src.basis.bundle as bundle
+import src.dynamics.surface as surface
 #--------------------------------------------------------------------------
 #
 # Externally visible routines
@@ -13,6 +15,7 @@ import src.basis.trajectory as trajectory
 #
 def init_bundle(master):
     pes = __import__("src.interfaces."+glbl.fms['interface'],fromlist=['NA'])
+    distrib = __import__("src.dynamics."+glbl.fms['init_sampling'],fromlist=['NA'])
 
     #
     # initialize the trajectory and bundle output files
@@ -25,40 +28,38 @@ def init_bundle(master):
     #    will want to know about
     pes.init_interface()
 
-    # 
-    # now load the initial trajectories into the bundle
     #
+    # initialize the surface module -- caller of the pes interface
+    #
+    surface.init_surface(glbl.fms['interface'])
+
+    # now load the initial trajectories into the bundle
     if(glbl.fms['restart']):
         init_restart(master)
     else:
-        init_trajectories(master)
+        # sample the requested phase distribution, some methods may also set the
+        # electronic state of the trajectory. If so, don't call set_initial_state
+        # separately
+        state_set = distrib.sample_distribution(master)
+        # set the initial state of the trajectories in bundle. This may require
+        # evaluation of electronic structure
+        if not state_set:
+            set_initial_state(master)
 
-    #
-    # run the t=0 summaries
-    #
-    for i in range(master.n_total()):
-        if not master.traj[i].alive:
-            continue
-        master.traj[i].evaluate_trajectory()
-    #
-    # update the centroids, if we need them to evaluate the hamiltonian
-    # matrix elements
-    #
-    if master.ints.require_centroids:
-        # update the geometries
-        master.update_centroids()
-        # now update electronic structure in a controled way to allow for
-        # parallelization
-        for i in range(len(master.cent)):
-            #
-            # if centroid not initialized, skip it
-            if not master.cent[i]:
-                continue
-            master.cent[i].evaluate_centroid()
+    # add virtual basis functions, if desired (i.e. virtual basis = true)
+    if glbl.fms['virtual_basis']:
+        virtual_basis(master)
 
+    # update all pes info for all trajectories and centroids (where necessary)
+    surface.update_pes(master)
+    # compute the hamiltonian matrix...
     master.update_matrices()
+    # so that we may appropriately renormalize to unity
     master.renormalize()
     master.update_logs()
+
+    # this is the bundle at time t=0.  Save in order to compute auto correlation function
+    glbl.bundle0 = bundle.copy_bundle(master)
 
     fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
 
@@ -84,55 +85,48 @@ def init_restart(master):
     return
 
 #
-#  initialize the t=0 set of trajectories
-#
-def init_trajectories(master):
-    distrib = __import__("src.dynamics."+glbl.fms['init_sampling'],fromlist=['NA'])
-
-    #
-    # sample the requested phase distribution
-    #
-    distrib.sample_distribution(master)
-
-    #
-    # determine the initial state of each trajectory
-    #
-    set_initial_state(master)
-    return
-
-#
 # set the initial state of the trajectories in the bundle
 #
 def set_initial_state(master):
- 
-    #
-    # determine
-    # 
+     
     if glbl.fms['init_state'] != -1:
-        for i in range(master.n_total()):
+        for i in range(master.n_traj()):
             master.traj[i].state = glbl.fms['init_state']
+
     elif glbl.fms['init_brightest']:
-        for i in range(master.n_total()):
-            master.traj[i].state = 1
+
+        # set all states to the ground state 
+        for i in range(master.n_traj()):
+            master.traj[i].state = 0
+
+        # compute transition dipoles
+        surface.update_pes(master)
+        
+        # set the initial state to the one with largest t. dip.
+        for i in range(master.n_traj()):
             tdip =(np.linalg.norm(master.traj[i].dipole(j)) for j
-                                    in range(2,glbl.fms['n_states']+1))
-            master.traj[i].state = np.argmax(tdip)+2
+                                    in range(1,glbl.fms['n_states']+1))
+            master.traj[i].state = np.argmax(tdip)+1
+
     else:
         print("ERROR: Ambiguous initial state assignment")
         sys.exit()
 
-    #
-    # if mirror basis, put zero amplitude functions on all other states
-    #
-    if glbl.fms['mirror_basis']: 
-        for i in range(master.n_total()):
-            for j in range(master.nstates):
+#
+# if additional virtual basis functions requested, for each trajectory
+# in bundle, add aditional basis functions on other states with zero
+# amplitude
+#
+def virtual_basis(master):
+    for i in range(master.n_traj()):
+        for j in range(master.nstates):
 
-                if j == master.traj[i].state:
-                    continue
+            if j == master.traj[i].state:
+                continue
        
-                new_traj = trajectory.copy_traj(master.traj[i]) 
-                new_traj.amplitude = np.complex(0.,0.)
-                new_traj.state     = j
-                master.add_trajectory(new_traj)
-  
+            new_traj = trajectory.copy_traj(master.traj[i]) 
+            new_traj.amplitude = np.complex(0.,0.)
+            new_traj.state     = j
+            master.add_trajectory(new_traj)
+
+    return  

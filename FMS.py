@@ -1,4 +1,7 @@
-def main(): 
+import os
+from pyspark import SparkContext
+
+def main(sc): 
     import sys
     import random
     import numpy as np
@@ -13,6 +16,11 @@ def main():
     # start the master timer
     #
     timings.start('global')
+  
+    # 
+    # set the sparkContext, if running on cluster
+    # 
+    glbl.sc = sc
 
     #
     # read in options/variables pertaining to the running 
@@ -54,4 +62,15 @@ def main():
     fileio.cleanup()
 
 if __name__ == "__main__":
-    main()
+    if True:
+        sc     = SparkContext("local[4]", "FMS job queue")
+    else:
+        sc     = None
+
+    pypath     = os.environ['PYTHONPATH']
+    fmspy_path = os.environ['FMSPY_PATH'] 
+
+    os.environ['PYTHONPATH'] = pypath+":"+fmspy_path
+
+    main(sc)
+

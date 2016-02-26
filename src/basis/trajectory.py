@@ -7,7 +7,7 @@ import src.basis.particle as particle
 
 def copy_traj(orig_traj):
     timings.start('trajectory.copy_traj')
-    new_traj = trajectory(orig_traj.interface, orig_traj.nstates)
+    new_traj = trajectory(orig_traj.nstates)
     p_list = []
     for i in range(orig_traj.n_particle):
         p_list.append(particle.copy_part(orig_traj.particles[i]))
@@ -35,9 +35,7 @@ def copy_traj(orig_traj):
 
 class trajectory:
 
-    def __init__(self,interface,nstates,particles=None,tid=0,parent=0,n_basis=0):
-        # potential interface employed
-        self.interface  = interface
+    def __init__(self,nstates,particles=None,tid=0,parent=0,n_basis=0):
         # total number of states
         self.nstates    = nstates
         # allow for population of trajectory particles via set_particles
@@ -85,10 +83,6 @@ class trajectory:
         self.sec_moms   = np.zeros((self.nstates,self.d_particle),dtype=np.float)
         # electronic populations on the atoms
         self.atom_pops  = np.zeros((self.nstates,self.n_particle),dtype=np.float)
-        try:
-            self.pes = __import__('src.interfaces.'+self.interface,fromlist=['NA'])
-        except:
-            print("INTERFACE FAIL: "+self.interface)
 
     #-------------------------------------------------------------------
     #
@@ -151,6 +145,22 @@ class trajectory:
         self.amplitude = amplitude
         return
 
+    #
+    # update information about the potential energy surface
+    #
+    def update_pes(self, pes_info):
+        self.pes_geom  = pes_info[0]
+        self.poten     = pes_info[1]
+        # centroids do not necessarily require gradient info
+        if len(pes_info) >= 3:
+            self.deriv     = pes_info[2]
+        # if we have electronic structure info
+        if len(pes_info) == 6:
+            self.dipoles   = pes_info[3]
+            self.sec_moms  = pes_info[4]
+            self.atom_pops = pes_info[5]
+        return
+
     #-----------------------------------------------------------------------
     # 
     # Functions for retrieving basic pes information from trajectory
@@ -194,33 +204,6 @@ class trajectory:
     # Functions to update information about the potential energy surface
     #
     #--------------------------------------------------------------------
-
-    #
-    # evaluate trajectory
-    #
-    def evaluate_trajectory(self):
-        surf_info = self.pes.evaluate_trajectory(self.tid, self.particles, self.state)
-        self.pes_geom  = surf_info[0]
-        self.poten     = surf_info[1]
-        self.deriv     = surf_info[2]
-        if self.pes.comp_properties:
-            self.dipoles   = surf_info[3]
-            self.sec_moms  = surf_info[4]
-            self.atom_pops = surf_info[5]
-        return
-
-    #
-    # evaluate the necessary information at a centroid
-    #
-    def evaluate_centroid(self):
-        if self.c_state == -1:
-            print("attempting to evaluate centroid, "+
-                  "but second state not defined. ID="+str(self.tid))
-        surf_info  = self.pes.evaluate_centroid(self.tid, self.particles, self.state, self.c_state)
-        self.pes_geom = surf_info[0]
-        self.poten    = surf_info[1]
-        if self.state != self.c_state:
-            self.deriv = surf_info[2]
 
     #
     # return the potential energies. Add the energy shift right here. If not current, recompute them

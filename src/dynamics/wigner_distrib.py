@@ -13,7 +13,6 @@ def sample_distribution(master):
     hessian     = utils.load_hessian()
 
     origin_traj = trajectory.trajectory(
-                          glbl.fms['interface'],
                           glbl.fms['n_states'],
                           particles=phase_gm,
                           parent=0)
@@ -75,12 +74,13 @@ def sample_distribution(master):
             disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]
 
         new_traj = trajectory.trajectory(
-                          glbl.fms['interface'],
                           glbl.fms['n_states'],
                           particles=disp_gm,
                           parent=0)
+        # with unit amplitude
         new_traj.amplitude = new_traj.overlap(origin_traj)
         master.add_trajectory(new_traj)
-
-    return
+ 
+    # state of trajectory not set, return False
+    return False
 

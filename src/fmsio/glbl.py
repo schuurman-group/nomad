@@ -11,6 +11,10 @@ mass2au     = 1822.887
 au2cm       = 219474.63
 # floating point zero
 fpzero      = 1.e-10
+# spark context
+sc          = None
+# t=0 bundle
+bundle0     = None
  
 #
 # Simulation parameters read form the fms.input file
@@ -47,7 +51,7 @@ fms = dict(
        print_es               = 1,
        print_matrices         = 1,
        print_chkpt            = 1,
-       mirror_basis           = 0,
+       virtual_basis          = 0,
        print_level            = 1
           )
 

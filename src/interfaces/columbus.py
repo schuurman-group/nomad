@@ -11,8 +11,6 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.particle as particle
-import src.basis.trajectory as trajectory
-import src.basis.bundle as bundle 
 
 # set to true if we want to compute electronic structure properties
 comp_properties = True
@@ -45,12 +43,6 @@ max_l        = 1
 mrci_lvl     = 0
 # amount of memory per process, in MB
 mem_str      = ''
-current_geom = dict()
-energies     = dict()
-atom_pops     = dict()
-dip_moms     = dict()
-sec_moms     = dict()
-gradients    = dict()
 
 #----------------------------------------------------------------
 # 
@@ -107,7 +99,7 @@ def init_interface():
                                                 'orbitals per irrep'))
     n_mcstates             = int(read_nlist_keyword('input/mcscfin',
                                                 'NAVST'))
-    n_cistates              = int(read_nlist_keyword('input/ciudgin.drt1',
+    n_cistates             = int(read_nlist_keyword('input/ciudgin.drt1',
                                                 'NROOT'))
     mrci_lvl               = int(read_pipe_keyword('input/cidrtmsin',
                                                  'maximum excitation level'))
@@ -124,35 +116,44 @@ def init_interface():
 # evaluate all requested electronic structure information for a single trajectory
 #
 def evalutate_trajectory(tid, geom, state):
-    global current_geom, energies, gradients, dip_moms, sec_moms, atom_pops
 
-    if not in_cache(tid,geom):
-        if tid < 0:
-            print("evaluate_trajectory called with "+
-                  "id associated with centroid, tid="+str(tid))
-        run_trajectory(tid, geom, state)
+    if tid < 0:
+        print("evaluate_trajectory called with "+
+              "id associated with centroid, tid="+str(tid))
+    surf_info = run_trajectory(tid, geom, state)
 
-    rlist = [current_geom[tid], energies[tid], gradients[tid],  
-                 dip_moms[tid], sec_moms[tid], atom_pops[tid]]
-    return rlist
+    return surf_info 
 
 #
 # evaluate all requested electronic structure information at a centroid
 #
 def evalutate_centroid(tid, geom, state_i , state_j):
-    global current_geom, energies, gradients
 
-    if not in_cache(tid,geom):
-        if tid >= 0:
-            print("evaluate_centroid called with "+
-                  "id associated with trajectory, tid="+str(tid))
-        run_centroid(tid, geom, state_i, state_j)
+    if tid >= 0:
+        print("evaluate_centroid called with "+
+              "id associated with trajectory, tid="+str(tid))
+    surf_info = run_centroid(tid, geom, state_i, state_j)
 
-    # this is appropriate for first-order saddle point
-    rlist = [current_geom[tid], energies[tid]]
-    if state_i != state_j:
-        rlist.append(gradients[tid])
-    return rlist
+    return surf_info 
+
+#
+# evaluate worker on a slave node
+#
+def evaluate_worker(args, global_vars):
+
+    tid    = args[0]
+    geom   = args[1]
+    tstate = args[2]
+    cstate = args[3]
+
+    set_global_vars(global_vars)
+
+    if tid >= 0:
+        surf_info = run_trajectory(tid, geom, tstate)
+    else:
+        surf_info = run_centroid(tid, geom, tstate, cstate)
+
+    return surf_info
 
 
 #----------------------------------------------------------------
@@ -160,7 +161,7 @@ def evalutate_centroid(tid, geom, state_i , state_j):
 #  "Private" functions
 #
 #----------------------------------------------------------------
-def in_cache(tid,geom):
+def in_cache(tid, geom):
     global current_geom, n_atoms, p_dim
 
     if tid not in current_geom:
@@ -762,6 +763,47 @@ def get_adiabatic_phase(new_coup, old_coup):
         return 1.
     else:
         return -1.
+
+#----------------------------------------------------------------
+#
+# methods for setting and passing global variables (necessary for
+# parallel runs
+#
+#---------------------------------------------------------------
+def get_global_vars():
+    global input_path, work_path, restart_path, \
+           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
+           max_l,mrci_lvl,mem_str
+
+    gvars = [input_path, work_path, restart_path]
+    gvars.extend[p_dim, n_atoms, n_cart, n_drt]
+    gvars.extend[n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str]
+
+    return gvars
+  
+#
+# set the global variables
+#
+def set_global_vars(gvars):
+    global input_path, work_path, restart_path, \
+           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
+           max_l,mrci_lvl,mem_str
+
+    input_path   = gvars[0]
+    work_path    = gvars[1]
+    restart_path = gvars[2]
+    p_dim        = gvars[3]
+    n_atoms      = gvars[4]
+    n_cart       = gvars[5]
+    n_drt        = gvars[6]
+    n_orbs       = gvars[7]
+    n_mcstates   = gvars[8]
+    n_cistates   = gvars[9]
+    max_l        = gvars[10]
+    mrci_lvl     = gvars[11]
+    mem_str      = gvars[12]
+    
+    return
 
 #-----------------------------------------------------------------
 #
