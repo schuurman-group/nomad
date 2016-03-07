@@ -1,5 +1,5 @@
 import os
-from pyspark import SparkContext
+#from pyspark import SparkContext
 
 def main(sc): 
     import sys
@@ -62,15 +62,13 @@ def main(sc):
     fileio.cleanup()
 
 if __name__ == "__main__":
-    if True:
+    if False:
+        pypath     = os.environ['PYTHONPATH']
+        fmspy_path = os.environ['FMSPY_PATH']
+        os.environ['PYTHONPATH'] = pypath+":"+fmspy_path
         sc     = SparkContext("local[4]", "FMS job queue")
     else:
         sc     = None
-
-    pypath     = os.environ['PYTHONPATH']
-    fmspy_path = os.environ['FMSPY_PATH'] 
-
-    os.environ['PYTHONPATH'] = pypath+":"+fmspy_path
 
     main(sc)
 

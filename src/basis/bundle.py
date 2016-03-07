@@ -106,7 +106,7 @@ class bundle:
         timings.start('bundle.add_trajectory')
         self.traj.append(new_traj)
         self.traj[-1].alive = True
-        self.nalive        += 1
+        self.nalive         += 1
         self.traj[-1].tid   = self.n_traj() - 1
         self.alive.append(self.traj[-1].tid)
         self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
@@ -256,6 +256,14 @@ class bundle:
                                for i in range(len(self.alive))],dtype=np.complex)
 
     #
+    # set the value of the amplitudes
+    #
+    def set_amplitudes(self, amps):
+        for i in range(self.nalive):
+            self.traj[self.alive[i]].amplitude = amps[i]
+        return
+
+    #
     # return the Mulliken-like population 
     #
     def mulliken_pop(self,tid):
@@ -322,9 +330,9 @@ class bundle:
             v_int  = self.V[i,i]
             energy += (weight * v_int).real
             for j in range(i):
-                jj = self.alive[j]
+                jj     = self.alive[j]
                 weight = self.traj[jj].amplitude * self.traj[ii].amplitude.conjugate()
-                v_int = self.V[i,j]
+                v_int  = self.V[i,j]
                 energy += 2.0 * (weight * v_int).real
         timings.stop('bundle.pot_quantum')
         return energy
@@ -351,10 +359,8 @@ class bundle:
             ke_int = self.T[i,i]
             energy += (weight * ke_int).real
             for j in range(i):
-                jj = self.alive[j]
-                if self.traj[ii].state !=  self.traj[j].state:
-                    continue
-                weight = self.traj[j].amplitude * self.traj[i].amplitude.conjugate()
+                jj     = self.alive[j]
+                weight = self.traj[jj].amplitude * self.traj[ii].amplitude.conjugate()
                 ke_int = self.T[i,j]
                 energy += 2.0 * (weight * ke_int).real
         timings.stop('bundle.kin_quantum')
@@ -377,15 +383,13 @@ class bundle:
     #
     def overlap(self,other):
         S = np.complex(0.,0.)
-        for i in range(self.n_traj()):
-            if not self.traj[i].alive:
-                continue
-            for j in range(other.n_traj()):
-                if not other.traj[j].alive:
-                    continue
-                S += self.traj[i].overlap(other.traj[j]) * \
-                     self.traj[i].amplitude.conjugate()  * \
-                     other.traj[j].amplitude
+        for i in range(self.nalive):
+            for j in range(other.nalive):
+                ii = self.alive[i]
+                jj = self.alive[j]
+                S += self.traj[ii].overlap(other.traj[jj]) * \
+                      self.traj[ii].amplitude.conjugate()  * \
+                     other.traj[jj].amplitude
         return S
 
 #-----------------------------------------------------------------------
