@@ -9,13 +9,17 @@ comp_properties = False
 def init_interface():
    global C, omega, omega_c, delta, ncrd
 
-   ncrd    = 4
-   omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
-   delta   = 1.
-   omega_c = 2.5 * delta
+   ncrd    = 1 
+#   omega   = np.asarray([0.01, 1.34, 2.67, 4.00], dtype=np.float)
+   omega   = np.asarray([1.34],dtype=np.float)  
+#   delta   = 1.
+   delta   = 0.
+#   omega_c = 2.5 * delta
+   omega_c = 2.5
    d_omega = 1.33
    alpha   = glbl.boson['coupling'] 
-   C = np.array([math.sqrt(d_omega * alpha * omega[i] * math.exp(-omega[i]/omega_c)) for i in range(ncrd)])
+#   C = np.array([math.sqrt(d_omega * alpha * omega[i] * math.exp(-omega[i]/omega_c)) for i in range(ncrd)])
+   C = np.array([0. for i in range(ncrd)])
 
 #
 # evaluate trajectory energy and gradients
@@ -60,9 +64,11 @@ def derivative(geom, t_state):
     sgn = -1 + 2*t_state
     for i in range(2):
         if t_state == i:
-            grads[i,:] = np.array([omega[i]*geom[i] + sgn*C[i] for i in range(ncrd)],dtype=np.float)
+#            grads[i,:] = np.array([omega[i]*geom[i] + sgn*C[i] for i in range(ncrd)],dtype=np.float)
+            grads[i,:] = np.array([omega[i]*geom[i] for i in range(ncrd)],dtype=np.float)
         else:
-            coup = delta / abs(sum(2 * C[i] * geom[i] for i in range(ncrd)))
+#            coup = delta / abs(sum(2 * C[i] * geom[i] for i in range(ncrd)))
+            coup = 0.
             grads[i,:] = np.array([coup for j in range(ncrd)],dtype=np.float)      
     return grads 
 
