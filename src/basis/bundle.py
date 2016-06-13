@@ -149,7 +149,7 @@ class bundle:
     #
     # update the amplitudes of the trajectories in the bundle
     #
-    def update_amplitudes(self, dt, n_max):
+    def update_amplitudes(self, dt, n_max, H=None, Ct=None):
         # Solve:
         #  d/dt C = -i H C
         #
@@ -173,11 +173,22 @@ class bundle:
 
         self.update_matrices()
 
-        old_amp   = self.amplitudes()
+        # we may want the option of using different Hamiltonian matrix (i.e. some
+        # integrators will solve this equation at t=t', where t' != tcurrent)
+        if H.all():
+            Hmat = H
+        else:
+            Hmat = self.Heff
+        # same with the amplitdues (see above)
+        if Ct.all():
+            old_amp = Ct
+        else:
+            old_amp = self.amplitudes()
+ 
         new_amp   = np.zeros(self.nalive,dtype=np.complex)
         Id        = np.identity(self.nalive,dtype=np.complex)
 
-        B = -complex(0.,1.) * self.Heff * dt
+        B = -complex(0.,1.) * Hmat * dt
 
         prev_amp = np.zeros(self.nalive,dtype=np.complex) 
         for n in range(1,n_max+1):
