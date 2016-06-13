@@ -26,7 +26,7 @@ def v_integral(traj1, traj2, S_ij=None):
         v_int = np.complex(0.,0.)
         for k in range(boson.ncrd):
             a = (1. + 1.)
-            b = 2. * 1. * (pos1[k] + pos2[k]) + np.complex(0.,1)*(mom2[k] - mom1[k])
+            b = 2. * 1. * (pos1[k] + pos2[k]) + np.complex(0.,1.)*(mom2[k] - mom1[k])
             v_int += 0.5 * boson.omega[k] * (2*a + b**2)/(4 * a**2) + sgn * boson.C[k] * b/(2*a)
         return v_int * S_ij 
     else:
@@ -42,7 +42,8 @@ def ke_integral(traj1, traj2, S_ij=None):
         if not S_ij:
             S_ij = traj1.overlap(traj2)    
         for k in range(boson.ncrd):
-            ke_int -= boson.omega[k] * traj1.particles[k].deld2x(traj2.particles[k])
+#            ke_int -= boson.omega[k] * traj1.particles[k].deld2x(traj2.particles[k])
+            ke_int -= traj1.particles[k].deld2x(traj2.particles[k])
         return 0.5 * ke_int * S_ij
     else:
         return ke_int
