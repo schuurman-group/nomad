@@ -55,8 +55,6 @@ def init_bundle(master):
     
     # compute the hamiltonian matrix...
     master.update_matrices()
-    print("HERE?")
-    sys.exit()
     
     # so that we may appropriately renormalize to unity
     master.renormalize()
