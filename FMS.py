@@ -27,7 +27,7 @@ def main(sc):
     # of the dynamics, pass the starting time of the simluation
     # and the end time
     # 
-    fileio.read_input_files()
+    fileio.read_input_files()    
     #
     # initialize random number generator
     #

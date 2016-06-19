@@ -1,3 +1,4 @@
+import sys
 import copy
 import cmath
 import numpy as np
@@ -204,7 +205,7 @@ class trajectory:
     # Functions to update information about the potential energy surface
     #
     #--------------------------------------------------------------------
-
+    
     #
     # return the potential energies. Add the energy shift right here. If not current, recompute them
     #
@@ -223,7 +224,7 @@ class trajectory:
             print("WARNING: trajectory.derivative() called, "+
                   "but pes_geom != trajectory.x(). ID="+str(self.tid))
         return self.deriv[state,:]
-    
+        
     #
     # permanent dipoles
     #
@@ -232,7 +233,7 @@ class trajectory:
             print("WARNING: trajectory.dipole() called, "+
                   "but pes_geom != trajectory.x(). ID="+str(self.tid))
         return self.dipoles[state,state,:]
-
+        
     #
     # transition dipoles
     #
@@ -241,7 +242,7 @@ class trajectory:
             print("WARNING: trajectory.tdipole() called, "+
                   "but pes_geom != trajectory.x(). ID="+str(self.tid))
         return self.dipoles[state_i,state_j,:]
-
+         
     #
     # second moments
     #

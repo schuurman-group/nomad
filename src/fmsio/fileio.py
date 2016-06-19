@@ -6,6 +6,7 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
 home_path   = ''
+log_file    = ''
 scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump',   'coup_dump', 'dipole_dump', 'secm_dump',
                'tran_dump', 'apop_dump', 'grad_dump']
@@ -23,11 +24,14 @@ print_level   = dict()
 # to the running of the dynamics simulation.
 #
 def read_input_files():
-    global scr_path, home_path
+    global scr_path, home_path, log_file
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
 
+    # save the name of the log file
+    log_file = home_path+'/fms.log'
+    
     # set a sensible default for scr_path
     scr_path = os.environ['TMPDIR']
     if os.path.exists(scr_path):
@@ -42,12 +46,12 @@ def read_input_files():
         if k in glbl.fms:
             glbl.fms[k] = v
         else:
-            print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")
+            print("Variable "+str(k)+" in fms.input unrecognized. Ignoring...")    
 
     #
     # Read pes.input. This contains interface-specific user options. Get what
-    #  interface we're using via glbl.fms['interface'], and populate the corresponding
-    #  dictionary of keywords from glbl module
+    # interface we're using via glbl.fms['interface'], and populate the corresponding
+    # dictionary of keywords from glbl module
     #
     # Clumsy. Not even sure this is the best way to do this (need to segregate
     # variables in different dictionaries. fix this later
@@ -259,6 +263,7 @@ def init_fms_output():
         logfile.write(log_str)
 
     log_format['general']     = '   ** {:60s} **\n'
+    log_format['string']     = ' {:160s}\n'
     log_format['t_step']      = ' > time: {0:14.4f} step:{1:8.4f} [{2:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
     log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
@@ -273,6 +278,7 @@ def init_fms_output():
     log_format['timings' ]      = '{}'
 
     print_level['general']        = 5
+    print_level['string' ]        = 0
     print_level['t_step']         = 0
     print_level['coupled']        = 3
     print_level['new_step']       = 3
@@ -454,3 +460,4 @@ def cleanup():
         pass
 
     return
+

@@ -23,9 +23,9 @@ def init_bundle(master):
     fileio.init_fms_output()
 
     #
-    # initialize the interface we'll be using the determine the 
-    #   the PES. There are some details here that trajectories
-    #    will want to know about
+    # initialize the interface we'll be using the determine the the
+    # PES. There are some details here that trajectories will want to
+    # know about
     pes.init_interface()
 
     #
@@ -52,13 +52,17 @@ def init_bundle(master):
 
     # update all pes info for all trajectories and centroids (where necessary)
     surface.update_pes(master)
+    
     # compute the hamiltonian matrix...
     master.update_matrices()
+    print("HERE?")
+    sys.exit()
+    
     # so that we may appropriately renormalize to unity
     master.renormalize()
     master.update_logs()
 
-    # this is the bundle at time t=0.  Save in order to compute auto correlation function
+    # this is the bundle at time t=0. Save in order to compute auto correlation function
     glbl.bundle0 = bundle.copy_bundle(master)
 
     fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])

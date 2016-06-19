@@ -1,3 +1,4 @@
+import sys
 import cmath
 import numpy as np
 import src.fmsio.fileio as fileio
@@ -28,7 +29,7 @@ def load_geometry():
     for i in range(len(g_data)):
         dim = len(p_data[i])
         p_list.append(particle.particle(dim,i))
-        p_list[i].name = g_data[i][0]
+        p_list[i].name = g_data[i][0]        
         particle.load_particle(p_list[i])
         p_list[i].x = np.fromiter((float(g_data[i][j]) for j in range(1,dim+1)),dtype=np.float)
         p_list[i].p = np.fromiter((float(p_data[i][j]) for j in range(0,dim)),dtype=np.float)

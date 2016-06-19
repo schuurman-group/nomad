@@ -25,7 +25,7 @@ fms = dict(
        default_time_step      = 10., 
        coupled_time_step      = 5.,
        interface              = 'boson_model_diabatic',
-       init_sampling          = 'gs_wigner',
+       init_sampling          = 'wigner_distrib',
        integrals              = 'saddle_point',
        n_init_traj            = 1,
        seed                   = 0, 
@@ -52,7 +52,8 @@ fms = dict(
        print_matrices         = 1,
        print_chkpt            = 1,
        virtual_basis          = 0,
-       print_level            = 1
+       print_level            = 1,
+       opfile                 = 'fms.op'
           )
 
 #
