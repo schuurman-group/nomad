@@ -182,6 +182,11 @@ class trajectory:
                           for i in range(self.n_particle)
                           for j in range(self.d_particle)),dtype=np.float)
 
+    # 
+    # Returns the phase of the trajectory
+    def gamma(self):
+        return self.phase
+
     #
     # return a vector containing masses of particles
     # 
