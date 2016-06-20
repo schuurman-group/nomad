@@ -22,8 +22,13 @@ def mode_overlap(alpha, dx, dp):
 #          basis (i.e. atom centered cartesians vs. normal modes)
 #
 def load_geometry():
-    p_list                = []
-    g_data,p_data,w_data  = fileio.read_geometry()
+
+    a_list                       = []
+    p_list                       = []
+    a_data,g_data,p_data,w_data  = fileio.read_geometry()
+
+    for i in range(len(a_data)):
+        a_list.append(a_data[i])
 
     for i in range(len(g_data)):
         dim = len(p_data[i])
@@ -35,7 +40,7 @@ def load_geometry():
         if len(w_data) > i:
             p_list[i].width = w_data[i]
 
-    return p_list
+    return a_list,p_list
 
 #
 # do some error checking on the hessian file

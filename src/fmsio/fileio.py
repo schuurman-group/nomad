@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import shutil
 import numpy as np
@@ -373,35 +374,55 @@ def print_fms_logfile(otype,data):
 # read in geometry.dat: position and momenta
 #
 def read_geometry():
+
     global home_path 
-    geom_data = []
-    mom_data  = [] 
+    amp_data   = []
+    geom_data  = []
+    mom_data   = [] 
     width_data = []
 
-    gm_file = open(home_path+'/geometry.dat','r',encoding='utf-8')
-    # comment line
-    gm_file.readline()
-    # number of atoms
-    natm = int(gm_file.readline()[0]) 
 
-    # read in geometry
-    for i in range(natm):
-        geom_data.append(gm_file.readline().rstrip().split())
+    with open(home_path+'/geometry.dat','r',encoding='utf-8') as gfile:
+        gm_file = gfile.readlines()
 
-    # read in momenta
-    for i in range(natm):
-        mom_data.append(gm_file.readline().rstrip().split())
+    not_done = True
+    lcnt = -1
+    while not_done:
 
-    # read in widths, if present
-    for i in range(natm):
-        ln = gm_file.readline()
-        if ln is None:
-            break
-        width_data.append(float(ln.rstrip()))
+        # comment line -- if keyword "amplitude" is present, set amplitude
+        lcnt += 1
+        line = [x.strip().lower() for x in re.split('\W+',gm_file[lcnt])] 
+        if 'amplitude' in line:
+            ind = line.index('amplitude')
+            amp_data.append(np.complex(np.float(line[ind+1]),np.float(line[ind+2])))
+        else:
+            amp_data.append(np.complex(1.,0.))
 
-    gm_file.close()
+        # number of atoms
+        lcnt += 1
+        natm = int(gm_file[lcnt]) 
 
-    return geom_data,mom_data,width_data
+        # read in geometry
+        for i in range(natm):
+            lcnt += 1
+            geom_data.append(gm_file[lcnt].rstrip().split())
+
+        # read in momenta
+        for i in range(natm):
+            lcnt += 1
+            mom_data.append(gm_file[lcnt].rstrip().split())
+
+        # read in widths, if present
+        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:
+            for i in range(natm):
+                lcnt += 1
+                width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
+         
+        # check if we've reached the end of the file
+        if (lcnt+1) == len(gm_file):
+            not_done = False
+
+    return amp_data,geom_data,mom_data,width_data
 
 #
 # Read a hessian matrix (not mass weighted)

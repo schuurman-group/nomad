@@ -9,16 +9,20 @@ import src.basis.trajectory as trajectory
 # sample a v=0 wigner distribution
 # 
 def sample_distribution(master):
-    phase_gm    = utils.load_geometry()
-    hessian     = utils.load_hessian()
+    amps,phase_gm = utils.load_geometry()
+    hessian       = utils.load_hessian()
+
+    # if multiple geometries in geometry.dat -- just take the first one
+    natm = int(len(phase_gm)/len(amps))
+    geom = [phase_gm[i] for i in range(natm)]
 
     origin_traj = trajectory.trajectory(
                           glbl.fms['n_states'],
-                          particles=phase_gm,
+                          particles=geom,
                           parent=0)
 
     dim     = phase_gm[0].dim
-    masses  = np.asarray([phase_gm[i].mass for i in range(len(phase_gm)) for j in range(dim)],dtype=np.float)
+    masses  = np.asarray([phase_gm[i].mass for i in range(natm) for j in range(dim)],dtype=np.float)
     invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0. else 0 for i in range(len(masses))],dtype=np.float)
     mw_hess = invmass * hessian * invmass[:,np.newaxis]
 
@@ -46,7 +50,7 @@ def sample_distribution(master):
     for i in range(glbl.fms['n_init_traj']):
         delta_x = np.zeros(n_modes,dtype=np.float)
         delta_p = np.zeros(n_modes,dtype=np.float)
-        disp_gm = [particle.copy_part(phase_gm[j]) for j in range(len(phase_gm))]
+        disp_gm = [particle.copy_part(phase_gm[j]) for j in range(natm)]
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             sigma_x = np.sqrt(0.25 / alpha)
