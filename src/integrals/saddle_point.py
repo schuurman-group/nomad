@@ -2,6 +2,7 @@
 # Compute integrals over trajectories traveling on adiabataic potentials
 #  This currently uses first-order saddle point.
 #
+import sys
 import numpy as np
 #
 # Let propagator know if we need data at centroids to propagate
