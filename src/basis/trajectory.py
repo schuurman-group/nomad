@@ -301,6 +301,9 @@ class trajectory:
     def force(self):
         return -self.derivative(self.state)        
 
+    def gamma(self):
+        return self.phase
+
     #
     # Return time derivative of the phase
     #
