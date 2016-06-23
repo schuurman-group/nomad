@@ -52,7 +52,8 @@ fms = dict(
        print_matrices         = 1,
        print_chkpt            = 1,
        virtual_basis          = 0,
-       print_level            = 1
+       print_level            = 1,
+       opfile                 = 'fms.op'
           )
 
 #

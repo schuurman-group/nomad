@@ -452,7 +452,7 @@ class bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             self.T,self.V,self.S,self.Sdot,self.Heff = \
-              mbuild.build_hamiltonian(self.integrals,self.traj,self,alive,cent_list=self.cent)
+              mbuild.build_hamiltonian(self.integrals,self.traj,self.alive,cent_list=self.cent)
         else:
             self.T,self.V,self.S,self.Sdot,self.Heff = \
               mbuild.build_hamiltonian(self.integrals,self.traj,self.alive)
