@@ -54,7 +54,7 @@ def propagate_bundle(master, dt):
     H_list = []
     for rk in range(rk_ordr):
 
-        # determine x,p,gamma at f(t,x)
+        # determine x,p,phase at f(t,x)
         H_list.append(master.Heff)
         for i in range(master.nalive):
             ii = master.alive[i]
