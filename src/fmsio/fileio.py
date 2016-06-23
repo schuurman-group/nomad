@@ -260,6 +260,7 @@ def init_fms_output():
         logfile.write(log_str)
 
     log_format['general']     = '   ** {:60s} **\n'
+    log_format['string']      = ' {:160s}\n'
     log_format['t_step']      = ' > time: {0:14.4f} step:{1:8.4f} [{2:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
     log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
@@ -274,6 +275,7 @@ def init_fms_output():
     log_format['timings' ]      = '{}'
 
     print_level['general']        = 5
+    print_level['string']         = 5
     print_level['t_step']         = 0
     print_level['coupled']        = 3
     print_level['new_step']       = 3
@@ -406,18 +408,18 @@ def read_geometry():
         for i in range(natm):
             lcnt += 1
             geom_data.append(gm_file[lcnt].rstrip().split())
-
+            
         # read in momenta
         for i in range(natm):
             lcnt += 1
             mom_data.append(gm_file[lcnt].rstrip().split())
-
+            
         # read in widths, if present
         if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(natm):
                 lcnt += 1
                 width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
-         
+                         
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False

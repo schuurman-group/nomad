@@ -49,7 +49,7 @@ def ke_integral(traj1,traj2):
 #
 # return the matrix element <Psi_1 | d/dt | Psi_2> 
 #
-def sdot_integral(traj1,traj2):
+def sdot_integral(traj1,traj2,S_ij=None):
     sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2) ) +  \
              np.dot( traj2.force()   , traj1.deldp(traj2) ) +  \
              complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
