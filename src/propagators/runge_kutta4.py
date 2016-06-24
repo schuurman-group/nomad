@@ -35,10 +35,10 @@ def propagate_bundle(master, dt):
         ii = master.alive[i]
         x0[i,:]   = master.traj[ii].x()
         p0[i,:]   = master.traj[ii].p()
-        g0[i]     = master.traj[ii].gamma()
+        g0[i]     = master.traj[ii].phase()
         xnew[i,:] = master.traj[ii].x()
         pnew[i,:] = master.traj[ii].p()
-        gnew[i]   = master.traj[ii].gamma()
+        gnew[i]   = master.traj[ii].phase()
 
     # 
     # determine k1, k2, k3, k4
@@ -54,7 +54,7 @@ def propagate_bundle(master, dt):
     H_list = []
     for rk in range(rk_ordr):
 
-        # determine x,p,gamma at f(t,x)
+        # determine x,p,phase at f(t,x)
         H_list.append(master.Heff)
         for i in range(master.nalive):
             ii = master.alive[i]
@@ -113,7 +113,7 @@ def propagate_trajectory(traj, dt):
     x0   = traj.x()
     xnew = traj.x()
     pnew = traj.p()
-    gnew = traj.gamma()
+    gnew = traj.phase()
 
     #
     # Do 4th order RK

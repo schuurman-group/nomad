@@ -44,7 +44,7 @@ def fms_step_trajectory(traj, init_time, dt):
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
                                ['minimum time step exceeded -- STOPPING.'])
-                sys.exit("ERROR: fms_step")
+                sys.exit("ERROR: fms_step_trajectory")
 
             # reset the beginning of the time step
             traj = trajectory.copy_traj(traj0)
