@@ -73,7 +73,7 @@ def fms_step_bundle(master, dt):
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
                                ['minimum time step exceeded -- STOPPING.'])
-                sys.exit("ERROR: fms_step")
+                sys.exit("ERROR: fms_step_bundle")
 
             # reset the beginning of the time step
             del master

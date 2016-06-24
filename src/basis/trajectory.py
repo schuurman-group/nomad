@@ -18,7 +18,7 @@ def copy_traj(orig_traj):
     new_traj.c_state    = copy.copy(orig_traj.c_state)
     new_traj.alive      = copy.copy(orig_traj.alive)
     new_traj.amplitude  = copy.copy(orig_traj.amplitude)
-    new_traj.phase      = copy.copy(orig_traj.phase)
+    new_traj.gamma      = copy.copy(orig_traj.gamma)
     new_traj.deadline   = copy.copy(orig_traj.deadtime)
     new_traj.nbf        = copy.copy(orig_traj.nbf)
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
@@ -60,7 +60,7 @@ class trajectory:
         # amplitude of trajectory
         self.amplitude  = complex(0.,0.) 
         # phase of the trajectory
-        self.phase      = 0.
+        self.gamma      = 0.
         # time from which the death watch begini as
         self.deadtime   = -1.            
         # time of last spawn
@@ -133,9 +133,9 @@ class trajectory:
     # update the nuclear phase 
     #
     def update_phase(self, phase):
-        self.phase = phase
-        if abs(self.phase) > 2*np.pi:
-            self.phase = self.phase - int(self.phase/(2. * np.pi)) * 2. * np.pi
+        self.gamma = phase
+        if abs(self.gamma) > 2*np.pi:
+            self.gamma = self.gamma - int(self.gamma/(2. * np.pi)) * 2. * np.pi
         return
 
     #
@@ -184,8 +184,8 @@ class trajectory:
 
     # 
     # Returns the phase of the trajectory
-    def gamma(self):
-        return self.phase
+    def phase(self):
+        return self.gamma
 
     #
     # return a vector containing masses of particles
@@ -341,7 +341,7 @@ class trajectory:
 #        timings.start('trajectory.overlap')
         if st_orthog and self.state != other.state:
             return np.complex(0.,0.)         
-        S = cmath.exp( np.complex(0.,1.)*(other.phase - self.phase) )
+        S = cmath.exp( np.complex(0.,1.)*(other.gamma - self.gamma) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
 #        timings.stop('trajectory.overlap')
@@ -403,7 +403,7 @@ class trajectory:
         chkpt.write('{:10d}            parent ID\n'.format(self.parent))
         chkpt.write('{:10d}            n basis function\n'.format(self.nbf))
         chkpt.write('{:10.2f}            dead time\n'.format(self.deadtime))
-        chkpt.write('{:16.12f}      phase\n'.format(self.phase))
+        chkpt.write('{:16.12f}      phase\n'.format(self.gamma))
         chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
         chkpt.write('# potential energy -- nstates\n')
         self.poten.tofile(chkpt,' ','%14.10f')
@@ -464,7 +464,7 @@ class trajectory:
         self.parent    = int(chkpt.readline().split()[0])
         self.nbf       = int(chkpt.readline().split()[0])
         self.deadtime  = float(chkpt.readline().split()[0])
-        self.phase     = float(chkpt.readline().split()[0])
+        self.gamma     = float(chkpt.readline().split()[0])
         self.amplitude = complex(chkpt.readline().split()[0])
 
         chkpt.readline() # potential energy -- nstates
