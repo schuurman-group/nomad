@@ -39,10 +39,10 @@ def copy_bundle(orig_bundle):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
     for i in range(len(orig_bundle.cent)):
-        if not orig_bundle.cent[i]:
-            traj_i = trajectory.copy_traj(orig_bundle.cent[i])
-        else:
+        if orig_bundle.cent[i] is None:
             traj_i = None
+        else:
+            traj_i = trajectory.copy_traj(orig_bundle.cent[i])
         new_bundle.cent.append(traj_i)
 
     timings.stop('bundle.copy_bundle')
@@ -60,15 +60,6 @@ def cent_ind(i, j):
         a = max(i,j)
         b = min(i,j)
         return int(a*(a-1)/2 + b)
-
-#
-# return the length of the centroid array for n_traj length
-# traj array
-#
-def cent_len(n_traj):
-    if n_traj == 0:
-        return 0
-    return int(n_traj * (n_traj - 1) / 2)
 
 #
 # Class constructor
@@ -100,6 +91,14 @@ class bundle:
     # return length of centroid array
     def n_cent(self):
         return len(self.cent)
+
+    # return the length of the centroid array for n_traj length
+    # traj array
+    def cent_len(self,n):
+        n_traj=n+1
+        if n_traj == 0:
+            return 0
+        return int(n_traj * (n_traj - 1) / 2)
 
     # add trajectory to the bundle. 
     def add_trajectory(self,new_traj):
@@ -175,16 +174,26 @@ class bundle:
 
         # we may want the option of using different Hamiltonian matrix (i.e. some
         # integrators will solve this equation at t=t', where t' != tcurrent)
-        if H.all():
-            Hmat = H
-        else:
-            Hmat = self.Heff
+        #
+        # THIS DOESN'T WORK: H=None. SO, WE WILL COMMENT THIS OUT FOR NOW..
+        #if H.all():
+        #    Hmat = H
+        #else:
+        #    Hmat = self.Heff
+        
+        # ... AND USE THIS:
+        Hmat = self.Heff
+
         # same with the amplitdues (see above)
-        if Ct.all():
-            old_amp = Ct
-        else:
-            old_amp = self.amplitudes()
- 
+        # THIS DOESN'T WORK: Ct=None. SO, WE WILL COMMENT THIS OUT FOR NOW..
+        #if Ct.all():
+        #    old_amp = Ct
+        #else:
+        #    old_amp = self.amplitudes()
+
+        # ... AND USE THIS:
+        old_amp = self.amplitudes()
+
         new_amp   = np.zeros(self.nalive,dtype=np.complex)
         Id        = np.identity(self.nalive,dtype=np.complex)
 
@@ -323,8 +332,7 @@ class bundle:
         timings.start('bundle.pot_classical')
         weight = np.array([self.traj[i].amplitude * 
                            self.traj[i].amplitude.conjugate() for i in range(self.n_traj())])
-        v_int  = np.array([self.ints.v_integral(self.traj[i], 
-                                                self.traj[i]) for i in range(self.n_traj())])
+        v_int  = np.array([self.ints.v_integral(self.traj[i]) for i in range(self.n_traj())])
         timings.stop('bundle.pot_classical')
         return sum(weight * v_int).real
 
@@ -413,16 +421,18 @@ class bundle:
 
         timings.start('bundle.update_centroids')
 
-        for i in range(self.n_traj()):  
+        for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
             wid_i = self.traj[i].widths()
+
             for j in range(i):
                 if not self.traj[j].alive:
                     continue
+
                 # first check that we have added trajectory i or j (i.e.
-                # that the cent array is long enough, if not, append the
-                # appropriate number of slots (just do this once for 
+                # that the cent array is long enough), if not, append the
+                # appropriate number of slots (just do this once for
                 if len(self.cent) < self.cent_len(i):
                     n_add = self.cent_len(i) - len(self.cent)
                     for k in range(n_add):
@@ -430,18 +440,24 @@ class bundle:
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
                 # required slots 
-                ij_ind = cent_ind(i,j)
+                ij_ind = cent_ind(i,j)         
                 if self.cent[ij_ind] is None:
                     self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
                     self.cent[ij_ind].tid = -ij_ind
+                    
+                    # set cent[ij_ind].c_state (note that cent[ij_ind].state 
+                    # is set by calling trajectory.copy_traj)
+                    self.cent[ij_ind].c_state=self.traj[j].state
+                    
                     # now update the position in phase space of the centroid
                     # if wid_i == wid_j, this is clearly just the simply mean position.
-                    wid_j = self.traj[j].width() 
+                    wid_j = self.traj[j].widths()
                     new_x = ( wid_i * self.traj[i].x() + wid_j * self.traj[j].x() ) / (wid_i + wid_j)
                     new_p = ( wid_i * self.traj[i].p() + wid_j * self.traj[j].p() ) / (wid_i + wid_j)
                     self.cent[ij_ind].update_x(new_x)
-                    self.cent[ij_ind].update_p(new_p)
-   
+                    self.cent[ij_ind].update_p(new_p)   
+
+
         timings.stop('bundle.update_centroids')
 
     def update_matrices(self):
@@ -481,9 +497,10 @@ class bundle:
                 data = [self.time]
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
-                data.extend([self.traj[i].phase,self.traj[i].amplitude.real,
+                data.extend([self.traj[i].phase(),self.traj[i].amplitude.real,
                              self.traj[i].amplitude.imag,abs(self.traj[i].amplitude),
                              self.traj[i].state])
+
                 fileio.print_traj_row(self.traj[i].tid,0,data)
 
                 # potential energy

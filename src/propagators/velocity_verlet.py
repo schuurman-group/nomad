@@ -105,7 +105,7 @@ def propagate_position(traj, dt):
     # half update p and phase
     traj.update_p(p0 + 0.5 * f0 * dt)
     dgamma = g1_0 * dt / 2.0 - g2_0 * dt**2 / 8.0
-    traj.update_phase(traj.phase + dgamma)
+    traj.update_phase(traj.phase() + dgamma)
 
     return
 
@@ -141,7 +141,7 @@ def propagate_momentum(traj, dt):
 
 #    dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
     dgamma = g1_1 * dt / 2.0 + g2_1 * dt**2 / 8.0
-    traj.update_phase(traj.phase + dgamma)
+    traj.update_phase(traj.phase() + dgamma)
 
     return
 

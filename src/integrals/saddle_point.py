@@ -11,7 +11,7 @@ require_centroids = True
 #
 # potential coupling matrix element between two trajectories
 #
-def v_integral(traj1,traj2=None,centroid=None):
+def v_integral(traj1,traj2=None,centroid=None,S_ij=None):
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
     if not traj2:
@@ -36,7 +36,7 @@ def v_integral(traj1,traj2=None,centroid=None):
 #
 # kinetic energy integral over trajectories
 #
-def ke_integral(traj1,traj2):
+def ke_integral(traj1,traj2,S_ij=None):
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
         for i in range(traj1.n_particle):

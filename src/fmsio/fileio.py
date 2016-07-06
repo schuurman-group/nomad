@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import glob
 import shutil
@@ -296,8 +297,8 @@ def init_fms_output():
 #
 def print_traj_row(tid,fkey,data):
     global scr_path, tkeys, tfile_names, dump_header, dump_format
-    filename = scr_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
-   
+    filename = scr_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)   
+
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
             outfile.write(dump_header[tkeys[fkey]])
@@ -408,18 +409,18 @@ def read_geometry():
         for i in range(natm):
             lcnt += 1
             geom_data.append(gm_file[lcnt].rstrip().split())
-            
+
         # read in momenta
         for i in range(natm):
             lcnt += 1
             mom_data.append(gm_file[lcnt].rstrip().split())
-            
+
         # read in widths, if present
-        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:
+        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:            
             for i in range(natm):
                 lcnt += 1
                 width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
-                         
+
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False

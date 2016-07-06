@@ -144,6 +144,84 @@ def evaluate_trajectory(tid, geom, stateindx):
     return[qcoo,ener,grad]
 
 ########################################################################
+
+def evaluate_centroid(tid, geom, stateindx, stateindx2):
+
+    # Note that because energies, gradients and couplings are so cheap 
+    # to extract from a vibronic coupling Hamiltonian, we return
+    # all quantities, even if they are not actually needed
+
+    global diabpot
+    global adiabpot
+    global adtmat
+    global diabderiv1
+    global nactmat
+    global adiabderiv1
+    global diablap
+    global sctmat
+    global dbocderiv1
+    global nsta
+
+    # System dimensions
+    ncoo=glbl.fms['num_particles']
+    nsta=glbl.fms['n_states']
+
+    # Initialisation of arrays
+    diabpot=np.zeros((nsta,nsta), dtype=np.float)
+    ener=np.zeros((nsta), dtype=np.float)
+    grad=np.zeros((nsta,ncoo), dtype=np.float)
+    diabderiv1=np.zeros((ncoo,nsta,nsta), dtype=np.float)
+    nactmat=np.zeros((ncoo,nsta,nsta), dtype=np.float)
+    adiabderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+    diablap=np.zeros((nsta,nsta), dtype=np.float)
+    sctmat=np.zeros((nsta,nsta), dtype=np.float)
+    dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+
+    # Set the current normal mode coordinates
+    qcoo=np.array([geom[i].x for i in range(ncoo)], dtype=np.float)    
+    
+    # Calculation of the diabatic potential matrix
+    calc_diabpot(qcoo)
+
+    # Calculation of the adiabatic potential vector and ADT matrix
+    calc_adt()
+
+    # Calculation of the nuclear derivatives of the diabatic potential
+    calc_diabderiv1(qcoo)
+
+    # Calculation of the NACT matrix
+    calc_nacts()
+
+    # Calculation of the gradients of the adiabatic potential
+    calc_adiabderiv1()
+
+    # Calculation of the Laplacian of the diabatic potential wrt the
+    # nuclear DOFs
+    calc_diablap(qcoo)
+
+    # Calculation of the scalar couplings terms (SCTs)
+    #
+    # Note that in order to calculate the SCTs, the gradients of the
+    # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
+    # save these as a matter of course.
+    calc_scts()
+
+    # Package up the energies, gradients and NACTs
+    # N.B. we need to include here the option to send back either
+    # the adiabatic or diabatic quantities...
+
+    ener=adiabpot
+
+    for i in range(nsta):
+        for m in range(ncoo):
+            if i==(stateindx-1):
+                grad[i][m]=adiabderiv1[m][i]
+            else:
+                grad[i][m]=nactmat[m][stateindx-1][i]
+
+    return[qcoo,ener,grad]
+
+########################################################################
 # calc_diabpot: constructs the diabatic potential matrix for a given
 #               nuclear geometry q
 ########################################################################
