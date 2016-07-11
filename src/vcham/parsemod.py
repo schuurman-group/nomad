@@ -8,7 +8,7 @@ keyword=["" for i in range(maxkw)]
 # rd1line: Reads the next non-empty, non-comment line of a file,
 #          converts to lowercase and separates into keywords
 ########################################################################
-def rd1line(filename):
+def rd1line(filename,up2low=True):
 
     global keyword
     global maxkw
@@ -55,7 +55,8 @@ def rd1line(filename):
     #-----------------------------------------------------------------------
     # Convert to lower case
     #-----------------------------------------------------------------------
-    string=string.lower()
+    if up2low==True:
+        string=string.lower()
 
     #-----------------------------------------------------------------------
     # Extract the individual keywords

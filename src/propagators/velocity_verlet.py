@@ -47,7 +47,7 @@ def propagate_bundle(master,dt):
     # propagate amplitudes for 1/2 time step using x1
     #
     master.update_amplitudes(0.5*dt,10)
-
+ 
     timings.stop('propagators.propagate_bundle')
     return
 

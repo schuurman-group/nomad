@@ -196,8 +196,8 @@ def rdoperfile(infile):
     nmdline=0
     ham.nmode_total=0
     while(ismodes):
-        parse.rd1line(infile)
-        if (parse.keyword[1][0:5]!='modes'): 
+        parse.rd1line(infile,up2low=False)
+        if (parse.keyword[1][0:5].lower()!='modes'): 
             ismodes=False
         else:
             nmdline+=1
@@ -261,14 +261,13 @@ def rdoperfile(infile):
 
     # Loop over all Hamiltonian terms
     for k in range(ham.nterms):
-
         # Detemine whether the current term is active
         active=True
         for i in range(ham.nmode_total):
             if ham.order[k][i] > 0:
                 if ham.mlbl_total[i] not in ham.mlbl_active:
                     active=False
-
+            
         # If the current term is active, then add it to the list
         # of active terms
         if active:
@@ -287,3 +286,4 @@ def rdoperfile(infile):
     ham.coe=coe_new
     ham.stalbl=stalbl_new
     ham.order=order_new
+    

@@ -1,8 +1,10 @@
+import sys
 import re
 import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.gaussian as gaussian
+import src.vcham.hampar as ham
 
 particle_name =  ['H','D','T','He','Li','Be','B','C','N','O','F','Ne',
                  'Na','Mg','Al','Si','P','S','Cl','Ar']
@@ -29,7 +31,10 @@ def load_particle(particle):
         if(particle.width == 0.):
             outfile.write('WARNING: particle '+str(particle.name)+' in library, but width = 0')
     elif q.match(particle.name):
-        particle.mass  = 1. 
+        if glbl.fms['interface']=='vibronic':
+            particle.mass = 1.0/float(ham.freqmap[particle.name])
+        else:
+            particle.mass  = 1.
 
 def create_particle(pid,dim,name,width,mass):
     new_particle       = particle(dim,pid)

@@ -10,6 +10,8 @@ from src.basis import particle as particle
 from src.basis import trajectory as trajectory
 from src.basis import build_hamiltonian as mbuild
 
+from scipy.linalg import expm
+
 #import src.dynamics.timings as timings
 #import src.fmsio.glbl as glbl
 #import src.fmsio.fileio as fileio
@@ -149,6 +151,19 @@ class bundle:
     # update the amplitudes of the trajectories in the bundle
     #
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
+        if self.nalive < 150:
+            self.update_amplitudes_exact(dt, n_max, H=None, Ct=None)
+        else:
+            self.update_amplitudes_taylor(dt, n_max, H=None, Ct=None)
+
+        return
+
+    #
+    # Solution of d/dt C = -i H C using the Taylor expansion of
+    # exp( -i H(t) dt)
+    #
+    def update_amplitudes_taylor(self, dt, n_max, H=None, Ct=None):
+
         # Solve:
         #  d/dt C = -i H C
         #
@@ -215,9 +230,36 @@ class bundle:
             if abs(error) < 1.e-10:
                 break
             else:
-                prev_amp = new_amp            
+                prev_amp = new_amp
                 if n == n_max:
                     sys.exit('Cannot converge amplitudes...')       
+
+        for i in range(len(self.alive)):
+            self.traj[self.alive[i]].update_amplitude(new_amp[i])
+
+        timings.stop('bundle.update_amplitudes')
+
+        return
+
+    #
+    # Solution of d/dt C = -i H C using the exact computation of 
+    # exp(-i H(t) dt) C(t)
+    #
+    def update_amplitudes_exact(self, dt, n_max, H=None, Ct=None):
+
+        timings.start('bundle.update_amplitudes')
+
+        self.update_matrices()
+
+        Hmat = self.Heff
+        old_amp = self.amplitudes()
+        new_amp = np.zeros(self.nalive,dtype=np.complex)
+
+        B = -complex(0.,1.) * Hmat * dt
+
+        umat=sp.linalg.expm(B)
+
+        new_amp = np.dot(umat,old_amp)
 
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
