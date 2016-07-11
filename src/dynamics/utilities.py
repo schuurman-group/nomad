@@ -40,7 +40,7 @@ def load_geometry():
         p_list[i].p = np.fromiter((float(p_data[i][j]) for j in range(0,dim)),dtype=np.float)
         if len(w_data) > i:
             p_list[i].width = w_data[i]
-            
+
     return a_list,p_list
 
 #

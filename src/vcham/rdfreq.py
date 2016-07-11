@@ -17,9 +17,10 @@ def rdfreqfile():
     n=-1
     parse.leof=False
     while (True):
-        parse.rd1line(freqfile)
+        parse.rd1line(freqfile,up2low=False)
         if (parse.leof==False):
-            mdlbl=parse.keyword[1]
+            mdlbl=parse.keyword[1]            
+
             freq=float(parse.keyword[2])
             
             if (parse.keyword[3]==','):
@@ -38,5 +39,10 @@ def rdfreqfile():
 
     # Set the no. of active modes
     ham.nmode_active=n+1
+
+    # Set up the mode label-to-frequency map
+    ham.freqmap={}
+    for i in range(ham.nmode_active):
+        ham.freqmap.update({ham.mlbl_active[i] : ham.freq[i] })
 
     return

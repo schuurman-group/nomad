@@ -39,3 +39,6 @@ nmode_total=0
 
 # No. active modes
 nmode_active=0
+
+# Mode label-to-frequency map
+freqmap=None

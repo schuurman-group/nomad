@@ -100,7 +100,9 @@ def evaluate_trajectory(tid, geom, stateindx):
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
 
     # Set the current normal mode coordinates
-    qcoo=np.array([geom[i].x for i in range(ncoo)], dtype=np.float)    
+    qcoo=np.zeros(ncoo)
+    for i in range(ncoo):
+        qcoo[i]=geom[i].x
     
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
@@ -136,10 +138,10 @@ def evaluate_trajectory(tid, geom, stateindx):
 
     for i in range(nsta):
         for m in range(ncoo):
-            if i==(stateindx-1):
+            if i==(stateindx):
                 grad[i][m]=adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx-1][i]
+                grad[i][m]=nactmat[m][stateindx][i]
 
     return[qcoo,ener,grad]
 
@@ -178,7 +180,9 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
 
     # Set the current normal mode coordinates
-    qcoo=np.array([geom[i].x for i in range(ncoo)], dtype=np.float)    
+    qcoo=np.zeros(ncoo)
+    for i in range(ncoo):
+        qcoo[i]=geom[i].x
     
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
@@ -214,10 +218,10 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
 
     for i in range(nsta):
         for m in range(ncoo):
-            if i==(stateindx-1):
+            if i==(stateindx):
                 grad[i][m]=adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx-1][i]
+                grad[i][m]=nactmat[m][stateindx][i]
 
     return[qcoo,ener,grad]
 

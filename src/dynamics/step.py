@@ -25,14 +25,14 @@ def time_step(master):
 #
 # Propagate the wave packet using a run-time selected propagator
 #
-def fms_step_bundle(master, dt):
+def fms_step_bundle(master, dt):    
     integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
     spawning   = __import__('src.spawn.'+glbl.fms['spawning'],fromlist=['a'])
 
     # save the bundle from previous step in case step rejected
     end_time     = master.time + dt
     time_step    = dt
-    min_time_step = dt / 2.**5 
+    min_time_step = dt / 2.**5
 
     while master.time < end_time:
 
