@@ -54,9 +54,9 @@ mem_str      = ''
 # calculations
 #
 def init_interface():
-    global columbus_path, input_path, work_path, restart_path, \
-           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
-           max_l,mrci_lvl,mem_str
+    global columbus_path, input_path, work_path, restart_path, p_dim
+    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
+    global max_l, mrci_lvl, mem_str
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
@@ -771,9 +771,9 @@ def get_adiabatic_phase(new_coup, old_coup):
 #
 #---------------------------------------------------------------
 def get_global_vars():
-    global input_path, work_path, restart_path, \
-           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
-           max_l,mrci_lvl,mem_str
+    global input_path, work_path, restart_path, p_dim
+    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
+    global max_l, mrci_lvl, mem_str
 
     gvars = [input_path, work_path, restart_path]
     gvars.extend[p_dim, n_atoms, n_cart, n_drt]
@@ -785,9 +785,9 @@ def get_global_vars():
 # set the global variables
 #
 def set_global_vars(gvars):
-    global input_path, work_path, restart_path, \
-           p_dim, n_atoms, n_cart, n_orbs, n_mcstates, n_cistates, \
-           max_l,mrci_lvl,mem_str
+    global input_path, work_path, restart_path, p_dim
+    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
+    global max_l, mrci_lvl, mem_str
 
     input_path   = gvars[0]
     work_path    = gvars[1]
@@ -917,10 +917,9 @@ def write_col_geom(geom):
 
     f = open('geom','w',encoding='utf-8')
     for i in range(n_atoms):
-        f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}\n'. \
-        format(geom[i].name, geom[i].anum,
-               geom[i].x[0], geom[i].x[1], geom[i].x[2],
-               geom[i].mass/glbl.mass2au))
+        f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
+                '\n'.format(geom[i].name, geom[i].anum, geom[i].x[0],
+                            geom[i].x[1], geom[i].x[2], geom[i].mass/glbl.mass2au))
     f.close()
 
 #

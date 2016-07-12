@@ -384,8 +384,8 @@ class trajectory:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particles):
-            dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
-                                                             self.particles[i].mass
+            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
+                                                              self.particles[i].mass)
 #        timings.stop('trajectory.deldx_m')
         return dxval * S_ij
 
@@ -428,7 +428,7 @@ class trajectory:
         init_states = [0, self.state]
         for i in init_states:
             for j in range(self.nstates):
-                if j==i or j in init_states[0:i]:
+                if j == i or j in init_states[0:i]:
                     continue
                 chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}\n'.format(j,i))
                 self.dipoles[j,i,:].tofile(chkpt,' ','%10.6f')

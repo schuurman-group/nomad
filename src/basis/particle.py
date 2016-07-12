@@ -31,7 +31,7 @@ def load_particle(particle):
         if(particle.width == 0.):
             outfile.write('WARNING: particle '+str(particle.name)+' in library, but width = 0')
     elif q.match(particle.name):
-        if glbl.fms['interface']=='vibronic':
+        if glbl.fms['interface'] == 'vibronic':
             particle.mass = 1.0/float(ham.freqmap[particle.name])
         else:
             particle.mass  = 1.

@@ -45,7 +45,7 @@ def main(sc):
     #
     while master.time < glbl.fms['simulation_time']:
         # set the time step
-        time_step    = step.time_step(master)
+        time_step = step.time_step(master)
 
         # take an fms dynamics step
         master = step.fms_step_bundle(master,time_step)
@@ -66,8 +66,8 @@ if __name__ == "__main__":
         pypath     = os.environ['PYTHONPATH']
         fmspy_path = os.environ['FMSPY_PATH']
         os.environ['PYTHONPATH'] = pypath+":"+fmspy_path
-        sc     = SparkContext("local[4]", "FMS job queue")
+        sc = SparkContext("local[4]", "FMS job queue")
     else:
-        sc     = None
+        sc = None
 
     main(sc)

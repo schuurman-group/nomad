@@ -58,7 +58,7 @@ def sdot_integral(traj1, traj2, S_ij=None):
     if S_ij is None:
         S_ij = traj1.overlap(traj2,st_orthog=True)
 
-    sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij) ) \
-            +np.dot( traj2.force()   , traj1.deldp(traj2, S_ij) ) \
-            +np.complex(0.,1.) * traj2.phase_dot() * S_ij
+    sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij) ) +
+            np.dot( traj2.force()   , traj1.deldp(traj2, S_ij) ) +
+            np.complex(0.,1.) * traj2.phase_dot() * S_ij)
     return sdot

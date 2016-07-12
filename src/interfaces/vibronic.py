@@ -46,10 +46,10 @@ def init_interface():
 
     fileio.print_fms_logfile('string',['*'*72])
 
-    fileio.print_fms_logfile('string',['Operator file: '+glbl.fms['opfile']])
+    fileio.print_fms_logfile('string',['Operator file: ' + glbl.fms['opfile']])
 
-    fileio.print_fms_logfile('string',\
-                             ['Number of Hamiltonian terms: '+str(ham.nterms)])
+    fileio.print_fms_logfile('string',
+                             ['Number of Hamiltonian terms: ' + str(ham.nterms)])
 
     string='Total no. modes: '+str(ham.nmode_total)
     fileio.print_fms_logfile('string',[string])
@@ -138,7 +138,7 @@ def evaluate_trajectory(tid, geom, stateindx):
 
     for i in range(nsta):
         for m in range(ncoo):
-            if i==(stateindx):
+            if i == stateindx:
                 grad[i][m]=adiabderiv1[m][i]
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
@@ -218,7 +218,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
 
     for i in range(nsta):
         for m in range(ncoo):
-            if i==(stateindx):
+            if i == stateindx:
                 grad[i][m]=adiabderiv1[m][i]
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
@@ -292,11 +292,11 @@ def calc_diabderiv1(q):
         s2=ham.stalbl[i][1]-1
         for m in range(ham.nmode_active):
             fac=0.0
-            if (ham.order[i][m]!=0):
+            if ham.order[i][m] != 0:
                 fac=ham.coe[i]
                 for n in range(ham.nmode_active):
                     p=ham.order[i][n]
-                    if n==m:
+                    if n == m:
                         fac=fac*p*q[n]**(p-1)
                     else:
                         fac=fac*q[n]**p
@@ -412,7 +412,7 @@ def calc_diablap(q):
                 fac=ham.coe[i]
                 for n in range(ham.nmode_active):
                     p=ham.order[i][n]
-                    if n==m:
+                    if n == m:
                         fac=fac*p*(p-1)*q[n]**(p-2)
                     else:
                         fac=fac*q[n]**p

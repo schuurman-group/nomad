@@ -110,10 +110,10 @@ def check_step_bundle(master0, master, time_step):
     for i in range(master0.n_traj()):
         if not master0.traj[i].alive:
             continue
-        energy_old = master0.traj[i].potential() +  \
-                     master0.traj[i].kinetic()
-        energy_new =  master.traj[i].potential() +  \
-                      master.traj[i].kinetic()
+        energy_old = (master0.traj[i].potential() +
+                      master0.traj[i].kinetic())
+        energy_new = (master.traj[i].potential() +
+                      master.traj[i].kinetic())
         dener = abs(energy_old - energy_new)
         if dener > glbl.fms['energy_jump_toler']:
             return False,' jump in trajectory energy, tid = {0:4d}, delta[ener] = {1:10.6f}'.format(i,dener)

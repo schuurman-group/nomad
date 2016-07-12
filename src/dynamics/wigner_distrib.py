@@ -18,7 +18,7 @@ from math import sqrt
 def sample_distribution(master):
 
     # Set the coordinate type: Cartesian or normal mode coordinates
-    if (glbl.fms['interface']=='vibronic'):
+    if glbl.fms['interface'] == 'vibronic':
         coordtype='normal'
     else:
         coordtype='cart'
@@ -31,7 +31,7 @@ def sample_distribution(master):
     geom = [phase_gm[i] for i in range(natm)]
 
     # Read the hessian.dat file (Cartesian coordinates only)
-    if coordtype=='cart':
+    if coordtype == 'cart':
         hessian = utils.load_hessian()
 
     origin_traj = trajectory.trajectory(
@@ -44,7 +44,7 @@ def sample_distribution(master):
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
-    if coordtype=='cart':
+    if coordtype == 'cart':
         masses  = np.asarray([phase_gm[i].mass for i in range(natm) for j in range(dim)],dtype=np.float)
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0. else 0 for i in range(len(masses))],dtype=np.float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]
@@ -68,7 +68,7 @@ def sample_distribution(master):
     # If normal modes are being used, set the no. modes
     # equal to the number of active modes of the model
     # Hamiltonian and load the associated frequencies
-    if coordtype=='normal':
+    if coordtype == 'normal':
         n_modes=ham.nmode_active
         freqs=ham.freq
 
@@ -98,7 +98,7 @@ def sample_distribution(master):
 
         # If Cartesian coordinates are being used, displace along each
         # normal mode to generate the final geometry...
-        if coordtype=='cart':
+        if coordtype == 'cart':
             disp_x = np.dot(modes,delta_x) / np.sqrt(masses)
             disp_p = np.dot(modes,delta_p) / np.sqrt(masses)
 
@@ -110,7 +110,7 @@ def sample_distribution(master):
         # being used, then take the frequency-scaled normal mode
         # displacements and momenta as the inital point in phase
         # space
-        elif coordtype=='normal':
+        elif coordtype == 'normal':
             disp_x=delta_x
             disp_p=delta_p
             for i in range(n_modes):

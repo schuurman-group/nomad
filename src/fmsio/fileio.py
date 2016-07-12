@@ -105,9 +105,8 @@ def read_namelist(filename):
 # initialize all the ouptut format descriptors
 #
 def init_fms_output():
-    global home_path, scr_path, \
-           log_format, tkeys, bkeys, dump_header, dump_format, \
-           tfile_names, bfile_names, print_level
+    global home_path, scr_path, log_format, tkeys, bkeys
+    global dump_header, dump_format, tfile_names, bfile_names, print_level
 
     np = int(glbl.fms['num_particles'])
     nd = int(glbl.fms['dim_particles'])
@@ -121,82 +120,82 @@ def init_fms_output():
     arr1 = ['{:>12s}'.format('pos'+str(i+1)+'.'+dstr[x]) for i in range(np) for x in range(nd)]
     arr2 = ['{:>12s}'.format('mom'+str(i+1)+'.'+dstr[x]) for i in range(np) for x in range(nd)]
     tfile_names[tkeys[0]] = 'trajectory'
-    dump_header[tkeys[0]]     = 'Time'.rjust(acc1) + ''.join(arr1) + ''.join(arr2) + \
-                                'Phase'.rjust(acc1) + 'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) + \
-                                'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1)+'\n'
-    dump_format[tkeys[0]]     = '{0:>12.4f}'+ \
-                             ''.join('{'+str(i)+':>12.6f}' for i in range(1,np*nd+1))         + \
-                             ''.join('{'+str(i)+':>12.6f}' for i in range(np*nd+1,2*np*nd+1)) + \
-                             ''.join('{'+str(i)+':>12.6f}'  for i in range(2*np*nd+1,2*np*nd+6))+'\n'
+    dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) + ''.join(arr2) +
+                             'Phase'.rjust(acc1) + 'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) +
+                                'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) + '\n')
+    dump_format[tkeys[0]] = ('{0:>12.4f}'+
+                             ''.join('{'+str(i)+':>12.6f}' for i in range(1,np*nd+1)) +
+                             ''.join('{'+str(i)+':>12.6f}' for i in range(np*nd+1,2*np*nd+1)) +
+                             ''.join('{'+str(i)+':>12.6f}'  for i in range(2*np*nd+1,2*np*nd+6)) + '\n')
 
     # potential energy
     arr1 = ['{:>16s}'.format('potential.'+str(i)) for i in range(ns)]
     tfile_names[tkeys[1]] = 'poten'
-    dump_header[tkeys[1]]     = 'Time'.rjust(acc1) + ''.join(arr1)+'\n'
-    dump_format[tkeys[1]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':>16.10f}' for i in range(1,ns+1)) + '\n'
+    dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[1]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':>16.10f}' for i in range(1,ns+1)) + '\n')
 
     # coupling
     arr1 = ['{:>12s}'.format('coupling.'+str(i)) for i in range(ns)]
     arr2 = ['{:>12s}'.format('c * v .'+str(i)) for i in range(ns)]
     tfile_names[tkeys[2]] = 'coupling'
-    dump_header[tkeys[2]]     = 'Time'.rjust(acc1) + ''.join(arr1) + ''.join(arr2) + '\n'
-    dump_format[tkeys[2]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':>12.5f}' for i in range(1,2*ns+1)) + '\n'
+    dump_header[tkeys[2]] = 'Time'.rjust(acc1) + ''.join(arr1) + ''.join(arr2) + '\n'
+    dump_format[tkeys[2]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':>12.5f}' for i in range(1,2*ns+1)) + '\n')
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st'+str(i)+'.'+dstr[j]) for i in range(ns) for j in range(nd)]
     tfile_names[tkeys[3]] = 'dipole'
-    dump_header[tkeys[3]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[3]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':>12.5f}' for i in range(1,ns*nd+1)) + '\n'
+    dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[3]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':>12.5f}' for i in range(1,ns*nd+1)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s'+str(j)+'.s'+str(i)+'.'+dstr[k] for i in range(ns) for j in range(i) for k in range(nd)]
     ncol = int(ns*(ns-1)*nd/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
-    dump_header[tkeys[4]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[4]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ncol)) + '\n'
+    dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[4]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ncol)) + '\n')
 
     # second moments
     arr1 = ['   sec_s'+str(i)+'.'+dstr[j]+dstr[j] for i in range(ns) for j in range(nd)]
     tfile_names[tkeys[5]] = 'sec_mom'
-    dump_header[tkeys[5]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[5]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ns*nd+1)) + '\n'
+    dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[5]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':12.5f}' for i in range(1,ns*nd+1)) + '\n')
 
     # atomic populations
     arr1 = ['    st'+str(i)+'_p'+str(j+1) for i in range(ns) for j in range(np)]
     tfile_names[tkeys[6]] = 'atom_pop'
-    dump_header[tkeys[6]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[6]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':10.5f}' for i in range(1,ns*np+1)) + '\n'
+    dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[6]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':10.5f}' for i in range(1,ns*np+1)) + '\n')
 
     # gradients
     arr1 = ['  grad_part'+str(i+1)+'.'+dstr[j] for i in range(np) for j in range(nd)]
     tfile_names[tkeys[7]] = 'gradient'
-    dump_header[tkeys[7]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[7]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':14.8f}' for i in range(1,np*nd+1)) + '\n'
+    dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[7]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':14.8f}' for i in range(1,np*nd+1)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
     # adiabatic state populations
     arr1 = ['     state.'+str(i) for i in range(ns)]
     bfile_names[bkeys[0]] = 'n.dat'
-    dump_header[bkeys[0]]     = 'Time'.rjust(acc1) + ''.join(arr1) + 'Norm'.rjust(acc1) + '\n'
-    dump_format[bkeys[0]]     = '{0:>12.4f}' + \
-                            ''.join('{'+str(i)+':12.6f}' for i in range(1,ns+1)) + \
-                            '{'+str(ns+1)+':12.6f}\n'
+    dump_header[bkeys[0]] = 'Time'.rjust(acc1) + ''.join(arr1) + 'Norm'.rjust(acc1) + '\n'
+    dump_format[bkeys[0]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':12.6f}' for i in range(1,ns+1)) +
+                             '{'+str(ns+1)+':12.6f}\n')
 
     # the bundle energy
     arr1 = ('   potential(QM)','     kinetic(QM)','       total(QM)',
             '  potential(Cl.)','    kinetic(Cl.)','      total(Cl.)')
     bfile_names[bkeys[1]] = 'e.dat'
-    dump_header[bkeys[1]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[bkeys[1]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':16.10f}' for i in range(1,6+1)) + '\n'
+    dump_header[bkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[bkeys[1]] = ('{0:>12.4f}' +
+                             ''.join('{'+str(i)+':16.10f}' for i in range(1,6+1)) + '\n')
 
     # the spawn log
     lenst = 7
@@ -206,11 +205,11 @@ def init_fms_output():
             'pot(parent)'.rjust(acc1),'pot(child)'.rjust(acc1),
             'total(parent)'.rjust(acc2),'total(child)'.rjust(acc2))
     bfile_names[bkeys[2]] = 'spawn.dat'
-    dump_header[bkeys[2]]     = ''.join(arr1) + '\n'
-    dump_format[bkeys[2]]     = '{0:>12.4f}{1:>12.4f}{2:>12.4f}'  + \
-                                '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' + \
-                                '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +\
-                                '{11:>16.8f}{12:>16.8f}' + '\n'
+    dump_header[bkeys[2]] = ''.join(arr1) + '\n'
+    dump_format[bkeys[2]] = ('{0:>12.4f}{1:>12.4f}{2:>12.4f}'  +
+                                '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' +
+                                '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +
+                                '{11:>16.8f}{12:>16.8f}' + '\n')
 
     bfile_names[bkeys[3]] = 's.dat'
     bfile_names[bkeys[4]] = 'sdot.dat'
@@ -220,22 +219,22 @@ def init_fms_output():
 
     # ------------------------- log file formats --------------------------
     with open(home_path+"/fms.log","w") as logfile:
-        log_str = ' ---------------------------------------------------\n' + \
-                  ' ab initio multiple spawning dynamics\n' + \
-                  ' ---------------------------------------------------\n' + \
-                  '\n' + \
-                  ' *************\n' + \
-                  ' input summary\n' + \
-                  ' *************\n' + \
-                  '\n' + \
-                  ' file paths\n' + \
-                  ' ---------------------------------------\n' + \
-                  ' home_path   = '+str(home_path) + '\n' + \
-                  ' scr_path    = '+str(scr_path) + '\n'
+        log_str = (' ---------------------------------------------------\n' +
+                   ' ab initio multiple spawning dynamics\n' +
+                   ' ---------------------------------------------------\n' +
+                   '\n' +
+                   ' *************\n' +
+                   ' input summary\n' +
+                   ' *************\n' +
+                   '\n' +
+                   ' file paths\n' +
+                   ' ---------------------------------------\n' +
+                   ' home_path   = ' + str(home_path) + '\n' +
+                   ' scr_path    = ' + str(scr_path) + '\n')
         logfile.write(log_str)
 
-        log_str = '\n fms simulation keywords\n' + \
-                    ' ----------------------------------------\n'
+        log_str = ('\n fms simulation keywords\n' +
+                   ' ----------------------------------------\n')
         for k,v in glbl.fms.items():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
         logfile.write(log_str)
@@ -255,9 +254,9 @@ def init_fms_output():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
         logfile.write(log_str)
 
-        log_str = '\n ***********\n' + \
-                    ' propagation\n' + \
-                    ' ***********\n\n'
+        log_str = ('\n ***********\n' +
+                   ' propagation\n' +
+                   ' ***********\n\n')
         logfile.write(log_str)
 
     log_format['general']     = '   ** {:60s} **\n'
@@ -265,8 +264,8 @@ def init_fms_output():
     log_format['t_step']      = ' > time: {0:14.4f} step:{1:8.4f} [{2:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
     log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
-    log_format['spawn_start'] = '  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +\
-                                'time'.rjust(14)+'coup'.rjust(10)+'overlap'.rjust(10)+'   spawn\n'
+    log_format['spawn_start'] = ('  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +
+                                 'time'.rjust(14)+'coup'.rjust(10)+'overlap'.rjust(10)+'   spawn\n')
     log_format['spawn_step']  = '{0:14.4f}{1:10.4f}{2:10.4f}   {3:<40s}\n'
     log_format['spawn_back']  = '      back propagating:  {0:12.2f}\n'
     log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
@@ -416,7 +415,7 @@ def read_geometry():
             mom_data.append(gm_file[lcnt].rstrip().split())
 
         # read in widths, if present
-        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:
+        if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(natm):
                 lcnt += 1
                 width_data.append(float(gm_file[lcnt].rstrip().split()[1]))

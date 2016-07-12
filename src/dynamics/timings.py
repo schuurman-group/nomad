@@ -128,10 +128,10 @@ def print_timings():
     # pass timing information as a string
 
     ostr =  '\n'+'-'*39+' timings summary '+'-'*39+' \n'
-    ostr +=  'routine'.ljust(35)+'calls'.rjust(12) \
-            +'wall time'.rjust(16)+'frac.'.rjust(8) \
-            +'cpu time'.rjust(16) +'frac.'.rjust(8)+'\n'
-    ofrm = "{0:<35s}{1:>12d}{2:>16.4f}{3:>8.2f}{4:>16.4f}{5:>8.2f}\n"
+    ostr += ('routine'.ljust(35)+'calls'.rjust(12) +
+             'wall time'.rjust(16)+'frac.'.rjust(8) +
+             'cpu time'.rjust(16) +'frac.'.rjust(8) + '\n')
+    ofrm = '{0:<35s}{1:>12d}{2:>16.4f}{3:>8.2f}{4:>16.4f}{5:>8.2f}\n'
     frac_wall = 0.
     frac_cpu  = 0.
     for i in range(len(sort_list)):
@@ -145,7 +145,7 @@ def print_timings():
         frac_wall += wtim/tot_wall
         frac_cpu  += ctim/tot_cpu
 
-    ostr += '-'*95+'\n'
-    ostr += '**total**'.ljust(47)+'{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}\n\n'\
-                                         .format(tot_wall,frac_wall,tot_cpu,frac_cpu)
+    ostr += '-'*95 + '\n'
+    ostr += ('**total**'.ljust(47)+'{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}' +
+             '\n\n'.format(tot_wall,frac_wall,tot_cpu,frac_cpu))
     return ostr

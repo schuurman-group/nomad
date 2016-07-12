@@ -34,8 +34,8 @@ def prim_v_integral(n, p1, p2):
     for d in range(p1.dim):
         v = complex(0.,0.)
         for i in range(n_2):
-            v = v + a**(i-N) * b**(N-2*i) /  \
-                (math.factorial(i)*math.factorial(N-2*i))
+            v = (v + a**(i-N) * b**(N-2*i) /
+                 (math.factorial(i)*math.factorial(N-2*i)))
         v_total = v_total * v
 
     # refer to appendix for derivation of these relations
@@ -48,8 +48,8 @@ def ke_integral(traj1,traj2):
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
         for i in range(traj1.nparticles):
-            ke = ke - traj1.particles[i].deld2x(traj2.particles[i]) /  \
-                      (2.0*traj1.particles[i].mass)
+            ke = (ke - traj1.particles[i].deld2x(traj2.particles[i]) /
+                  (2.0*traj1.particles[i].mass))
         return ke * traj1.overlap(traj2)
     else:
         return ke
@@ -58,7 +58,7 @@ def ke_integral(traj1,traj2):
 # return the matrix element <Psi_1 | d/dt | Psi_2>
 #
 def sdot_integral(traj1,traj2):
-     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) )   \
-             +np.dot( traj2.force()   , traj1.deldp(traj2) )   \
-             +complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
+     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) ) +
+             np.dot( traj2.force()   , traj1.deldp(traj2) ) +
+             complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2))
      return sdot

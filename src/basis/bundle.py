@@ -357,8 +357,8 @@ class bundle:
                 jj = self.alive[j]
                 if self.traj[ii].state != self.traj[jj].state:
                     continue
-                popij = 2.0 * self.S[i,j] * self.traj[j].amplitude * \
-                                            self.traj[i].amplitude.conjugate()
+                popij = (2.0 * self.S[i,j] * self.traj[j].amplitude *
+                         self.traj[i].amplitude.conjugate())
                 pop[state] += popij.real
 
         # dead contribution
@@ -448,9 +448,9 @@ class bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = self.alive[j]
-                S += self.traj[ii].overlap(other.traj[jj]) * \
-                      self.traj[ii].amplitude.conjugate()  * \
-                     other.traj[jj].amplitude
+                S += (self.traj[ii].overlap(other.traj[jj]) *
+                      self.traj[ii].amplitude.conjugate() *
+                      other.traj[jj].amplitude)
         return S
 
 #-----------------------------------------------------------------------
@@ -509,11 +509,12 @@ class bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
-            self.T,self.V,self.S,self.Sdot,self.Heff = \
-              mbuild.build_hamiltonian(self.integrals,self.traj,self.alive,cent_list=self.cent)
+            (self.T, self.V, self.S, self.Sdot,
+             self.Heff) = mbuild.build_hamiltonian(self.integrals, self.traj,
+                                                   self.alive, cent_list=self.cent)
         else:
-            self.T,self.V,self.S,self.Sdot,self.Heff = \
-              mbuild.build_hamiltonian(self.integrals,self.traj,self.alive)
+            (self.T, self.V, self.S, self.Sdot,
+             self.Heff) = mbuild.build_hamiltonian(self.integrals, self.traj, self.alive)
 
         timings.stop('bundle.update_matrices')
         return

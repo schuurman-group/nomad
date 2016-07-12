@@ -41,7 +41,7 @@ def spawn(master,dt):
                 continue
 
             s_array = [abs(parent.overlap(master.traj[j],st_orthog=False))
-                         if master.traj[j].state==st and master.traj[j].alive
+                         if master.traj[j].state == st and master.traj[j].alive
                          else 0.
                          for j in range(master.n_traj())]
 
@@ -75,9 +75,9 @@ def spawn(master,dt):
                         fileio.print_fms_logfile('spawn_success',[current_time,parent.tid,st])
                         utilities.write_spawn_log(current_time, current_time, current_time, parent, master.traj[-1])
                     else:
-                        err_msg = 'Traj '+str(parent.tid)+' from state '+str(parent.state)+\
-                                  ' to state '+str(st)+': '+'overlap with bundle too large,'+\
-                                  ' s_max='+str(glbl.fms['sij_thresh'])
+                        err_msg = ('Traj ' + str(parent.tid) + ' from state ' + str(parent.state) +
+                                   ' to state ' + str(st) + ': ' + 'overlap with bundle too large,' +
+                                   ' s_max=' + str(glbl.fms['sij_thresh']))
                         fileio.print_fms_logfile('spawn_bad_step',[err_msg])
 
     timings.stop('spawn.spawn')

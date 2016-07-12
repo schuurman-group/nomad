@@ -6,7 +6,7 @@ import src.vcham.hampar as ham
 
 def convfac(string):
 
-    if (string=='ev'):
+    if string == 'ev':
         factor=1.0/27.21141
     else:
         print("Unknown conversion factor:",keyword)
@@ -45,7 +45,7 @@ def getcoe(string):
     aop=["" for i in range(20)]
 
     for i in range(k):
-        if (string[i:i+1]=="*" or string[i:i+1]=="/"):
+        if string[i:i+1] == "*" or string[i:i+1] == "/":
             nfac+=1
             aop[nfac-1]=string[i:i+1]
             ilbl=0
@@ -59,28 +59,28 @@ def getcoe(string):
         # Is the parameter a number?
         lnum=isnum(atmp[i])
 
-        if (lnum):
+        if lnum:
             val[i]=float(atmp[i])
             lfound=True
         else:
             lfound=False
             for k in range(ham.npar):
-                if (ham.apar[k]==atmp[i]):
+                if ham.apar[k] == atmp[i]:
                     val[i]=ham.par[k]
                     lfound=True
 
-        if (not lfound):
+        if not lfound:
             print('Parameter ',atmp[i],' not recognised')
             sys.exit()
 
     # Construct the coefficient from the parameter values and operator
     # strings
     coeff=val[0]
-    if (nfac > 1):
+    if nfac > 1:
         for i in range(nfac):
-            if (aop[i]=="*"):
+            if aop[i] == "*":
                 coeff=coeff*val[i]
-            elif (aop[i]=="/"):
+            elif aop[i] == "/":
                 coeff=coeff/val[i]
 
     return coeff
@@ -94,13 +94,13 @@ def rdoperfile(infile):
     #########################################################################
     found=False
     parse.leof=False
-    while (not found and not parse.leof):
+    while not found and not parse.leof:
         parse.rd1line(infile)
-        if (parse.keyword[1]=="labels_section"):
+        if parse.keyword[1] == "labels_section":
             found=True
 
     # Exit if a labels section has not been found
-    if (not found):
+    if not found:
         print("No labels section has been found")
         sys.exit()
 
@@ -113,9 +113,9 @@ def rdoperfile(infile):
     found=False
     parse.leof=False
     ham.npar=0
-    while (not found and not parse.leof):
+    while not found and not parse.leof:
         parse.rd1line(infile)
-        if (parse.keyword[1]=="end-labels_section"):
+        if parse.keyword[1] == "end-labels_section":
             found=True
         else:
             ham.npar+=1
@@ -133,12 +133,12 @@ def rdoperfile(infile):
     for i in range(ham.npar):
         parse.rd1line(infile)
         ham.apar[i]=parse.keyword[1]
-        if (parse.keyword[2]=="="):
+        if parse.keyword[2] == "=":
             ham.par[i]=float(parse.keyword[3])
         else:
             print("No argument has been given with the keyword:",parse.keyword[1])
             sys.exit()
-        if (parse.keyword[4]==","):
+        if parse.keyword[4] == ",":
             fac=convfac(parse.keyword[5])
             ham.par[i]=ham.par[i]*fac
 
@@ -147,13 +147,13 @@ def rdoperfile(infile):
     #########################################################################
     found=False
     parse.leof=False
-    while (not found and not parse.leof):
+    while not found and not parse.leof:
         parse.rd1line(infile)
-        if (parse.keyword[1]=="hamiltonian_section"):
+        if parse.keyword[1] == "hamiltonian_section":
             found=True
 
     # Exit if a Hamiltonian section has not been found
-    if (not found):
+    if not found:
         print("No Hamiltonian section has been found")
         sys.exit()
 
@@ -166,13 +166,13 @@ def rdoperfile(infile):
     found=False
     ham.nterms=0
     parse.leof=False
-    while (not found and not parse.leof):
+    while not found and not parse.leof:
         parse.rd1line(infile)
-        if (parse.keyword[1]=="end-hamiltonian_section"):
+        if parse.keyword[1] == "end-hamiltonian_section":
             found=True
         else:
-            if (parse.keyword[1][0:3]!='---' \
-                and parse.keyword[1][0:5]!='modes'):
+            if (parse.keyword[1][0:3] != '---'
+                and parse.keyword[1][0:5] != 'modes'):
                 ham.nterms+=1
 
     #########################################################################
@@ -188,21 +188,21 @@ def rdoperfile(infile):
     # Read the mode labels
     ham.mlbl_total=['' for i in range(ham.maxdim)]
     parse.rd1line(infile)
-    if (parse.keyword[1][0:5]!='modes'):
+    if parse.keyword[1][0:5] != 'modes':
         print("The Hamiltonian section must start with the mode specification!")
         sys.exit()
     infile.seek(hamstart)
     ismodes=True
     nmdline=0
     ham.nmode_total=0
-    while(ismodes):
+    while ismodes:
         parse.rd1line(infile,up2low=False)
-        if (parse.keyword[1][0:5].lower()!='modes'):
+        if parse.keyword[1][0:5].lower() != 'modes':
             ismodes=False
         else:
             nmdline+=1
             i=2
-            while(i<=parse.inkw):
+            while i <= parse.inkw:
                 i+=1
                 ham.nmode_total+=1
                 ham.mlbl_total[ham.nmode_total-1]=parse.keyword[i]
@@ -217,7 +217,7 @@ def rdoperfile(infile):
         parse.rd1line(infile)
         # (1) 1st keyword: coefficient
         lnum=isnum(parse.keyword[1])
-        if (lnum):
+        if lnum:
             ham.coe[i]=float(parse.keyword[1])
         else:
             ham.coe[i]=getcoe(parse.keyword[1])
@@ -236,7 +236,7 @@ def rdoperfile(infile):
 
         # Ensure that we are filling in the lower triangle of
         # the Hamiltonian matrix only
-        if (s1 > s2):
+        if s1 > s2:
             k=s1
             s1=s2
             s2=k
