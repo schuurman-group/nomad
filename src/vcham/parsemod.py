@@ -31,7 +31,7 @@ def rd1line(filename,up2low=True):
     # return
     if not string:
         leof=True
-        return
+        return None
 
     # Check whether the current line is either empty or a comment
     p1=len(string)-len(string.lstrip())

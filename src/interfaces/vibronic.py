@@ -67,8 +67,6 @@ def init_interface():
         string=str(i+1)+' '+str(ham.freq[i])
         fileio.print_fms_logfile('string',[string])
 
-    return
-
 ########################################################################
 
 def evaluate_trajectory(tid, geom, stateindx):
@@ -143,7 +141,7 @@ def evaluate_trajectory(tid, geom, stateindx):
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
 
-    return[qcoo,ener,grad]
+    return qcoo, ener, grad
 
 ########################################################################
 
@@ -223,7 +221,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
 
-    return[qcoo,ener,grad]
+    return qcoo, ener, grad
 
 ########################################################################
 # calc_diabpot: constructs the diabatic potential matrix for a given
@@ -256,8 +254,6 @@ def calc_diabpot(q):
         for s2 in range(s1+1,nsta):
             diabpot[s2][s1]=diabpot[s1][s2]
 
-    return
-
 ########################################################################
 # calc_adt: diagonalises the diabatic potential matrix to yield the
 #           adiabatic potentials and the adiabatic-to-diabatic
@@ -270,8 +266,6 @@ def calc_adt():
     global adtmat
 
     adiabpot, adtmat = np.linalg.eigh(diabpot)
-
-    return
 
 ########################################################################
 # calc_diabderiv1: calculates the 1st derivatives of the elements of the
@@ -308,8 +302,6 @@ def calc_diabderiv1(q):
         for s1 in range(nsta-1):
             for s2 in range(s1+1,nsta):
                 diabderiv1[m][s2][s1]=diabderiv1[m][s1][s2]
-
-    return
 
 ########################################################################
 # calc_nacts: calculates the matrix of non-adiabatic coupling terms from
@@ -361,8 +353,6 @@ def calc_nacts():
             for j in range(i+1,nsta):
                 nactmat[m][j][i]=-nactmat[m][i][j]
 
-    return
-
 ########################################################################
 # calc_adiabderiv1: calculates the gradients of the adiabatic potentials
 ########################################################################
@@ -381,8 +371,6 @@ def calc_adiabderiv1():
             for k in range(nsta):
                 for l in range(nsta):
                     adiabderiv1[m][i]+=adtmat[k][i]*diabderiv1[m][k][l]*adtmat[l][i]
-
-    return
 
 ########################################################################
 # calc_diablap: calculates the Laplacian of the diabatic potential
@@ -427,8 +415,6 @@ def calc_diablap(q):
     for i in range(nsta-1):
         for j in range(i+1,nsta):
             diablap[j][i]=diablap[i][j]
-
-    return
 
 ########################################################################
 # calc_scts: calculates the scalar coupling terms using the equation
@@ -583,34 +569,27 @@ def calc_scts():
             for k in range(nsta):
                dbocderiv1[m][i]-=2.0*delnactmat[i][k]*nactmat[m][i][k]
 
-    return
-
 ########################################################################
 
 def orbitals(tid,geom,t_state):
-
-    return
+    pass
 
 ########################################################################
 
 def derivative(tid,geom,t_state,lstate,rstate):
-
-    return
+    pass
 
 ########################################################################
 
 def dipole(tid,geom,t_state,lstate,rstate):
-
-    return
+    pass
 
 ########################################################################
 
 def sec_mom(tid,geom,t_state,rstate):
-
-    return
+    pass
 
 ########################################################################
 
 def atom_pop(tid,geom,t_state, rstate):
-
-    return
+    pass

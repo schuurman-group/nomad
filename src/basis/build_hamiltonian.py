@@ -113,4 +113,4 @@ def build_hamiltonian(intlib,traj_list,traj_alive,cent_list=None):
 
     timings.stop('build_hamiltonian')
 
-    return T,V,S,Sdot,Heff
+    return T, V, S, Sdot, Heff

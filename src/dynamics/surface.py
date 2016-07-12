@@ -20,8 +20,6 @@ def init_surface(pes_interface):
     except:
         print("INTERFACE FAIL: "+pes_interface)
 
-    return
-
 #
 #
 #
@@ -111,8 +109,6 @@ def update_pes_traj(traj):
     tid = traj.tid
     results = pes.evaluate_trajectory(traj.tid,traj.particles,traj.state)
     traj.update_pes(results)
-
-    return
 
 #
 # if the surface in the cache corresponds to current geometry, return true (don't

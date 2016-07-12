@@ -87,7 +87,6 @@ def propagate_bundle(master, dt):
 
     #
     timings.stop('propagators.propagate_bundle')
-    return
 
 #
 # propagate a single trajectory
@@ -135,4 +134,3 @@ def propagate_trajectory(traj, dt):
             traj.update_phase( gnew )
 
     timings.stop('propagators.propagate_trajectory')
-    return

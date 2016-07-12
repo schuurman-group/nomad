@@ -111,7 +111,6 @@ class trajectory:
         self.dipoles    = np.zeros((self.nstates,self.nstates,self.d_particle))
         self.sec_moms   = np.zeros((self.nstates,self.d_particle))
         self.atom_pops  = np.zeros((self.nstates,self.n_particle))
-        return
 
     #
     # Updates the position of the particles in trajectory. Flips up2date switch to False
@@ -119,7 +118,6 @@ class trajectory:
     def update_x(self,pos):
         for i in range(self.n_particle):
             self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle]
-        return
 
     #
     # Update the momentum of the particles in the trajectory. Flips up2date switch to False
@@ -127,7 +125,6 @@ class trajectory:
     def update_p(self,mom):
         for i in range(self.n_particle):
             self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle]
-        return
 
     #
     # update the nuclear phase
@@ -136,14 +133,12 @@ class trajectory:
         self.gamma = phase
         if abs(self.gamma) > 2*np.pi:
             self.gamma = self.gamma - int(self.gamma/(2. * np.pi)) * 2. * np.pi
-        return
 
     #
     # update the amplitude on this trajectory
     #
     def update_amplitude(self, amplitude):
         self.amplitude = amplitude
-        return
 
     #
     # update information about the potential energy surface
@@ -159,7 +154,6 @@ class trajectory:
             self.dipoles   = pes_info[3]
             self.sec_moms  = pes_info[4]
             self.atom_pops = pes_info[5]
-        return
 
     #-----------------------------------------------------------------------
     #

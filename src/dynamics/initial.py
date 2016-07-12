@@ -82,7 +82,6 @@ def init_restart(master):
         fname = fileio.home_path+'/checkpoint.dat'
 
     master.read_bundle(fname,glbl.fms['restart_time'])
-    return
 
 #
 # set the initial state of the trajectories in the bundle
@@ -128,5 +127,3 @@ def virtual_basis(master):
             new_traj.amplitude = np.complex(0.,0.)
             new_traj.state     = j
             master.add_trajectory(new_traj)
-
-    return

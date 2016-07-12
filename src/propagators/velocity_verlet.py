@@ -49,7 +49,6 @@ def propagate_bundle(master,dt):
     master.update_amplitudes(0.5*dt,10)
 
     timings.stop('propagators.propagate_bundle')
-    return
 
 #
 # propagate a single trajectory
@@ -68,7 +67,6 @@ def propagate_trajectory(traj, dt):
     propagate_momentum(traj, dt)
 
     timings.stop('propagators.propagate_trajectory')
-    return
 
 #
 #  update the position to end of time step and half-propagate the
@@ -107,8 +105,6 @@ def propagate_position(traj, dt):
     dgamma = g1_0 * dt / 2.0 - g2_0 * dt**2 / 8.0
     traj.update_phase(traj.phase() + dgamma)
 
-    return
-
 #
 # finish the phase and momentum update using forces and velocities at
 # the final position
@@ -142,5 +138,3 @@ def propagate_momentum(traj, dt):
 #    dgamma = (g1_0 + g1_1) * dt / 2.0 - (g2_0 - g2_1) * dt**2 / 8.0
     dgamma = g1_1 * dt / 2.0 + g2_1 * dt**2 / 8.0
     traj.update_phase(traj.phase() + dgamma)
-
-    return

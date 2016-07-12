@@ -60,8 +60,6 @@ def start(name):
     active_stack[-1].wall_kids  = 0.
     active_stack[-1].cpu_kids   = 0.
 
-    return
-
 #
 # stop the timer given by "name". Trying to stop an unknown timer throws
 #  an error
@@ -109,8 +107,6 @@ def stop(name,cumulative=None):
     if len(active_stack) > 0:
         active_stack[-1].wall_kids += d_wall
         active_stack[-1].cpu_kids  += d_cpu
-
-    return
 #
 # print out a timing report, sorted from highest wall time to lowest
 #

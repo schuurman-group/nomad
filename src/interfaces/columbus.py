@@ -382,8 +382,6 @@ def run_col_mcscf(tid, t_state):
     # grab mcscfls output
 #    append_log(tid,'mcscf')
 
-    return
-
 #
 # run mrci if running at that level of theory
 #
@@ -496,8 +494,6 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
             shutil.copy(input_path+'/tranin','tranin')
             subprocess.run(['tran.x','-m',mem_str])
 
-    return
-
 #
 # run dipoles / second moments
 #
@@ -540,8 +536,6 @@ def run_col_multipole(tid,t_state):
                                                         float(l_arr[7])])
         os.remove('mocoef_prop')
 
-    return
-
 #
 # Compute transition dipoles between ground and excited state,
 # and between trajectory states and other state
@@ -560,7 +554,7 @@ def run_col_tdipole(tid, state_i, state_j):
     j1 = max(state_i,state_j) + 1
 
     if state_i == state_j:
-        return
+        return None
 
     if mrci_lvl == 0:
         with open('transftin','w') as ofile:
@@ -803,8 +797,6 @@ def set_global_vars(gvars):
     mrci_lvl     = gvars[11]
     mem_str      = gvars[12]
 
-    return
-
 #-----------------------------------------------------------------
 #
 # file parsing
@@ -864,8 +856,6 @@ def append_log(tid, listing_file):
 
     else:
         print("listing file: "+str(listing_file)+" not recognized.")
-
-    return
 
 #
 #  copy mocoef file to working directory:

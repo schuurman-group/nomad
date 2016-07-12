@@ -41,7 +41,7 @@ def load_geometry():
         if len(w_data) > i:
             p_list[i].width = w_data[i]
 
-    return a_list,p_list
+    return a_list, p_list
 
 #
 # do some error checking on the hessian file

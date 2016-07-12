@@ -44,5 +44,3 @@ def rdfreqfile():
     ham.freqmap={}
     for i in range(ham.nmode_active):
         ham.freqmap.update({ham.mlbl_active[i] : ham.freq[i] })
-
-    return

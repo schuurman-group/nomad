@@ -162,4 +162,3 @@ def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     data.extend([parent.kinetic(), child.kinetic(), parent.potential(), child.potential()])
     data.extend([parent.classical(), child.classical()])
     fileio.print_bund_row(2,data)
-    return

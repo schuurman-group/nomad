@@ -116,7 +116,7 @@ class bundle:
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         timings.stop('bundle.add_trajectory')
-        return
+        return None
 
     # add a set of trajectories
     def add_trajectories(self,traj_list):
@@ -155,8 +155,6 @@ class bundle:
             self.update_amplitudes_exact(dt, n_max, H=None, Ct=None)
         else:
             self.update_amplitudes_taylor(dt, n_max, H=None, Ct=None)
-
-        return
 
     #
     # Solution of d/dt C = -i H C using the Taylor expansion of
@@ -239,8 +237,6 @@ class bundle:
 
         timings.stop('bundle.update_amplitudes')
 
-        return
-
     #
     # Solution of d/dt C = -i H C using the exact computation of
     # exp(-i H(t) dt) C(t)
@@ -266,8 +262,6 @@ class bundle:
 
         timings.stop('bundle.update_amplitudes')
 
-        return
-
     #
     # renormalizes the amplitudes of the trajectories in the bundle
     #
@@ -278,7 +272,6 @@ class bundle:
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
         timings.stop('bundle.renormalize')
-        return
 
     #
     # kills trajectories that are dead
@@ -323,7 +316,6 @@ class bundle:
     def set_amplitudes(self, amps):
         for i in range(self.nalive):
             self.traj[self.alive[i]].amplitude = amps[i]
-        return
 
     #
     # return the Mulliken-like population
@@ -517,7 +509,6 @@ class bundle:
              self.Heff) = mbuild.build_hamiltonian(self.integrals, self.traj, self.alive)
 
         timings.stop('bundle.update_matrices')
-        return
 
  #-----------------------------------------------------------------------------
  #
@@ -615,7 +606,6 @@ class bundle:
             self.write_bundle(fileio.scr_path+'/last_step.dat','w')
 
         timings.stop('bundle.update_logs')
-        return
 
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
@@ -655,7 +645,6 @@ class bundle:
         chkpt.close()
 
         timings.stop('bundle.write_bundle')
-        return
 
     #
     # Reads a bundle at time 't_restart' from a chkpt file
@@ -718,4 +707,3 @@ class bundle:
 
         # once bundle is read, close the stream
         chkpt.close()
-        return

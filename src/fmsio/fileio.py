@@ -73,8 +73,6 @@ def read_input_files():
     else:
         print("Interface: "+str(glbl.fms['interface'])+" not recognized.")
 
-    return
-
 #
 # Reads a namelist style input, returns results in dictionary
 #
@@ -288,8 +286,6 @@ def init_fms_output():
     print_level['complete']       = 0
     print_level['timings']        = 0
 
-    return
-
 #
 # Appends a row of data, formatted by entry 'fkey' in formats to file
 # 'filename'
@@ -305,7 +301,6 @@ def print_traj_row(tid,fkey,data):
     else:
         with open(filename, "a") as outfile:
             outfile.write(dump_format[tkeys[fkey]].format(*data))
-    return
 
 #
 # determine whether it is appropriate to update the trajectory/bundle
@@ -336,7 +331,6 @@ def print_bund_row(fkey,data):
     else:
         with open(filename, "a") as outfile:
             outfile.write(dump_format[bkeys[fkey]].format(*data))
-    return
 
 #
 # prints a matrix to file with a time label
@@ -348,7 +342,6 @@ def print_bund_mat(time,fname,mat):
     with open(filename,"a") as outfile:
         outfile.write('{:9.2f}\n'.format(time))
         outfile.write(np.array2string(mat)+'\n')
-    return
 
 #
 # print a string to the log file
@@ -358,13 +351,12 @@ def print_fms_logfile(otype,data):
 
     if otype not in log_format:
         print("CANNOT WRITE otype="+str(otype)+'\n')
-        return
+        return None
 
     if glbl.fms['print_level'] >= print_level[otype]:
         filename = home_path+'/fms.log'
         with open(filename,'a') as logfile:
             logfile.write(log_format[otype].format(*data))
-    return
 
 
 #----------------------------------------------------------------------------
@@ -424,7 +416,7 @@ def read_geometry():
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return amp_data,geom_data,mom_data,width_data
+    return amp_data, geom_data, mom_data, width_data
 
 #
 # Read a hessian matrix (not mass weighted)
@@ -475,5 +467,3 @@ def cleanup():
         shutil.move(scr_path+'/last_step.dat',odir)
     except:
         pass
-
-    return

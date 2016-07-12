@@ -34,7 +34,7 @@ def evaluate_trajectory(tid, geom, t_state):
    eners = energy(gm)
    grads = derivative(gm, t_state)
 
-   return[gm,eners,grads]
+   return gm, eners, grads
 
 #
 # evaluate energy in boson model
@@ -95,7 +95,7 @@ def evaluate_worker(packet, global_var):
    eners = energy(gm)
    grads = derivative(gm, t_state)
 
-   return[gm,eners,grads]
+   return gm, eners, grads
 
 #
 # return the value of global variables
@@ -108,12 +108,10 @@ def set_global_vars(gvars):
     delta = gvars[2]
     C     = gvars[3]
 
-    return
-
 #
 # package global variables into a list
 #
 def get_global_vars():
     global ncrd,omega,C,delta
 
-    return [ncrd, omega, delta, C]
+    return ncrd, omega, delta, C
