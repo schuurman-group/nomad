@@ -503,7 +503,7 @@ class bundle:
         timings.stop('bundle.update_centroids')
 
     def update_matrices(self):
-
+        
         timings.start('bundle.update_matrices')
 
         # make sure the centroids are up-to-date in order to evaluate
