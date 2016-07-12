@@ -14,7 +14,7 @@ def sample_distribution(master):
     for i in range(ngeoms):
         amp  = amps[i]
         geom = []
-   
+
         # load particles in geometry array
         for j in range(natms):
             geom.append(geoms[i*natms + j])

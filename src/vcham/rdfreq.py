@@ -19,10 +19,10 @@ def rdfreqfile():
     while (True):
         parse.rd1line(freqfile,up2low=False)
         if (parse.leof==False):
-            mdlbl=parse.keyword[1]            
+            mdlbl=parse.keyword[1]
 
             freq=float(parse.keyword[2])
-            
+
             if (parse.keyword[3]==','):
                 fac=rdoper.convfac(parse.keyword[4])
                 freq=freq*fac

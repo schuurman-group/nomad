@@ -3,13 +3,13 @@ import time
 #
 # Timers and timing information for subroutines
 # Allows for nested timers. Constructed to ensure no overlap
-# between timers, so thereotically sum(timers) = total time 
+# between timers, so thereotically sum(timers) = total time
 #
 timer_list = dict()
 active_stack = []
 
 class timer:
-  
+
     #
     # timer for process "name"
     #
@@ -17,7 +17,7 @@ class timer:
         self.name        = name
         self.calls       = 0
         self.cpu_time    = 0.
-        self.wall_time   = 0. 
+        self.wall_time   = 0.
         self.cpu_start   = 0.
         self.wall_start  = 0.
         self.cpu_kids    = 0.
@@ -25,13 +25,13 @@ class timer:
         self.running     = False
 
 #
-# start the timer given by "name". If it doesn't exist, create it and 
+# start the timer given by "name". If it doesn't exist, create it and
 #  add it to the list of timers
 #
 def start(name):
     global timer_list, active_stack
 
-    # 
+    #
     # if timer already in list, activate it
     #
     if name not in timer_list:
@@ -52,7 +52,7 @@ def start(name):
     if active_stack[-1].running:
         sys.exit('START timer: '+str(name)+' called while running.\n'
                  ' => could be recursion issue')
-    
+
     active_stack[-1].calls     += 1
     active_stack[-1].running    = True
     active_stack[-1].wall_start = time.time()
@@ -67,7 +67,7 @@ def start(name):
 #  an error
 #
 def stop(name,cumulative=None):
-    global active_stack 
+    global active_stack
 
     #
     # for time being, assume, last function added to stack, is the first to
@@ -77,9 +77,9 @@ def stop(name,cumulative=None):
        sys.exit('STOP timer: '+str(name)+' called, but timer not at top of active stack.\n')
 
     d_cpu  = time.clock() - active_stack[-1].cpu_start
-    d_wall = time.time()  - active_stack[-1].wall_start    
-     
-    # 
+    d_wall = time.time()  - active_stack[-1].wall_start
+
+    #
     # If cumulative, don't subtract off time spent in nested timers.
     #
     if cumulative:
@@ -96,16 +96,16 @@ def stop(name,cumulative=None):
 #        else:
 #            print('pop '+str(i)+': '+str(active_stack[i].name))
 
-    # 
-    # pop the child off the stack, then go through the active_stack and update 
+    #
+    # pop the child off the stack, then go through the active_stack and update
     # the child times for each of the parent timers
     #
     active_stack[-1].running = False
-    active_stack[-1].wall_time += (d_wall - kid_wall) 
+    active_stack[-1].wall_time += (d_wall - kid_wall)
     active_stack[-1].cpu_time  += (d_cpu  - kid_cpu)
     active_stack.pop()
- 
-    # add the time for the child to the parent 
+
+    # add the time for the child to the parent
     if len(active_stack) > 0:
         active_stack[-1].wall_kids += d_wall
         active_stack[-1].cpu_kids  += d_cpu
@@ -119,14 +119,14 @@ def print_timings():
 
     # ensure that the global timer has finished and get the total execution time
     if timer_list['global'].running:
-        stop('global',cumulative=True) 
+        stop('global',cumulative=True)
     tot_cpu  = timer_list['global'].cpu_time
     tot_wall = timer_list['global'].wall_time
 
     sort_list = sorted(timer_list.items(), key=lambda unsort: unsort[1].wall_time,reverse=True)
 
     # pass timing information as a string
-    
+
     ostr =  '\n'+'-'*39+' timings summary '+'-'*39+' \n'
     ostr +=  'routine'.ljust(35)+'calls'.rjust(12) \
             +'wall time'.rjust(16)+'frac.'.rjust(8) \
@@ -147,5 +147,5 @@ def print_timings():
 
     ostr += '-'*95+'\n'
     ostr += '**total**'.ljust(47)+'{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}\n\n'\
-                                         .format(tot_wall,frac_wall,tot_cpu,frac_cpu) 
-    return ostr       
+                                         .format(tot_wall,frac_wall,tot_cpu,frac_cpu)
+    return ostr

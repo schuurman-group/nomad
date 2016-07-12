@@ -23,7 +23,7 @@ def valid_particle(particle):
 
 def load_particle(particle):
     q = re.compile('q[0-9]',re.IGNORECASE)
-    if particle.name in particle_name: 
+    if particle.name in particle_name:
         index = particle_name.index(particle.name)
         particle.width = particle_width[index]
         particle.mass  = particle_mass[index]*glbl.mass2au
@@ -59,7 +59,7 @@ class particle:
         # dimension of the particle (=3 for atom in cartesian coords)
         self.dim   = int(dim)
         # particle identifier (integer, specifying atom number)
-        self.pid   = int(pid) 
+        self.pid   = int(pid)
         # create a particle with zero position and momentum
         self.x     = np.zeros(self.dim,dtype=np.float)
         self.p     = np.zeros(self.dim,dtype=np.float)
@@ -94,7 +94,7 @@ class particle:
     #
     def deldp(self,other):
          return np.fromiter((gaussian.deldp(self.x[i],self.p[i],self.width,
-                                           other.x[i],other.p[i],other.width) 
+                                           other.x[i],other.p[i],other.width)
                                           for i in range(self.dim)),dtype=np.complex)
 
 
@@ -103,7 +103,7 @@ class particle:
     #
     def deldx(self,other):
          return np.fromiter((gaussian.deldx(self.x[i],self.p[i],self.width,
-                                          other.x[i],other.p[i],other.width) 
+                                          other.x[i],other.p[i],other.width)
                                           for i in range(self.dim)),dtype=np.complex)
 
     #
@@ -112,10 +112,10 @@ class particle:
     def deld2x(self,other):
 #         print("x1,p1,w1,x2,p2,w2="+str(self.x[0])+" "+str(self.p[0])+" "+str(self.width)+" "+str(other.x[0])+" "+str(other.p[0])+" "+str(other.width)+" ")
          d2xval = np.fromiter((gaussian.deld2x(self.x[i],self.p[i],self.width,
-                               other.x[i],other.p[i],other.width) 
+                               other.x[i],other.p[i],other.width)
                                for i in range(self.dim)),dtype=np.complex)
 #         print("d2xval = "+str(d2xval))
-         return sum(d2xval) 
+         return sum(d2xval)
 
     #------------------------------------------------------------------------
     #

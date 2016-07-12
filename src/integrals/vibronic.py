@@ -25,10 +25,10 @@ def v_integral(traj1,traj2=None,centroid=None):
 def prim_v_integral(n, p1, p2):
     n_2 = math.floor(0.5 * n)
     a   = p1.width + p2.width
-    b   = np.fromiter( (complex( 2.0*(p1.width*p1.x(i) + p2.width*p2.x(i)), 
+    b   = np.fromiter( (complex( 2.0*(p1.width*p1.x(i) + p2.width*p2.x(i)),
                        -(p1.p(i)-p2.p(i))) for i in range(p1.dim)), np.complex)
 
-    # generally these should be 1D harmonic oscillators. If multi-dimensional, the 
+    # generally these should be 1D harmonic oscillators. If multi-dimensional, the
     # final result is a direct product of each dimension
     v_total  = complex(1.,0.)
     for d in range(p1.dim):
@@ -55,7 +55,7 @@ def ke_integral(traj1,traj2):
         return ke
 
 #
-# return the matrix element <Psi_1 | d/dt | Psi_2> 
+# return the matrix element <Psi_1 | d/dt | Psi_2>
 #
 def sdot_integral(traj1,traj2):
      sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) )   \

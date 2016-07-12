@@ -24,7 +24,7 @@ def rd1line(filename,up2low=True):
 
     #-----------------------------------------------------------------------
     # Read to the next non-blank, non-comment line
-    #-----------------------------------------------------------------------    
+    #-----------------------------------------------------------------------
     string=filename.readline()
 
     # If we have reached the end of the file, set leof=True and
@@ -32,9 +32,9 @@ def rd1line(filename,up2low=True):
     if (not string):
         leof=True
         return
-        
+
     # Check whether the current line is either empty or a comment
-    p1=len(string)-len(string.lstrip())      
+    p1=len(string)-len(string.lstrip())
     if ((len(string.split()))==0):
         ok=False
     elif (string[p1:p1+1]=="#"):
@@ -66,7 +66,7 @@ def rd1line(filename,up2low=True):
         # Break if we have reached a comment
         if (string[i]=='#'):
             break
-    
+
         # If the current character is a delimiter other than a space or
         # a tab (=, ',', ], etc.) then read in as a separate keyword and
         # then go to the next keyword...

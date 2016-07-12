@@ -47,7 +47,7 @@ def ke_integral(traj1,traj2,S_ij=None):
         return ke
 
 #
-# return the matrix element <Psi_1 | d/dt | Psi_2> 
+# return the matrix element <Psi_1 | d/dt | Psi_2>
 #
 def sdot_integral(traj1,traj2,S_ij=None):
     sdot =  -np.dot( traj2.velocity(), traj1.deldx(traj2) ) +  \

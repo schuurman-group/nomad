@@ -1,5 +1,5 @@
 #
-# this spawning procedure propagates to the point of maximum coupling, 
+# this spawning procedure propagates to the point of maximum coupling,
 # creates a new function, that back propagates to the current time
 #
 import numpy as np
@@ -7,7 +7,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
-import src.spawn.utilities as utilities 
+import src.spawn.utilities as utilities
 
 coup_hist = []
 
@@ -17,14 +17,14 @@ coup_hist = []
 #
 #   start, ti
 #     |
-#    \/        spawn_forward 
+#    \/        spawn_forward
 # parent(s,ti) -------------> parent(s,ts)
 #                                  |
 #              spawn_backward     \/
 # child(s',ti) <------------- child(s',ts)
 #
 # 1. The spawn routine is called with parent_i at time t0.
-# 2. If parent_i is coupled to another 
+# 2. If parent_i is coupled to another
 #
 
 def spawn(master,dt):
@@ -59,7 +59,7 @@ def spawn(master,dt):
                 if master.traj[j].alive and master.traj[j].state == st:
                     sij = abs(master.traj[i].overlap(master.traj[j]))
                     if sij > max_sij:
-                        max_sij = sij 
+                        max_sij = sij
                         if max_sij > glbl.fms['sij_thresh']:
                             break
             if max_sij > glbl.fms['sij_thresh']:
@@ -72,7 +72,7 @@ def spawn(master,dt):
             coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
             coup_hist[i][st,0] = coup
 
-            # if we satisfy spawning conditions, begin spawn process                    
+            # if we satisfy spawning conditions, begin spawn process
             if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:], current_time):
                 parent       = trajectory.copy_traj(master.traj[i])
                 child        = trajectory.copy_traj(parent)
@@ -101,7 +101,7 @@ def spawn(master,dt):
                         fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
 
                 utilities.write_spawn_log(current_time, spawn_time, exit_time, master.traj[i], master.traj[-1])
-   
+
     # let caller known if the basis has been changed
     return basis_grown
 
@@ -194,7 +194,7 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
     if abs(traj.amplitude) < glbl.fms['spawn_pop_thresh']:
         return False
 
-    # we have already spawned to this state 
+    # we have already spawned to this state
     if current_time <= traj.last_spawn[spawn_state]:
         return False
 

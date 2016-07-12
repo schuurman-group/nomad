@@ -13,7 +13,7 @@ pes_cache  = dict()
 #
 def init_surface(pes_interface):
     global pes
-    
+
     # create interface to appropriate surface
     try:
         pes = __import__('src.interfaces.'+pes_interface,fromlist=['NA'])
@@ -37,9 +37,9 @@ def update_pes(master):
         #
         gvars = pes.get_global_vars()
         #
-        # update electronic structure 
+        # update electronic structure
         #
-        run_list = [] 
+        run_list = []
         for i in range(master.n_traj()):
             if not master.traj[i].alive or cached(i,master.traj[i].x()):
                 continue
@@ -55,7 +55,7 @@ def update_pes(master):
                 run_list.append([-i,master.cent[i].particles,master.cent[i].state,master.cent[i].c_state])
         jobs = glbl.sc.parallelize(run_list)
         rdd = jobs.map(partial(pes.evaluate_worker,global_var=gvars))
-        res = rdd.collect() 
+        res = rdd.collect()
 
         #
         # update the cache
@@ -113,7 +113,7 @@ def update_pes_traj(traj):
     traj.update_pes(results)
 
     return
- 
+
 #
 # if the surface in the cache corresponds to current geometry, return true (don't
 # recompute the surface)
@@ -123,11 +123,11 @@ def cached(tid, geom):
 
     if tid not in pes_cache:
         return False
-  
+
     g  = np.array([pes_cache[tid][0][i] for i in range(len(pes_cache[tid][0]))])
     dg = np.linalg.norm(geom - g)
     if dg <= glbl.fpzero:
         return True
-  
-    return False 
-    
+
+    return False
+

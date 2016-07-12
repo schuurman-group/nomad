@@ -1,16 +1,16 @@
 #
 # Form the Hamiltonian matrix in the basis of the FMS trajectories.
 # This will necessarily involve a set of additional matrices. For ab initio
-# propagation, this is never the rate determining step. For numerical 
+# propagation, this is never the rate determining step. For numerical
 # propagation, however, it is THE bottleneck. Thus, this function is
-# compiled in Cython in order to make use of openMP parallelization. 
+# compiled in Cython in order to make use of openMP parallelization.
 #
 # As a matter of course, this function also builds:
 #    - the S matrix
 #    - the time derivative of the S matrix (sdot)
 #    - the effective Hamiltonian (i.e. i * S^-1 [ S * H - Sdot])
 #      --> this is the matrix employed to solve for the time
-#          dependent amplitudes 
+#          dependent amplitudes
 import sys
 import numpy as np
 import src.dynamics.timings as timings
@@ -29,14 +29,14 @@ def c_ind(i, j):
         return int(a*(a-1)/2 + b)
 
 #
-# get the (i,j) index of an upper triangular matrix from the 
+# get the (i,j) index of an upper triangular matrix from the
 # sequential matrix index 'index'
 #
 def ij_ind(index):
     i = 0
     while i*(i+1)/2-1 < index:
         i += 1
-    return int(index-i*(i-1)/2),int(i-1) 
+    return int(index-i*(i-1)/2),int(i-1)
 
 #
 #
@@ -78,7 +78,7 @@ def build_hamiltonian(intlib,traj_list,traj_alive,cent_list=None):
         S[i,j] = traj_list[ii].overlap(traj_list[jj])
         S[j,i] = S[i,j].conjugate()
 
-        # overlap matrix (including electronic component)               
+        # overlap matrix (including electronic component)
         if traj_list[ii].state == traj_list[jj].state:
             S_orthog[i,j] = S[i,j]
             S_orthog[j,i] = S[j,i]

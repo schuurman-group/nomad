@@ -1,6 +1,6 @@
 import numpy as np
 import src.dynamics.timings as timings
-import src.dynamics.surface as surface 
+import src.dynamics.surface as surface
 #
 # all propagators have to define a function "propagate" that takes
 # a trajectory argument and a time step argument
@@ -16,26 +16,26 @@ def propagate_bundle(master,dt):
     #-----------------------------------------------
     # propagate amplitudes for 1/2 time step using x0
     #
-    master.update_amplitudes(0.5*dt,10) 
+    master.update_amplitudes(0.5*dt,10)
 
     #
     # update position
     #
     for i in range(master.n_traj()):
-        
+
         if not master.traj[i].alive:
             continue
 
         propagate_position(master.traj[i], dt)
 
-    # 
+    #
     # update electronic structure for all trajectories
     # and centroids (where necessary)
     #
     surface.update_pes(master)
 
     #
-    # finish update of momentum and phase 
+    # finish update of momentum and phase
     #
     for i in range(master.n_traj()):
         if not master.traj[i].alive:
@@ -47,7 +47,7 @@ def propagate_bundle(master,dt):
     # propagate amplitudes for 1/2 time step using x1
     #
     master.update_amplitudes(0.5*dt,10)
- 
+
     timings.stop('propagators.propagate_bundle')
     return
 
@@ -61,9 +61,9 @@ def propagate_trajectory(traj, dt):
     # position update
     propagate_position(traj, dt)
 
-    # update electronic structure 
+    # update electronic structure
     surface.update_pes_traj(traj)
-  
+
     # momentum/phase update
     propagate_momentum(traj, dt)
 
@@ -71,12 +71,12 @@ def propagate_trajectory(traj, dt):
     return
 
 #
-#  update the position to end of time step and half-propagate the 
+#  update the position to end of time step and half-propagate the
 #  momentum and phase
 #
 def propagate_position(traj, dt):
     #
-    # set the t=t values 
+    # set the t=t values
     #
     x0   = traj.x()
     p0   = traj.p()

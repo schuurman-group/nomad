@@ -1,5 +1,5 @@
 #
-# CONVERSTION FACTORS AND CONSTANTS 
+# CONVERSTION FACTORS AND CONSTANTS
 #
 # convert fs to au
 fs2au       = 41.34137221718
@@ -15,26 +15,26 @@ fpzero      = 1.e-10
 sc          = None
 # t=0 bundle
 bundle0     = None
- 
+
 #
 # Simulation parameters read form the fms.input file
 #
-fms = dict( 
+fms = dict(
        spawning               = 'forward_backward',
        simulation_time        = 0.,
-       default_time_step      = 10., 
+       default_time_step      = 10.,
        coupled_time_step      = 5.,
        interface              = 'boson_model_diabatic',
        init_sampling          = 'gs_wigner',
        integrals              = 'saddle_point',
        n_init_traj            = 1,
-       seed                   = 0, 
-       restart                = False, 
+       seed                   = 0,
+       restart                = False,
        num_particles          = 1,
-       dim_particles          = 3, 
+       dim_particles          = 3,
        n_states               = 1,
        init_state             = 1,
-       init_brightest         = False,                
+       init_brightest         = False,
        restart_time           = 0.,
        propagator             = 'velocity_verlet',
        spawn_pop_thresh       = 0.025,
@@ -58,11 +58,11 @@ fms = dict(
 
 #
 # Electronic structure information read from interface-specific
-# routines 
+# routines
 #
 # COLUMBUS input variables
 columbus  = dict(
-       # memory per core in MB   
+       # memory per core in MB
        mem_per_core      = 100,
           )
 

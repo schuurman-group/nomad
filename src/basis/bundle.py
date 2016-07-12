@@ -75,7 +75,7 @@ class bundle:
         self.nstates = int(nstates)
         self.traj  = []
         self.cent  = []
-        self.alive = [] 
+        self.alive = []
         self.T     = np.zeros((0.,0.),dtype=np.complex)
         self.V     = np.zeros((0.,0.),dtype=np.complex)
         self.S     = np.zeros((0.,0.),dtype=np.complex)
@@ -102,7 +102,7 @@ class bundle:
             return 0
         return int(n_traj * (n_traj - 1) / 2)
 
-    # add trajectory to the bundle. 
+    # add trajectory to the bundle.
     def add_trajectory(self,new_traj):
         timings.start('bundle.add_trajectory')
         self.traj.append(new_traj)
@@ -110,7 +110,7 @@ class bundle:
         self.nalive         += 1
         self.traj[-1].tid   = self.n_traj() - 1
         self.alive.append(self.traj[-1].tid)
-        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex) 
+        self.T          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.V          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
@@ -131,7 +131,7 @@ class bundle:
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-            
+
     # take a live trajectory and move it to the list of dead trajectories
     # it no longer contributes to H, S, etc.
     def kill_trajectory(self,tid):
@@ -195,7 +195,7 @@ class bundle:
         #    Hmat = H
         #else:
         #    Hmat = self.Heff
-        
+
         # ... AND USE THIS:
         Hmat = self.Heff
 
@@ -214,14 +214,14 @@ class bundle:
 
         B = -complex(0.,1.) * Hmat * dt
 
-        prev_amp = np.zeros(self.nalive,dtype=np.complex) 
+        prev_amp = np.zeros(self.nalive,dtype=np.complex)
         for n in range(1,n_max+1):
             Bn  = B / 2**n
             Bn2 = np.dot(Bn,Bn)
             Bn3 = np.dot(Bn2,Bn)
             Bn4 = np.dot(Bn2,Bn2)
 
-            taylor = Id + Bn + Bn2/2.0 + Bn3/6.0 + Bn4/24.0 
+            taylor = Id + Bn + Bn2/2.0 + Bn3/6.0 + Bn4/24.0
             for i in range(n):
                 taylor = np.dot(taylor,taylor)
 
@@ -232,7 +232,7 @@ class bundle:
             else:
                 prev_amp = new_amp
                 if n == n_max:
-                    sys.exit('Cannot converge amplitudes...')       
+                    sys.exit('Cannot converge amplitudes...')
 
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
@@ -242,7 +242,7 @@ class bundle:
         return
 
     #
-    # Solution of d/dt C = -i H C using the exact computation of 
+    # Solution of d/dt C = -i H C using the exact computation of
     # exp(-i H(t) dt) C(t)
     #
     def update_amplitudes_exact(self, dt, n_max, H=None, Ct=None):
@@ -268,17 +268,17 @@ class bundle:
 
         return
 
-    # 
+    #
     # renormalizes the amplitudes of the trajectories in the bundle
     #
     def renormalize(self):
         timings.start('bundle.renormalize')
-        current_pop = self.pop() 
+        current_pop = self.pop()
         norm = 1./ np.sqrt(sum(current_pop))
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
         timings.stop('bundle.renormalize')
-        return                       
+        return
 
     #
     # kills trajectories that are dead
@@ -292,7 +292,7 @@ class bundle:
     # returns true if we are in a regime of coupled trajectories
     #
     def in_coupled_regime(self):
-    
+
         # check if trajectories are coupled
         for i in range(self.nalive):
             for j in range(i):
@@ -314,7 +314,7 @@ class bundle:
     # return amplitudes of the trajectories
     #
     def amplitudes(self):
-        return np.array([self.traj[self.alive[i]].amplitude 
+        return np.array([self.traj[self.alive[i]].amplitude
                                for i in range(len(self.alive))],dtype=np.complex)
 
     #
@@ -326,7 +326,7 @@ class bundle:
         return
 
     #
-    # return the Mulliken-like population 
+    # return the Mulliken-like population
     #
     def mulliken_pop(self,tid):
         mulliken = 0.
@@ -342,7 +342,7 @@ class bundle:
 
     #
     # return the populations on each of the states
-    # 
+    #
     def pop(self):
         timings.start('bundle.pop')
         pop = np.zeros(self.nstates,dtype=np.float)
@@ -356,23 +356,23 @@ class bundle:
             for j in range(i):
                 jj = self.alive[j]
                 if self.traj[ii].state != self.traj[jj].state:
-                    continue 
+                    continue
                 popij = 2.0 * self.S[i,j] * self.traj[j].amplitude * \
                                             self.traj[i].amplitude.conjugate()
-                pop[state] += popij.real 
+                pop[state] += popij.real
 
         # dead contribution
 
         timings.stop('bundle.pop')
-        return pop        
+        return pop
 
     #
     # return the classical potential energy of the bundle
     #  -- currently includes energy from dead trajectories as well...
-    # 
+    #
     def pot_classical(self):
         timings.start('bundle.pot_classical')
-        weight = np.array([self.traj[i].amplitude * 
+        weight = np.array([self.traj[i].amplitude *
                            self.traj[i].amplitude.conjugate() for i in range(self.n_traj())])
         v_int  = np.array([self.ints.v_integral(self.traj[i]) for i in range(self.n_traj())])
         timings.stop('bundle.pot_classical')
@@ -400,14 +400,14 @@ class bundle:
 
     #
     # return the classical kinetic energy of the bundle
-    # 
+    #
     def kin_classical(self):
         timings.start('bundle.kin_classical')
         weight  = np.array([self.traj[i].amplitude * self.traj[i].amplitude.conjugate() for i in range(self.n_traj())])
         ke_int  = np.array([self.ints.ke_integral(self.traj[i],self.traj[i]) for i in range(self.n_traj())])
         timings.stop('bundle.kin_classical')
         return sum(weight * ke_int).real
- 
+
     #
     # return the QM (coupled) energy of the bundle
     #
@@ -427,8 +427,8 @@ class bundle:
         timings.stop('bundle.kin_quantum')
         return energy
 
-    # 
-    # return the total classical energy of the bundle 
+    #
+    # return the total classical energy of the bundle
     #
     def tot_classical(self):
         return self.pot_classical() + self.kin_classical()
@@ -454,7 +454,7 @@ class bundle:
         return S
 
 #-----------------------------------------------------------------------
-# 
+#
 # Private methods/functions (called only within the class)
 #
 #----------------------------------------------------------------------
@@ -481,23 +481,23 @@ class bundle:
                         self.cent.append(None)
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
-                # required slots 
-                ij_ind = cent_ind(i,j)         
+                # required slots
+                ij_ind = cent_ind(i,j)
                 if self.cent[ij_ind] is None:
                     self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
                     self.cent[ij_ind].tid = -ij_ind
-                    
-                    # set cent[ij_ind].c_state (note that cent[ij_ind].state 
+
+                    # set cent[ij_ind].c_state (note that cent[ij_ind].state
                     # is set by calling trajectory.copy_traj)
                     self.cent[ij_ind].c_state=self.traj[j].state
-                    
+
                     # now update the position in phase space of the centroid
                     # if wid_i == wid_j, this is clearly just the simply mean position.
                     wid_j = self.traj[j].widths()
                     new_x = ( wid_i * self.traj[i].x() + wid_j * self.traj[j].x() ) / (wid_i + wid_j)
                     new_p = ( wid_i * self.traj[i].p() + wid_j * self.traj[j].p() ) / (wid_i + wid_j)
                     self.cent[ij_ind].update_x(new_x)
-                    self.cent[ij_ind].update_p(new_p)   
+                    self.cent[ij_ind].update_p(new_p)
 
 
         timings.stop('bundle.update_centroids')
@@ -529,7 +529,7 @@ class bundle:
     def update_logs(self):
 
         timings.start('bundle.update_logs')
- 
+
         for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
@@ -568,19 +568,19 @@ class bundle:
                 data = [self.time]
                 for j in range(self.nstates):
                     for k in range(j):
-                        data.extend(self.traj[i].tdipole(k,j).tolist()) 
+                        data.extend(self.traj[i].tdipole(k,j).tolist())
                 fileio.print_traj_row(self.traj[i].tid,4,data)
 
-                # second moments 
+                # second moments
                 data = [self.time]
                 for j in range(self.nstates):
                     data.extend(self.traj[i].sec_mom(j).tolist())
                 fileio.print_traj_row(self.traj[i].tid,5,data)
- 
+
                 # atomic populations
                 data = [self.time]
                 for j in range(self.nstates):
-                    data.extend(self.traj[i].atom_pop(j).tolist()) 
+                    data.extend(self.traj[i].atom_pop(j).tolist())
                 fileio.print_traj_row(self.traj[i].tid,6,data)
 
                 # gradients
@@ -602,7 +602,7 @@ class bundle:
                            self.pot_classical(),self.kin_classical(), self.tot_classical()]
         fileio.print_bund_row(1,data)
 
-        # bundle matrices 
+        # bundle matrices
         if glbl.fms['print_matrices']:
             fileio.print_bund_mat(self.time,'s.dat',self.S)
             fileio.print_bund_mat(self.time,'h.dat',self.T+self.V)
@@ -618,7 +618,7 @@ class bundle:
 
     #
     # dump the bundle to file 'filename'. Mode is either 'a'(append) or 'x'(new)
-    #          
+    #
     def write_bundle(self,filename,mode):
 
         timings.start('bundle.write_bundle')
@@ -628,7 +628,7 @@ class bundle:
         npart = self.traj[0].n_particle
         ndim  = self.traj[0].d_particle
         with open(filename, mode) as chkpt:
-            # 
+            #
             # first write out the bundle-level information
             #
             chkpt.write('------------- BEGIN BUNDLE SUMMARY --------------\n')
@@ -649,7 +649,7 @@ class bundle:
             # can only write to a pre-existing file stream
             #
             for i in range(len(self.traj)):
-                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))    
+                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
 
@@ -659,13 +659,13 @@ class bundle:
     #
     # Reads a bundle at time 't_restart' from a chkpt file
     #
-    def read_bundle(self,filename,t_restart):   
-   
+    def read_bundle(self,filename,t_restart):
+
         try:
             chkpt = open(filename,'r',encoding='utf-8')
         except:
             sys.exit('could not open: '+filename)
-        
+
         # if we're reading from a checkpoint file -- fast-forward
         # to the requested time
         if t_restart != -1:
@@ -676,7 +676,7 @@ class bundle:
                     if float(line[0]) == t_restart:
                         t_found = True
                         break
-        # else, we're reading from a last_step file -- and we want to skip over 
+        # else, we're reading from a last_step file -- and we want to skip over
         # the initial comment line
         else:
             t_found = True
@@ -714,7 +714,7 @@ class bundle:
         self.S          = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Sdot       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
         self.Heff       = np.zeros((self.nalive,self.nalive),dtype=np.complex)
-        
+
         # once bundle is read, close the stream
         chkpt.close()
         return

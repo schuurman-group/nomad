@@ -5,7 +5,7 @@ import src.vcham.hampar as ham
 #########################################################################
 
 def convfac(string):
-    
+
     if (string=='ev'):
         factor=1.0/27.21141
     else:
@@ -77,12 +77,12 @@ def getcoe(string):
     # strings
     coeff=val[0]
     if (nfac > 1):
-        for i in range(nfac):            
+        for i in range(nfac):
             if (aop[i]=="*"):
                 coeff=coeff*val[i]
             elif (aop[i]=="/"):
                 coeff=coeff/val[i]
-            
+
     return coeff
 
 #########################################################################
@@ -188,7 +188,7 @@ def rdoperfile(infile):
     # Read the mode labels
     ham.mlbl_total=['' for i in range(ham.maxdim)]
     parse.rd1line(infile)
-    if (parse.keyword[1][0:5]!='modes'): 
+    if (parse.keyword[1][0:5]!='modes'):
         print("The Hamiltonian section must start with the mode specification!")
         sys.exit()
     infile.seek(hamstart)
@@ -197,7 +197,7 @@ def rdoperfile(infile):
     ham.nmode_total=0
     while(ismodes):
         parse.rd1line(infile,up2low=False)
-        if (parse.keyword[1][0:5].lower()!='modes'): 
+        if (parse.keyword[1][0:5].lower()!='modes'):
             ismodes=False
         else:
             nmdline+=1
@@ -208,7 +208,7 @@ def rdoperfile(infile):
                 ham.mlbl_total[ham.nmode_total-1]=parse.keyword[i]
                 i+=1
 
-    # Read the Hamiltonian terms: coefficients, monomials and states    
+    # Read the Hamiltonian terms: coefficients, monomials and states
     infile.seek(hamstart)
     for i in range(nmdline):
         parse.rd1line(infile)
@@ -233,14 +233,14 @@ def rdoperfile(infile):
         k=parse.keyword[parse.inkw].index("&")
         s1=parse.keyword[parse.inkw][1:k]
         s2=parse.keyword[parse.inkw][k+1:]
-    
-        # Ensure that we are filling in the lower triangle of 
+
+        # Ensure that we are filling in the lower triangle of
         # the Hamiltonian matrix only
         if (s1 > s2):
             k=s1
             s1=s2
             s2=k
-    
+
         # Set the state indices for the current term
         ham.stalbl[i][0]=int(s1)
         ham.stalbl[i][1]=int(s2)
@@ -257,7 +257,7 @@ def rdoperfile(infile):
     coe_new=[0.0 for i in range(ham.nterms)]
     stalbl_new=[[0 for i in range(2)] for j in range(ham.nterms)]
     order_new=[[0 for i in range(ham.maxdim)] for j in range(ham.nterms)]
-    
+
 
     # Loop over all Hamiltonian terms
     for k in range(ham.nterms):
@@ -267,7 +267,7 @@ def rdoperfile(infile):
             if ham.order[k][i] > 0:
                 if ham.mlbl_total[i] not in ham.mlbl_active:
                     active=False
-            
+
         # If the current term is active, then add it to the list
         # of active terms
         if active:
@@ -280,10 +280,10 @@ def rdoperfile(infile):
                     if ham.mlbl_total[i] in ham.mlbl_active:
                         n=lblmap[ham.mlbl_total[i]]
                         order_new[k][n]=ham.order[k][i]
-    
+
     # Save the active terms
     ham.nterms=nterms_new
     ham.coe=coe_new
     ham.stalbl=stalbl_new
     ham.order=order_new
-    
+

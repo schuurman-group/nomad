@@ -12,20 +12,20 @@ import src.basis.bundle as bundle
 # Set the global "goal" time step. Currently this can take two values
 #    - no strongly coupled trajectories / spawning:               default_time_step
 #    - two or more trajectories strongly coupled and/or spawning: coupled_time_step
-#    
+#
 #  coupled time step is currently 0.25 * default_time_step
 #
 def time_step(master):
     dt = glbl.fms['default_time_step']
     if master.in_coupled_regime():
-      dt = glbl.fms['coupled_time_step'] 
+      dt = glbl.fms['coupled_time_step']
       fileio.print_fms_logfile('coupled',[dt])
     return dt
 #
 #
 # Propagate the wave packet using a run-time selected propagator
 #
-def fms_step_bundle(master, dt):    
+def fms_step_bundle(master, dt):
     integrator = __import__('src.propagators.'+glbl.fms['propagator'],fromlist=['a'])
     spawning   = __import__('src.spawn.'+glbl.fms['spawning'],fromlist=['a'])
 
@@ -45,7 +45,7 @@ def fms_step_bundle(master, dt):
 
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
-        integrator.propagate_bundle(master,time_step)  
+        integrator.propagate_bundle(master,time_step)
 
         # check time_step is fine, energy/amplitude conserved
         accept,error_msg = check_step_bundle(master0, master, time_step)
@@ -90,7 +90,7 @@ def fms_step_bundle(master, dt):
 #-----------------------------------------------------------------------------
 
 #
-# check if we should reject a macro step because we're in a coupling region 
+# check if we should reject a macro step because we're in a coupling region
 #
 def check_step_bundle(master0, master, time_step):
     #

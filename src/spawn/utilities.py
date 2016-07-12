@@ -22,7 +22,7 @@ def fms_step_trajectory(traj, init_time, dt):
         # save the bundle from previous step in case step rejected
         traj0 = trajectory.copy_traj(traj)
 
-        # propagate single trajectory 
+        # propagate single trajectory
         integrator.propagate_trajectory(traj,time_step)
 
         # update current time
@@ -52,7 +52,7 @@ def fms_step_trajectory(traj, init_time, dt):
             continue
 
 #
-# check if we should reject a macro step because we're in a coupling region 
+# check if we should reject a macro step because we're in a coupling region
 #
 def check_step_trajectory(traj0, traj, time_step):
     #
@@ -71,7 +71,7 @@ def check_step_trajectory(traj0, traj, time_step):
 #
 # adjust the momentum of the child to so that energy of parent and child
 # have the same energy
-# 
+#
 #   1. First try to scale the momentum along the NAD vector direction
 #   2. If that fails, scale the momentum uniformly
 #
@@ -103,7 +103,7 @@ def adjust_child(parent, child, scale_dir):
     # the kinetic energy is given by:
     # KE = (P . P) / 2m
     #    = (p_para + p_perp).(p_para + p_perp) / 2m
-    #    = (p_para.p_para)/2m + (p_para.p_perp)/m + (p_perp.p_perp)/2m 
+    #    = (p_para.p_para)/2m + (p_para.p_perp)/m + (p_perp.p_perp)/2m
     #    = KE_para_para + KE_para_perp + KE_perp_perp
     masses = child.masses()
     ke_para_para = np.dot( p_para, p_para/(2*masses) )
@@ -156,7 +156,7 @@ def overlap_with_bundle(trajectory,bundle):
 #
 def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
 
-    # add a line entry to the spawn log 
+    # add a line entry to the spawn log
     data = [entry_time, spawn_time, exit_time]
     data.extend([parent.tid, parent.state, child.tid, child.state])
     data.extend([parent.kinetic(), child.kinetic(), parent.potential(), child.potential()])

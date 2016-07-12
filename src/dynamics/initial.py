@@ -1,4 +1,4 @@
-import sys 
+import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -23,7 +23,7 @@ def init_bundle(master):
     fileio.init_fms_output()
 
     #
-    # initialize the interface we'll be using the determine the 
+    # initialize the interface we'll be using the determine the
     #   the PES. There are some details here that trajectories
     #    will want to know about
     pes.init_interface()
@@ -75,7 +75,7 @@ def init_bundle(master):
 # initialize a restart
 #
 def init_restart(master):
-     
+
     if glbl.fms['restart_time'] == -1.:
         fname = fileio.home_path+'/last_step.dat'
     else:
@@ -88,20 +88,20 @@ def init_restart(master):
 # set the initial state of the trajectories in the bundle
 #
 def set_initial_state(master):
-     
+
     if glbl.fms['init_state'] != -1:
         for i in range(master.n_traj()):
             master.traj[i].state = glbl.fms['init_state']
 
     elif glbl.fms['init_brightest']:
 
-        # set all states to the ground state 
+        # set all states to the ground state
         for i in range(master.n_traj()):
             master.traj[i].state = 0
 
         # compute transition dipoles
         surface.update_pes(master)
-        
+
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
             tdip =(np.linalg.norm(master.traj[i].dipole(j)) for j
@@ -123,10 +123,10 @@ def virtual_basis(master):
 
             if j == master.traj[i].state:
                 continue
-       
-            new_traj = trajectory.copy_traj(master.traj[i]) 
+
+            new_traj = trajectory.copy_traj(master.traj[i])
             new_traj.amplitude = np.complex(0.,0.)
             new_traj.state     = j
             master.add_trajectory(new_traj)
 
-    return  
+    return

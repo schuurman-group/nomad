@@ -14,9 +14,9 @@ from math import sqrt
 # SN 15/06/2016: modified to allow for the sampling of mass- and
 # frequency-scaled normal mode coordinates in the case that a
 # vibronic coupling Hamiltonian is being used.
-# 
+#
 def sample_distribution(master):
-    
+
     # Set the coordinate type: Cartesian or normal mode coordinates
     if (glbl.fms['interface']=='vibronic'):
         coordtype='normal'
@@ -29,7 +29,7 @@ def sample_distribution(master):
     # if multiple geometries in geometry.dat -- just take the first one
     natm = int(len(phase_gm)/len(amps))
     geom = [phase_gm[i] for i in range(natm)]
-    
+
     # Read the hessian.dat file (Cartesian coordinates only)
     if coordtype=='cart':
         hessian = utils.load_hessian()
@@ -108,7 +108,7 @@ def sample_distribution(master):
 
         # ... else if mass- and frequency-scaled normal modes are
         # being used, then take the frequency-scaled normal mode
-        # displacements and momenta as the inital point in phase 
+        # displacements and momenta as the inital point in phase
         # space
         elif coordtype=='normal':
             disp_x=delta_x
@@ -116,7 +116,7 @@ def sample_distribution(master):
             for i in range(n_modes):
                 disp_x[i]=disp_x[i]*sqrt(freqs[i])
                 disp_p[i]=disp_p[i]*sqrt(freqs[i])
-                
+
             for j in range(natm):
                 disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
                 disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]

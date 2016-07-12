@@ -12,11 +12,11 @@ import src.spawn.utilities as utilities
 #   start, ti
 #     |           if Min(parent.overlap(traj(st',ti))) < Omin
 # parent(r,p,st,ti) ------------------------------------> child(r,p',st',ti)
-#                                 
+#
 # 1. if the minimum overlap between the "parent" trajectory on state st with trajectories
 #    on state st' drops below a user-defined threshold, spawn a new function on st' at the
 #    same position, with a scaled momentum to enforce constraint that classical energies
-#    be equal. 
+#    be equal.
 #
 def spawn(master,dt):
 
@@ -28,21 +28,21 @@ def spawn(master,dt):
     #
     #
     for i in range(master.n_traj()):
-      
+
         if not master.traj[i].alive:
             continue
 
         parent = master.traj[i]
-  
+
         for st in range(master.nstates):
-      
+
             # don't check overlap with basis functions on same state
             if st == parent.state:
                 continue
 
-            s_array = [abs(parent.overlap(master.traj[j],st_orthog=False)) 
-                         if master.traj[j].state==st and master.traj[j].alive 
-                         else 0. 
+            s_array = [abs(parent.overlap(master.traj[j],st_orthog=False))
+                         if master.traj[j].state==st and master.traj[j].alive
+                         else 0.
                          for j in range(master.n_traj())]
 
             if max(s_array) < glbl.fms['continuous_min_overlap']:
@@ -50,10 +50,10 @@ def spawn(master,dt):
                 child.amplitude = complex(0.,0.)
                 child.state     = st
                 child.parent    = parent.tid
- 
+
                 success = utilities.adjust_child(parent, child, parent.derivative(st))
-                sij = parent.overlap(child) 
- 
+                sij = parent.overlap(child)
+
                 # try to set up the child
                 if not success:
                     fileio.print_fms_logfile('spawn_bad_step',

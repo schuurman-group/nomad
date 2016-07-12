@@ -20,7 +20,7 @@ tfile_names = dict()
 bfile_names = dict()
 print_level   = dict()
 
-# 
+#
 # Read the fms.input file. This contains variables related
 # to the running of the dynamics simulation.
 #
@@ -38,7 +38,7 @@ def read_input_files():
 
     #
     # Read fms.input. This contains general simulation variables
-    # 
+    #
     kwords = read_namelist('fms.input')
     for k,v in kwords.items():
         if k in glbl.fms:
@@ -80,10 +80,10 @@ def read_input_files():
 #
 def read_namelist(filename):
     kwords = dict()
-    
+
     if os.path.exists(filename):
-        with open(filename,'r',encoding="utf-8") as infile: 
-            for line in infile:    
+        with open(filename,'r',encoding="utf-8") as infile:
+            for line in infile:
                 if "=" in line:
                     line = line.rstrip("\r\n")
                     (key,value) = line.split('=',1)
@@ -95,7 +95,7 @@ def read_namelist(filename):
                             kwords[key] = int(value)
                     except ValueError:
                         pass
-                    
+
                     if key not in kwords:
                         kwords[key] = value
 
@@ -134,7 +134,7 @@ def init_fms_output():
     tfile_names[tkeys[1]] = 'poten'
     dump_header[tkeys[1]]     = 'Time'.rjust(acc1) + ''.join(arr1)+'\n'
     dump_format[tkeys[1]]     = '{0:>12.4f}' + \
-                             ''.join('{'+str(i)+':>16.10f}' for i in range(1,ns+1)) + '\n' 
+                             ''.join('{'+str(i)+':>16.10f}' for i in range(1,ns+1)) + '\n'
 
     # coupling
     arr1 = ['{:>12s}'.format('coupling.'+str(i)) for i in range(ns)]
@@ -159,7 +159,7 @@ def init_fms_output():
     dump_format[tkeys[4]]     = '{0:>12.4f}' + \
                              ''.join('{'+str(i)+':12.5f}' for i in range(1,ncol)) + '\n'
 
-    # second moments 
+    # second moments
     arr1 = ['   sec_s'+str(i)+'.'+dstr[j]+dstr[j] for i in range(ns) for j in range(nd)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]]     = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
@@ -238,7 +238,7 @@ def init_fms_output():
                     ' ----------------------------------------\n'
         for k,v in glbl.fms.items():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
-        logfile.write(log_str)    
+        logfile.write(log_str)
 
         if glbl.fms['interface'] == 'columbus':
             out_key = glbl.columbus
@@ -247,10 +247,10 @@ def init_fms_output():
         elif glbl.fms['interface'] == 'boson_model_diabatic':
             out_key = glbl.boson
         else:
-            out_key = dict()  
+            out_key = dict()
 
         log_str = '\n '+str(glbl.fms['interface'])+' simulation keywords\n'
-        log_str += ' ----------------------------------------\n' 
+        log_str += ' ----------------------------------------\n'
         for k,v in out_key.items():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k),str(v))
         logfile.write(log_str)
@@ -297,7 +297,7 @@ def init_fms_output():
 #
 def print_traj_row(tid,fkey,data):
     global scr_path, tkeys, tfile_names, dump_header, dump_format
-    filename = scr_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)   
+    filename = scr_path+'/'+tfile_names[tkeys[fkey]]+'.'+str(tid)
 
     if not os.path.isfile(filename):
         with open(filename, "x") as outfile:
@@ -343,7 +343,7 @@ def print_bund_row(fkey,data):
 # prints a matrix to file with a time label
 #
 def print_bund_mat(time,fname,mat):
-    global scr_path    
+    global scr_path
     filename = scr_path+'/'+fname
 
     with open(filename,"a") as outfile:
@@ -361,10 +361,10 @@ def print_fms_logfile(otype,data):
         print("CANNOT WRITE otype="+str(otype)+'\n')
         return
 
-    if glbl.fms['print_level'] >= print_level[otype]: 
-        filename = home_path+'/fms.log'      
+    if glbl.fms['print_level'] >= print_level[otype]:
+        filename = home_path+'/fms.log'
         with open(filename,'a') as logfile:
-            logfile.write(log_format[otype].format(*data)) 
+            logfile.write(log_format[otype].format(*data))
     return
 
 
@@ -378,10 +378,10 @@ def print_fms_logfile(otype,data):
 #
 def read_geometry():
 
-    global home_path 
+    global home_path
     amp_data   = []
     geom_data  = []
-    mom_data   = [] 
+    mom_data   = []
     width_data = []
 
 
@@ -394,7 +394,7 @@ def read_geometry():
 
         # comment line -- if keyword "amplitude" is present, set amplitude
         lcnt += 1
-        line = [x.strip().lower() for x in re.split('\W+',gm_file[lcnt])] 
+        line = [x.strip().lower() for x in re.split('\W+',gm_file[lcnt])]
         if 'amplitude' in line:
             ind = line.index('amplitude')
             amp_data.append(np.complex(np.float(line[ind+1]),np.float(line[ind+2])))
@@ -403,7 +403,7 @@ def read_geometry():
 
         # number of atoms
         lcnt += 1
-        natm = int(gm_file[lcnt]) 
+        natm = int(gm_file[lcnt])
 
         # read in geometry
         for i in range(natm):
@@ -416,7 +416,7 @@ def read_geometry():
             mom_data.append(gm_file[lcnt].rstrip().split())
 
         # read in widths, if present
-        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:            
+        if (lcnt+1)<len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(natm):
                 lcnt += 1
                 width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
@@ -433,7 +433,7 @@ def read_geometry():
 def read_hessian():
     global home_path
 
-    hessian = np.loadtxt(home_path+'/hessian.dat',dtype=np.float) 
+    hessian = np.loadtxt(home_path+'/hessian.dat',dtype=np.float)
     return hessian
 
 #----------------------------------------------------------------------------
@@ -457,10 +457,10 @@ def cleanup():
     if os.path.exists(odir):
         shutil.rmtree(odir)
     os.makedirs(odir)
-        
+
     # move trajectory files
     for key,fname in tfile_names.items():
-        for tfile in glob.glob(scr_path+'/'+fname+'.*'): 
+        for tfile in glob.glob(scr_path+'/'+fname+'.*'):
             if not os.path.isdir(tfile):
                 shutil.move(tfile,odir)
 

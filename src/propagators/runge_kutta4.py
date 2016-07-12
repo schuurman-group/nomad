@@ -40,7 +40,7 @@ def propagate_bundle(master, dt):
         pnew[i,:] = master.traj[ii].p()
         gnew[i]   = master.traj[ii].phase()
 
-    # 
+    #
     # determine k1, k2, k3, k4
     #
     rk_ordr = 4
@@ -50,7 +50,7 @@ def propagate_bundle(master, dt):
 
     #
     # Do 4th order RK
-    #    
+    #
     H_list = []
     for rk in range(rk_ordr):
 
@@ -75,8 +75,8 @@ def propagate_bundle(master, dt):
                 master.traj[ii].update_x( xnew[i,:] )
                 master.traj[ii].update_p( pnew[i,:] )
                 master.traj[ii].update_phase( gnew[i] )
-       
-        # update potential energy surfaces and Heff        
+
+        # update potential energy surfaces and Heff
         surface.update_pes(master)
 
     amp_sum = 0
@@ -84,7 +84,7 @@ def propagate_bundle(master, dt):
         master.update_amplitudes(dt,10,H_list[i],amp0)
         amp_sum += k_mult[i] * master.amplitudes()
     master.set_amplitudes(amp_sum/sum(k_mult))
-   
+
     #
     timings.stop('propagators.propagate_bundle')
     return
@@ -93,13 +93,13 @@ def propagate_bundle(master, dt):
 # propagate a single trajectory
 #
 def propagate_trajectory(traj, dt):
-    
+
     timings.start('propagators.propagate_trajectory')
 
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
     mass = master.traj[0].masses()
 
-    # 
+    #
     # determine k1, k2, k3, k4
     #
     rk_ordr = 4
@@ -107,7 +107,7 @@ def propagate_trajectory(traj, dt):
     t_step  = [dt / k_mult[i] for i in range(1,len(k_mult))]
     dt_seg  = dt / sum(k_mult)
 
-    # 
+    #
     # initialize values
     #
     x0   = traj.x()
@@ -117,14 +117,14 @@ def propagate_trajectory(traj, dt):
 
     #
     # Do 4th order RK
-    #    
+    #
     for rk in range(rk_ordr):
 
         xdot = traj.velocity()
         pdot = traj.force()/mass
         gdot = traj.phase_dot()
 
-        xnew += dt_seg * k_mult[rk] * xdot 
+        xnew += dt_seg * k_mult[rk] * xdot
         pnew += dt_seg * k_mult[rk] * pdot
         gnew += dt_seg * k_mult[rk] * gdot
         if rk != (rk_ordr-1):

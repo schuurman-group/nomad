@@ -37,9 +37,9 @@ def init_interface():
     rdoper.rdoperfile(opfile)
 
     # Close the operator file
-    opfile.close()    
+    opfile.close()
 
-    # Ouput some information about the Hamiltonian    
+    # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string',['*'*72])
 
     fileio.print_fms_logfile('string',['* Vibronic Coupling Hamiltonian Information'])
@@ -50,13 +50,13 @@ def init_interface():
 
     fileio.print_fms_logfile('string',\
                              ['Number of Hamiltonian terms: '+str(ham.nterms)])
-    
+
     string='Total no. modes: '+str(ham.nmode_total)
     fileio.print_fms_logfile('string',[string])
 
     string='No. active modes: '+str(ham.nmode_active)
     fileio.print_fms_logfile('string',[string])
-    
+
     fileio.print_fms_logfile('string',['Active mode labels:'])
     for i in range(ham.nmode_active):
         string=str(i+1)+' '+ham.mlbl_active[i]
@@ -103,7 +103,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     qcoo=np.zeros(ncoo)
     for i in range(ncoo):
         qcoo[i]=geom[i].x
-    
+
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
 
@@ -149,7 +149,7 @@ def evaluate_trajectory(tid, geom, stateindx):
 
 def evaluate_centroid(tid, geom, stateindx, stateindx2):
 
-    # Note that because energies, gradients and couplings are so cheap 
+    # Note that because energies, gradients and couplings are so cheap
     # to extract from a vibronic coupling Hamiltonian, we return
     # all quantities, even if they are not actually needed
 
@@ -183,7 +183,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     qcoo=np.zeros(ncoo)
     for i in range(ncoo):
         qcoo[i]=geom[i].x
-    
+
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
 
@@ -234,7 +234,7 @@ def calc_diabpot(q):
 
     global diabpot
     global nsta
-    
+
     #-------------------------------------------------------------------
     # Build the diabatic potential
     #
@@ -247,11 +247,11 @@ def calc_diabpot(q):
         s2=ham.stalbl[i][1]-1
         fac=ham.coe[i]
         for m in range(ham.nmode_active):
-            fac=fac*q[m]**ham.order[i][m]            
+            fac=fac*q[m]**ham.order[i][m]
 
         diabpot[s1][s2]=diabpot[s1][s2]+fac
 
-    # Fill in the upper-triangle    
+    # Fill in the upper-triangle
     for s1 in range(nsta-1):
         for s2 in range(s1+1,nsta):
             diabpot[s2][s1]=diabpot[s1][s2]
@@ -300,9 +300,9 @@ def calc_diabderiv1(q):
                         fac=fac*p*q[n]**(p-1)
                     else:
                         fac=fac*q[n]**p
-                    
+
             diabderiv1[m][s1][s2]+=fac
-    
+
     # Fill in the upper-triangle
     for m in range(ham.nmode_active):
         for s1 in range(nsta-1):
@@ -354,7 +354,7 @@ def calc_nacts():
         for i in range(nsta-1):
             for j in range(i+1,nsta):
                 nactmat[m][i][j]=tmpmat[m][i][j]/(adiabpot[j]-adiabpot[i])
-   
+
     # Fill in the upper-triangle using the anti-symmetry of the NACTs
     for m in range(ham.nmode_active):
         for i in range(nsta-1):
@@ -452,7 +452,7 @@ def calc_diablap(q):
 ########################################################################
 
 def calc_scts():
-    
+
     global nsta
     global sctmat
     global dbocderiv1
@@ -478,7 +478,7 @@ def calc_scts():
     #-------------------------------------------------------------------
 
     # (a) deltmat = S {Del^2 W} S^T + -FS{d/dX W}S^T + S{d/dX W}S^TF
-      
+
     # tmp1 <-> S {Del^2 W} S^T
     for i in range(nsta):
         for j in range(nsta):
@@ -521,7 +521,7 @@ def calc_scts():
                 if i!=j:
                   delximat[m][i][j]=-(adiabderiv1[m][j]-adiabderiv1[m][i])
                   delximat[m][i][j]=delximat[m][i][j]/(adiabpot[j]-adiabpot[i])**2
-            
+
     # (c) tmat
     for m in range(ham.nmode_active):
         for i in range(nsta):
@@ -582,7 +582,7 @@ def calc_scts():
         for m in range(ham.nmode_active):
             for k in range(nsta):
                dbocderiv1[m][i]-=2.0*delnactmat[i][k]*nactmat[m][i][k]
-            
+
     return
 
 ########################################################################
