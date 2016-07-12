@@ -14,7 +14,7 @@ require_centroids = True
 def v_integral(traj1,traj2=None,centroid=None):
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
-    if not traj2:
+    if traj2 is None:
         return traj1.energy(traj1.state)
     #
     # off-diagonal matrix element, between trajectories on the same
@@ -54,5 +54,3 @@ def sdot_integral(traj1,traj2):
              np.dot( traj2.force()   , traj1.deldp(traj2) ) +  \
              complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
     return sdot
-
-

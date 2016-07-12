@@ -136,4 +136,3 @@ def propagate_trajectory(traj, dt):
 
     timings.stop('propagators.propagate_trajectory')
     return
-

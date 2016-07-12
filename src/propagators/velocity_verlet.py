@@ -144,4 +144,3 @@ def propagate_momentum(traj, dt):
     traj.update_phase(traj.phase() + dgamma)
 
     return
-

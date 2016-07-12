@@ -1034,4 +1034,3 @@ def load_orbitals(tid):
 #
 def write_orbitals(fname,orb_array):
     pass
-

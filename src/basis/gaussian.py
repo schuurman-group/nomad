@@ -44,4 +44,3 @@ def deld2x(x1,p1,a1,x2,p2,a2):
                 +psum**2)                                     \
                 / (a1 + a2)**2
      return d2xval
-

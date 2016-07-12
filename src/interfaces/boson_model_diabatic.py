@@ -117,5 +117,3 @@ def get_global_vars():
     global ncrd,omega,C,delta
 
     return [ncrd, omega, delta, C]
-
-

@@ -49,4 +49,3 @@ def load_geometry():
 def load_hessian():
     hessian = fileio.read_hessian()
     return hessian
-

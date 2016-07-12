@@ -62,5 +62,3 @@ def sdot_integral(traj1,traj2):
              +np.dot( traj2.force()   , traj1.deldp(traj2) )   \
              +complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2)
      return sdot
-
-

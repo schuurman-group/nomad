@@ -94,6 +94,3 @@ def rd1line(filename,up2low=True):
         # we move to the next keyword
         else:
             k=0
-
-
-

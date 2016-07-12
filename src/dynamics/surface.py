@@ -130,4 +130,3 @@ def cached(tid, geom):
         return True
 
     return False
-

@@ -29,4 +29,3 @@ def sample_distribution(master):
 
     # state of trajectory not set, return false
     return False
-

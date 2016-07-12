@@ -39,7 +39,7 @@ class trajectory:
         # total number of states
         self.nstates    = nstates
         # allow for population of trajectory particles via set_particles
-        if not particles:
+        if particles is None:
             self.particles=[]
             self.d_particle = 0
         else:
@@ -352,7 +352,7 @@ class trajectory:
     #
     def deldp(self, other, S_ij=None):
 #        timings.start('trajectory.deldp')
-        if not S_ij:
+        if S_ij is None:
             S_ij = self.overlap(other,st_orthog=True)
         dpval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
@@ -365,7 +365,7 @@ class trajectory:
     #
     def deldx(self, other, S_ij=None):
 #        timings.start('trajectory.deldx')
-        if not S_ij:
+        if S_ij is None:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particle):
@@ -380,7 +380,7 @@ class trajectory:
     #
     def deldx_m(self, other, S_ij=None):
 #        timings.start('trajectory.deldx_m')
-        if not S_ij:
+        if S_ij is None:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
         for i in range(self.n_particles):
@@ -491,4 +491,3 @@ class trajectory:
             self.deriv[i,:] = np.fromstring(chkpt.readline(),sep=' ',dtype=float)
 
         chkpt.readline() # orbitals
-

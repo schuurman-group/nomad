@@ -286,4 +286,3 @@ def rdoperfile(infile):
     ham.coe=coe_new
     ham.stalbl=stalbl_new
     ham.order=order_new
-

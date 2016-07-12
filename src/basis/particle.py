@@ -145,4 +145,3 @@ class particle:
         self.width      = float(chkpt.readline().split()[0])
         self.mass       = float(chkpt.readline().split()[0])
         self.charge     = float(chkpt.readline().split()[0])
-

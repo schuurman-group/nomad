@@ -120,4 +120,3 @@ def check_step_bundle(master0, master, time_step):
     #
     # If we pass all the tests, return 'success'
     return True,' success'
-

@@ -207,5 +207,3 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
         return False
 
     return True
-
-

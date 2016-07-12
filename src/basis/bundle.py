@@ -718,4 +718,3 @@ class bundle:
         # once bundle is read, close the stream
         chkpt.close()
         return
-
