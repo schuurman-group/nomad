@@ -3,7 +3,7 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 
 ext_modules=[
-    Extension("gaussian",sources=["gaussian.pyx"],libraries=["m"])
+    Extension("gaussian", sources=["gaussian.pyx"], libraries=["m"])
 ]
 
 setup(
