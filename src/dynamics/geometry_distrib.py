@@ -1,13 +1,14 @@
+"""
+Sample a distribution of geometries.
+"""
 import src.fmsio.glbl as glbl
 import src.dynamics.utilities as utils
 import src.basis.trajectory as trajectory
 
-#
-#  Take initial position and momentum from geometry.dat file
-#
-def sample_distribution(master):
 
-    amps,geoms = utils.load_geometry()
+def sample_distribution(master):
+    """Takes initial position and momentum from geometry.dat file."""
+    amps, geoms = utils.load_geometry()
     ngeoms = len(amps)
     natms  = int(len(geoms)/ngeoms)
 
@@ -20,10 +21,10 @@ def sample_distribution(master):
             geom.append(geoms[i*natms + j])
 
         # add a single trajectory specified by geometry.dat
-        master.add_trajectory(trajectory.trajectory(
-                          glbl.fms['n_states'],
-                          particles=geom,
-                          parent=0))
+        master.add_trajectory(trajectory.Trajectory(
+                              glbl.fms['n_states'],
+                              particles=geom,
+                              parent=0))
         # ...with unit amplitude
         master.traj[i].amplitude = amp
 
