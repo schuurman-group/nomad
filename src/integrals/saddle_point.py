@@ -21,12 +21,13 @@ def v_integral(traj1,traj2=None,centroid=None,S_ij=None):
     # state [this also requires the centroid be present
     #
     elif traj1.state == traj2.state:
-        return centroid.energy(traj1.state) * traj1.overlap(traj2)
+        val=centroid.energy(traj1.state) * traj1.overlap(traj2)
+        return val
     #
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     #
-    elif not traj1.state != traj2.state:
+    elif traj1.state != traj2.state:
         fij = centroid.derivative(traj2.state)
         return np.vdot( fij, traj1.deldx_m(traj2) )
     else:

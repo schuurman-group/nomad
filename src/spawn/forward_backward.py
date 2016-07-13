@@ -2,6 +2,7 @@
 # this spawning procedure propagates to the point of maximum coupling, 
 # creates a new function, that back propagates to the current time
 #
+import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -33,7 +34,7 @@ def spawn(master,dt):
     basis_grown  = False
     current_time = master.time
 
-    # we want to have know the history of the coupling for each trajectory
+    # we want to know the history of the coupling for each trajectory
     # in order to assess spawning criteria -- make sure coup_hist has a slot
     # for every trajectory
     if len(coup_hist) < master.n_traj():
@@ -97,11 +98,13 @@ def spawn(master,dt):
                     if not bundle_overlap:
                         basis_grown = True
                         master.add_trajectory(child)
+                        if master.ints.require_centroids:
+                            master.update_centroids()                            
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
 
                 utilities.write_spawn_log(current_time, spawn_time, exit_time, master.traj[i], master.traj[-1])
-   
+
     # let caller known if the basis has been changed
     return basis_grown
 

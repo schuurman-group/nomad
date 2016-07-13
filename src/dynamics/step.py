@@ -3,6 +3,7 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.bundle as bundle
+import src.dynamics.surface as surface
 
 #-----------------------------------------------------------------------------
 #
@@ -58,12 +59,16 @@ def fms_step_bundle(master, dt):
             basis_grown  = spawning.spawn(master,time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
+            # if a trajectory has been added, then call update_pes
+            # to get the electronic structure information at the associated
+            # centroids
+            if basis_grown:
+                surface.update_pes(master)
             # update the bundle hamiltonian after adding/subtracting trajectories
             if basis_grown or basis_pruned:
                 master.update_matrices()
             # update the running log
             fileio.print_fms_logfile('t_step',[master.time,time_step,master.nalive])
-
         else:
             # recall -- this time trying to propagate
             # to the failed step

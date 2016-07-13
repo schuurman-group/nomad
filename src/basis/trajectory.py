@@ -1,3 +1,4 @@
+import sys
 import copy
 import cmath
 import numpy as np
@@ -376,17 +377,23 @@ class trajectory:
     #
     # this is the expectation value of the momentum operator over the 2 x mass
     # this appears in the equations of motion on the off diagonal coupling
-    # different states together theough the NACME
+    # different states together through the NACME
     #
     def deldx_m(self, other, S_ij=None):
+
 #        timings.start('trajectory.deldx_m')
+
         if not S_ij:
-            S_ij = self.overlap(other,st_orthog=True)
+            #S_ij = self.overlap(other,st_orthog=True)
+            S_ij = self.overlap(other,st_orthog=False)
+
         dxval = np.zeros(self.n_particle * self.d_particle,dtype=np.cfloat)
-        for i in range(self.n_particles):
+
+        for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
-                                                             self.particles[i].mass
+                                                             self.particles[i].mass        
 #        timings.stop('trajectory.deldx_m')
+
         return dxval * S_ij
 
    #--------------------------------------------------------------------------
