@@ -90,44 +90,44 @@ def getcoe(string):
 def rdoperfile(infile):
 
     #########################################################################
-    # Read to the labels section
+    # Read to the parameter section
     #########################################################################
     found=False
     parse.leof=False
     while not found and not parse.leof:
         parse.rd1line(infile)
-        if parse.keyword[1] == "labels_section":
-            found=True
+        if parse.keyword[1] == 'parameter-section':
+            found = True
 
-    # Exit if a labels section has not been found
+    # Exit if a parameter section has not been found
     if not found:
-        print("No labels section has been found")
+        print("No parameter section has been found")
         sys.exit()
 
-    # Save the position of the start of the labels section
-    labstart=infile.tell()
+    # Save the position of the start of the parameter section
+    parstart=infile.tell()
 
     #########################################################################
-    # Determine the number of labels
+    # Determine the number of parameters
     #########################################################################
     found=False
     parse.leof=False
     ham.npar=0
     while not found and not parse.leof:
         parse.rd1line(infile)
-        if parse.keyword[1] == "end-labels_section":
+        if parse.keyword[1] == 'end-parameter-section':
             found=True
         else:
             ham.npar+=1
 
     #########################################################################
-    # Read the label names and values
+    # Read the parameter names and values
     #########################################################################
     ham.apar=["" for i in range(ham.npar)]
     ham.par=[0.0 for i in range(ham.npar)]
 
-    # Rewind to the start of the labels section
-    infile.seek(labstart)
+    # Rewind to the start of the parameter section
+    infile.seek(parstart)
 
     # Read the parameter names and values
     for i in range(ham.npar):
@@ -149,7 +149,7 @@ def rdoperfile(infile):
     parse.leof=False
     while not found and not parse.leof:
         parse.rd1line(infile)
-        if parse.keyword[1] == "hamiltonian_section":
+        if parse.keyword[1] == 'hamiltonian-section':
             found=True
 
     # Exit if a Hamiltonian section has not been found
@@ -157,7 +157,7 @@ def rdoperfile(infile):
         print("No Hamiltonian section has been found")
         sys.exit()
 
-    # Save the position of the start of the labels section
+    # Save the position of the start of the Hamiltonian section
     hamstart=infile.tell()
 
     #########################################################################
@@ -168,7 +168,7 @@ def rdoperfile(infile):
     parse.leof=False
     while not found and not parse.leof:
         parse.rd1line(infile)
-        if parse.keyword[1] == "end-hamiltonian_section":
+        if parse.keyword[1] == "end-hamiltonian-section":
             found=True
         else:
             if (parse.keyword[1][0:3] != '---'

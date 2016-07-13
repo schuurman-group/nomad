@@ -343,7 +343,7 @@ class Trajectory:
         """Returns the momentum expectation values of 2 x mass.
 
         This appears in the equations of motion on the off diagonal coupling
-        different states together theough the NACME.
+        different states together through the NACME.
         """
         #timings.start('trajectory.deldx_m')
         if S_ij is None:
