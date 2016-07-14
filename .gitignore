@@ -1,3 +1,8 @@
 # Python byte-compiled files
 __pycache__/
 *.py[cod]
+
+# Compiled Cython libraries
+*.c
+*.o
+*.so
