@@ -1,7 +1,6 @@
 """
 Routines for propagating a bundle forward by a time step.
 """
-import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -27,8 +26,8 @@ def time_step(master):
     """
     dt = glbl.fms['default_time_step']
     if master.in_coupled_regime():
-      dt = glbl.fms['coupled_time_step']
-      fileio.print_fms_logfile('coupled',[dt])
+        dt = glbl.fms['coupled_time_step']
+        fileio.print_fms_logfile('coupled', [dt])
     return dt
 
 
@@ -81,7 +80,7 @@ def fms_step_bundle(master, dt):
         else:
             # recall -- this time trying to propagate to the failed step
             time_step  = 0.5 * time_step
-            fileio.print_fms_logfile('new_step', [error_msg,time_step])
+            fileio.print_fms_logfile('new_step', [error_msg, time_step])
 
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
@@ -124,6 +123,6 @@ def check_step_bundle(master0, master, time_step):
                       master.traj[i].kinetic())
         dener = abs(energy_old - energy_new)
         if dener > glbl.fms['energy_jump_toler']:
-            return False, ' jump in trajectory energy, tid = {0:4d}, delta[ener] = {1:10.6f}'.format(i,dener)
+            return False, ' jump in trajectory energy, tid = {0:4d}, delta[ener] = {1:10.6f}'.format(i, dener)
     # If we pass all the tests, return 'success'
     return True, ' success'

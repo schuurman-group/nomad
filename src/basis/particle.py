@@ -1,7 +1,6 @@
 """
 The Particle object and its associated functions.
 """
-import sys
 import re
 import copy
 import numpy as np
@@ -22,10 +21,7 @@ particle_anum  = [1., 1., 1., 2., 3., 4., 5., 6., 7., 8., 9.,
 
 def valid_particle(particle):
     """Returns True if the particle name appears in particle_name."""
-    if particle.name in particle_name:
-        return True
-    else:
-        return False
+    return particle.name in particle_name
 
 
 def load_particle(particle):
@@ -37,8 +33,8 @@ def load_particle(particle):
         particle.mass  = particle_mass[index] * glbl.mass2au
         particle.anum  = particle_anum[index]
         if particle.width < 1e-6:
-            outfile.write('WARNING: particle ' + str(particle.name) +
-                          ' in library, but width = 0')
+            print('WARNING: particle ' + str(particle.name) +
+                  ' in library, but width = 0')
     elif q.match(particle.name):
         if glbl.fms['interface'] == 'vibronic':
             particle.mass = 1./float(ham.freqmap[particle.name])
@@ -48,7 +44,7 @@ def load_particle(particle):
 
 def create_particle(pid, dim, name, width, mass):
     """Creates a new particle."""
-    new_particle       = particle(dim, pid)
+    new_particle       = Particle(dim, pid)
     new_particle.name  = name
     new_particle.width = width
     new_particle.mass  = mass
@@ -57,7 +53,7 @@ def create_particle(pid, dim, name, width, mass):
 
 def copy_part(orig_part):
     """Copys a Particle object with new references."""
-    new_part = particle(orig_part.dim,orig_part.pid)
+    new_part = Particle(orig_part.dim,orig_part.pid)
     new_part.width  = copy.copy(orig_part.width)
     new_part.mass   = copy.copy(orig_part.mass)
     new_part.anum   = copy.copy(orig_part.anum)
@@ -76,8 +72,8 @@ class Particle:
         # particle identifier (integer, specifying atom number)
         self.pid    = int(pid)
         # create a particle with zero position and momentum
-        self.x      = np.zeros(self.dim, dtype=float)
-        self.p      = np.zeros(self.dim, dtype=float)
+        self.x      = np.zeros(self.dim)
+        self.p      = np.zeros(self.dim)
         # width/uncertainty
         self.width  = 0.
         # mass of particle
@@ -144,7 +140,7 @@ class Particle:
         """Reads particle written to file by write_particle."""
         self.name       = str(chkpt.readline().split()[0])
         self.pid        = int(chkpt.readline().split()[0])
-        self.atomic_num = float(chkpt.readline().split()[0])
+        self.anum       = float(chkpt.readline().split()[0])
         self.dim        = int(chkpt.readline().split()[0])
         self.width      = float(chkpt.readline().split()[0])
         self.mass       = float(chkpt.readline().split()[0])

@@ -10,7 +10,7 @@ keyword = ['' for i in range(maxkw)]
 def rd1line(filename, up2low=True):
     """Reads the next non-empty, non-comment line of a file, converts
     to lowercase and separates into keywords."""
-    global keyword, maxkw, inkw, leof
+    global keyword, inkw, leof
 
     # Read to the next non-blank, non-comment line
     string = filename.readline()
@@ -53,14 +53,7 @@ def rd1line(filename, up2low=True):
         # If the current character is a delimiter other than a space or
         # a tab (=, ',', ], etc.) then read in as a separate keyword and
         # then go to the next keyword...
-        if (string[i] == '='
-            or string[i] == ','
-            or string[i] == '('
-            or string[i] == ')'
-            or string[i] == '['
-            or string[i] == ']'
-            or string[i] == '{'
-            or string[i] == '}'):
+        if string[i] in ['=', ',', '(', ')', '[', ']', '{', '}']:
             inkw += 1
             keyword[inkw] += string[i]
             k = 0

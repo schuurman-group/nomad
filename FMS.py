@@ -35,7 +35,7 @@ def main(sc):
     random.seed(glbl.fms['seed'])
 
     # Create the collection of trajectories
-    master = bundle.Bundle(glbl.fms['n_states'],glbl.fms['integrals'])
+    master = bundle.Bundle(glbl.fms['n_states'], glbl.fms['integrals'])
 
     # set the initial conditions for trajectories
     initial.init_bundle(master)
@@ -46,7 +46,7 @@ def main(sc):
         time_step = step.time_step(master)
 
         # take an fms dynamics step
-        master = step.fms_step_bundle(master,time_step)
+        master = step.fms_step_bundle(master, time_step)
 
         # if no more live trajectories, simulation is complete
         if master.nalive == 0:
@@ -59,12 +59,12 @@ def main(sc):
 
     fileio.cleanup()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if False:
         pypath     = os.environ['PYTHONPATH']
         fmspy_path = os.environ['FMSPY_PATH']
-        os.environ['PYTHONPATH'] = pypath+":"+fmspy_path
-        sc = SparkContext("local[4]", "FMS job queue")
+        os.environ['PYTHONPATH'] = pypath+':'+fmspy_path
+        sc = SparkContext('local[4]', 'FMS job queue')
     else:
         sc = None
 

@@ -12,7 +12,7 @@ def convfac(string):
     if string == 'ev':
         factor = 1. / glbl.au2ev
     else:
-        raise ValueError('Unknown conversion factor:', keyword)
+        raise ValueError('Unknown conversion factor: ' + string)
 
     return factor
 
@@ -64,7 +64,7 @@ def getcoe(string):
                     lfound = True
 
         if not lfound:
-            raise ValueError('Parameter', atmp[i], 'not recognised')
+            raise ValueError('Parameter ' + str(atmp[i]) + 'not recognised')
 
     # Construct the coefficient from the parameter values and operator
     # strings
@@ -121,7 +121,7 @@ def rdoperfile(infile):
         if parse.keyword[2] == '=':
             ham.par[i] = float(parse.keyword[3])
         else:
-            raise NameError('No argument has been given with the keyword:',
+            raise NameError('No argument has been given with the keyword: ' +
                             parse.keyword[1])
         if parse.keyword[4] == ',':
             ham.par[i] *= convfac(parse.keyword[5])
@@ -151,7 +151,7 @@ def rdoperfile(infile):
             found = True
         else:
             if (parse.keyword[1][0:3] != '---'
-                and parse.keyword[1][0:5] != 'modes'):
+                    and parse.keyword[1][0:5] != 'modes'):
                 ham.nterms += 1
 
     # Read the Hamiltonian terms

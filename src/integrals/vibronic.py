@@ -2,14 +2,13 @@
 Compute integrals over trajectories traveling on vibronic potentials
 """
 import numpy as np
-import src.basis.trajectory as trajectory
 
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
 
-def v_integral(traj1,traj2=None,centroid=None):
+def v_integral(traj1, traj2=None, centroid=None):
     """Returns potential coupling matrix element between two trajectories.
 
     This will depend on how the operator is stored, and
@@ -26,7 +25,7 @@ def prim_v_integral(n, p1, p2):
     n_2 = np.floor(0.5 * n)
     a   = p1.width + p2.width
     b   = np.fromiter((complex(2.*(p1.width*p1.x[i] + p2.width*p2.x[i]),
-                       -(p1.p[i]-p2.p[i])) for i in range(p1.dim)),
+                               -(p1.p[i]-p2.p[i])) for i in range(p1.dim)),
                       dtype=complex)
 
     # generally these should be 1D harmonic oscillators. If
@@ -44,7 +43,7 @@ def prim_v_integral(n, p1, p2):
     return v_total * np.math.factorial(N) / 2.**N
 
 
-def ke_integral(traj1,traj2):
+def ke_integral(traj1, traj2):
     """Returns kinetic energy integral over trajectories."""
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
@@ -56,9 +55,9 @@ def ke_integral(traj1,traj2):
         return ke
 
 
-def sdot_integral(traj1,traj2):
+def sdot_integral(traj1, traj2):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) ) +
-        np.dot( traj2.force(), traj1.deldp(traj2) ) +
-        complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2))
+            np.dot( traj2.force(), traj1.deldp(traj2) ) +
+            complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2))
     return sdot

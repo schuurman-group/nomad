@@ -2,7 +2,6 @@
 The Trajectory object and its associated functions.
 """
 import copy
-import cmath
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
@@ -12,7 +11,7 @@ import src.basis.particle as particle
 def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
     timings.start('trajectory.copy_traj')
-    new_traj = trajectory(orig_traj.nstates)
+    new_traj = Trajectory(orig_traj.nstates)
     p_list = []
     for i in range(orig_traj.n_particle):
         p_list.append(particle.copy_part(orig_traj.particles[i]))
@@ -24,7 +23,7 @@ def copy_traj(orig_traj):
     new_traj.alive      = copy.copy(orig_traj.alive)
     new_traj.amplitude  = copy.copy(orig_traj.amplitude)
     new_traj.gamma      = copy.copy(orig_traj.gamma)
-    new_traj.deadline   = copy.copy(orig_traj.deadtime)
+    new_traj.deadtime   = copy.copy(orig_traj.deadtime)
     new_traj.nbf        = copy.copy(orig_traj.nbf)
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
     new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
@@ -41,7 +40,7 @@ def copy_traj(orig_traj):
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
-    def __init__(self,nstates,particles=None,tid=0,parent=0,n_basis=0):
+    def __init__(self, nstates, particles=None, tid=0, parent=0, n_basis=0):
         # total number of states
         self.nstates = nstates
         # allow for population of trajectory particles via set_particles
@@ -78,36 +77,29 @@ class Trajectory:
         # number of mos
         self.nbf        = n_basis
         # geometry of the current potential information
-        self.pes_geom   = np.zeros(self.n_particle*self.d_particle,
-                                   dtype=float)
+        self.pes_geom   = np.zeros(self.n_particle*self.d_particle)
         # value of the potential energy
-        self.poten      = np.zeros(self.nstates, dtype=float)
+        self.poten      = np.zeros(self.nstates)
         # derivatives of the potential -- if off-diagonal, corresponds
         # to Fij (not non-adiabatic coupling vector)
         self.deriv      = np.zeros((self.nstates,
-                                    self.n_particle*self.d_particle),
-                                   dtype=float)
+                                    self.n_particle*self.d_particle))
         # dipoles and transition dipoles
         self.dipoles    = np.zeros((self.nstates, self.nstates,
-                                    self.d_particle), dtype=float)
+                                    self.d_particle))
         # second moment tensor for each state
-        self.sec_moms   = np.zeros((self.nstates, self.d_particle),
-                                   dtype=float)
+        self.sec_moms   = np.zeros((self.nstates, self.d_particle))
         # electronic populations on the atoms
-        self.atom_pops  = np.zeros((self.nstates, self.n_particle),
-                                   dtype=float)
+        self.atom_pops  = np.zeros((self.nstates, self.n_particle))
 
     #-------------------------------------------------------------------
     #
     # Trajectory status functions
     #
     #--------------------------------------------------------------------
-    def dead(time, uncoupled_thresh):
+    def dead(self, time, uncoupled_thresh):
         """Returns true if the trajectory is dead."""
-        if self.deadtime != -1:
-            if (time - self.deadtime) > uncoupled_thresh:
-                return True
-        return False
+        return self.deadtime != -1 and (time - self.deadtime) > uncoupled_thresh
 
     #----------------------------------------------------------------------
     #
@@ -273,7 +265,7 @@ class Trajectory:
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
-         return self.potential() + self.kinetic()
+        return self.potential() + self.kinetic()
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
@@ -298,7 +290,7 @@ class Trajectory:
     def coup_dot_vel(self, c_state):
         """Returns the coupling dotted with the velocity."""
         if self.state == c_state:
-           return 0.
+            return 0.
         return np.dot( self.velocity(), self.derivative(c_state) )
 
     #-----------------------------------------------------------------------------
@@ -311,7 +303,7 @@ class Trajectory:
         #timings.start('trajectory.overlap')
         if st_orthog and self.state != other.state:
             return complex(0.,0.)
-        S = cmath.exp( complex(0.,1.) * (other.gamma - self.gamma) )
+        S = np.exp( complex(0.,1.) * (other.gamma - self.gamma) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
         #timings.stop('trajectory.overlap')
@@ -324,7 +316,8 @@ class Trajectory:
             S_ij = self.overlap(other, st_orthog=True)
         dpval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
         for i in range(self.n_particle):
-            dpval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
+            dpval[self.d_particle*i:
+                  self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
         #timings.stop('trajectory.deldp')
         return dpval * S_ij
 
@@ -335,7 +328,8 @@ class Trajectory:
             S_ij = self.overlap(other, st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
         for i in range(self.n_particle):
-            dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
+            dxval[self.d_particle*i:
+                  self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
         #timings.stop('trajectory.deldx')
         return dxval * S_ij
 
@@ -349,7 +343,7 @@ class Trajectory:
         if S_ij is None:
             S_ij = self.overlap(other,st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
-        for i in range(self.n_particles):
+        for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
                                                               self.particles[i].mass)
         #timings.stop('trajectory.deldx_m')
@@ -445,7 +439,7 @@ class Trajectory:
         self.exit_time = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
         chkpt.readline()
         # last spawn
-        self.spawn_time = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
+        self.last_spawn = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
         chkpt.readline()
         # currently coupled
         self.spawn_coup = np.fromstring(chkpt.readline(), sep=' ', dtype=float)

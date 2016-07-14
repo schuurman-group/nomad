@@ -4,7 +4,6 @@ Timers and timing information for subroutines.
 Allows for nested timers. Constructed to ensure no overlap between timers,
 so thereotically sum(timers) = total time
 """
-import sys
 import time
 
 
@@ -46,8 +45,8 @@ def start(name):
     #    print(str(i)+': '+str(active_stack[i].name))
 
     if active_stack[-1].running:
-        sys.exit('START timer: ' + str(name) + ' called while running.\n'
-                 ' => could be recursion issue')
+        raise ValueError('START timer:' + str(name) +
+                         ' called while running (could be recursion issue)')
 
     active_stack[-1].calls     += 1
     active_stack[-1].running    = True
@@ -123,13 +122,13 @@ def print_timings():
     ofrm = '{0:<35s}{1:>12d}{2:>16.4f}{3:>8.2f}{4:>16.4f}{5:>8.2f}\n'
     frac_wall = 0.
     frac_cpu  = 0.
-    for i in range(len(sort_list)):
-        rout = str(sort_list[i][0])
+    for sort in sort_list:
+        rout = str(sort[0])
         if rout == 'global':
             continue
-        ncall = sort_list[i][1].calls
-        wtim  = sort_list[i][1].wall_time
-        ctim  = sort_list[i][1].cpu_time
+        ncall = sort[1].calls
+        wtim  = sort[1].wall_time
+        ctim  = sort[1].cpu_time
         ostr += ofrm.format(rout, ncall, wtim, wtim/tot_wall, ctim,
                             ctim/tot_cpu)
         frac_wall += wtim/tot_wall
@@ -137,5 +136,5 @@ def print_timings():
 
     ostr += '-'*95 + '\n'
     ostr += ('**total**'.ljust(47) + '{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}' +
-             '\n\n'.format(tot_wall,frac_wall,tot_cpu,frac_cpu))
+             '\n\n'.format(tot_wall, frac_wall, tot_cpu, frac_cpu))
     return ostr

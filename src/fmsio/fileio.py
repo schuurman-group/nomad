@@ -2,7 +2,6 @@
 Routines for reading input files and writing log files.
 """
 import os
-import sys
 import re
 import glob
 import shutil
@@ -44,7 +43,7 @@ def read_input_files():
 
     # Read fms.input. This contains general simulation variables
     kwords = read_namelist('fms.input')
-    for k,v in kwords.items():
+    for k, v in kwords.items():
         if k in glbl.fms:
             glbl.fms[k] = v
         else:
@@ -58,21 +57,21 @@ def read_input_files():
     # variables in different dictionaries. fix this later
     kwords = read_namelist('pes.input')
     if glbl.fms['interface'] == 'columbus':
-        for k,v in kwords.items():
+        for k, v in kwords.items():
             if k in glbl.columbus:
                 glbl.columbus[k] = v
             else:
                 print('Variable '  + str(k) +
                       ' in fms.input unrecognized. Ignoring...')
     elif glbl.fms['interface'] == 'vibronic':
-        for k,v in kwords.items():
+        for k, v in kwords.items():
             if k in glbl.vibronic:
                 glbl.vibronic[k] = v
             else:
                 print('Variable ' + str(k) +
                       ' in fms.input unrecognized. Ignoring...')
     elif glbl.fms['interface'] == 'boson_model_diabatic':
-        for k,v in kwords.items():
+        for k, v in kwords.items():
             if k in glbl.boson:
                 glbl.boson[k] = v
     else:
@@ -84,7 +83,7 @@ def read_namelist(filename):
     kwords = dict()
 
     if os.path.exists(filename):
-        with open(filename,'r',encoding='utf-8') as infile:
+        with open(filename, 'r', encoding='utf-8') as infile:
             for line in infile:
                 if '=' in line:
                     line = line.rstrip('\r\n')
@@ -109,19 +108,19 @@ def init_fms_output():
     global home_path, scr_path, log_format, tkeys, bkeys
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    np = int(glbl.fms['num_particles'])
-    nd = int(glbl.fms['dim_particles'])
-    ns = int(glbl.fms['n_states'])
-    dstr = ("x","y","z")
+    nump = int(glbl.fms['num_particles'])
+    numd = int(glbl.fms['dim_particles'])
+    nums = int(glbl.fms['n_states'])
+    dstr = ('x', 'y', 'z')
     acc1 = 12
     acc2 = 16
 
     # ----------------- dump formats (trajectory files) -----------------
     # trajectory output
     arr1 = ['{:>12s}'.format('pos' + str(i+1) + '.' + dstr[x])
-            for i in range(np) for x in range(nd)]
+            for i in range(nump) for x in range(numd)]
     arr2 = ['{:>12s}'.format('mom' + str(i+1) + '.' + dstr[x])
-            for i in range(np) for x in range(nd)]
+            for i in range(nump) for x in range(numd)]
     tfile_names[tkeys[0]] = 'trajectory'
     dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + 'Phase'.rjust(acc1) +
@@ -130,44 +129,44 @@ def init_fms_output():
                              '\n')
     dump_format[tkeys[0]] = ('{0:>12.4f}'+
                              ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(1,np*nd+1)) +
+                                     for i in range(1, nump*numd+1)) +
                              ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(np*nd+1, 2*np*nd+1)) +
+                                     for i in range(nump*numd+1, 2*nump*numd+1)) +
                              ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(2*np*nd+1,2*np*nd+6)) +
+                                     for i in range(2*nump*numd+1, 2*nump*numd+6)) +
                              '\n')
 
     # potential energy
-    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(ns)]
+    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nums)]
     tfile_names[tkeys[1]] = 'poten'
     dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[1]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':>16.10f}'
-                                     for i in range(1, ns+1)) + '\n')
+                                     for i in range(1, nums+1)) + '\n')
 
     # coupling
-    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(ns)]
-    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(ns)]
+    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nums)]
+    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nums)]
     tfile_names[tkeys[2]] = 'coupling'
     dump_header[tkeys[2]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + '\n')
     dump_format[tkeys[2]] = ('{0:>12.4f}' +
                              ''.join('{'+str(i)+':>12.5f}'
-                                     for i in range(1, 2*ns+1)) + '\n')
+                                     for i in range(1, 2*nums+1)) + '\n')
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(ns) for j in range(nd)]
+            for i in range(nums) for j in range(numd)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':>12.5f}'
-                                     for i in range(1, ns*nd+1)) + '\n')
+                                     for i in range(1, nums*numd+1)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(ns) for j in range(i) for k in range(nd)]
-    ncol = int(ns*(ns-1)*nd/2+1)
+            for i in range(nums) for j in range(i) for k in range(numd)]
+    ncol = int(nums*(nums-1)*numd/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{0:>12.4f}' +
@@ -176,42 +175,42 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(ns) for j in range(nd)]
+            for i in range(nums) for j in range(numd)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':12.5f}'
-                                     for i in range(1, ns*nd+1)) + '\n')
+                                     for i in range(1, nums*numd+1)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_p' + str(j+1)
-            for i in range(ns) for j in range(np)]
+            for i in range(nums) for j in range(nump)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':10.5f}'
-                                     for i in range(1, ns*np+1)) + '\n')
+                                     for i in range(1, nums*nump+1)) + '\n')
 
     # gradients
     arr1 = ['  grad_part' + str(i+1) + '.' + dstr[j]
-            for i in range(np) for j in range(nd)]
+            for i in range(nump) for j in range(numd)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, np*nd+1)) + '\n')
+                                     for i in range(1, nump*numd+1)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
     # adiabatic state populations
-    arr1 = ['     state.' + str(i) for i in range(ns)]
+    arr1 = ['     state.' + str(i) for i in range(nums)]
     bfile_names[bkeys[0]] = 'n.dat'
     dump_header[bkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              'Norm'.rjust(acc1) + '\n')
     dump_format[bkeys[0]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':12.6f}'
-                                     for i in range(1,ns+1)) +
-                             '{' + str(ns+1) + ':12.6f}\n')
+                                     for i in range(1, nums+1)) +
+                             '{' + str(nums+1) + ':12.6f}\n')
 
     # the bundle energy
     arr1 = ('   potential(QM)', '     kinetic(QM)', '       total(QM)',
@@ -220,22 +219,22 @@ def init_fms_output():
     dump_header[bkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[bkeys[1]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':16.10f}'
-                                     for i in range(1,6+1)) + '\n')
+                                     for i in range(1, 6+1)) + '\n')
 
     # the spawn log
     lenst = 7
     arr1 = ('time(entry)'.rjust(acc1), 'time(spawn)'.rjust(acc1),
             'time(exit)'.rjust(acc1), 'parent'.rjust(lenst),
-            'state'.rjust(lenst),i 'child'.rjust(lenst), 'state'.rjust(lenst),
+            'state'.rjust(lenst), 'child'.rjust(lenst), 'state'.rjust(lenst),
             'ke(parent)'.rjust(acc1), 'ke(child)'.rjust(acc1),
             'pot(parent)'.rjust(acc1), 'pot(child)'.rjust(acc1),
             'total(parent)'.rjust(acc2), 'total(child)'.rjust(acc2))
     bfile_names[bkeys[2]] = 'spawn.dat'
     dump_header[bkeys[2]] = ''.join(arr1) + '\n'
     dump_format[bkeys[2]] = ('{0:>12.4f}{1:>12.4f}{2:>12.4f}'  +
-                                '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' +
-                                '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +
-                                '{11:>16.8f}{12:>16.8f}' + '\n')
+                             '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' +
+                             '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +
+                             '{11:>16.8f}{12:>16.8f}' + '\n')
 
     bfile_names[bkeys[3]] = 's.dat'
     bfile_names[bkeys[4]] = 'sdot.dat'
@@ -276,7 +275,7 @@ def init_fms_output():
 
         log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
         log_str += ' ----------------------------------------\n'
-        for k,v in out_key.items():
+        for k, v in out_key.items():
             log_str += ' {0:20s} = {1:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
@@ -290,8 +289,10 @@ def init_fms_output():
     log_format['t_step']      = ' > time: {0:14.4f} step:{1:8.4f} [{2:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
     log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
-    log_format['spawn_start'] = ('  -- spawing: trajectory {0:4d}, state {1:2d} --> state {2:2d}\n' +
-                                 'time'.rjust(14) + 'coup'.rjust(10) + 'overlap'.rjust(10) + '   spawn\n')
+    log_format['spawn_start'] = ('  -- spawing: trajectory {0:4d}, ' +
+                                 'state {1:2d} --> state {2:2d}\n' +
+                                 'time'.rjust(14) + 'coup'.rjust(10) +
+                                 'overlap'.rjust(10) + '   spawn\n')
     log_format['spawn_step']  = '{0:14.4f}{1:10.4f}{2:10.4f}   {3:<40s}\n'
     log_format['spawn_back']  = '      back propagating:  {0:12.2f}\n'
     log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
@@ -339,10 +340,8 @@ def update_logs(bundle):
     """
     dt    = glbl.fms['default_time_step']
     mod_t = bundle.time % dt
-    if mod_t < 0.1*dt or mod_t > 0.9*dt:
-        return True
-    else:
-        return False
+
+    return mod_t < 0.1*dt or mod_t > 0.9*dt
 
 
 def print_bund_row(fkey, data):
@@ -370,7 +369,7 @@ def print_bund_mat(time, fname, mat):
         outfile.write(np.array2string(mat)+'\n')
 
 
-def print_fms_logfile(otype,data):
+def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
     global log_format, print_level
 
@@ -472,7 +471,7 @@ def cleanup():
     for key, fname in tfile_names.items():
         for tfile in glob.glob(scr_path + '/' + fname + '.*'):
             if not os.path.isdir(tfile):
-                shutil.move(tfile,odir)
+                shutil.move(tfile, odir)
 
     # move bundle files
     for key, fname in bfile_names.items():

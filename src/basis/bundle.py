@@ -1,11 +1,9 @@
 """
 The Bundle object and its associated functions.
 """
-import sys
 import copy
-import cmath
-import scipy as sp
 import numpy as np
+from scipy import linalg
 from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
@@ -23,7 +21,7 @@ def copy_bundle(orig_bundle):
     """
     timings.start('bundle.copy_bundle')
 
-    new_bundle = bundle(orig_bundle.nstates, orig_bundle.integrals)
+    new_bundle = Bundle(orig_bundle.nstates, orig_bundle.integrals)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
@@ -70,15 +68,15 @@ class Bundle:
         self.traj  = []
         self.cent  = []
         self.alive = []
-        self.T     = np.zeros((0., 0.), dtype=complex)
-        self.V     = np.zeros((0., 0.), dtype=complex)
-        self.S     = np.zeros((0., 0.), dtype=complex)
-        self.Sdot  = np.zeros((0., 0.), dtype=complex)
-        self.Heff  = np.zeros((0., 0.), dtype=complex)
+        self.T     = np.zeros((0, 0), dtype=complex)
+        self.V     = np.zeros((0, 0), dtype=complex)
+        self.S     = np.zeros((0, 0), dtype=complex)
+        self.Sdot  = np.zeros((0, 0), dtype=complex)
+        self.Heff  = np.zeros((0, 0), dtype=complex)
         try:
             self.ints = __import__('src.integrals.' + self.integrals,
                                    fromlist=['a'])
-        except:
+        except ImportError:
             print('BUNDLE INIT FAIL: src.integrals.' + self.integrals)
 
     def n_traj(self):
@@ -114,8 +112,8 @@ class Bundle:
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
-        for i in range(len(traj_list)):
-            self.traj.append(traj_list[i])
+        for traj in traj_list:
+            self.traj.append(traj)
             self.nalive        += 1
             self.traj[-1].alive = True
             self.traj[-1].tid   = self.n_traj() - 1
@@ -136,11 +134,11 @@ class Bundle:
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
         self.alive.pop(tid)
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=np.complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=np.complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=np.complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=np.complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=np.complex)
+        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
         timings.start('bundle.kill_trajectory')
 
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
@@ -212,13 +210,13 @@ class Bundle:
                 taylor = np.dot(taylor, taylor)
 
             new_amp = np.dot(taylor, old_amp)
-            error   = cmath.sqrt(np.sum(abs(new_amp-prev_amp)**2))
+            error   = np.sqrt(np.sum(abs(new_amp-prev_amp)**2))
             if abs(error) < 1.e-10:
                 break
             else:
                 prev_amp = new_amp
                 if n == n_max:
-                    sys.exit('Cannot converge amplitudes...')
+                    raise TimeoutError('Cannot converge amplitudes...')
 
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
@@ -237,8 +235,7 @@ class Bundle:
         new_amp = np.zeros(self.nalive, dtype=complex)
 
         B = -complex(0.,1.) * Hmat * dt
-
-        umat=sp.linalg.expm(B)
+        umat = linalg.expm(B)
 
         new_amp = np.dot(umat, old_amp)
 
@@ -308,7 +305,7 @@ class Bundle:
     def pop(self):
         """Returns the populations on each of the states."""
         timings.start('bundle.pop')
-        pop = np.zeros(self.nstates, dtype=float)
+        pop = np.zeros(self.nstates)
 
         # live contribution
         for i in range(len(self.alive)):

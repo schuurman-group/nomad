@@ -13,7 +13,7 @@ import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
 
-def propagate_bundle(master,dt):
+def propagate_bundle(master, dt):
     """Propagates the Bundle object with VV."""
     timings.start('propagators.propagate_bundle')
 
@@ -102,10 +102,10 @@ def propagate_momentum(traj, dt):
     g2_1 = 2. * np.dot(f1, v1)
 
     # solve for the phases
-    a = 0.5 * dt**2
-    b = (1./6.) * dt**3
-    c = dt
-    d = 0.5 * dt**2
+    #a = 0.5 * dt**2
+    #b = (1./6.) * dt**3
+    #c = dt
+    #d = 0.5 * dt**2
 
     #vec   = np.array([g1_1 - g1_0 - g2_0 * dt, g2_1 - g2_1])
     #alpha =( d*vec[0] - b*vec[1]) / (a*d - b*c)

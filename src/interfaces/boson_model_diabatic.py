@@ -6,13 +6,17 @@ from src.fmsio import glbl
 
 
 comp_properties = False
+ncrd = 4
+delta = 1.
+omega_c = 2.5 * delta
+omega = np.zeros(ncrd)
+C = np.zeros(ncrd)
 
 
 def init_interface():
     """Initializes global variables."""
-    global C, omega, omega_c, delta, ncrd
+    global C, omega, omega_c, delta
 
-    ncrd = 4
     if ncrd == 1:
         omega = np.array(1.34)
         delta   = 0.
@@ -29,10 +33,8 @@ def init_interface():
 
 def evaluate_trajectory(tid, geom, t_state):
     """Evaluates trajectory energy and gradients."""
-    global ncrd
-
     gm = np.array([geom[i].x[j] for i in range(ncrd)
-                               for j in range(geom[i].dim)], dtype=float)
+                   for j in range(geom[i].dim)], dtype=float)
     eners = energy(gm)
     grads = derivative(gm, t_state)
     return gm, eners, grads
@@ -40,24 +42,17 @@ def evaluate_trajectory(tid, geom, t_state):
 
 def energy(geom):
     """Evaluates energy in the spin-boson model."""
-    global ncrd, omega, C
-
     h0  = np.zeros(2)
-    sgn = np.ones(2)
-    sgn[0] = -1.
+    sgn = np.array([-1., 1.])
 
-    h0 += 0.5 * omega * geom**2
-
-    hk = 0.
-    hk += C * geom
+    h0 += sum(0.5 * omega * geom**2)
+    hk = sum(C * geom)
 
     return h0 + sgn * hk
 
 
 def derivative(geom, t_state):
     """Returns the energy gradient in the spin-boson model."""
-    global ncrd, omega, C, delta
-
     grads = np.zeros((2, ncrd))
     sgn = -1 + 2.*t_state
     for i in range(2):
@@ -110,6 +105,4 @@ def set_global_vars(gvars):
 
 def get_global_vars():
     """Returns the global variables."""
-    global ncrd, omega, C, delta
-
     return ncrd, omega, delta, C

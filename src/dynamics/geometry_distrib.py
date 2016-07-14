@@ -21,10 +21,9 @@ def sample_distribution(master):
             geom.append(geoms[i*natms + j])
 
         # add a single trajectory specified by geometry.dat
-        master.add_trajectory(trajectory.Trajectory(
-                              glbl.fms['n_states'],
-                              particles=geom,
-                              parent=0))
+        master.add_trajectory(trajectory.Trajectory(glbl.fms['n_states'],
+                                                    particles=geom,
+                                                    parent=0))
         # ...with unit amplitude
         master.traj[i].amplitude = amp
 

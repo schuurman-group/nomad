@@ -1,7 +1,6 @@
 """
 Routines for generating and sampling a Wigner vibrational distribution.
 """
-import sys
 import random
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -25,7 +24,7 @@ def sample_distribution(master):
         coordtype = 'cart'
 
     # Read the geometry.dat file
-    amps,phase_gm = utils.load_geometry()
+    amps, phase_gm = utils.load_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
     natm = int(len(phase_gm)/len(amps))
@@ -46,7 +45,7 @@ def sample_distribution(master):
     # and frequencies
     if coordtype == 'cart':
         masses  = np.asarray([phase_gm[i].mass for i in range(natm)
-                              for j in range(dim)],dtype=np.float)
+                              for j in range(dim)], dtype=float)
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
                               else 0 for i in range(len(masses))], dtype=float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]
@@ -77,8 +76,8 @@ def sample_distribution(master):
     # loop over the number of initial trajectories
     max_try = 1000
     for i in range(glbl.fms['n_init_traj']):
-        delta_x = np.zeros(n_modes, dtype=float)
-        delta_p = np.zeros(n_modes, dtype=float)
+        delta_x = np.zeros(n_modes)
+        delta_p = np.zeros(n_modes)
         disp_gm = [particle.copy_part(phase_gm[j]) for j in range(natm)]
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]

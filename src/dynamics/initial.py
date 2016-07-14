@@ -1,7 +1,6 @@
 """
 Routines for initializing dynamics calculations.
 """
-import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -34,7 +33,7 @@ def init_bundle(master):
     surface.init_surface(glbl.fms['interface'])
 
     # now load the initial trajectories into the bundle
-    if(glbl.fms['restart']):
+    if glbl.fms['restart']:
         init_restart(master)
     else:
         # sample the requested phase distribution, some methods may also
@@ -62,7 +61,8 @@ def init_bundle(master):
     # correlation function
     glbl.bundle0 = bundle.copy_bundle(master)
 
-    fileio.print_fms_logfile('t_step',[master.time,glbl.fms['default_time_step'],master.nalive])
+    fileio.print_fms_logfile('t_step', [master.time, glbl.fms['default_time_step'],
+                                        master.nalive])
 
     return master.time
 
@@ -79,7 +79,7 @@ def init_restart(master):
     else:
         fname = fileio.home_path+'/checkpoint.dat'
 
-    master.read_bundle(fname,glbl.fms['restart_time'])
+    master.read_bundle(fname, glbl.fms['restart_time'])
 
 
 def set_initial_state(master):
@@ -97,8 +97,8 @@ def set_initial_state(master):
 
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
-            tdip =(np.linalg.norm(master.traj[i].dipole(j))
-                   for j in range(1, glbl.fms['n_states']+1))
+            tdip = (np.linalg.norm(master.traj[i].dipole(j))
+                    for j in range(1, glbl.fms['n_states']+1))
             master.traj[i].state = np.argmax(tdip)+1
     else:
         raise ValueError('Ambiguous initial state assignment.')

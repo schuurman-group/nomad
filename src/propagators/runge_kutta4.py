@@ -12,7 +12,6 @@ takes a trajectory argument and a time step argument.
   ky3 = f(t+dt/2, y(t)+ky2*dt/2)
   ky4 = f(t+dt, y(t)+ky3*dt)
 """
-import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
@@ -25,11 +24,11 @@ def propagate_bundle(master, dt):
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
     mass = master.traj[0].masses()
 
-    x0   = np.zeros((master.nalive,ncrd))
-    p0   = np.zeros((master.nalive,ncrd))
+    x0   = np.zeros((master.nalive, ncrd))
+    p0   = np.zeros((master.nalive, ncrd))
     g0   = np.zeros(master.nalive)
-    xnew = np.zeros((master.nalive,ncrd))
-    pnew = np.zeros((master.nalive,ncrd))
+    xnew = np.zeros((master.nalive, ncrd))
+    pnew = np.zeros((master.nalive, ncrd))
     gnew = np.zeros(master.nalive)
 
     # initialize position,momentum,phase
@@ -45,7 +44,7 @@ def propagate_bundle(master, dt):
 
     # determine k1, k2, k3, k4
     rk_ordr = 4
-    k_mult  = [1., 2., 2., 1.]
+    k_mult  = np.array([1., 2., 2., 1.])
     t_step  = dt / k_mult
     dt_seg = dt / sum(k_mult)
 
@@ -78,9 +77,9 @@ def propagate_bundle(master, dt):
         surface.update_pes(master)
 
     amp_sum = 0
-    for i in range(len(k_mult)):
-        master.update_amplitudes(dt, 10, H_list[i], amp0)
-        amp_sum += k_mult[i] * master.amplitudes()
+    for H_elem, mult in zip(H_list, k_mult):
+        master.update_amplitudes(dt, 10, H_elem, amp0)
+        amp_sum += mult * master.amplitudes()
     master.set_amplitudes(amp_sum / sum(k_mult))
 
     timings.stop('propagators.propagate_bundle')
@@ -89,12 +88,11 @@ def propagate_trajectory(traj, dt):
     """Propagates a single trajectory with RK4."""
     timings.start('propagators.propagate_trajectory')
 
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
     mass = traj.masses()
 
     # determine k1, k2, k3, k4
     rk_ordr = 4
-    k_mult  = [1., 2., 2., 1.]
+    k_mult  = np.array([1., 2., 2., 1.])
     t_step  = dt / k_mult
     dt_seg  = dt / sum(k_mult)
 

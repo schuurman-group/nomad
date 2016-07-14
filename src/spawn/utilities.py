@@ -33,7 +33,7 @@ def fms_step_trajectory(traj, init_time, dt):
         proposed_time = current_time + time_step
 
         # check time_step is fine, energy/amplitude conserved
-        accept = check_step_trajectory(traj0, traj, time_step)
+        accept = check_step_trajectory(traj0, traj)
 
         # if everything is ok..
         if accept:
@@ -57,7 +57,7 @@ def fms_step_trajectory(traj, init_time, dt):
 
 # check if we should reject a macro step because we're in a coupling region
 #
-def check_step_trajectory(traj0, traj, time_step):
+def check_step_trajectory(traj0, traj):
     """Checks if we should reject a macro step because we're in a
     coupling region.
 
@@ -67,11 +67,9 @@ def check_step_trajectory(traj0, traj, time_step):
     """
     energy_old = traj0.classical()
     energy_new = traj.classical()
-    if abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']:
-        return False
 
     # If we pass all the tests, return 'success'
-    return True
+    return not abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']
 
 
 def adjust_child(parent, child, scale_dir):
@@ -139,7 +137,7 @@ def adjust_child(parent, child, scale_dir):
     return True
 
 
-def overlap_with_bundle(trajectory,bundle):
+def overlap_with_bundle(traj, bundle):
     """Checks if trajectory has significant overlap with any trajectories
     already in the bundle."""
     t_overlap_bundle = False
@@ -147,7 +145,7 @@ def overlap_with_bundle(trajectory,bundle):
     for i in range(bundle.n_traj()):
         if bundle.traj[i].alive:
 
-            sij = trajectory.overlap(bundle.traj[i], st_orthog=True)
+            sij = traj.overlap(bundle.traj[i], st_orthog=True)
             if abs(sij) > glbl.fms['sij_thresh']:
                 t_overlap_bundle = True
                 break

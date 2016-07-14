@@ -4,7 +4,6 @@ Routines for handling the potential energy surface.
 All calls to update the pes are localized here.  This facilitates parallel
 execution of potential evaluations which is essential for ab initio PES.
 """
-import os
 from functools import partial
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -19,8 +18,8 @@ def init_surface(pes_interface):
     global pes
     # create interface to appropriate surface
     try:
-        pes = __import__('src.interfaces.'+pes_interface, fromlist=['NA'])
-    except:
+        pes = __import__('src.interfaces.' + pes_interface, fromlist=['NA'])
+    except ImportError:
         print('INTERFACE FAIL: ' + pes_interface)
 
 
@@ -55,8 +54,8 @@ def update_pes(master):
         res = rdd.collect()
 
         # update the cache
-        for i in range(len(run_list)):
-            pes_cache[run_list[i][0]] = res[i]
+        for i, run in enumerate(run_list):
+            pes_cache[run[0]] = res[i]
 
         # update the bundle:
         # live trajectories
@@ -106,7 +105,6 @@ def update_pes_traj(traj):
     """
     global pes
 
-    tid = traj.tid
     results = pes.evaluate_trajectory(traj.tid, traj.particles, traj.state)
     traj.update_pes(results)
 

@@ -3,11 +3,9 @@ Routines for running a vibronic coupling calculation.
 
 Much of this could benefit from changing for loops to numpy array operations.
 """
-import sys
 import numpy as np
 import src.vcham.hampar as ham
 import src.vcham.rdoper as rdoper
-import src.vcham.rdfreq as rdfreq
 import src.vcham.rdfreq as rdfreq
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -71,11 +69,12 @@ def init_interface():
 
 
 def evaluate_trajectory(tid, geom, stateindx):
+    """Evaluates the trajectory."""
     global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
     global diablap, sctmat, dbocderiv1, nsta
 
     # System dimensions
-    ncooo = glbl.fms['num_particles']
+    ncoo = glbl.fms['num_particles']
     nsta = glbl.fms['n_states']
 
     # Initialisation of arrays
@@ -450,8 +449,8 @@ def calc_scts():
         for i in range(nsta):
             for j in range(nsta):
                 if i != j:
-                  delximat[m][i][j] = -(adiabderiv1[m][j] - adiabderiv1[m][i])
-                  delximat[m][i][j] /= (adiabpot[j] - adiabpot[i])**2
+                    delximat[m][i][j] = -(adiabderiv1[m][j] - adiabderiv1[m][i])
+                    delximat[m][i][j] /= (adiabpot[j] - adiabpot[i])**2
 
     # (c) tmat
     for m in range(ham.nmode_active):
@@ -496,7 +495,7 @@ def calc_scts():
         for j in range(nsta):
             for k in range(nsta):
                 for m in range(ham.nmode_active):
-                  fdotf[i][j] += nactmat[m][i][k] * nactmat[m][k][j]
+                    fdotf[i][j] += nactmat[m][i][k] * nactmat[m][k][j]
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F
@@ -513,7 +512,7 @@ def calc_scts():
     for i in range(nsta):
         for m in range(ham.nmode_active):
             for k in range(nsta):
-               dbocderiv1[m][i] -= 2. * delnactmat[i][k] * nactmat[m][i][k]
+                dbocderiv1[m][i] -= 2. * delnactmat[i][k] * nactmat[m][i][k]
 
 
 def orbitals(tid, geom, t_state):

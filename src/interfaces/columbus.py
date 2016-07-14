@@ -9,7 +9,6 @@ import subprocess
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-import src.basis.particle as particle
 
 
 # set to true if we want to compute electronic structure properties
@@ -50,7 +49,7 @@ mem_str      = ''
 #----------------------------------------------------------------
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
-    global columbus_path, input_path, work_path, restart_path, p_dim
+    global columbus_path, input_path, work_path, restart_path
     global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
     global max_l, mrci_lvl, mem_str
 
@@ -114,17 +113,19 @@ def evalutate_trajectory(tid, geom, state):
     if tid < 0:
         print('evaluate_trajectory called with ' +
               'id associated with centroid, tid=' + str(tid))
+    # run_trajectory returns None...
     surf_info = run_trajectory(tid, geom, state)
 
     return surf_info
 
 
-def evalutate_centroid(tid, geom, state_i , state_j):
+def evalutate_centroid(tid, geom, state_i, state_j):
     """Evaluates  all requested electronic structure information at a
     centroid."""
     if tid >= 0:
         print('evaluate_centroid called with ' +
               'id associated with trajectory, tid=' + str(tid))
+    # run_centroid returns None...
     surf_info = run_centroid(tid, geom, state_i, state_j)
 
     return surf_info
@@ -139,6 +140,7 @@ def evaluate_worker(args, global_vars):
 
     set_global_vars(global_vars)
 
+    # run_trajectory and run_centroid both return None...
     if tid >= 0:
         surf_info = run_trajectory(tid, geom, tstate)
     else:
@@ -323,7 +325,7 @@ def run_col_mcscf(tid, t_state):
         with open('mcdrtls', 'w') as mcdrtls, open('mcdrtin', 'r') as mcdrtin:
             subprocess.run(['mcdrt.x', '-m', mem_str], stdin=mcdrtin,
                            stdout=mcdrtls)
-        with open('mcuftls','w') as mcuftls:
+        with open('mcuftls', 'w') as mcuftls:
             subprocess.run(['mcuft.x'], stdout=mcuftls)
 
         # save formula tape and log files for each DRT
@@ -342,8 +344,8 @@ def run_col_mcscf(tid, t_state):
                 mcden.write('1  {:2d}  1  {:2d}').format(i, i)
             # off-diagonal densities (for couplings)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(min(i,t_state),
-                                                         max(i,t_state))
+                mcden.write('1  {:2d}  1  {:2d}').format(min(i, t_state),
+                                                         max(i, t_state))
 
     # try running mcscf a couple times this can be tweaked if one
     # develops other strategies to deal with convergence problems
@@ -565,7 +567,7 @@ def run_col_tdipole(tid, state_i, state_j):
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
         subprocess.run(['transci.x', '-m', mem_str])
-        shutil.move('cid1trfl','cid1trfl.' + str(i1) + '.' + str(j1))
+        shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
 
     with open('trncils', 'r') as trncils:
         for line in trncils:
@@ -633,9 +635,9 @@ def run_col_coupling(tid, t_state, coup_state=None):
     global p_dim, couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
 
     if coup_state is None:
-       c_states = range(n_cistates)
+        c_states = range(n_cistates)
     else:
-       c_states = [coup_state]
+        c_states = [coup_state]
 
     os.chdir(work_path)
 
@@ -686,7 +688,7 @@ def run_col_coupling(tid, t_state, coup_state=None):
             lines = cartgrd.read().splitlines()
         grad = [lines[i].split() for i in range(len(lines))]
         new_coup = np.array([item.replace('D', 'e') for row in grad
-                               for item in row], dtype=float)
+                             for item in row], dtype=float)
         print('new_coup=' + str(new_coup))
 
         delta_e = energies[tid][t_state] - energies[tid][c_state]
@@ -711,9 +713,9 @@ def make_col_restart(tid):
     shutil.move('mocoef', restart_path + '/mocoef.' + str(tid))
 
     # move all ci vector, ci info files
-    shutil.move('civfl' , restart_path + '/civfl.' + str(tid))
-    shutil.move('civout' , restart_path + '/civout.' + str(tid))
-    shutil.move('cirefv' , restart_path + '/cirefv.' + str(tid))
+    shutil.move('civfl', restart_path + '/civfl.' + str(tid))
+    shutil.move('civout', restart_path + '/civout.' + str(tid))
+    shutil.move('cirefv', restart_path + '/cirefv.' + str(tid))
 
     # do some cleanup
     if os.path.isfile('cirdrtfl'):   os.remove('cidrtfl')
@@ -737,7 +739,7 @@ def get_adiabatic_phase(new_coup, old_coup):
         return 1.
 
     # check the difference between the vectors assuming phases of +1/-1
-    norm_pos = np.linalg.norm( new_coup - old_coup)
+    norm_pos = np.linalg.norm(new_coup - old_coup)
     norm_neg = np.ligalg.norm(-new_coup - old_coup)
 
     if norm_pos < norm_neg:
@@ -873,7 +875,7 @@ def set_mrci_restart(tid):
     civout = restart_path + '/civout.' + str(tid)
     cirefv = restart_path + '/cirefv.' + str(tid)
     if (os.path.exists(civfl) and os.path.exists(civout)
-        and os.path.exists(cirefv)):
+            and os.path.exists(cirefv)):
         link_force(civfl, 'civfl')
         link_force(civout, 'civout')
         link_force(cirefv, 'cirefv')
@@ -898,7 +900,7 @@ def write_col_geom(geom):
 
 def read_pipe_keyword(infile, keyword):
     """Reads from a direct input file via keyword search."""
-    f = open(infile, 'r',encoding='utf-8')
+    f = open(infile, 'r', encoding='utf-8')
     for line in f:
         if keyword in line:
             f.close()
@@ -932,7 +934,7 @@ def set_nlist_keyword(file_name, keyword, value):
     shutil.move(outfile, file_name)
 
 
-def insert_dalton_key(infile,keyword,value):
+def insert_dalton_key(infile, keyword, value):
     """Insert a Dalton keyword.
 
     This is a pretty specialized function given the idiosyncracies of
@@ -960,7 +962,7 @@ def ang_mom_dalton(infile):
             n_atm = int(l_arr[1])
             n_ang = int(l_arr[2]) - 1
             # max_l on first line
-            max_l = max(max_l,n_ang)
+            max_l = max(max_l, n_ang)
             n_con = [int(l_arr[j]) for j in range(3, 3+n_ang+1)]
             for j in range(n_atm):
                 line = daltaoin.readline()
@@ -995,6 +997,6 @@ def load_orbitals(tid):
     pass
 
 
-def write_orbitals(fname,orb_array):
+def write_orbitals(fname, orb_array):
     """Writes orbitals to mocoef file."""
     pass

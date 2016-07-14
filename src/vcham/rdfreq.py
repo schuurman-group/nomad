@@ -6,7 +6,6 @@ import src.vcham.hampar as ham
 import src.vcham.parsemod as parse
 import src.vcham.rdoper as rdoper
 import src.fmsio.fileio as fileio
-import src.fmsio.glbl as glbl
 
 def rdfreqfile():
     """Reads and interprets a freq.dat file."""

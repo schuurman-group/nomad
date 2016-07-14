@@ -13,10 +13,8 @@ As a matter of course, this function also builds:
      --> this is the matrix employed to solve for the time
          dependent amplitudes
 """
-import sys
 import numpy as np
 import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
 
 
 def c_ind(i, j):
@@ -44,14 +42,14 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     timings.start('build_hamiltonian')
 
     try:
-        integrals = __import__('src.integrals.'+intlib, fromlist=['a'])
+        integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
         sdot_int      = integrals.sdot_integral
         v_int         = integrals.v_integral
         ke_int        = integrals.ke_integral
         req_centroids = integrals.require_centroids
     except ImportError:
         raise ImportError('build_hamiltonian cannot import: '
-                          'src.integrals.'+intlib)
+                          'src.integrals.' + intlib)
 
     n_alive = len(traj_alive)
     n_elem  = int(n_alive * (n_alive + 1) / 2)

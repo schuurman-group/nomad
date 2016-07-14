@@ -17,7 +17,6 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.dynamics.timings as timings
 import src.basis.trajectory as trajectory
-import src.basis.bundle as bundle
 import src.spawn.utilities as utilities
 
 
@@ -66,12 +65,12 @@ def spawn(master, dt):
                     parent.last_spawn[child.state] = spawn_time
                     child.last_spawn[parent.state] = spawn_time
 
-                    bundle_overlap = utilities.overlap_with_bundle(child,master)
+                    bundle_overlap = utilities.overlap_with_bundle(child, master)
                     if not bundle_overlap:
                         basis_grown = True
                         master.add_trajectory(child)
                         fileio.print_fms_logfile('spawn_success',
-                                                 [current_time,parent.tid,st])
+                                                 [current_time, parent.tid, st])
                         utilities.write_spawn_log(current_time, current_time,
                                                   current_time, parent,
                                                   master.traj[-1])
@@ -80,7 +79,7 @@ def spawn(master, dt):
                                    str(parent.state) + ' to state ' + str(st) +
                                    ': ' + 'overlap with bundle too large,' +
                                    ' s_max=' + str(glbl.fms['sij_thresh']))
-                        fileio.print_fms_logfile('spawn_bad_step',[err_msg])
+                        fileio.print_fms_logfile('spawn_bad_step', [err_msg])
 
     timings.stop('spawn.spawn')
     return basis_grown

@@ -14,12 +14,10 @@ child(s',ti) <------------- child(s',ts)
 1. The spawn routine is called with parent_i at time t0.
 2. If parent_i is coupled to another.
 """
-import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-import src.basis.bundle as bundle
 import src.spawn.utilities as utilities
 
 
@@ -141,7 +139,7 @@ def spawn_forward(parent, child, initial_time, dt):
         if np.all(coup[0] < coup[1:]):
             sp_str = 'no [decreasing coupling]'
             fileio.print_fms_logfile('spawn_step',
-                                     [current_time,coup[0],sij,sp_str])
+                                     [current_time, coup[0], sij, sp_str])
             if child_created:
                 fileio.print_fms_logfile('spawn_success', [spawn_time])
             else:
@@ -171,7 +169,7 @@ def spawn_forward(parent, child, initial_time, dt):
                 sp_str                         = 'yes'
 
             fileio.print_fms_logfile('spawn_step',
-                                     [current_time,coup[0],sij,sp_str])
+                                     [current_time, coup[0], sij, sp_str])
 
             utilities.fms_step_trajectory(parent, current_time, dt)
             current_time = current_time + dt
@@ -182,7 +180,7 @@ def spawn_forward(parent, child, initial_time, dt):
 def spawn_backward(child, current_time, end_time, dt):
     """Propagates the child backwards in time until the current time
     is reached."""
-    nstep = int(round( np.absolute( (current_time-end_time) / dt) ))
+    nstep = int(round( np.abs((current_time-end_time) / dt) ))
 
     back_time = current_time
     for i in range(nstep):
@@ -191,7 +189,7 @@ def spawn_backward(child, current_time, end_time, dt):
         fileio.print_fms_logfile('spawn_back', [back_time])
 
 
-def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
+def spawn_trajectory(traj, spawn_state, coup_h, current_time):
     """Checks if we satisfy all spawning criteria."""
     # Return False if:
     # if insufficient population on trajectory to spawn
@@ -207,7 +205,7 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
         return False
 
     # if coupling is decreasing
-    if coup_hist[0] < coup_hist[1]:
+    if coup_h[0] < coup_h[1]:
         return False
 
     return True
