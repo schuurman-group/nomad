@@ -2,7 +2,9 @@
 # Compute integrals over trajectories traveling on adiabataic potentials
 #  This currently uses first-order saddle point.
 #
+import sys
 import numpy as np
+import src.fmsio.glbl as glbl
 #
 # Let propagator know if we need data at centroids to propagate
 #
@@ -29,7 +31,14 @@ def v_integral(traj1,traj2=None,centroid=None,S_ij=None):
     #
     elif traj1.state != traj2.state:
         fij = centroid.derivative(traj2.state)
-        return np.vdot( fij, traj1.deldx_m(traj2) )
+
+        val = np.vdot( fij, traj1.deldx_m(traj2) )
+
+        if glbl.fms['coupling_order'] == 2:
+            val += traj1.scalar_coup(traj2.state) * traj1.overlap(traj2)
+
+        return val
+
     else:
         print("ERROR in v_integral -- argument disagreement")
         return 0.

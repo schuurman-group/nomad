@@ -69,7 +69,8 @@ def spawn(master,dt):
                 continue
 
             # compute magnitude of coupling to state j
-            coup = master.traj[i].coup_dot_vel(st)
+            #coup = master.traj[i].coup_dot_vel(st)
+            coup = master.traj[i].eff_coup(st)
             coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
             coup_hist[i][st,0] = coup
 
@@ -99,7 +100,7 @@ def spawn(master,dt):
                         basis_grown = True
                         master.add_trajectory(child)
                         if master.ints.require_centroids:
-                            master.update_centroids()                            
+                            master.update_centroids()
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',['overlap with bundle too large'])
 
@@ -127,7 +128,8 @@ def spawn_forward(parent, child, initial_time, dt):
     while True:
 
         coup = np.roll(coup,1)
-        coup[0] = abs(parent.coup_dot_vel(child_state))
+        #coup[0] = abs(parent.coup_dot_vel(child_state))
+        coup[0] = abs(parent.eff_coup(child_state))
 
         child_attempt       = trajectory.copy_traj(parent)
         child_attempt.state = child_state
@@ -202,7 +204,8 @@ def spawn_trajectory(traj, spawn_state, coup_hist, current_time):
         return False
 
     # there is insufficient coupling
-    if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
+    #if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
+    if traj.eff_coup(spawn_state) < glbl.fms['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing

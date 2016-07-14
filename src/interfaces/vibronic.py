@@ -91,13 +91,14 @@ def evaluate_trajectory(tid, geom, stateindx):
     # Initialisation of arrays
     diabpot=np.zeros((nsta,nsta), dtype=np.float)
     ener=np.zeros((nsta), dtype=np.float)
-    grad=np.zeros((nsta,ncoo), dtype=np.float)
+    grad=np.zeros((nsta,ncoo), dtype=np.float)    
     diabderiv1=np.zeros((ncoo,nsta,nsta), dtype=np.float)
     nactmat=np.zeros((ncoo,nsta,nsta), dtype=np.float)
     adiabderiv1=np.zeros((ncoo,nsta), dtype=np.float)
     diablap=np.zeros((nsta,nsta), dtype=np.float)
     sctmat=np.zeros((nsta,nsta), dtype=np.float)
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+    sct_return=np.zeros((nsta), dtype=np.float)
 
     # Set the current normal mode coordinates
     qcoo=np.zeros(ncoo)
@@ -133,9 +134,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
-
     ener=adiabpot
-
     for i in range(nsta):
         for m in range(ncoo):
             if i==(stateindx):
@@ -143,7 +142,12 @@ def evaluate_trajectory(tid, geom, stateindx):
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
 
-    return[qcoo,ener,grad]
+    # Package the SCTs: here we account for the 1/2 prefactor
+    # in the EOMs
+    for i in range(nsta):
+        sct_return[i]=0.5*sctmat[stateindx][i]
+
+    return[qcoo,ener,grad,sct_return]
 
 ########################################################################
 
@@ -178,6 +182,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     diablap=np.zeros((nsta,nsta), dtype=np.float)
     sctmat=np.zeros((nsta,nsta), dtype=np.float)
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+    sct_return=np.zeros((nsta), dtype=np.float)
 
     # Set the current normal mode coordinates
     qcoo=np.zeros(ncoo)
@@ -213,9 +218,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
-
     ener=adiabpot
-
     for i in range(nsta):
         for m in range(ncoo):
             if i==(stateindx):
@@ -223,7 +226,12 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
             else:
                 grad[i][m]=nactmat[m][stateindx][i]
 
-    return[qcoo,ener,grad]
+    # Package the SCTs: here we account for the 1/2 prefactor
+    # in the EOMs
+    for i in range(nsta):
+        sct_return[i]=0.5*sctmat[stateindx][i]
+
+    return[qcoo,ener,grad,sct_return]
 
 ########################################################################
 # calc_diabpot: constructs the diabatic potential matrix for a given
@@ -494,7 +502,8 @@ def calc_scts():
                     for m in range(nsta):
                         dp=0.0
                         for n in range(ham.nmode_active):
-                            dp+=nactmat[n][i][k]*diabderiv1[n][l][m]
+                            #dp+=nactmat[n][i][k]*diabderiv1[n][l][m]
+                            dp+=ham.freq[n]*nactmat[n][i][k]*diabderiv1[n][l][m]
                         tmp2[i][j]-=adtmat[l][k]*adtmat[m][j]*dp
 
     # tmp3 <-> S{d/dX W}S^TF
@@ -505,7 +514,8 @@ def calc_scts():
                     for m in range(nsta):
                         dp=0.0
                         for n in range(ham.nmode_active):
-                            dp+=nactmat[n][m][j]*diabderiv1[n][k][l]
+                            #dp+=nactmat[n][m][j]*diabderiv1[n][k][l]
+                            dp+=ham.freq[n]*nactmat[n][m][j]*diabderiv1[n][k][l]
                         tmp3[i][j]+=adtmat[k][i]*adtmat[l][m]*dp
 
     # deltmat
@@ -564,7 +574,8 @@ def calc_scts():
         for j in range(nsta):
             for k in range(nsta):
                 for m in range(ham.nmode_active):
-                  fdotf[i][j]+=nactmat[m][i][k]*nactmat[m][k][j]
+                    #fdotf[i][j]+=nactmat[m][i][k]*nactmat[m][k][j]
+                    fdotf[i][j]+=ham.freq[m]*nactmat[m][i][k]*nactmat[m][k][j]
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F

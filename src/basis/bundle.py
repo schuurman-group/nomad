@@ -155,7 +155,6 @@ class bundle:
             self.update_amplitudes_exact(dt, n_max, H=None, Ct=None)
         else:
             self.update_amplitudes_taylor(dt, n_max, H=None, Ct=None)
-
         return
 
     #

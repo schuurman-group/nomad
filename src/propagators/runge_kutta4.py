@@ -96,8 +96,8 @@ def propagate_trajectory(traj, dt):
     
     timings.start('propagators.propagate_trajectory')
 
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
-    mass = master.traj[0].masses()
+    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']    
+    mass = traj.masses()
 
     # 
     # determine k1, k2, k3, k4
