@@ -7,6 +7,8 @@ fs2au    = 41.34137221718
 bohr2ang = 0.529177249
 # convert mass in amu to au
 mass2au  = 1822.887
+# convert hartree to eV
+au2ev    = 27.21138505
 # convert hartree to cm-1
 au2cm    = 219474.63
 # floating point zero
@@ -16,7 +18,7 @@ sc       = None
 # t=0 bundle
 bundle0  = None
 
-# Simulation parameters read form the fms.input file
+# Simulation parameters read from the fms.input file
 fms = dict(
     spawning               = 'forward_backward',
     simulation_time        = 0.,

@@ -104,6 +104,8 @@ def update_pes_traj(traj):
 
     Used during spawning.
     """
+    global pes
+
     tid = traj.tid
     results = pes.evaluate_trajectory(traj.tid, traj.particles, traj.state)
     traj.update_pes(results)
