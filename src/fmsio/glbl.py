@@ -54,6 +54,7 @@ fms = dict(
     virtual_basis          = 0,
     print_level            = 1,
     opfile                 = 'fms.op'
+    coupling_order         = 1
     )
 
 # Electronic structure information read from interface-specific

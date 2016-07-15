@@ -463,7 +463,8 @@ class Bundle:
                     self.cent[ij_ind].update_p(new_p)
 
         timings.stop('bundle.update_centroids')
-
+        return
+        
     def update_matrices(self):
         """Updates T, V, S, Sdot and Heff matrices."""
         timings.start('bundle.update_matrices')

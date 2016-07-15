@@ -65,8 +65,8 @@ def spawn(master, dt):
                 continue
 
             # compute magnitude of coupling to state j
-            coup = master.traj[i].coup_dot_vel(st)
-            coup_hist[i][st,:] = np.roll(coup_hist[i][st,:], 1)
+            coup = master.traj[i].eff_coup(st)
+            coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
             coup_hist[i][st,0] = coup
 
             # if we satisfy spawning conditions, begin spawn process
@@ -125,9 +125,8 @@ def spawn_forward(parent, child, initial_time, dt):
                              [parent.tid, parent_state, child_state])
 
     while True:
-        coup = np.roll(coup, 1)
-        coup[0] = abs(parent.coup_dot_vel(child_state))
-
+        coup = np.roll(coup,1)
+        coup[0] = abs(parent.eff_coup(child_state))
         child_attempt       = trajectory.copy_traj(parent)
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
@@ -201,11 +200,12 @@ def spawn_trajectory(traj, spawn_state, coup_h, current_time):
         return False
 
     # there is insufficient coupling
-    if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
+    #if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
+    if abs(traj.eff_coup(spawn_state)) < glbl.fms['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing
-    if coup_h[0] < coup_h[1]:
+    if abs(coup_hist[0]) < abs(coup_hist[1]):
         return False
 
     return True

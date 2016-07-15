@@ -2,6 +2,7 @@
 Routines for running a vibronic coupling calculation.
 
 Much of this could benefit from changing for loops to numpy array operations.
+(But this is so computationally cheap that it really doesn't matter...)
 """
 import numpy as np
 import src.vcham.hampar as ham
@@ -87,6 +88,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     diablap = np.zeros((nsta, nsta))
     sctmat = np.zeros((nsta, nsta))
     dbocderiv1 = np.zeros((ncoo, nsta))
+    sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
     qcoo = np.zeros(ncoo)
@@ -122,6 +124,9 @@ def evaluate_trajectory(tid, geom, stateindx):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
+    #
+    # Also note that we return omega*Fij NOT Fij itself: this way
+    # we don't have to modify the rest of the code
     ener = adiabpot
 
     for i in range(nsta):
@@ -129,10 +134,14 @@ def evaluate_trajectory(tid, geom, stateindx):
             if i == stateindx:
                 grad[i][m] = adiabderiv1[m][i]
             else:
-                grad[i][m] = nactmat[m][stateindx][i]
+                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
 
-    return qcoo, ener, grad
+    # Package the SCTs: here we account for the 1/2 prefactor
+    # in the EOMs
+    for i in range(nsta):
+        sct_return[i]=0.5*sctmat[stateindx][i]
 
+    return[qcoo,ener,grad,sct_return]
 
 def evaluate_centroid(tid, geom, stateindx, stateindx2):
     """Evaluates the centroid.
@@ -149,6 +158,16 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     nsta = glbl.fms['n_states']
 
     # Initialisation of arrays
+    diabpot=np.zeros((nsta,nsta), dtype=np.float)
+    ener=np.zeros((nsta), dtype=np.float)
+    grad=np.zeros((nsta,ncoo), dtype=np.float)
+    diabderiv1=np.zeros((ncoo,nsta,nsta), dtype=np.float)
+    nactmat=np.zeros((ncoo,nsta,nsta), dtype=np.float)
+    adiabderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+    diablap=np.zeros((nsta,nsta), dtype=np.float)
+    sctmat=np.zeros((nsta,nsta), dtype=np.float)
+    dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+    sct_return=np.zeros((nsta), dtype=np.float)
     diabpot = np.zeros((nsta, nsta))
     ener = np.zeros(nsta)
     grad = np.zeros((nsta, ncoo))
@@ -158,6 +177,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     diablap = np.zeros((nsta, nsta))
     sctmat = np.zeros((nsta, nsta))
     dbocderiv1 = np.zeros((ncoo, nsta))
+    sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
     qcoo = np.zeros(ncoo)
@@ -193,6 +213,9 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
+    #
+    # Also note that we return omega*Fij NOT Fij itself: this way
+    # we don't have to modify the rest of the code
     ener = adiabpot
 
     for i in range(nsta):
@@ -200,10 +223,14 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
             if i == stateindx:
                 grad[i][m] = adiabderiv1[m][i]
             else:
-                grad[i][m] = nactmat[m][stateindx][i]
+                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
+                
+    # Package the SCTs: here we account for the 1/2 prefactor
+    # in the EOMs
+    for i in range(nsta):
+        sct_return[i]=0.5*sctmat[stateindx][i]
 
-    return qcoo, ener, grad
-
+    return[qcoo,ener,grad,sct_return]
 
 def calc_diabpot(q):
     """Constructs the diabatic potential matrix for a given nuclear
@@ -424,8 +451,8 @@ def calc_scts():
                     for m in range(nsta):
                         dp = 0.0
                         for n in range(ham.nmode_active):
-                            dp += nactmat[n][i][k] * diabderiv1[n][l][m]
-                        tmp2[i][j] -= adtmat[l][k] * adtmat[m][j] * dp
+                            dp+=ham.freq[n]*nactmat[n][i][k]*diabderiv1[n][l][m]
+                        tmp2[i][j]-=adtmat[l][k]*adtmat[m][j]*dp
 
     # tmp3 <-> S{d/dX W}S^TF
     for i in range(nsta):
@@ -435,8 +462,8 @@ def calc_scts():
                     for m in range(nsta):
                         dp = 0.0
                         for n in range(ham.nmode_active):
-                            dp += nactmat[n][m][j] * diabderiv1[n][k][l]
-                        tmp3[i][j] += adtmat[k][i] * adtmat[l][m] * dp
+                            dp+=ham.freq[n]*nactmat[n][m][j]*diabderiv1[n][k][l]
+                        tmp3[i][j]+=adtmat[k][i]*adtmat[l][m]*dp
 
     # deltmat
     for i in range(nsta):
@@ -495,7 +522,7 @@ def calc_scts():
         for j in range(nsta):
             for k in range(nsta):
                 for m in range(ham.nmode_active):
-                    fdotf[i][j] += nactmat[m][i][k] * nactmat[m][k][j]
+                    fdotf[i][j]+=ham.freq[m]*nactmat[m][i][k]*nactmat[m][k][j]
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F

@@ -34,6 +34,7 @@ def copy_traj(orig_traj):
     new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
     new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
     new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
+    new_traj.sct        = copy.deepcopy(orig_traj.sct)
     timings.stop('trajectory.copy_traj')
     return new_traj
 
@@ -91,6 +92,9 @@ class Trajectory:
         self.sec_moms   = np.zeros((self.nstates, self.d_particle))
         # electronic populations on the atoms
         self.atom_pops  = np.zeros((self.nstates, self.n_particle))
+        # Scalar coupling terms involving the state that the
+        # trajectory exits on (including DBOCs)        
+        self.sct = np.zeros((self.nstates))
 
     #-------------------------------------------------------------------
     #
@@ -156,6 +160,10 @@ class Trajectory:
             self.dipoles   = pes_info[3]
             self.sec_moms  = pes_info[4]
             self.atom_pops = pes_info[5]
+        # SCTs (vibronic interface only, so dipoles, etc. wont be in
+        # the pes_geom array)
+        if glbl.fms['coupling_order'] > 1:
+            self.sct = pes_info[3]
 
     #-----------------------------------------------------------------------
     #
@@ -247,6 +255,13 @@ class Trajectory:
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
         return self.atom_pops[state,:]
 
+    def scalar_coup(self,state):
+        """Returns scalar coupling terms"""
+        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+            print("WARNING: trajectory.scalar_coup() called, "+
+                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+        return self.sct[state]
+
     #def orbitals(self):
     #    return self.pes.orbitals(self.tid, self.particles, self.state)
 
@@ -292,6 +307,17 @@ class Trajectory:
         if self.state == c_state:
             return 0.
         return np.dot( self.velocity(), self.derivative(c_state) )
+
+    def eff_coup(self,c_state):
+        """Returns the effective coupling."""
+        if self.state == c_state:
+            return 0.
+        # F.p/m
+        coup = np.dot( self.velocity(), self.derivative(c_state) )
+        # G
+        if glbl.fms['coupling_order'] > 1:
+            coup += self.scalar_coup(c_state)
+        return coup
 
     #-----------------------------------------------------------------------------
     #

@@ -1,0 +1,66 @@
+##########################################################
+# Butatriene cation 5-mode, 2-state linear vibronic
+# coupling model.
+# Parameters taken from: J. Chem. Phys., 115, 2088 (2001)
+##########################################################
+
+PARAMETER-SECTION
+
+#frequencies
+omega_5       =   0.09120 , ev
+omega_8       =   0.10890 , ev
+omega_12      =   0.17730 , ev
+omega_14      =   0.25780 , ev
+omega_15      =   0.37130 , ev
+
+#energies
+E1            =   8.90140 , ev
+E2            =   9.44550 , ev
+
+#linear coupling constants (kappa)
+kappa1_8      =   0.05310 , ev
+kappa2_8      =   0.05940 , ev
+kappa1_12     =   0.01150 , ev
+kappa2_12     =   0.01000 , ev
+kappa1_14     =   0.16280 , ev
+kappa2_14     =  -0.34220 , ev
+kappa1_15     =   0.04030 , ev
+kappa2_15     =  -0.03210 , ev
+
+#off-diagonal vibronic coupling constants (lambda)
+lambda_5      =   0.28800 , ev
+
+end-parameter-section
+
+HAMILTONIAN-SECTION
+
+modes   | Q5 | Q8 | Q12 | Q14 | Q15  
+
+0.5*omega_5        1^2   S1&1
+0.5*omega_8        2^2   S1&1
+0.5*omega_12       3^2   S1&1
+0.5*omega_14       4^2   S1&1
+0.5*omega_15       5^2   S1&1
+0.5*omega_5        1^2   S2&2
+0.5*omega_8        2^2   S2&2
+0.5*omega_12       3^2   S2&2
+0.5*omega_14       4^2   S2&2
+0.5*omega_15       5^2   S2&2
+
+E1   S1&1
+E2   S2&2
+
+lambda_5           1^1 S1&2
+
+kappa1_8           2^1   S1&1
+kappa2_8           2^1	 S2&2
+kappa1_12          3^1	 S1&1
+kappa2_12          3^1	 S2&2
+kappa1_14          4^1	 S1&1
+kappa2_14          4^1	 S2&2
+kappa1_15          5^1	 S1&1
+kappa2_15          5^1	 S2&2
+
+end-hamiltonian-section
+
+end-operator
