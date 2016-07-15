@@ -367,7 +367,7 @@ class Trajectory:
         """
         #timings.start('trajectory.deldx_m')
         if S_ij is None:
-            S_ij = self.overlap(other,st_orthog=True)
+            S_ij = self.overlap(other,st_orthog=False)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /

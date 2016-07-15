@@ -2,7 +2,7 @@
 Routines for reading operator files.
 """
 import numpy as np
-import src.fileio.glbl as glbl
+import src.fmsio.glbl as glbl
 import src.vcham.parsemod as parse
 import src.vcham.hampar as ham
 
