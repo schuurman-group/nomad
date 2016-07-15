@@ -2,9 +2,9 @@
 Frequency file reading routines.
 """
 import numpy as np
-import src.vcham.hampar as ham
-import src.vcham.parsemod as parse
-import src.vcham.rdoper as rdoper
+import src.interfaces.vcham.hampar as ham
+import src.interfaces.vcham.parsemod as parse
+import src.interfaces.vcham.rdoper as rdoper
 import src.fmsio.fileio as fileio
 
 def rdfreqfile():
