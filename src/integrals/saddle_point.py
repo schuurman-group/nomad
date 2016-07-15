@@ -18,27 +18,35 @@ def v_integral(traj1,traj2=None,centroid=None,S_ij=None):
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
     if not traj2:
-        return traj1.energy(traj1.state)
+        # Adiabatic energy
+        v = traj1.energy(traj1.state)
+        # DBOC
+        if glbl.fms['coupling_order'] == 3:
+            v += traj1.scalar_coup(traj1.state)
+        return v
     #
     # off-diagonal matrix element, between trajectories on the same
     # state [this also requires the centroid be present
     #
     elif traj1.state == traj2.state:
-        val=centroid.energy(traj1.state) * traj1.overlap(traj2)
-        return val
+        # Adiabatic energy
+        v = centroid.energy(traj1.state) * traj1.overlap(traj2)
+        # DBOC
+        if glbl.fms['coupling_order'] == 3:
+            v += centroid.scalar_coup(traj1.state) * traj1.overlap(traj2)
+        return v
     #
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     #
     elif traj1.state != traj2.state:
+        # Derivative coupling
         fij = centroid.derivative(traj2.state)
-
-        val = np.vdot( fij, traj1.deldx_m(traj2) )
-
-        if glbl.fms['coupling_order'] == 2:
-            val += traj1.scalar_coup(traj2.state) * traj1.overlap(traj2)
-
-        return val
+        v = np.vdot( fij, traj1.deldx_m(traj2) )
+        # Scalar coupling
+        if glbl.fms['coupling_order'] > 1:
+            v += traj1.scalar_coup(traj2.state) * traj1.overlap(traj2)
+        return v
 
     else:
         print("ERROR in v_integral -- argument disagreement")

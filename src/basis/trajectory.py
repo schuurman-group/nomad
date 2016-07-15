@@ -165,11 +165,10 @@ class trajectory:
             self.dipoles   = pes_info[3]
             self.sec_moms  = pes_info[4]
             self.atom_pops = pes_info[5]
-
-        # SCTs (vibronic interface only)
-        if glbl.fms['coupling_order']==2:
+        # SCTs (vibronic interface only, so dipoles, etc. wont be in
+        # the pes_geom array)
+        if glbl.fms['coupling_order'] > 1:
             self.sct=pes_info[3]
-
         return
 
     #-----------------------------------------------------------------------
@@ -358,7 +357,7 @@ class trajectory:
         # F.p/m
         coup = np.dot( self.velocity(), self.derivative(c_state) )
         # G
-        if glbl.fms['coupling_order'] == 2:
+        if glbl.fms['coupling_order'] > 1:
             coup += self.scalar_coup(c_state)
 
         return coup
