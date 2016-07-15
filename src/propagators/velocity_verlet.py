@@ -96,7 +96,7 @@ def propagate_position(traj, dt):
     #   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
     # --> need to compute forces at new geometry
     x1 = x0 + v0*dt + 0.5 * (f0/mass) * dt**2
-
+    
     #-------------------------------------------
     # update x
     traj.update_x(x1)

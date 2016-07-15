@@ -116,7 +116,6 @@ def sample_distribution(master):
             for i in range(n_modes):
                 disp_x[i]=disp_x[i]*sqrt(freqs[i])
                 disp_p[i]=disp_p[i]*sqrt(freqs[i])
-                
             for j in range(natm):
                 disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
                 disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]

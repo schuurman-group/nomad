@@ -70,6 +70,7 @@ def build_hamiltonian(intlib,traj_list,traj_alive,cent_list=None):
     Heff     = np.zeros((n_alive,n_alive),dtype=np.complex)
 
     for ij in range(n_elem):
+    
         i,j = ij_ind(ij)
         ii  = traj_alive[i]
         jj  = traj_alive[j]
@@ -97,8 +98,10 @@ def build_hamiltonian(intlib,traj_list,traj_alive,cent_list=None):
 
         # potential energy matrix
         if req_centroids:
-            V[i,j]  =  v_int(traj_list[ii], traj_list[jj],
-                            cent_list[c_ind(ii,jj)],S_ij=S[i,j])
+            if i == j:
+                V[i,j]  =  v_int(traj_list[ii], traj_list[jj],traj_list[ii],S_ij=S[i,j])
+            else:
+                V[i,j]  =  v_int(traj_list[ii], traj_list[jj],cent_list[c_ind(ii,jj)],S_ij=S[i,j])
         else:
             V[i,j] =  v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
         V[j,i]     = V[i,j].conjugate()

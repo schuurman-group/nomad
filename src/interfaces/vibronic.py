@@ -134,13 +134,17 @@ def evaluate_trajectory(tid, geom, stateindx):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
+    #
+    # Also note that we return omega*Fij NOT Fij itself: this way
+    # we don't have to modify the rest of the code
     ener=adiabpot
     for i in range(nsta):
         for m in range(ncoo):
             if i==(stateindx):
                 grad[i][m]=adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]
+                #grad[i][m]=nactmat[m][stateindx][i]
+                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
 
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
@@ -218,14 +222,18 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
+    #
+    # Also note that we return omega*Fij NOT Fij itself: this way
+    # we don't have to modify the rest of the code
     ener=adiabpot
     for i in range(nsta):
         for m in range(ncoo):
             if i==(stateindx):
                 grad[i][m]=adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]
-
+                #grad[i][m]=nactmat[m][stateindx][i]
+                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
+                
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
     for i in range(nsta):

@@ -5,6 +5,7 @@
 import sys
 import numpy as np
 import src.fmsio.glbl as glbl
+import src.vcham.hampar as ham
 #
 # Let propagator know if we need data at centroids to propagate
 #
@@ -49,10 +50,17 @@ def v_integral(traj1,traj2=None,centroid=None,S_ij=None):
 def ke_integral(traj1,traj2,S_ij=None):
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
-        for i in range(traj1.n_particle):
-            ke -= traj1.particles[i].deld2x(traj2.particles[i]) /  \
+        if glbl.fms['interface'] == 'vibronic':
+            for i in range(traj1.n_particle):
+                ke -= traj1.particles[i].deld2x(traj2.particles[i]) \
+                      * ham.freq[i]/2.0
+        else:
+            for i in range(traj1.n_particle):
+                ke -= traj1.particles[i].deld2x(traj2.particles[i]) /  \
                       (2.0*traj1.particles[i].mass)
+
         return ke * traj1.overlap(traj2)
+
     else:
         return ke
 

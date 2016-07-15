@@ -481,7 +481,7 @@ class bundle:
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
                 # required slots 
-                ij_ind = cent_ind(i,j)         
+                ij_ind = cent_ind(i,j)
                 if self.cent[ij_ind] is None:
                     self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
                     self.cent[ij_ind].tid = -ij_ind
@@ -498,9 +498,9 @@ class bundle:
                     self.cent[ij_ind].update_x(new_x)
                     self.cent[ij_ind].update_p(new_p)   
 
-
         timings.stop('bundle.update_centroids')
-
+        return
+        
     def update_matrices(self):
         
         timings.start('bundle.update_matrices')

@@ -331,7 +331,7 @@ class trajectory:
     #
     def phase_dot(self):
         # d[gamma]/dt = T - V - alpha/(2M)
-        return self.kinetic() - self.potential() - 0.5*sum(self.widths()/self.masses())       
+        return self.kinetic() - self.potential() - 0.5*sum(self.widths()/self.masses())
 
     #
     # norm of the coupling vector
@@ -424,7 +424,7 @@ class trajectory:
 
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i]) / \
-                                                             self.particles[i].mass        
+                                                             self.particles[i].mass
 #        timings.stop('trajectory.deldx_m')
 
         return dxval * S_ij
