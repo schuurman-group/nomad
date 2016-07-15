@@ -5,9 +5,9 @@ Much of this could benefit from changing for loops to numpy array operations.
 (But this is so computationally cheap that it really doesn't matter...)
 """
 import numpy as np
-import src.vcham.hampar as ham
-import src.vcham.rdoper as rdoper
-import src.vcham.rdfreq as rdfreq
+import src.interfaces.vcham.hampar as ham
+import src.interfaces.vcham.rdoper as rdoper
+import src.interfaces.vcham.rdfreq as rdfreq
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 

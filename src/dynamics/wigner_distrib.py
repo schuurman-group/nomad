@@ -7,7 +7,7 @@ import src.fmsio.glbl as glbl
 import src.dynamics.utilities as utils
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
-import src.vcham.hampar as ham
+import src.interfaces.vcham.hampar as ham
 
 
 def sample_distribution(master):

@@ -7,7 +7,7 @@ This currently uses first-order saddle point.
 import sys
 import numpy as np
 import src.fmsio.glbl as glbl
-import src.vcham.hampar as ham
+import src.interfaces.vcham.hampar as ham
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
