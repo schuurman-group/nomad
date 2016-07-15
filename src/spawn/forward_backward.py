@@ -190,7 +190,9 @@ def spawn_backward(child, current_time, end_time, dt):
 
 def spawn_trajectory(traj, spawn_state, coup_h, current_time):
     """Checks if we satisfy all spawning criteria."""
+
     # Return False if:
+
     # if insufficient population on trajectory to spawn
     if abs(traj.amplitude) < glbl.fms['spawn_pop_thresh']:
         return False
@@ -200,12 +202,11 @@ def spawn_trajectory(traj, spawn_state, coup_h, current_time):
         return False
 
     # there is insufficient coupling
-    #if traj.coup_dot_vel(spawn_state) < glbl.fms['spawn_coup_thresh']:
     if abs(traj.eff_coup(spawn_state)) < glbl.fms['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing
-    if abs(coup_hist[0]) < abs(coup_hist[1]):
+    if abs(coup_h[0]) < abs(coup_h[1]):
         return False
 
     return True

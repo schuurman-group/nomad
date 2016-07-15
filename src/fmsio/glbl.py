@@ -53,7 +53,7 @@ fms = dict(
     print_chkpt            = 1,
     virtual_basis          = 0,
     print_level            = 1,
-    opfile                 = 'fms.op'
+    opfile                 = 'fms.op',
     coupling_order         = 1
     )
 
