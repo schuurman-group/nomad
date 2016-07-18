@@ -178,20 +178,16 @@ class Bundle:
         timings.start('bundle.update_amplitudes')
 
         self.update_matrices()
-        # THIS DOESN'T WORK: H=None. SO, WE WILL COMMENT THIS OUT FOR NOW..
-        #if H.all():
-        #    Hmat = H
-        #else:
-        #    Hmat = self.Heff
-        Hmat = self.Heff
 
-        # same with the amplitdues (see above)
-        # THIS DOESN'T WORK: Ct=None. SO, WE WILL COMMENT THIS OUT FOR NOW..
-        #if Ct.all():
-        #    old_amp = Ct
-        #else:
-        #    old_amp = self.amplitudes()
-        old_amp = self.amplitudes()
+        if H is not None:
+            Hmat = H
+        else:
+            Hmat = self.Heff
+
+        if Ct is not None:
+            old_amp = Ct
+        else:
+            old_amp = self.amplitudes()
 
         new_amp = np.zeros(self.nalive, dtype=complex)
         Id      = np.identity(self.nalive, dtype=complex)
@@ -230,8 +226,16 @@ class Bundle:
 
         self.update_matrices()
 
-        Hmat = self.Heff
-        old_amp = self.amplitudes()
+        if H is not None:
+            Hmat = H
+        else:
+            Hmat = self.Heff
+
+        if Ct is not None:
+            old_amp = Ct
+        else:
+            old_amp = self.amplitudes()
+
         new_amp = np.zeros(self.nalive, dtype=complex)
 
         B = -complex(0.,1.) * Hmat * dt
