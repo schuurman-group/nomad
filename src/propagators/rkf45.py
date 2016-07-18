@@ -597,6 +597,9 @@ def propagate_bundle(master, dt):
 
 def propagate_trajectory(traj, dt):
 
+    print("WRITE THE RKF45 propagate_trajectory CODE!")
+    sys.exit()
+
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
