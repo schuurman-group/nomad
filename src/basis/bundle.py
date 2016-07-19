@@ -239,7 +239,7 @@ class Bundle:
         new_amp = np.zeros(self.nalive, dtype=complex)
 
         B = -complex(0.,1.) * Hmat * dt
-        umat = linalg.expm(B)
+        umat = linalg.expm2(B)
 
         new_amp = np.dot(umat, old_amp)
 

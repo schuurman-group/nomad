@@ -6,302 +6,82 @@ import src.dynamics.surface as surface
 import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 
-########################################################################
-# Working RK4 code
-########################################################################
-#def propagate_bundle(master, dt):
-#
-#    #-------------------------------------------------------------------
-#    # Propagate amplitudes for 1/2 time step using Heff(t0)
-#    #-------------------------------------------------------------------
-#    master.update_amplitudes(0.5*dt, 10)
-#
-#    #-------------------------------------------------------------------
-#    # Initialisation
-#    #-------------------------------------------------------------------
-#    # Masses
-#    mass = master.traj[0].masses()
-#
-#    # No. coordinates
-#    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
-#
-#    # Work arrays
-#    x0   = np.zeros((master.nalive, ncrd))
-#    p0   = np.zeros((master.nalive, ncrd))
-#    g0   = np.zeros(master.nalive)
-#    xnew = np.zeros((master.nalive, ncrd))
-#    pnew = np.zeros((master.nalive, ncrd))
-#    gnew = np.zeros(master.nalive)
-#    k1_x = np.zeros((master.nalive, ncrd))
-#    k1_p = np.zeros((master.nalive, ncrd))
-#    k1_g = np.zeros(master.nalive)
-#    k2_x = np.zeros((master.nalive, ncrd))
-#    k2_p = np.zeros((master.nalive, ncrd))
-#    k2_g = np.zeros(master.nalive)
-#    k3_x = np.zeros((master.nalive, ncrd))
-#    k3_p = np.zeros((master.nalive, ncrd))
-#    k3_g = np.zeros(master.nalive)
-#    k4_x = np.zeros((master.nalive, ncrd))
-#    k4_p = np.zeros((master.nalive, ncrd))
-#    k4_g = np.zeros(master.nalive)
-#    
-#    #-------------------------------------------------------------------
-#    # k1
-#    #-------------------------------------------------------------------
-#    # Temporary bundle copy
-#    tmpbundle = bundle.copy_bundle(master)
-#
-#    # Initial phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        x0[i,:] = tmpbundle.traj[ii].x()
-#        p0[i,:] = tmpbundle.traj[ii].p()
-#        g0[i]   = tmpbundle.traj[ii].phase()
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        xdot = tmpbundle.traj[ii].velocity()
-#        pdot = tmpbundle.traj[ii].force() / mass
-#        gdot = tmpbundle.traj[ii].phase_dot()
-#        k1_x[i,:] = xdot
-#        k1_p[i,:] = pdot
-#        k1_g[i]   = gdot
-#
-#    #-------------------------------------------------------------------
-#    # k2
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        tmpbundle.traj[ii].update_x(x0[i,:]   + 0.5*dt*k1_x[i,:])
-#        tmpbundle.traj[ii].update_p(p0[i,:]   + 0.5*dt*k1_p[i,:])
-#        tmpbundle.traj[ii].update_phase(g0[i] + 0.5*dt*k1_g[i])
-#
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes(tmpbundle)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        xdot = tmpbundle.traj[ii].velocity()
-#        pdot = tmpbundle.traj[ii].force() / mass
-#        gdot = tmpbundle.traj[ii].phase_dot()
-#        k2_x[i,:] = xdot
-#        k2_p[i,:] = pdot
-#        k2_g[i]   = gdot
-#    
-#    #-------------------------------------------------------------------
-#    # k3
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    tmpbundle = bundle.copy_bundle(master)
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        tmpbundle.traj[ii].update_x(x0[i,:] + 0.5*dt*k2_x[i,:])
-#        tmpbundle.traj[ii].update_p(p0[i,:] + 0.5*dt*k2_p[i,:])
-#        tmpbundle.traj[ii].update_phase(g0[i] + 0.5*dt*k2_g[i])
-#        
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes(tmpbundle)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        xdot = tmpbundle.traj[ii].velocity()
-#        pdot = tmpbundle.traj[ii].force() / mass
-#        gdot = tmpbundle.traj[ii].phase_dot()
-#        k3_x[i,:] = xdot
-#        k3_p[i,:] = pdot
-#        k3_g[i]   = gdot
-#
-#    #-------------------------------------------------------------------
-#    # k4
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    tmpbundle = bundle.copy_bundle(master)
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        tmpbundle.traj[ii].update_x(x0[i,:] + dt*k3_x[i,:])
-#        tmpbundle.traj[ii].update_p(p0[i,:] + dt*k3_p[i,:])
-#        tmpbundle.traj[ii].update_phase(g0[i] +dt*k3_g[i])
-#
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes(tmpbundle)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        xdot = tmpbundle.traj[ii].velocity()
-#        pdot = tmpbundle.traj[ii].force() / mass
-#        gdot = tmpbundle.traj[ii].phase_dot()
-#        k4_x[i,:] = xdot
-#        k4_p[i,:] = pdot
-#        k4_g[i]   = gdot
-#
-#    #-------------------------------------------------------------------
-#    # Calculate the approximate solutions at time t+dt
-#    #-------------------------------------------------------------------
-#    for i in range(master.nalive):
-#        ii = master.alive[i]
-#        xnew[i,:] = x0[i,:] + (dt/6.0) * (k1_x[i,:] + 2.0*k2_x[i,:] + 2.0*k3_x[i,:] +k4_x[i,:])
-#        pnew[i,:] = p0[i,:] + (dt/6.0) * (k1_p[i,:] + 2.0*k2_p[i,:] + 2.0*k3_p[i,:] +k4_p[i,:])
-#        gnew[i] = g0[i] + (dt/6.0) * (k1_g[i] + 2.0*k2_g[i] + 2.0*k3_g[i] +k4_g[i])
-#        master.traj[ii].update_x(xnew[i,:])
-#        master.traj[ii].update_p(pnew[i,:])
-#        master.traj[ii].update_phase(gnew[i])
-#
-#    #-------------------------------------------------------------------
-#    # Calculate the potentials at the propagated phase space centres
-#    #-------------------------------------------------------------------
-#    surface.update_pes(master)
-#
-#    #-------------------------------------------------------------------
-#    # Propagate amplitudes for 1/2 time step using Heff(t0+dt)
-#    #-------------------------------------------------------------------
-#    master.update_amplitudes(0.5*dt, 10)
-#
-#    return
-#
-#########################################################################
-#
-#def propagate_trajectory(traj, dt):
-#
-#    #-------------------------------------------------------------------
-#    # Initialisation
-#    #-------------------------------------------------------------------
-#    # Masses
-#    mass = traj.masses()
-#
-#    # No. coordinates
-#    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
-#
-#    # Work arrays
-#    x0   = np.zeros((ncrd))
-#    p0   = np.zeros((ncrd))
-#    g0   = 0.0
-#    xnew = np.zeros((ncrd))
-#    pnew = np.zeros((ncrd))
-#    gnew = 0.0
-#    k1_x = np.zeros((ncrd))
-#    k1_p = np.zeros((ncrd))
-#    k1_g = 0.0
-#    k2_x = np.zeros((ncrd))
-#    k2_p = np.zeros((ncrd))
-#    k2_g = 0.0
-#    k3_x = np.zeros((ncrd))
-#    k3_p = np.zeros((ncrd))
-#    k3_g = 0.0
-#    k4_x = np.zeros((ncrd))
-#    k4_p = np.zeros((ncrd))
-#    k4_g = 0.0
-#
-#    #-------------------------------------------------------------------
-#    # k1
-#    #-------------------------------------------------------------------
-#    # Temporary trajectory copy
-#    tmptraj = trajectory.copy_traj(traj)
-#
-#    # Initial phase space centres
-#    x0[:] = tmptraj.x()
-#    p0[:] = tmptraj.p()
-#    g0    = tmptraj.phase()
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    xdot = tmptraj.velocity()
-#    pdot = tmptraj.force() / mass
-#    gdot = tmptraj.phase_dot()
-#    k1_x[:] = xdot
-#    k1_p[:] = pdot
-#    k1_g    = gdot
-#
-#    #-------------------------------------------------------------------
-#    # k2
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    tmptraj.update_x(x0[:]  + 0.5*dt*k1_x[:])
-#    tmptraj.update_p(p0[:]  + 0.5*dt*k1_p[:])
-#    tmptraj.update_phase(g0 + 0.5*dt*k1_g)
-#
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes_traj(tmptraj)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    xdot = tmptraj.velocity()
-#    pdot = tmptraj.force() / mass
-#    gdot = tmptraj.phase_dot()
-#    k2_x[:] = xdot
-#    k2_p[:] = pdot
-#    k2_g    = gdot
-#
-#    #-------------------------------------------------------------------
-#    # k3
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    tmptraj = trajectory.copy_traj(traj)
-#    tmptraj.update_x(x0[:]  + 0.5*dt*k2_x[:])
-#    tmptraj.update_p(p0[:]  + 0.5*dt*k2_p[:])
-#    tmptraj.update_phase(g0 + 0.5*dt*k2_g)
-#        
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes_traj(tmptraj)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    xdot = tmptraj.velocity()
-#    pdot = tmptraj.force() / mass
-#    gdot = tmptraj.phase_dot()
-#    k3_x[:] = xdot
-#    k3_p[:] = pdot
-#    k3_g    = gdot
-#
-#    #-------------------------------------------------------------------
-#    # k4
-#    #-------------------------------------------------------------------
-#    # Update the phase space centres
-#    tmptraj = trajectory.copy_traj(traj)
-#    tmptraj.update_x(x0[:]  + dt*k3_x[:])
-#    tmptraj.update_p(p0[:]  + dt*k3_p[:])
-#    tmptraj.update_phase(g0 + dt*k3_g)
-#
-#    # Calculate the potentials at the new phase space centres
-#    surface.update_pes_traj(tmptraj)
-#
-#    # Calculate the time-derivatives at the new phase space centres
-#    xdot = tmptraj.velocity()
-#    pdot = tmptraj.force() / mass
-#    gdot = tmptraj.phase_dot()
-#    k4_x[:] = xdot
-#    k4_p[:] = pdot
-#    k4_g    = gdot
-#
-#    #-------------------------------------------------------------------
-#    # Calculate the approximate solutions at time t+dt
-#    #-------------------------------------------------------------------
-#    xnew[:] = x0[:] + (dt/6.0) * (k1_x[:] + 2.0*k2_x[:] + 2.0*k3_x[:] +k4_x[:])
-#    pnew[:] = p0[:] + (dt/6.0) * (k1_p[:] + 2.0*k2_p[:] + 2.0*k3_p[:] +k4_p[:])
-#    gnew = g0 + (dt/6.0) * (k1_g + 2.0*k2_g + 2.0*k3_g +k4_g)
-#    traj.update_x(xnew[:])
-#    traj.update_p(pnew[:])
-#    traj.update_phase(gnew)
-#
-#    #-------------------------------------------------------------------
-#    # Calculate the potentials at the propagated phase space centres
-#    #-------------------------------------------------------------------
-#    surface.update_pes_traj(traj)
-#
-#    return
+err=0.
+sfac=0.
+tol=0.
+xnew4=None
+pnew4=None
+gnew4=None
+hlast=None
 
+xnew4_traj=None
+pnew4_traj=None
+gnew4_traj=None
+hlast_traj=None
 
 ########################################################################
 # RKF45 code
 ########################################################################
+
 def propagate_bundle(master, dt):
 
-    #-------------------------------------------------------------------
-    # Propagate amplitudes for 1/2 time step using Heff(t0)
-    #-------------------------------------------------------------------
+    global err
+    global sfac
+    global tol
+    global xnew4
+    global pnew4
+    global gnew4
+    global hlast
+    
+    tol=1e-4
+    h = dt
+    t=0.
+
+    # Set the initial step size
+    if hlast is None:
+        h=dt
+    else:
+        h=hlast
+    
     master.update_amplitudes(0.5*dt, 10)
 
+    # Propagate the bundle of trajectories
+    while t < dt:
+        hlast=h
+        if t+h > dt:
+            h=dt-t
+        
+        success=False        
+        while not success:
+            rkf45_bundle(master, h)
+            if err > tol:
+                h = h*sfac
+            else:
+                t+=h
+                success = True
+
+        if sfac > 1.0 and t<dt:
+            h=h*sfac
+        for i in range(master.nalive):
+            ii = master.alive[i]
+            master.traj[ii].update_x(xnew4[i,:])
+            master.traj[ii].update_p(pnew4[i,:])
+            master.traj[ii].update_phase(gnew4[i])
+        surface.update_pes(master)
+    
+    master.update_amplitudes(0.5*dt, 10)
+
+########################################################################
+        
+def rkf45_bundle(master, dt):
+
+    global err
+    global sfac
+    global tol
+    global xnew4
+    global pnew4
+    global gnew4
+    
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
@@ -369,25 +149,25 @@ def propagate_bundle(master, dt):
     #-------------------------------------------------------------------
     # k2
     #-------------------------------------------------------------------
-    ## Update the phase space centres
-    #for i in range(master.nalive):
-    #    ii = master.alive[i]
-    #    tmpbundle.traj[ii].update_x(x0[i,:]   + 0.25*k1_x[i,:])
-    #    tmpbundle.traj[ii].update_p(p0[i,:]   + 0.25*k1_p[i,:])
-    #    tmpbundle.traj[ii].update_phase(g0[i] + 0.25*k1_g[i])
-    #
-    ## Calculate the potentials at the new phase space centres
-    #surface.update_pes(tmpbundle)
-    #
-    ## Calculate the time-derivatives at the new phase space centres
-    #for i in range(master.nalive):
-    #    ii = master.alive[i]
-    #    xdot = tmpbundle.traj[ii].velocity()
-    #    pdot = tmpbundle.traj[ii].force() / mass
-    #    gdot = tmpbundle.traj[ii].phase_dot()
-    #    k2_x[i,:] = dt*xdot
-    #    k2_p[i,:] = dt*pdot
-    #    k2_g[i]   = dt*gdot
+    # Update the phase space centres
+    for i in range(master.nalive):
+        ii = master.alive[i]
+        tmpbundle.traj[ii].update_x(x0[i,:]   + 0.25*k1_x[i,:])
+        tmpbundle.traj[ii].update_p(p0[i,:]   + 0.25*k1_p[i,:])
+        tmpbundle.traj[ii].update_phase(g0[i] + 0.25*k1_g[i])
+    
+    # Calculate the potentials at the new phase space centres
+    surface.update_pes(tmpbundle)
+    
+    # Calculate the time-derivatives at the new phase space centres
+    for i in range(master.nalive):
+        ii = master.alive[i]
+        xdot = tmpbundle.traj[ii].velocity()
+        pdot = tmpbundle.traj[ii].force() / mass
+        gdot = tmpbundle.traj[ii].phase_dot()
+        k2_x[i,:] = dt*xdot
+        k2_p[i,:] = dt*pdot
+        k2_g[i]   = dt*gdot
     
     #-------------------------------------------------------------------
     # k3
@@ -458,15 +238,15 @@ def propagate_bundle(master, dt):
         tmpbundle.traj[ii].update_x(x0[i,:] + (439./216.)*k1_x[i,:]
                                     -8.*k2_x[i,:]
                                     +(3680./513.)*k3_x[i,:] -
-                                    (845./4104.)*k3_x[i,:]) 
+                                    (845./4104.)*k4_x[i,:]) 
         tmpbundle.traj[ii].update_p(p0[i,:] + (439./216.)*k1_p[i,:]
                                     -8.*k2_p[i,:]
                                     +(3680./513.)*k3_p[i,:] -
-                                    (845./4104.)*k3_p[i,:]) 
+                                    (845./4104.)*k4_p[i,:]) 
         tmpbundle.traj[ii].update_phase(g0[i] + (439./216.)*k1_g[i]
                                     -8.*k2_g[i]
                                     +(3680./513.)*k3_g[i] -
-                                    (845./4104.)*k3_g[i]) 
+                                    (845./4104.)*k4_g[i]) 
 
     # Calculate the potentials at the new phase space centres
     surface.update_pes(tmpbundle)
@@ -532,9 +312,6 @@ def propagate_bundle(master, dt):
                                (1./5.)*k5_p[i,:])
         gnew4[i] = g0[i] + ((25./216.)*k1_g[i] + (1408./2565.)*k3_g[i]
                             + (2197./4101.)*k4_g[i] - (1./5.)*k5_g[i])
-        #master.traj[ii].update_x(xnew4[i,:])
-        #master.traj[ii].update_p(pnew4[i,:])
-        #master.traj[ii].update_phase(gnew4[i])
 
     #-------------------------------------------------------------------
     # Calculate the RK5 solutions at time t+dt
@@ -555,51 +332,79 @@ def propagate_bundle(master, dt):
                              (6656./12825.)*k3_g[i] +
                              (28561./56430.)*k4_g[i] -
                              (9./50.)*k5_g[i] + (2./55.)*k6_g[i])
-        #master.traj[ii].update_x(xnew5[i,:])
-        #master.traj[ii].update_p(pnew5[i,:])
-        #master.traj[ii].update_phase(gnew5[i])
 
     #-------------------------------------------------------------------
-    # Calculate the smallest optimal step size
+    # Calculate the error estimates
     #-------------------------------------------------------------------
-    tol=1e-6
-    
-    sfac=1e+10
+    err=0.
     for i in range(master.nalive):
         for j in range(ncrd):
-            s = (tol*dt/(2.0*abs(xnew5[i,j]-xnew4[i,j])))**0.25
-            if s < sfac:
-                sfac = s
-            s = (tol*dt/(2.0*abs(pnew5[i,j]-pnew4[i,j])))**0.25
-            if s < sfac:
-                sfac = s
+            tmp = abs(xnew5[i,j]-xnew4[i,j])
+            if tmp > err:
+                err = tmp
+            tmp = abs(pnew5[i,j]-pnew4[i,j])
+            if tmp > err:       
+                err = tmp
+        tmp=abs(gnew5[i]-gnew4[i])
+        if tmp > err:
+            err = tmp
+
+    sfac = 0.9*(tol/err)**0.2
         
-        s = (tol*dt/(2.0*abs(gnew5[i]-gnew4[i])))**0.25
-        if s < sfac:
-            sfac = s
-
-    print(sfac)
-    sys.exit()
-
-    #-------------------------------------------------------------------
-    # Calculate the potentials at the propagated phase space centres
-    #-------------------------------------------------------------------
-    surface.update_pes(master)
-
-    #-------------------------------------------------------------------
-    # Propagate amplitudes for 1/2 time step using Heff(t0+dt)
-    #-------------------------------------------------------------------
-    master.update_amplitudes(0.5*dt, 10)
-
-    return
-
 ########################################################################
 
 def propagate_trajectory(traj, dt):
 
-    print("WRITE THE RKF45 propagate_trajectory CODE!")
-    sys.exit()
+    global err
+    global sfac
+    global tol
+    global xnew4_traj
+    global pnew4_traj
+    global gnew4_traj
+    global hlast_traj
 
+    tol=1e-4
+    h = dt
+    t=0.
+
+    # Set the initial step size
+    if hlast_traj is None:
+        h=dt
+    else:
+        h=hlast_traj
+
+    # Propagate the trajectory
+    while t < dt:
+        hlast_traj=h
+        if t+h > dt:
+            h=dt-t
+        
+        success=False        
+        while not success:
+            rkf45_trajectory(traj, h)
+            if err > tol:
+                h = h*sfac
+            else:
+                t+=h
+                success = True
+
+        if sfac > 1.0 and t<dt:
+            h=h*sfac
+        traj.update_x(xnew4_traj[:])
+        traj.update_p(pnew4_traj[:])
+        traj.update_phase(gnew4_traj)
+
+########################################################################
+           
+def rkf45_trajectory(traj,dt):
+
+    global err
+    global sfac
+    global tol
+    global xnew4_traj
+    global pnew4_traj
+    global gnew4_traj
+    
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
@@ -613,9 +418,12 @@ def propagate_trajectory(traj, dt):
     x0   = np.zeros((ncrd))
     p0   = np.zeros((ncrd))
     g0   = 0.0
-    xnew = np.zeros((ncrd))
-    pnew = np.zeros((ncrd))
-    gnew = 0.0
+    xnew4_traj = np.zeros((ncrd))
+    pnew4_traj = np.zeros((ncrd))
+    gnew4_traj = 0.0
+    xnew5_traj = np.zeros((ncrd))
+    pnew5_traj = np.zeros((ncrd))
+    gnew5_traj = 0.0
     k1_x = np.zeros((ncrd))
     k1_p = np.zeros((ncrd))
     k1_g = 0.0
@@ -628,7 +436,13 @@ def propagate_trajectory(traj, dt):
     k4_x = np.zeros((ncrd))
     k4_p = np.zeros((ncrd))
     k4_g = 0.0
-
+    k5_x = np.zeros((ncrd))
+    k5_p = np.zeros((ncrd))
+    k5_g = 0.0
+    k6_x = np.zeros((ncrd))
+    k6_p = np.zeros((ncrd))
+    k6_g = 0.0
+    
     #-------------------------------------------------------------------
     # k1
     #-------------------------------------------------------------------
@@ -644,17 +458,17 @@ def propagate_trajectory(traj, dt):
     xdot = tmptraj.velocity()
     pdot = tmptraj.force() / mass
     gdot = tmptraj.phase_dot()
-    k1_x[:] = xdot
-    k1_p[:] = pdot
-    k1_g    = gdot
+    k1_x[:] = dt*xdot
+    k1_p[:] = dt*pdot
+    k1_g    = dt*gdot
 
     #-------------------------------------------------------------------
     # k2
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmptraj.update_x(x0[:]  + 0.5*dt*k1_x[:])
-    tmptraj.update_p(p0[:]  + 0.5*dt*k1_p[:])
-    tmptraj.update_phase(g0 + 0.5*dt*k1_g)
+    tmptraj.update_x(x0[:]  + 0.25*k1_x[:])
+    tmptraj.update_p(p0[:]  + 0.25*k1_p[:])
+    tmptraj.update_phase(g0 + 0.25*k1_g)
 
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
@@ -663,19 +477,19 @@ def propagate_trajectory(traj, dt):
     xdot = tmptraj.velocity()
     pdot = tmptraj.force() / mass
     gdot = tmptraj.phase_dot()
-    k2_x[:] = xdot
-    k2_p[:] = pdot
-    k2_g    = gdot
+    k2_x[:] = dt*xdot
+    k2_p[:] = dt*pdot
+    k2_g    = dt*gdot
 
     #-------------------------------------------------------------------
     # k3
     #-------------------------------------------------------------------
     # Update the phase space centres
     tmptraj = trajectory.copy_traj(traj)
-    tmptraj.update_x(x0[:]  + 0.5*dt*k2_x[:])
-    tmptraj.update_p(p0[:]  + 0.5*dt*k2_p[:])
-    tmptraj.update_phase(g0 + 0.5*dt*k2_g)
-        
+    tmptraj.update_x(x0[:]   + (3./32.)*k1_x[:] + (9./32.)*k2_x[:]) 
+    tmptraj.update_p(p0[:]   + (3./32.)*k1_p[:] + (9./32.)*k2_p[:]) 
+    tmptraj.update_phase(g0  + (3./32.)*k1_g    + (9./32.)*k2_g) 
+    
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
 
@@ -683,18 +497,22 @@ def propagate_trajectory(traj, dt):
     xdot = tmptraj.velocity()
     pdot = tmptraj.force() / mass
     gdot = tmptraj.phase_dot()
-    k3_x[:] = xdot
-    k3_p[:] = pdot
-    k3_g    = gdot
+    k3_x[:] = dt*xdot
+    k3_p[:] = dt*pdot
+    k3_g    = dt*gdot
 
     #-------------------------------------------------------------------
     # k4
     #-------------------------------------------------------------------
     # Update the phase space centres
     tmptraj = trajectory.copy_traj(traj)
-    tmptraj.update_x(x0[:]  + dt*k3_x[:])
-    tmptraj.update_p(p0[:]  + dt*k3_p[:])
-    tmptraj.update_phase(g0 + dt*k3_g)
+    tmptraj.update_x(x0[:] + (1932./2197.)*k1_x[:] - (7200./2197.)*k2_x[:]
+                     + (7296./2197.)*k3_x[:])
+    tmptraj.update_p(p0[:] + (1932./2197.)*k1_p[:] - (7200./2197.)*k2_p[:]
+                     + (7296./2197.)*k3_p[:])
+    tmptraj.update_phase(g0 + (1932./2197.)*k1_g - (7200./2197.)*k2_g
+                     + (7296./2197.)*k3_g)
+
 
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
@@ -703,23 +521,112 @@ def propagate_trajectory(traj, dt):
     xdot = tmptraj.velocity()
     pdot = tmptraj.force() / mass
     gdot = tmptraj.phase_dot()
-    k4_x[:] = xdot
-    k4_p[:] = pdot
-    k4_g    = gdot
+    k4_x[:] = dt*xdot
+    k4_p[:] = dt*pdot
+    k4_g    = dt*gdot
 
     #-------------------------------------------------------------------
-    # Calculate the approximate solutions at time t+dt
+    # k5
     #-------------------------------------------------------------------
-    xnew[:] = x0[:] + (dt/6.0) * (k1_x[:] + 2.0*k2_x[:] + 2.0*k3_x[:] +k4_x[:])
-    pnew[:] = p0[:] + (dt/6.0) * (k1_p[:] + 2.0*k2_p[:] + 2.0*k3_p[:] +k4_p[:])
-    gnew = g0 + (dt/6.0) * (k1_g + 2.0*k2_g + 2.0*k3_g +k4_g)
-    traj.update_x(xnew[:])
-    traj.update_p(pnew[:])
-    traj.update_phase(gnew)
+    # Update the phase space centres
+    tmptraj = trajectory.copy_traj(traj)
+    tmptraj.update_x(x0[:] + (439./216.)*k1_x[:] -8.*k2_x[:]
+                     + (3680./513.)*k3_x[:]
+                     - (845./4104.)*k4_x[:]) 
+    tmptraj.update_p(p0[:] + (439./216.)*k1_p[:] -8.*k2_p[:]
+                     + (3680./513.)*k3_p[:]
+                     - (845./4104.)*k4_p[:]) 
+    tmptraj.update_phase(g0 + (439./216.)*k1_g -8.*k2_g
+                     + (3680./513.)*k3_g
+                     - (845./4104.)*k4_g) 
+    
+    # Calculate the potentials at the new phase space centres
+    surface.update_pes_traj(tmptraj)
+
+    # Calculate the time-derivatives at the new phase space centres
+    xdot = tmptraj.velocity()
+    pdot = tmptraj.force() / mass
+    gdot = tmptraj.phase_dot()
+    k5_x[:] = dt*xdot
+    k5_p[:] = dt*pdot
+    k5_g    = dt*gdot
 
     #-------------------------------------------------------------------
-    # Calculate the potentials at the propagated phase space centres
+    # k6
     #-------------------------------------------------------------------
-    surface.update_pes_traj(traj)
+    # Update the phase space centres
+    tmptraj = trajectory.copy_traj(traj)
+    tmptraj.update_x(x0[:] - (8./27.)*k1_x[:] + 2.*k2_x[:]
+                     - (3544./2565.)*k3_x[:]
+                     + (1859./4104.)*k4_x[:]
+                     - (11./40.)*k5_x[:])
+    tmptraj.update_p(p0[:] - (8./27.)*k1_p[:] + 2.*k2_p[:]
+                     - (3544./2565.)*k3_p[:]
+                     + (1859./4104.)*k4_p[:]
+                     - (11./40.)*k5_p[:])
+    tmptraj.update_phase(g0 - (8./27.)*k1_g + 2.*k2_g
+                     - (3544./2565.)*k3_g
+                     + (1859./4104.)*k4_g
+                     - (11./40.)*k5_g)
+    
+    # Calculate the potentials at the new phase space centres
+    surface.update_pes_traj(tmptraj)
 
-    return
+    # Calculate the time-derivatives at the new phase space centres
+    xdot = tmptraj.velocity()
+    pdot = tmptraj.force() / mass
+    gdot = tmptraj.phase_dot()
+    k6_x[:] = dt*xdot
+    k6_p[:] = dt*pdot
+    k6_g    = dt*gdot
+    
+    #-------------------------------------------------------------------
+    # Calculate the RK4 solutions at time t+dt
+    #-------------------------------------------------------------------
+    xnew4_traj[:] = x0[:] + ((25./216.)*k1_x[:] + (1408./2565.)*k3_x[:]
+                        + (2197./4101.)*k4_x[:] - (1./5.)*k5_x[:])
+
+    pnew4_traj[:] = p0[:] + ((25./216.)*k1_p[:] + (1408./2565.)*k3_p[:]
+                        + (2197./4101.)*k4_p[:] - (1./5.)*k5_p[:])
+    
+    gnew4_traj = g0 + ((25./216.)*k1_g + (1408./2565.)*k3_g
+                        + (2197./4101.)*k4_g - (1./5.)*k5_g)
+
+    #-------------------------------------------------------------------
+    # Calculate the RK5 solutions at time t+dt
+    #-------------------------------------------------------------------
+    xnew5_traj[:] = x0[:] + ( (16./135.)*k1_x[:]
+                              + (6656./12825.)*k3_x[:]
+                              + (28561./56430.)*k4_x[:]
+                              - (9./50.)*k5_x[:]
+                              + (2./55.)*k6_x[:])
+
+    pnew5_traj[:] = p0[:] + ( (16./135.)*k1_p[:]
+                              + (6656./12825.)*k3_p[:]
+                              + (28561./56430.)*k4_p[:]
+                              - (9./50.)*k5_p[:]
+                              + (2./55.)*k6_p[:])
+
+    gnew5_traj = g0 + ( (16./135.)*k1_g
+                              + (6656./12825.)*k3_g
+                              + (28561./56430.)*k4_g
+                              - (9./50.)*k5_g
+                              + (2./55.)*k6_g)
+
+    #-------------------------------------------------------------------
+    # Calculate the error estimates
+    #-------------------------------------------------------------------
+    err=0.
+    for j in range(ncrd):
+        tmp = abs(xnew5_traj[j]-xnew4_traj[j])
+        if tmp > err:
+            err = tmp
+        tmp = abs(pnew5_traj[j]-pnew4_traj[j])
+        if tmp > err:
+            err = tmp
+    tmp=abs(gnew5_traj-gnew4_traj)
+    if tmp > err:
+        err = tmp
+
+    sfac = 0.9*(tol/err)**0.2
+    
