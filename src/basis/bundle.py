@@ -584,6 +584,12 @@ class Bundle:
         if glbl.fms['print_chkpt']:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
+        # wavepacket autocorrelation function
+        if glbl.fms['auto'] == 1 and glbl.bundle0 is not None:
+            auto = self.overlap(glbl.bundle0)
+            data = [self.time, auto.real, auto.imag, abs(auto)]
+            fileio.print_bund_row(7, data)
+
         timings.stop('bundle.update_logs')
 
     def write_bundle(self, filename, mode):
