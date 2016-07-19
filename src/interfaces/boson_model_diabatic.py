@@ -57,14 +57,10 @@ def derivative(geom, t_state):
     sgn = -1 + 2.*t_state
     for i in range(2):
         if t_state == i:
-            grads[i,:] = np.array([omega[i]*geom[i] + sgn*C[i]
-                                   for i in range(ncrd)], dtype=float)
-            #grads[i,:] = np.array([omega[i]*geom[i]
-            #                        for i in range(ncrd)], dtype=float)
+            grads[i,:] = omega*geom + sgn*C
         else:
             coup = delta / abs(sum(2. * C * geom))
-            #coup = 0.
-            grads[i,:] = np.array([coup for j in range(ncrd)], dtype=float)
+            grads[i,:] = np.array([coup for j in range(ncrd)])
     return grads
 
 

@@ -43,9 +43,8 @@ def ke_integral(traj1, traj2, S_ij=None):
         if S_ij is None:
             S_ij = traj1.overlap(traj2)
         for k in range(boson.ncrd):
-            #ke_int -= (boson.omega[k] *
-            #           traj1.particles[k].deld2x(traj2.particles[k]))
-            ke_int -= traj1.particles[k].deld2x(traj2.particles[k])
+            ke_int -= (boson.omega[k] *
+                       traj1.particles[k].deld2x(traj2.particles[k]))
         return 0.5 * ke_int * S_ij
     else:
         return ke_int

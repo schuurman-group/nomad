@@ -135,6 +135,7 @@ def print_timings():
         frac_cpu  += ctim/tot_cpu
 
     ostr += '-'*95 + '\n'
-    ostr += ('**total**'.ljust(47) + '{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}' +
-             '\n\n'.format(tot_wall, frac_wall, tot_cpu, frac_cpu))
+    ostr += ('**total**'.ljust(47) +
+             '{0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}\n\n'.format(tot_wall, frac_wall,
+                                                                 tot_cpu, frac_cpu))
     return ostr
