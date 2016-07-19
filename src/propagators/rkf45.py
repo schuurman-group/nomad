@@ -43,32 +43,41 @@ def propagate_bundle(master, dt):
     else:
         h=hlast
     
+    # propagate amplitudes for 1/2 time step using x0
     master.update_amplitudes(0.5*dt, 10)
-
+    
     # Propagate the bundle of trajectories
     while t < dt:
+
+        # Save the last time step value
         hlast=h
+
+        # Make sure that we hit time dt
         if t+h > dt:
             h=dt-t
-        
-        success=False        
+
+        # Propagate forwards one step, adapting the timestep
+        # to keep the error estimate below tolerance
+        success=False
         while not success:
             rkf45_bundle(master, h)
             if err > tol:
-                h = h*sfac
+                h = h/2.
             else:
+                hsucc=h
                 t+=h
                 success = True
+                if t < dt and sfac >2.0:
+                    h=h*2.
 
-        if sfac > 1.0 and t<dt:
-            h=h*sfac
         for i in range(master.nalive):
             ii = master.alive[i]
             master.traj[ii].update_x(xnew4[i,:])
             master.traj[ii].update_p(pnew4[i,:])
             master.traj[ii].update_phase(gnew4[i])
         surface.update_pes(master)
-    
+
+    # propagate amplitudes for 1/2 time step using x1
     master.update_amplitudes(0.5*dt, 10)
 
 ########################################################################
@@ -371,28 +380,31 @@ def propagate_trajectory(traj, dt):
     if hlast_traj is None:
         h=dt
     else:
-        h=hlast_traj
+        h=hlast
 
     # Propagate the trajectory
     while t < dt:
-        hlast_traj=h
+
+        # Make sure that we hit time dt
         if t+h > dt:
             h=dt-t
-        
+
+        # Propagate forwards one step, adapting the timestep
+        # to keep the error estimate below tolerance
         success=False        
         while not success:
             rkf45_trajectory(traj, h)
             if err > tol:
-                h = h*sfac
+                h = h/2.
             else:
                 t+=h
                 success = True
-
-        if sfac > 1.0 and t<dt:
-            h=h*sfac
+                if t < dt and sfac >2.0:
+                    h=h*2.
         traj.update_x(xnew4_traj[:])
         traj.update_p(pnew4_traj[:])
         traj.update_phase(gnew4_traj)
+        surface.update_pes_traj(traj)
 
 ########################################################################
            
