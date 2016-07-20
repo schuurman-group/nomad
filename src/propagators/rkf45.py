@@ -6,9 +6,10 @@ import src.dynamics.surface as surface
 import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 
+tol=1e-4
+
 err=0.
 sfac=0.
-tol=0.
 xnew4=None
 pnew4=None
 gnew4=None
@@ -32,10 +33,6 @@ def propagate_bundle(master, dt):
     global pnew4
     global gnew4
     global hlast
-    
-    tol=1e-4
-    h = dt
-    t=0.
 
     # Set the initial step size
     if hlast is None:
@@ -47,6 +44,7 @@ def propagate_bundle(master, dt):
     master.update_amplitudes(0.5*dt, 10)
     
     # Propagate the bundle of trajectories
+    t=0.
     while t < dt:
 
         # Save the last time step value
@@ -372,10 +370,6 @@ def propagate_trajectory(traj, dt):
     global gnew4_traj
     global hlast_traj
 
-    tol=1e-4
-    h = dt
-    t=0.
-
     # Set the initial step size
     if hlast_traj is None:
         h=dt
@@ -383,6 +377,7 @@ def propagate_trajectory(traj, dt):
         h=hlast
 
     # Propagate the trajectory
+    t=0.
     while t < dt:
 
         # Make sure that we hit time dt

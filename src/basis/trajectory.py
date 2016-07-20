@@ -293,9 +293,12 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        return (self.kinetic() - self.potential() -
-                0.5*sum(self.widths()/self.masses()))
-
+        if glbl.fms['phase_prop'] == 0:
+            return 0.
+        else:
+            return (self.kinetic() - self.potential() -
+                    0.5*sum(self.widths()/self.masses()))
+        
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
         if self.state == rstate:
