@@ -56,6 +56,7 @@ fms = dict(
     opfile                 = 'fms.op',
     coupling_order         = 1,
     auto                   = 0,
+    phase_prop             = 1
     )
 
 # Electronic structure information read from interface-specific
