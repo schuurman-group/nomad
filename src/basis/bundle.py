@@ -142,86 +142,10 @@ class Bundle:
         timings.start('bundle.kill_trajectory')
 
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
-        """Updates the amplitudes of the trajectory in the bundle."""
-        if self.nalive < 150:
-            self.update_amplitudes_exact(dt, n_max, H=None, Ct=None)
-        else:
-            self.update_amplitudes_taylor(dt, n_max, H=None, Ct=None)
-
-    def update_amplitudes_taylor(self, dt, n_max, H=None, Ct=None):
-        """Solves d/dt C = -i H C using the Taylor expansion of
-        exp(-i H(t) dt)
-
-        Solve:
-        d/dt C = -i H C
-
-        Solution:
-         C(t+dt) = exp( -i H(t) dt ) C(t)
-         C(t+dt) = exp( B )          C(t)
-
-        Basic property of expontial:
-          exp(B) = exp( B/n ) ** n
-
-        The expontential is written Taylor series expansion to 4th order
-           exp(B/n) = I + [B/n] + 1/2![B/n]**2 + 1/3![B/n]**3 +
-                      1/4![B/n]**4
-
-        n is varied until C_tdt is stable
-
-        Now that centroids reflect the trajectories, update matrices
-        (mainly we just need to determine the effective Hamiltonian (Heff))
-
-        We may want the option of using different Hamiltonian matrix
-        (i.e. some integrators will solve this equation at t=t', where
-        t' != tcurrent)
-        """
-        timings.start('bundle.update_amplitudes')
-
-        self.update_matrices()
-
-        if H is not None:
-            Hmat = H
-        else:
-            Hmat = self.Heff
-
-        if Ct is not None:
-            old_amp = Ct
-        else:
-            old_amp = self.amplitudes()
-
-        new_amp = np.zeros(self.nalive, dtype=complex)
-        Id      = np.identity(self.nalive, dtype=complex)
-
-        B = -complex(0.,1.) * Hmat * dt
-
-        prev_amp = np.zeros(self.nalive, dtype=complex)
-        for n in range(1, n_max+1):
-            Bn  = B / 2**n
-            Bn2 = np.dot(Bn, Bn)
-            Bn3 = np.dot(Bn2, Bn)
-            Bn4 = np.dot(Bn2, Bn2)
-
-            taylor = Id + Bn + Bn2/2. + Bn3/6. + Bn4/24.
-            for i in range(n):
-                taylor = np.dot(taylor, taylor)
-
-            new_amp = np.dot(taylor, old_amp)
-            error   = np.sqrt(np.sum(abs(new_amp-prev_amp)**2))
-            if abs(error) < 1.e-10:
-                break
-            else:
-                prev_amp = new_amp
-                if n == n_max:
-                    raise TimeoutError('Cannot converge amplitudes...')
-
-        for i in range(len(self.alive)):
-            self.traj[self.alive[i]].update_amplitude(new_amp[i])
-
-        timings.stop('bundle.update_amplitudes')
-
-    def update_amplitudes_exact(self, dt, n_max, H=None, Ct=None):
-        """Solves d/dt C = -i H C using the exact computation of
+        """Updates the amplitudes of the trajectory in the bundle.
+        Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
+
         timings.start('bundle.update_amplitudes')
 
         self.update_matrices()
@@ -239,7 +163,13 @@ class Bundle:
         new_amp = np.zeros(self.nalive, dtype=complex)
 
         B = -complex(0.,1.) * Hmat * dt
-        umat = linalg.expm2(B)
+
+        if self.nalive < 150:
+            # Eigen-decomposition
+            umat = linalg.expm2(B)
+        else:
+            # Pade approximation
+            umat = linalg.expm(B)
 
         new_amp = np.dot(umat, old_amp)
 
@@ -583,6 +513,12 @@ class Bundle:
         # dump full bundle to an checkpoint file
         if glbl.fms['print_chkpt']:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
+
+        # wavepacket autocorrelation function
+        if glbl.fms['auto'] == 1 and glbl.bundle0 is not None:
+            auto = self.overlap(glbl.bundle0)
+            data = [self.time, auto.real, auto.imag, abs(auto)]
+            fileio.print_bund_row(7, data)
 
         timings.stop('bundle.update_logs')
 

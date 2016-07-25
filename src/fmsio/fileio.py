@@ -15,7 +15,7 @@ scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump', 'coup_dump', 'dipole_dump',
                'secm_dump', 'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'spawn_dump',
-               's_mat', 'sdot_mat', 'h_mat', 'heff_mat']
+               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','auto.dat']
 dump_header = dict()
 dump_format = dict()
 log_format  = dict()
@@ -241,6 +241,13 @@ def init_fms_output():
     bfile_names[bkeys[5]] = 'h.dat'
     bfile_names[bkeys[6]] = 'heff.dat'
 
+    # autocorrelation function
+    arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
+    bfile_names[bkeys[7]] = 'auto.dat'
+    dump_header[bkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[bkeys[7]] = ('{0:>12.4f}' +
+                             ''.join('{' + str(i) + ':16.10f}'
+                                     for i in range(1, 3+1)) + '\n')
 
     # ------------------------- log file formats --------------------------
     with open(home_path+'/fms.log', 'w') as logfile:
