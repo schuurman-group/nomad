@@ -94,19 +94,19 @@ class Particle:
         """Returns overlap of two particles."""
         S = complex(1.,0.)
         for i in range(self.dim):
-            S = S * self.ints.overlap(self.x[i], self.p[i], self.width,
+            S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
                                      other.x[i], other.p[i], other.width)
         return S
 
     def deldp(self, other):
         """Returns the del/dp matrix element between two particles."""
-        return np.fromiter((self.ints.deldp(self.x[i], self.p[i], self.width,
+        return np.fromiter((self.basis.deldp(self.x[i], self.p[i], self.width,
                                            other.x[i], other.p[i], other.width)
                             for i in range(self.dim)), dtype=complex)
 
     def deldx(self, other):
         """Returns the del/dx matrix element between two particles."""
-        return np.fromiter((self.ints.deldx(self.x[i], self.p[i], self.width,
+        return np.fromiter((self.basis.deldx(self.x[i], self.p[i], self.width,
                                            other.x[i], other.p[i], other.width)
                             for i in range(self.dim)), dtype=complex)
 
@@ -115,7 +115,7 @@ class Particle:
         #print('x1,p1,w1,x2,p2,w2=' + str(self.x[0]) + ' ' + str(self.p[0]) +
         #      ' ' + str(self.width) + ' ' + str(other.x[0]) + ' ' +
         #      str(other.p[0]) + ' ' + str(other.width) + ' ')
-        d2xval = np.fromiter((self.ints.deld2x(self.x[i], self.p[i], self.width,
+        d2xval = np.fromiter((self.basis.deld2x(self.x[i], self.p[i], self.width,
                                               other.x[i], other.p[i], other.width)
                               for i in range(self.dim)), dtype=complex)
         #print('d2xval = ' + str(d2xval))
