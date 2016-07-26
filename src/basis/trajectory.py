@@ -201,7 +201,8 @@ class Trajectory:
                              for i in range(self.n_particle)
                              for j in range(self.d_particle)), dtype=float)
         return width
-
+        
+    
     #--------------------------------------------------------------------
     #
     # Functions to update information about the potential energy surface

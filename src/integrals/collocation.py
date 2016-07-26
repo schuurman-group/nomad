@@ -1,27 +1,35 @@
-#
+"""
+Compute dirac delta integrals over trajectories traveling on adiabataic
+potentials
+""" 
+
 import numpy as np
-#
+
 # Let propagator know if we need data at centroids to propagate
-#
 require_centroids = False
+
+# Determines the basis set
+basis = 'dirac_delta'
 
 #
 # potential coupling matrix element between two trajectories
 #
 def v_integral(traj1,traj2=None,centroid=None):
-    # if we are passed a single trajectoy
+    """if we are passed a single trajectoy"""
     if not traj2:
+        # Adiabatic energy
         return traj1.energy()
     #
     # off-diagonal matrix element, between trajectories on the same
     # state
     elif traj1.state == traj2.state:
+        # Adiabatic energy
         return traj1.energy() * traj2.overlap(traj1)
     #
     # off-diagonal matrix elements between trajectories on different 
     # elecronic states
     elif traj1.state != traj2.state:
-        # derivative coupling
+        # Derivative coupling
         fij = traj2.derivative(traj1.state)
         v = np.dot(fij, traj2.deldx_m(traj1))
         return v

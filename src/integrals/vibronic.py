@@ -7,6 +7,9 @@ import numpy as np
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
+# Determines the basis set
+basis = 'gaussian'
+
 
 def v_integral(traj1, traj2=None, centroid=None):
     """Returns potential coupling matrix element between two trajectories.
