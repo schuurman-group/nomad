@@ -87,15 +87,14 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
             T[j,i] = T[i,j].conjugate()
 
         # potential energy matrix
-        if req_centroids:
-            if i == j:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj], traj_list[ii],
-                               S_ij=S[i,j])
-            else:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],
-                               cent_list[c_ind(ii,jj)], S_ij=S[i,j])
+        if i == j:
+            V[i,j] = v_int(traj_list[ii])
         else:
-            V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
+            if req_centroids:
+                V[i,j] = v_int(traj_list[ii], traj_list[jj],
+                               centroid=cent_list[c_ind(ii,jj)], S_ij=S[i,j])
+            else:
+                V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
         V[j,i] = V[i,j].conjugate()
 
         # Hamiltonian matrix in non-orthongonal basis

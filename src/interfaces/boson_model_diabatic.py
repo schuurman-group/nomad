@@ -31,6 +31,30 @@ def init_interface():
         C = np.sqrt(d_omega * alpha * omega * np.exp(-omega/omega_c))
 
 
+def energy(geom):
+    """Evaluates energy in the spin-boson model.
+
+    This does not include the kinetic component of h0, given
+    by sum(0.5 * omega * momentum**2).
+    """
+    sgn = np.array([-1., 1.])
+    h0 = sum(0.5 * omega * geom**2)
+    hk0 = sum(C * geom)
+    return h0 + sgn * hk0
+
+
+def derivative(geom, t_state):
+    """Returns the energy gradient in the spin-boson model."""
+    grads = np.zeros((2, ncrd))
+
+    sgn = -1. + 2.*t_state
+    grads[t_state] = omega*geom + sgn*C
+
+    coup = delta #delta / abs(sum(2. * C * geom))
+    grads[1-t_state] = np.array([coup for i in range(ncrd)])
+    return grads
+
+
 def evaluate_trajectory(tid, geom, t_state):
     """Evaluates trajectory energy and gradients."""
     gm = np.array([geom[i].x[j] for i in range(ncrd)
@@ -38,30 +62,6 @@ def evaluate_trajectory(tid, geom, t_state):
     eners = energy(gm)
     grads = derivative(gm, t_state)
     return gm, eners, grads
-
-
-def energy(geom):
-    """Evaluates energy in the spin-boson model."""
-    h0  = np.zeros(2)
-    sgn = np.array([-1., 1.])
-
-    h0 += sum(0.5 * omega * geom**2)
-    hk = sum(C * geom)
-
-    return h0 + sgn * hk
-
-
-def derivative(geom, t_state):
-    """Returns the energy gradient in the spin-boson model."""
-    grads = np.zeros((2, ncrd))
-    sgn = -1 + 2.*t_state
-    for i in range(2):
-        if t_state == i:
-            grads[i,:] = omega*geom + sgn*C
-        else:
-            coup = delta / abs(sum(2. * C * geom))
-            grads[i,:] = np.array([coup for j in range(ncrd)])
-    return grads
 
 
 def evaluate_worker(packet, global_var):

@@ -13,24 +13,28 @@ def v_integral(traj1, traj2=None, S_ij=None):
     """Returns potential coupling matrix element between two
     trajectories."""
     if traj2 is None:
-        return traj1.energy(traj1.state)
+        #return traj1.energy(traj1.state)
+        sgn  = -1. + 2.*traj1.state
+        pos1 = traj1.x()
+        a = 1. + 1.
+        b = 2. * 1. * 2.*pos1
+        v_int = sum(0.5 * boson.omega * (2.*a + b**2)/(4. * a**2) +
+                    sgn * boson.C * b/(2.*a))
+        return v_int
 
     if S_ij is None:
         S_ij = traj1.overlap(traj2)
 
     if traj1.state == traj2.state:
-        sgn   = -1. + 2.*traj1.state
-        pos1  = traj1.x()
-        mom1  = traj1.p()
-        pos2  = traj2.x()
-        mom2  = traj2.p()
-        v_int = complex(0.,0.)
-        for k in range(boson.ncrd):
-            a = (1. + 1.)
-            b = (2. * 1. * (pos1[k] + pos2[k]) +
-                 complex(0.,1.)*(mom2[k] - mom1[k]))
-            v_int += (0.5 * boson.omega[k] * (2*a + b**2)/(4 * a**2) +
-                      sgn * boson.C[k] * b/(2*a))
+        sgn  = -1. + 2.*traj1.state
+        pos1 = traj1.x()
+        mom1 = traj1.p()
+        pos2 = traj2.x()
+        mom2 = traj2.p()
+        a = 1. + 1.
+        b = 2. * 1. * (pos1 + pos2) + 1j * (mom2 - mom1)
+        v_int = sum(0.5 * boson.omega * (2.*a + b**2)/(4. * a**2) +
+                    sgn * boson.C * b/(2.*a))
         return v_int * S_ij
     else:
         return boson.delta * S_ij
@@ -57,5 +61,5 @@ def sdot_integral(traj1, traj2, S_ij=None):
 
     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij) ) +
             np.dot( traj2.force()   , traj1.deldp(traj2, S_ij) ) +
-            complex(0.,1.) * traj2.phase_dot() * S_ij)
+            1j * traj2.phase_dot() * S_ij)
     return sdot
