@@ -72,7 +72,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         jj = traj_alive[j]
 
         # overlap matrix (excluding electronic component)
-        S[i,j] = traj_list[ii].overlap(traj_list[jj])
+        S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
         S[j,i] = S[i,j].conjugate()
 
         # overlap matrix (including electronic component)

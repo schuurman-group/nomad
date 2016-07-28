@@ -5,6 +5,7 @@ import re
 import copy
 import numpy as np
 import src.fmsio.glbl as glbl
+import src.basis.gaussian as gaussian
 import src.interfaces.vcham.hampar as ham
 
 
@@ -91,6 +92,14 @@ class Particle:
     #
     #-----------------------------------------------------------------------------
     def overlap(self, other):
+        """Returns overlap of two particles."""
+        S = complex(1.,0.)
+        for i in range(self.dim):
+            S = S * gaussian.overlap(self.x[i], self.p[i], self.width,
+                                     other.x[i], other.p[i], other.width)
+        return S
+        
+    def h_overlap(self, other):
         """Returns overlap of two particles."""
         S = complex(1.,0.)
         for i in range(self.dim):

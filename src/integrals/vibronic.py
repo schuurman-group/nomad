@@ -53,7 +53,7 @@ def ke_integral(traj1, traj2):
         for i in range(traj1.nparticles):
             ke = (ke - traj1.particles[i].deld2x(traj2.particles[i]) /
                   (2.*traj1.particles[i].mass))
-        return ke * traj1.overlap(traj2)
+        return ke * traj1.h_overlap(traj2)
     else:
         return ke
 
@@ -62,5 +62,5 @@ def sdot_integral(traj1, traj2):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) ) +
             np.dot( traj2.force(), traj1.deldp(traj2) ) +
-            complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2))
+            complex(0.,1.) * traj2.phase_dot() * traj1.h_overlap(traj2))
     return sdot
