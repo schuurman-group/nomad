@@ -55,6 +55,10 @@ def fms_step_bundle(master, dt):
         time_step = min(time_step, end_time-master.time)
         integrator.propagate_bundle(master, time_step)
 
+        # Renormalization
+        if glbl.fms['renorm'] == 1:
+            master.renormalize()
+
         # check time_step is fine, energy/amplitude conserved
         accept, error_msg = check_step_bundle(master0, master, time_step)
 

@@ -16,7 +16,6 @@ As a matter of course, this function also builds:
 import numpy as np
 import src.dynamics.timings as timings
 
-
 def c_ind(i, j):
     """Returns the index in the cent array of the centroid between
     trajectories i and j."""
