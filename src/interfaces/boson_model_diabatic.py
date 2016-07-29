@@ -50,7 +50,7 @@ def derivative(geom, t_state):
     sgn = -1. + 2.*t_state
     grads[t_state] = omega*geom + sgn*C
 
-    coup = delta #delta / abs(sum(2. * C * geom))
+    coup = delta
     grads[1-t_state] = np.array([coup for i in range(ncrd)])
     return grads
 
