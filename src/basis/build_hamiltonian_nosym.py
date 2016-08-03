@@ -102,7 +102,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
         # overlap matrix (excluding electronic component)
         S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
-        S[j,i] = S[i,j].conjugate()
+        S[j,i] = traj_list[jj].h_overlap(traj_list[ii])
         
         # overlap matrix (including electronic component)
         if traj_list[ii].state == traj_list[jj].state:
@@ -115,7 +115,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
             # kinetic energy matrix
             T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            T[j,i] = T[i,j].conjugate()
+            T[j,i] = ke_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
             
         else:
             S_orthog[i,j] = c_zero
@@ -127,17 +127,16 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
                 V[i,j] = v_int(traj_list[ii], traj_list[jj],traj_list[ii],S_ij=S[i,j])
             else:
                 V[i,j] = v_int(traj_list[ii], traj_list[jj],cent_list[c_ind(ii,jj)],S_ij=S[i,j])
+                V[j,i] = v_int(traj_list[jj], traj_list[ii],cent_list[c_ind(jj,ii)],S_ij=S[j,i])
         else:
             V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-
-        V[j,i] = V[i,j].conjugate()
+            V[j,i] = v_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
         
         # Hamiltonian matrix in non-orthongonal basis
         H[i,j] = T[i,j] + V[i,j]
-        H[j,i] = H[i,j].conjugate()
+        H[j,i] = T[j,i] + V[j,i]
 
     # compute the S^-1, needed to compute Heff
-    #Sinv = np.linalg.pinv(S_orthog)
     Sinv, cond = pseudo_inverse(S_orthog, n_alive)
 
     Heff = np.dot( Sinv, H - c_imag * Sdot )
