@@ -97,6 +97,12 @@ class Trajectory:
         # trajectory exits on (including DBOCs)        
         self.sct = np.zeros((self.nstates))
 
+        self.ints = __import__('src.integrals.' + glbl.fms['integrals'],
+                               fromlist = ['a'])
+                               
+        self.basis = __import__('src.basis.' + self.ints.basis,
+                                fromlist = ['a'])
+
     #-------------------------------------------------------------------
     #
     # Trajectory status functions
@@ -345,9 +351,16 @@ class Trajectory:
         #timings.start('trajectory.overlap')        
         if st_orthog and self.state != other.state:
             return complex(0.,0.)
-        S = np.exp( complex(0.,1.) * (other.gamma - self.gamma) )
+
+        # The exponential prefactor doesn't really belong in
+        # gaussian/dirac_delta, but, as it depends on whether or not
+        # collocation is being used, I'm not sure else where to put
+        # it...
+        S = self.basis.overlap_prefactor(self.gamma, other.gamma)
+
         for i in range(self.n_particle):
             S = S * self.particles[i].h_overlap(other.particles[i])
+
         #timings.stop('trajectory.overlap')
         return S
 

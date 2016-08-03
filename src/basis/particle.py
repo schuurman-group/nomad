@@ -90,6 +90,8 @@ class Particle:
                                
         self.basis = __import__('src.basis.' + self.ints.basis,
                                 fromlist = ['a'])
+
+
     #-----------------------------------------------------------------------------
     #
     # Integral Routines
@@ -108,7 +110,7 @@ class Particle:
         S = complex(1.,0.)
         for i in range(self.dim):
             S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
-                                     other.x[i], other.p[i], other.width)
+                                       other.x[i], other.p[i], other.width)
         return S
 
     def deldp(self, other):

@@ -22,7 +22,10 @@ hamsym = 'nosym'
 #
 def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
     """if we are passed a single trajectoy"""
-    if traj2 is None:
+
+    #
+    # On-diagonal element
+    if traj2 is None:        
         # Adiabatic energy
         return traj1.energy(traj1.state) * traj1.h_overlap(traj1)
 
