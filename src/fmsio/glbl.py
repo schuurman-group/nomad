@@ -57,7 +57,8 @@ fms = dict(
     coupling_order         = 1,
     auto                   = 0,
     phase_prop             = 1,
-    renorm                 = 0
+    renorm                 = 0,
+    sinv_thrsh             = -1.0
     )
 
 # Electronic structure information read from interface-specific

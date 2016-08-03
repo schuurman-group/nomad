@@ -1,6 +1,7 @@
 """
 The Particle object and its associated functions.
 """
+import sys
 import re
 import copy
 import numpy as np
@@ -27,6 +28,7 @@ def valid_particle(particle):
 def load_particle(particle):
     """Loads particle information based on particle name."""
     q = re.compile('q[0-9]', re.IGNORECASE)
+
     if particle.name in particle_name:
         index = particle_name.index(particle.name)
         particle.width = particle_width[index]
@@ -36,6 +38,8 @@ def load_particle(particle):
             print('WARNING: particle ' + str(particle.name) +
                   ' in library, but width = 0')
     elif q.match(particle.name):
+        particle.mass  = 1.
+    else:
         particle.mass  = 1.
 
 def create_particle(pid, dim, name, width, mass):

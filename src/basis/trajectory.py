@@ -1,6 +1,7 @@
 """
 The Trajectory object and its associated functions.
 """
+import sys
 import copy
 import numpy as np
 import src.dynamics.timings as timings
@@ -341,12 +342,12 @@ class Trajectory:
         
     def h_overlap(self,other,st_orthog=False):
         """Returns overlap of two trajectories."""
-        #timings.start('trajectory.overlap')
+        #timings.start('trajectory.overlap')        
         if st_orthog and self.state != other.state:
             return complex(0.,0.)
         S = np.exp( complex(0.,1.) * (other.gamma - self.gamma) )
         for i in range(self.n_particle):
-            S = S * self.particles[i].overlap(other.particles[i])
+            S = S * self.particles[i].h_overlap(other.particles[i])
         #timings.stop('trajectory.overlap')
         return S
 

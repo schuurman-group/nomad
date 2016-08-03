@@ -72,7 +72,7 @@ def sample_distribution(master):
     if coordtype == 'normal':
         n_modes = ham.nmode_active
         freqs = ham.freq
-
+    
     # loop over the number of initial trajectories
     max_try = 1000
     for i in range(glbl.fms['n_init_traj']):
