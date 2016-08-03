@@ -1,6 +1,7 @@
 """
 Routines for generating and sampling a Wigner vibrational distribution.
 """
+import sys
 import random
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -17,6 +18,10 @@ def sample_distribution(master):
     normal mode coordinates in the case that a vibronic coupling
     Hamiltonian is being used. (SN 15/06/2016)
     """
+
+    # Compression parameter
+    beta = glbl.fms['sampling_compression']
+
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.fms['interface'] == 'vibronic':
         coordtype = 'normal'
@@ -81,8 +86,8 @@ def sample_distribution(master):
         disp_gm = [particle.copy_part(phase_gm[j]) for j in range(natm)]
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            sigma_x = np.sqrt(0.25 / alpha)
-            sigma_p = np.sqrt(alpha)
+            sigma_x = beta*np.sqrt(0.25 / alpha)
+            sigma_p = beta*np.sqrt(alpha)
             itry = 0
             while 0 <= itry <= max_try:
                 dx = random.gauss(0., sigma_x)
