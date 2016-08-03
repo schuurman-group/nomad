@@ -1,6 +1,7 @@
 """
 The Bundle object and its associated functions.
 """
+import sys
 import copy
 import numpy as np
 from scipy import linalg
@@ -78,6 +79,9 @@ class Bundle:
                                    fromlist=['a'])
         except ImportError:
             print('BUNDLE INIT FAIL: src.integrals.' + self.integrals)
+
+        self.hambuild = __import__('src.basis.build_hamiltonian_' +
+                                   self.ints.hamsym , fromlist=['a'])
 
     def n_traj(self):
         """Returns total number of trajectories."""
@@ -407,13 +411,12 @@ class Bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = mbuild.build_hamiltonian(self.integrals, self.traj,
-                                                   self.alive,
-                                                   cent_list=self.cent)
+             self.Heff) = self.hambuild.build_hamiltonian(self.integrals, 
+                                self.traj,self.alive, cent_list=self.cent)
         else:
             (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = mbuild.build_hamiltonian(self.integrals,
-                                                   self.traj, self.alive)
+             self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
+                                self.traj, self.alive)
 
         timings.stop('bundle.update_matrices')
 

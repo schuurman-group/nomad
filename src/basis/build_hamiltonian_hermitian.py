@@ -1,5 +1,5 @@
 """
-Form the Hamiltonian matrix in the basis of the FMS trajectories.
+Form the Hermitian Hamiltonian matrix in the basis of the FMS trajectories.
 
 This will necessarily involve a set of additional matrices. For ab initio
 propagation, this is never the rate determining step. For numerical
@@ -103,6 +103,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         # overlap matrix (excluding electronic component)
         S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
         S[j,i] = S[i,j].conjugate()
+        
         # overlap matrix (including electronic component)
         if traj_list[ii].state == traj_list[jj].state:
             S_orthog[i,j] = S[i,j]
@@ -115,6 +116,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
             # kinetic energy matrix
             T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
             T[j,i] = T[i,j].conjugate()
+            
         else:
             S_orthog[i,j] = c_zero
             S_orthog[j,i] = c_zero
@@ -127,8 +129,9 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
                 V[i,j] = v_int(traj_list[ii], traj_list[jj],cent_list[c_ind(ii,jj)],S_ij=S[i,j])
         else:
             V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-        V[j,i] = V[i,j].conjugate()
 
+        V[j,i] = V[i,j].conjugate()
+        
         # Hamiltonian matrix in non-orthongonal basis
         H[i,j] = T[i,j] + V[i,j]
         H[j,i] = H[i,j].conjugate()

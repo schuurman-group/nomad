@@ -11,6 +11,9 @@ require_centroids = False
 # Determines the basis set
 basis = 'gaussian'
 
+# Determines the Hamiltonian symmetry
+hamsym = 'hermitian'
+
 def v_integral(traj1, traj2=None, S_ij=None):
     """Returns potential coupling matrix element between two
     trajectories."""
