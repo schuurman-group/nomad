@@ -1,0 +1,1431 @@
+ ---------------------------------------------------
+ ab initio multiple spawning dynamics
+ ---------------------------------------------------
+
+ *************
+ input summary
+ *************
+
+ file paths
+ ---------------------------------------
+ home_path   = /home/simon/FMSpy/examples/henon-heiles_2d
+ scr_path    = /home/simon/fmspy_tmp
+
+ fms simulation keywords
+ ----------------------------------------
+ init_sampling        = wigner_distrib      
+ renorm               = 1                   
+ init_mode_min_olap   = 0.0                 
+ print_es             = 1                   
+ seed                 = 0                   
+ n_init_traj          = 2                   
+ opfile               = henon-heiles.op     
+ virtual_basis        = 0                   
+ integrals            = collocation         
+ n_states             = 1                   
+ init_brightest       = False               
+ default_time_step    = 0.05                
+ pop_jump_toler       = 0.0001              
+ spawning             = forward_backward    
+ continuous_min_overlap = 0.5                 
+ coupled_time_step    = 0.05                
+ print_traj           = 1                   
+ propagator           = velocity_verlet     
+ sij_thresh           = 0.7                 
+ init_state           = 0                   
+ sampling_compression = 2.6                 
+ restart              = False               
+ energy_jump_toler    = 0.01                
+ auto                 = 1                   
+ restart_time         = 0.0                 
+ interface            = vibronic            
+ print_chkpt          = 1                   
+ print_matrices       = 1                   
+ coupling_order       = 1                   
+ spawn_pop_thresh     = 0.025               
+ hij_coup_thresh      = 0.001               
+ phase_prop           = 1                   
+ pot_shift            = 0.0                 
+ dim_particles        = 1                   
+ simulation_time      = 25                  
+ print_level          = 5                   
+ spawn_coup_thresh    = 0.001               
+ sinv_thrsh           = 0.0001              
+ num_particles        = 2                   
+ spawn_olap_thresh    = 0.8                 
+
+ vibronic simulation keywords
+ ----------------------------------------
+ ordr_max             = 1                   
+
+ ***********
+ propagation
+ ***********
+
+ ************************************************************************                                                                                        
+ * Vibronic Coupling Hamiltonian Information                                                                                                                     
+ ************************************************************************                                                                                        
+ Operator file: henon-heiles.op                                                                                                                                  
+ Number of Hamiltonian terms: 4                                                                                                                                  
+ Total no. modes: 2                                                                                                                                              
+ No. active modes: 2                                                                                                                                             
+ Active mode labels:                                                                                                                                             
+ 1 x1                                                                                                                                                            
+ 2 x2                                                                                                                                                            
+ Active mode frequencies (a.u.):                                                                                                                                 
+ 1 1.0                                                                                                                                                           
+ 2 1.0                                                                                                                                                           
+ > time:         0.0000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.0250 step:  0.0250 [   2 trajectories]
+ > time:         0.0500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.0750 step:  0.0250 [   2 trajectories]
+ > time:         0.1000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.1250 step:  0.0250 [   2 trajectories]
+ > time:         0.1500 step:  0.0250 [   2 trajectories]
+ > time:         0.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.2000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.2500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.3000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.3500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.4000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.4500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.5000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         0.5500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.5750 step:  0.0250 [   2 trajectories]
+ > time:         0.6000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.6250 step:  0.0250 [   2 trajectories]
+ > time:         0.6500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.6750 step:  0.0250 [   2 trajectories]
+ > time:         0.7000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.7250 step:  0.0250 [   2 trajectories]
+ > time:         0.7500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.7750 step:  0.0250 [   2 trajectories]
+ > time:         0.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.8250 step:  0.0250 [   2 trajectories]
+ > time:         0.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.8750 step:  0.0250 [   2 trajectories]
+ > time:         0.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         0.9250 step:  0.0250 [   2 trajectories]
+ > time:         0.9500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         1.0000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.0250 step:  0.0250 [   2 trajectories]
+ > time:         1.0500 step:  0.0250 [   2 trajectories]
+ > time:         1.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.0750 step:  0.0250 [   2 trajectories]
+ > time:         1.1000 step:  0.0250 [   2 trajectories]
+ > time:         1.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.1250 step:  0.0250 [   2 trajectories]
+ > time:         1.1500 step:  0.0250 [   2 trajectories]
+ > time:         1.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.1750 step:  0.0250 [   2 trajectories]
+ > time:         1.2000 step:  0.0250 [   2 trajectories]
+ > time:         1.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.2250 step:  0.0250 [   2 trajectories]
+ > time:         1.2500 step:  0.0250 [   2 trajectories]
+ > time:         1.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.2750 step:  0.0250 [   2 trajectories]
+ > time:         1.3000 step:  0.0250 [   2 trajectories]
+ > time:         1.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.3250 step:  0.0250 [   2 trajectories]
+ > time:         1.3500 step:  0.0250 [   2 trajectories]
+ > time:         1.3500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.3750 step:  0.0250 [   2 trajectories]
+ > time:         1.4000 step:  0.0250 [   2 trajectories]
+ > time:         1.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.4250 step:  0.0250 [   2 trajectories]
+ > time:         1.4500 step:  0.0250 [   2 trajectories]
+ > time:         1.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.4750 step:  0.0250 [   2 trajectories]
+ > time:         1.5000 step:  0.0250 [   2 trajectories]
+ > time:         1.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.5250 step:  0.0250 [   2 trajectories]
+ > time:         1.5500 step:  0.0250 [   2 trajectories]
+ > time:         1.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.5750 step:  0.0250 [   2 trajectories]
+ > time:         1.6000 step:  0.0250 [   2 trajectories]
+ > time:         1.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.6250 step:  0.0250 [   2 trajectories]
+ > time:         1.6500 step:  0.0250 [   2 trajectories]
+ > time:         1.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.6750 step:  0.0250 [   2 trajectories]
+ > time:         1.7000 step:  0.0250 [   2 trajectories]
+ > time:         1.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.7250 step:  0.0250 [   2 trajectories]
+ > time:         1.7500 step:  0.0250 [   2 trajectories]
+ > time:         1.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.7750 step:  0.0250 [   2 trajectories]
+ > time:         1.8000 step:  0.0250 [   2 trajectories]
+ > time:         1.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         1.8250 step:  0.0250 [   2 trajectories]
+ > time:         1.8500 step:  0.0250 [   2 trajectories]
+ > time:         1.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         1.9000 step:  0.0500 [   2 trajectories]
+ > time:         1.9500 step:  0.0500 [   2 trajectories]
+ > time:         2.0000 step:  0.0500 [   2 trajectories]
+ > time:         2.0500 step:  0.0500 [   2 trajectories]
+ > time:         2.1000 step:  0.0500 [   2 trajectories]
+ > time:         2.1500 step:  0.0500 [   2 trajectories]
+ > time:         2.2000 step:  0.0500 [   2 trajectories]
+ > time:         2.2500 step:  0.0500 [   2 trajectories]
+ > time:         2.3000 step:  0.0500 [   2 trajectories]
+ > time:         2.3500 step:  0.0500 [   2 trajectories]
+ > time:         2.4000 step:  0.0500 [   2 trajectories]
+ > time:         2.4500 step:  0.0500 [   2 trajectories]
+ > time:         2.5000 step:  0.0500 [   2 trajectories]
+ > time:         2.5500 step:  0.0500 [   2 trajectories]
+ > time:         2.6000 step:  0.0500 [   2 trajectories]
+ > time:         2.6500 step:  0.0500 [   2 trajectories]
+ > time:         2.7000 step:  0.0500 [   2 trajectories]
+ > time:         2.7500 step:  0.0500 [   2 trajectories]
+ > time:         2.8000 step:  0.0500 [   2 trajectories]
+ > time:         2.8500 step:  0.0500 [   2 trajectories]
+ > time:         2.9000 step:  0.0500 [   2 trajectories]
+ > time:         2.9500 step:  0.0500 [   2 trajectories]
+ > time:         3.0000 step:  0.0500 [   2 trajectories]
+ > time:         3.0500 step:  0.0500 [   2 trajectories]
+ > time:         3.1000 step:  0.0500 [   2 trajectories]
+ > time:         3.1500 step:  0.0500 [   2 trajectories]
+ > time:         3.2000 step:  0.0500 [   2 trajectories]
+ > time:         3.2500 step:  0.0500 [   2 trajectories]
+ > time:         3.3000 step:  0.0500 [   2 trajectories]
+ > time:         3.3500 step:  0.0500 [   2 trajectories]
+ > time:         3.4000 step:  0.0500 [   2 trajectories]
+ > time:         3.4500 step:  0.0500 [   2 trajectories]
+ > time:         3.5000 step:  0.0500 [   2 trajectories]
+ > time:         3.5500 step:  0.0500 [   2 trajectories]
+ > time:         3.6000 step:  0.0500 [   2 trajectories]
+ > time:         3.6500 step:  0.0500 [   2 trajectories]
+ > time:         3.7000 step:  0.0500 [   2 trajectories]
+ > time:         3.7500 step:  0.0500 [   2 trajectories]
+ > time:         3.8000 step:  0.0500 [   2 trajectories]
+ > time:         3.8500 step:  0.0500 [   2 trajectories]
+ > time:         3.9000 step:  0.0500 [   2 trajectories]
+ > time:         3.9500 step:  0.0500 [   2 trajectories]
+ > time:         4.0000 step:  0.0500 [   2 trajectories]
+ > time:         4.0500 step:  0.0500 [   2 trajectories]
+ > time:         4.1000 step:  0.0500 [   2 trajectories]
+ > time:         4.1500 step:  0.0500 [   2 trajectories]
+ > time:         4.2000 step:  0.0500 [   2 trajectories]
+ > time:         4.2500 step:  0.0500 [   2 trajectories]
+ > time:         4.3000 step:  0.0500 [   2 trajectories]
+ > time:         4.3500 step:  0.0500 [   2 trajectories]
+ > time:         4.4000 step:  0.0500 [   2 trajectories]
+ > time:         4.4500 step:  0.0500 [   2 trajectories]
+ > time:         4.5000 step:  0.0500 [   2 trajectories]
+ > time:         4.5500 step:  0.0500 [   2 trajectories]
+ > time:         4.6000 step:  0.0500 [   2 trajectories]
+ > time:         4.6500 step:  0.0500 [   2 trajectories]
+ > time:         4.7000 step:  0.0500 [   2 trajectories]
+ > time:         4.7500 step:  0.0500 [   2 trajectories]
+ > time:         4.8000 step:  0.0500 [   2 trajectories]
+ > time:         4.8500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         4.9000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         4.9500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.0000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.0500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.1000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.1500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.2000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.2500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.3000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.3500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.4000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.4500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.5000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.5500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.6000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.6500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.7000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.7500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.8000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.8500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.9000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         5.9500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.0000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.0500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.1000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.1500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.2000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.2500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.3000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.3500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.4000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.4500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.5000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.5500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.6000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.6500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.7000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.7500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.8000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.8500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.9000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         6.9500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.0000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.0500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.1000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.1500 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.2000 step:  0.0500 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:         7.2500 step:  0.0500 [   2 trajectories]
+ > time:         7.3000 step:  0.0500 [   2 trajectories]
+ > time:         7.3500 step:  0.0500 [   2 trajectories]
+ > time:         7.4000 step:  0.0500 [   2 trajectories]
+ > time:         7.4500 step:  0.0500 [   2 trajectories]
+ > time:         7.5000 step:  0.0500 [   2 trajectories]
+ > time:         7.5500 step:  0.0500 [   2 trajectories]
+ > time:         7.6000 step:  0.0500 [   2 trajectories]
+ > time:         7.6500 step:  0.0500 [   2 trajectories]
+ > time:         7.7000 step:  0.0500 [   2 trajectories]
+ > time:         7.7500 step:  0.0500 [   2 trajectories]
+ > time:         7.8000 step:  0.0500 [   2 trajectories]
+ > time:         7.8500 step:  0.0500 [   2 trajectories]
+ > time:         7.9000 step:  0.0500 [   2 trajectories]
+ > time:         7.9500 step:  0.0500 [   2 trajectories]
+ > time:         8.0000 step:  0.0500 [   2 trajectories]
+ > time:         8.0500 step:  0.0500 [   2 trajectories]
+ > time:         8.1000 step:  0.0500 [   2 trajectories]
+ > time:         8.1500 step:  0.0500 [   2 trajectories]
+ > time:         8.2000 step:  0.0500 [   2 trajectories]
+ > time:         8.2500 step:  0.0500 [   2 trajectories]
+ > time:         8.3000 step:  0.0500 [   2 trajectories]
+ > time:         8.3500 step:  0.0500 [   2 trajectories]
+ > time:         8.4000 step:  0.0500 [   2 trajectories]
+ > time:         8.4500 step:  0.0500 [   2 trajectories]
+ > time:         8.5000 step:  0.0500 [   2 trajectories]
+ > time:         8.5500 step:  0.0500 [   2 trajectories]
+ > time:         8.6000 step:  0.0500 [   2 trajectories]
+ > time:         8.6500 step:  0.0500 [   2 trajectories]
+ > time:         8.7000 step:  0.0500 [   2 trajectories]
+ > time:         8.7500 step:  0.0500 [   2 trajectories]
+ > time:         8.8000 step:  0.0500 [   2 trajectories]
+ > time:         8.8500 step:  0.0500 [   2 trajectories]
+ > time:         8.9000 step:  0.0500 [   2 trajectories]
+ > time:         8.9500 step:  0.0500 [   2 trajectories]
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         8.9750 step:  0.0250 [   2 trajectories]
+ > time:         9.0000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.0250 step:  0.0250 [   2 trajectories]
+ > time:         9.0500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.0750 step:  0.0250 [   2 trajectories]
+ > time:         9.1000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.1250 step:  0.0250 [   2 trajectories]
+ > time:         9.1500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.1750 step:  0.0250 [   2 trajectories]
+ > time:         9.2000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.2250 step:  0.0250 [   2 trajectories]
+ > time:         9.2500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.2750 step:  0.0250 [   2 trajectories]
+ > time:         9.3000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.3250 step:  0.0250 [   2 trajectories]
+ > time:         9.3500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.3750 step:  0.0250 [   2 trajectories]
+ > time:         9.4000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.4250 step:  0.0250 [   2 trajectories]
+ > time:         9.4500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.4750 step:  0.0250 [   2 trajectories]
+ > time:         9.5000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.5250 step:  0.0250 [   2 trajectories]
+ > time:         9.5500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.5750 step:  0.0250 [   2 trajectories]
+ > time:         9.6000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.6250 step:  0.0250 [   2 trajectories]
+ > time:         9.6500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.6750 step:  0.0250 [   2 trajectories]
+ > time:         9.7000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.7250 step:  0.0250 [   2 trajectories]
+ > time:         9.7500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.7750 step:  0.0250 [   2 trajectories]
+ > time:         9.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.8250 step:  0.0250 [   2 trajectories]
+ > time:         9.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.8750 step:  0.0250 [   2 trajectories]
+ > time:         9.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.9250 step:  0.0250 [   2 trajectories]
+ > time:         9.9500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:         9.9750 step:  0.0250 [   2 trajectories]
+ > time:        10.0000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.0250 step:  0.0250 [   2 trajectories]
+ > time:        10.0500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.0750 step:  0.0250 [   2 trajectories]
+ > time:        10.1000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.1250 step:  0.0250 [   2 trajectories]
+ > time:        10.1500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.1750 step:  0.0250 [   2 trajectories]
+ > time:        10.2000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.2250 step:  0.0250 [   2 trajectories]
+ > time:        10.2500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.2750 step:  0.0250 [   2 trajectories]
+ > time:        10.3000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.3250 step:  0.0250 [   2 trajectories]
+ > time:        10.3500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.3750 step:  0.0250 [   2 trajectories]
+ > time:        10.4000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        10.4250 step:  0.0250 [   2 trajectories]
+ > time:        10.4500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:        10.5000 step:  0.0500 [   2 trajectories]
+ > time:        10.5500 step:  0.0500 [   2 trajectories]
+ > time:        10.6000 step:  0.0500 [   2 trajectories]
+ > time:        10.6500 step:  0.0500 [   2 trajectories]
+ > time:        10.7000 step:  0.0500 [   2 trajectories]
+ > time:        10.7500 step:  0.0500 [   2 trajectories]
+ > time:        10.8000 step:  0.0500 [   2 trajectories]
+ > time:        10.8500 step:  0.0500 [   2 trajectories]
+ > time:        10.9000 step:  0.0500 [   2 trajectories]
+ > time:        10.9500 step:  0.0500 [   2 trajectories]
+ > time:        11.0000 step:  0.0500 [   2 trajectories]
+ > time:        11.0500 step:  0.0500 [   2 trajectories]
+ > time:        11.1000 step:  0.0500 [   2 trajectories]
+ > time:        11.1500 step:  0.0500 [   2 trajectories]
+ > time:        11.2000 step:  0.0500 [   2 trajectories]
+ > time:        11.2500 step:  0.0500 [   2 trajectories]
+ > time:        11.3000 step:  0.0500 [   2 trajectories]
+ > time:        11.3500 step:  0.0500 [   2 trajectories]
+ > time:        11.4000 step:  0.0500 [   2 trajectories]
+ > time:        11.4500 step:  0.0500 [   2 trajectories]
+ > time:        11.5000 step:  0.0500 [   2 trajectories]
+ > time:        11.5500 step:  0.0500 [   2 trajectories]
+ > time:        11.6000 step:  0.0500 [   2 trajectories]
+ > time:        11.6500 step:  0.0500 [   2 trajectories]
+ > time:        11.7000 step:  0.0500 [   2 trajectories]
+ > time:        11.7500 step:  0.0500 [   2 trajectories]
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        11.7750 step:  0.0250 [   2 trajectories]
+ > time:        11.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        11.8250 step:  0.0250 [   2 trajectories]
+ > time:        11.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        11.8750 step:  0.0250 [   2 trajectories]
+ > time:        11.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        11.9250 step:  0.0250 [   2 trajectories]
+ > time:        11.9500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        11.9750 step:  0.0250 [   2 trajectories]
+ > time:        12.0000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.0250 step:  0.0250 [   2 trajectories]
+ > time:        12.0500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.0750 step:  0.0250 [   2 trajectories]
+ > time:        12.1000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.1250 step:  0.0250 [   2 trajectories]
+ > time:        12.1500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.1750 step:  0.0250 [   2 trajectories]
+ > time:        12.2000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.2250 step:  0.0250 [   2 trajectories]
+ > time:        12.2500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.2750 step:  0.0250 [   2 trajectories]
+ > time:        12.3000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.3250 step:  0.0250 [   2 trajectories]
+ > time:        12.3500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.3750 step:  0.0250 [   2 trajectories]
+ > time:        12.4000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.4250 step:  0.0250 [   2 trajectories]
+ > time:        12.4500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.4750 step:  0.0250 [   2 trajectories]
+ > time:        12.5000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.5250 step:  0.0250 [   2 trajectories]
+ > time:        12.5500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.5750 step:  0.0250 [   2 trajectories]
+ > time:        12.6000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.6250 step:  0.0250 [   2 trajectories]
+ > time:        12.6500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.6750 step:  0.0250 [   2 trajectories]
+ > time:        12.7000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.7250 step:  0.0250 [   2 trajectories]
+ > time:        12.7500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.7750 step:  0.0250 [   2 trajectories]
+ > time:        12.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.8250 step:  0.0250 [   2 trajectories]
+ > time:        12.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.8750 step:  0.0250 [   2 trajectories]
+ > time:        12.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.9250 step:  0.0250 [   2 trajectories]
+ > time:        12.9500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        12.9750 step:  0.0250 [   2 trajectories]
+ > time:        13.0000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.0250 step:  0.0250 [   2 trajectories]
+ > time:        13.0500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.0750 step:  0.0250 [   2 trajectories]
+ > time:        13.1000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.1250 step:  0.0250 [   2 trajectories]
+ > time:        13.1500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.1750 step:  0.0250 [   2 trajectories]
+ > time:        13.2000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.2250 step:  0.0250 [   2 trajectories]
+ > time:        13.2500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.2750 step:  0.0250 [   2 trajectories]
+ > time:        13.3000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.3250 step:  0.0250 [   2 trajectories]
+ > time:        13.3500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.3750 step:  0.0250 [   2 trajectories]
+ > time:        13.4000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.4250 step:  0.0250 [   2 trajectories]
+ > time:        13.4500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.4750 step:  0.0250 [   2 trajectories]
+ > time:        13.5000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.5250 step:  0.0250 [   2 trajectories]
+ > time:        13.5500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.5750 step:  0.0250 [   2 trajectories]
+ > time:        13.6000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.6250 step:  0.0250 [   2 trajectories]
+ > time:        13.6500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.6750 step:  0.0250 [   2 trajectories]
+ > time:        13.7000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.7250 step:  0.0250 [   2 trajectories]
+ > time:        13.7500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.7750 step:  0.0250 [   2 trajectories]
+ > time:        13.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.8250 step:  0.0250 [   2 trajectories]
+ > time:        13.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        13.8750 step:  0.0250 [   2 trajectories]
+ > time:        13.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:        13.9500 step:  0.0500 [   2 trajectories]
+ > time:        14.0000 step:  0.0500 [   2 trajectories]
+ > time:        14.0500 step:  0.0500 [   2 trajectories]
+ > time:        14.1000 step:  0.0500 [   2 trajectories]
+ > time:        14.1500 step:  0.0500 [   2 trajectories]
+ > time:        14.2000 step:  0.0500 [   2 trajectories]
+ > time:        14.2500 step:  0.0500 [   2 trajectories]
+ > time:        14.3000 step:  0.0500 [   2 trajectories]
+ > time:        14.3500 step:  0.0500 [   2 trajectories]
+ > time:        14.4000 step:  0.0500 [   2 trajectories]
+ > time:        14.4500 step:  0.0500 [   2 trajectories]
+ > time:        14.5000 step:  0.0500 [   2 trajectories]
+ > time:        14.5500 step:  0.0500 [   2 trajectories]
+ > time:        14.6000 step:  0.0500 [   2 trajectories]
+ > time:        14.6500 step:  0.0500 [   2 trajectories]
+ > time:        14.7000 step:  0.0500 [   2 trajectories]
+ > time:        14.7500 step:  0.0500 [   2 trajectories]
+ > time:        14.8000 step:  0.0500 [   2 trajectories]
+ > time:        14.8500 step:  0.0500 [   2 trajectories]
+ > time:        14.9000 step:  0.0500 [   2 trajectories]
+ > time:        14.9500 step:  0.0500 [   2 trajectories]
+ > time:        15.0000 step:  0.0500 [   2 trajectories]
+ > time:        15.0500 step:  0.0500 [   2 trajectories]
+ > time:        15.1000 step:  0.0500 [   2 trajectories]
+ > time:        15.1500 step:  0.0500 [   2 trajectories]
+ > time:        15.2000 step:  0.0500 [   2 trajectories]
+ > time:        15.2500 step:  0.0500 [   2 trajectories]
+ > time:        15.3000 step:  0.0500 [   2 trajectories]
+ > time:        15.3500 step:  0.0500 [   2 trajectories]
+ > time:        15.4000 step:  0.0500 [   2 trajectories]
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.4250 step:  0.0250 [   2 trajectories]
+ > time:        15.4500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.4750 step:  0.0250 [   2 trajectories]
+ > time:        15.5000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.5250 step:  0.0250 [   2 trajectories]
+ > time:        15.5500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.5750 step:  0.0250 [   2 trajectories]
+ > time:        15.6000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.6250 step:  0.0250 [   2 trajectories]
+ > time:        15.6500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.6750 step:  0.0250 [   2 trajectories]
+ > time:        15.7000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.7250 step:  0.0250 [   2 trajectories]
+ > time:        15.7500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.7750 step:  0.0250 [   2 trajectories]
+ > time:        15.8000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.8250 step:  0.0250 [   2 trajectories]
+ > time:        15.8500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.8750 step:  0.0250 [   2 trajectories]
+ > time:        15.9000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.9250 step:  0.0250 [   2 trajectories]
+ > time:        15.9500 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        15.9750 step:  0.0250 [   2 trajectories]
+ > time:        16.0000 step:  0.0250 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.0250 step:  0.0250 [   2 trajectories]
+ > time:        16.0500 step:  0.0250 [   2 trajectories]
+ > time:        16.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.0750 step:  0.0250 [   2 trajectories]
+ > time:        16.1000 step:  0.0250 [   2 trajectories]
+ > time:        16.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.1250 step:  0.0250 [   2 trajectories]
+ > time:        16.1500 step:  0.0250 [   2 trajectories]
+ > time:        16.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.1750 step:  0.0250 [   2 trajectories]
+ > time:        16.2000 step:  0.0250 [   2 trajectories]
+ > time:        16.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.2250 step:  0.0250 [   2 trajectories]
+ > time:        16.2500 step:  0.0250 [   2 trajectories]
+ > time:        16.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.2750 step:  0.0250 [   2 trajectories]
+ > time:        16.3000 step:  0.0250 [   2 trajectories]
+ > time:        16.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.3250 step:  0.0250 [   2 trajectories]
+ > time:        16.3500 step:  0.0250 [   2 trajectories]
+ > time:        16.3500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.3750 step:  0.0250 [   2 trajectories]
+ > time:        16.4000 step:  0.0250 [   2 trajectories]
+ > time:        16.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.4250 step:  0.0250 [   2 trajectories]
+ > time:        16.4500 step:  0.0250 [   2 trajectories]
+ > time:        16.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.4750 step:  0.0250 [   2 trajectories]
+ > time:        16.5000 step:  0.0250 [   2 trajectories]
+ > time:        16.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.5250 step:  0.0250 [   2 trajectories]
+ > time:        16.5500 step:  0.0250 [   2 trajectories]
+ > time:        16.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.5750 step:  0.0250 [   2 trajectories]
+ > time:        16.6000 step:  0.0250 [   2 trajectories]
+ > time:        16.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.6250 step:  0.0250 [   2 trajectories]
+ > time:        16.6500 step:  0.0250 [   2 trajectories]
+ > time:        16.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.6750 step:  0.0250 [   2 trajectories]
+ > time:        16.7000 step:  0.0250 [   2 trajectories]
+ > time:        16.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.7250 step:  0.0250 [   2 trajectories]
+ > time:        16.7500 step:  0.0250 [   2 trajectories]
+ > time:        16.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.7750 step:  0.0250 [   2 trajectories]
+ > time:        16.8000 step:  0.0250 [   2 trajectories]
+ > time:        16.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.8250 step:  0.0250 [   2 trajectories]
+ > time:        16.8500 step:  0.0250 [   2 trajectories]
+ > time:        16.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        16.8750 step:  0.0250 [   2 trajectories]
+ > time:        16.9000 step:  0.0250 [   2 trajectories]
+ > time:        16.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:        16.9500 step:  0.0500 [   2 trajectories]
+ > time:        17.0000 step:  0.0500 [   2 trajectories]
+ > time:        17.0500 step:  0.0500 [   2 trajectories]
+ > time:        17.1000 step:  0.0500 [   2 trajectories]
+ > time:        17.1500 step:  0.0500 [   2 trajectories]
+ > time:        17.2000 step:  0.0500 [   2 trajectories]
+ > time:        17.2500 step:  0.0500 [   2 trajectories]
+ > time:        17.3000 step:  0.0500 [   2 trajectories]
+ > time:        17.3500 step:  0.0500 [   2 trajectories]
+ > time:        17.4000 step:  0.0500 [   2 trajectories]
+ > time:        17.4500 step:  0.0500 [   2 trajectories]
+ > time:        17.5000 step:  0.0500 [   2 trajectories]
+ > time:        17.5500 step:  0.0500 [   2 trajectories]
+ > time:        17.6000 step:  0.0500 [   2 trajectories]
+ > time:        17.6500 step:  0.0500 [   2 trajectories]
+ > time:        17.7000 step:  0.0500 [   2 trajectories]
+ > time:        17.7500 step:  0.0500 [   2 trajectories]
+ > time:        17.8000 step:  0.0500 [   2 trajectories]
+ > time:        17.8500 step:  0.0500 [   2 trajectories]
+ > time:        17.9000 step:  0.0500 [   2 trajectories]
+ > time:        17.9500 step:  0.0500 [   2 trajectories]
+ > time:        18.0000 step:  0.0500 [   2 trajectories]
+ > time:        18.0500 step:  0.0500 [   2 trajectories]
+ > time:        18.1000 step:  0.0500 [   2 trajectories]
+ > time:        18.1500 step:  0.0500 [   2 trajectories]
+ > time:        18.2000 step:  0.0500 [   2 trajectories]
+ > time:        18.2500 step:  0.0500 [   2 trajectories]
+ > time:        18.3000 step:  0.0500 [   2 trajectories]
+ > time:        18.3500 step:  0.0500 [   2 trajectories]
+ > time:        18.4000 step:  0.0500 [   2 trajectories]
+ > time:        18.4500 step:  0.0500 [   2 trajectories]
+ > time:        18.5000 step:  0.0500 [   2 trajectories]
+ > time:        18.5500 step:  0.0500 [   2 trajectories]
+ > time:        18.6000 step:  0.0500 [   2 trajectories]
+ > time:        18.6500 step:  0.0500 [   2 trajectories]
+ > time:        18.7000 step:  0.0500 [   2 trajectories]
+ > time:        18.7500 step:  0.0500 [   2 trajectories]
+ > time:        18.8000 step:  0.0500 [   2 trajectories]
+ > time:        18.8500 step:  0.0500 [   2 trajectories]
+ > time:        18.9000 step:  0.0500 [   2 trajectories]
+ > time:        18.9500 step:  0.0500 [   2 trajectories]
+ > time:        19.0000 step:  0.0500 [   2 trajectories]
+ > time:        19.0500 step:  0.0500 [   2 trajectories]
+ > time:        19.1000 step:  0.0500 [   2 trajectories]
+ > time:        19.1500 step:  0.0500 [   2 trajectories]
+ > time:        19.2000 step:  0.0500 [   2 trajectories]
+ > time:        19.2500 step:  0.0500 [   2 trajectories]
+ > time:        19.3000 step:  0.0500 [   2 trajectories]
+ > time:        19.3500 step:  0.0500 [   2 trajectories]
+ > time:        19.4000 step:  0.0500 [   2 trajectories]
+ > time:        19.4500 step:  0.0500 [   2 trajectories]
+ > time:        19.5000 step:  0.0500 [   2 trajectories]
+ > time:        19.5500 step:  0.0500 [   2 trajectories]
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.5750 step:  0.0250 [   2 trajectories]
+ > time:        19.6000 step:  0.0250 [   2 trajectories]
+ > time:        19.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.6250 step:  0.0250 [   2 trajectories]
+ > time:        19.6500 step:  0.0250 [   2 trajectories]
+ > time:        19.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.6750 step:  0.0250 [   2 trajectories]
+ > time:        19.7000 step:  0.0250 [   2 trajectories]
+ > time:        19.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.7250 step:  0.0250 [   2 trajectories]
+ > time:        19.7500 step:  0.0250 [   2 trajectories]
+ > time:        19.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.7750 step:  0.0250 [   2 trajectories]
+ > time:        19.8000 step:  0.0250 [   2 trajectories]
+ > time:        19.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.8250 step:  0.0250 [   2 trajectories]
+ > time:        19.8500 step:  0.0250 [   2 trajectories]
+ > time:        19.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.8750 step:  0.0250 [   2 trajectories]
+ > time:        19.9000 step:  0.0250 [   2 trajectories]
+ > time:        19.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.9250 step:  0.0250 [   2 trajectories]
+ > time:        19.9500 step:  0.0250 [   2 trajectories]
+ > time:        19.9500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        19.9750 step:  0.0250 [   2 trajectories]
+ > time:        20.0000 step:  0.0250 [   2 trajectories]
+ > time:        20.0000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.0250 step:  0.0250 [   2 trajectories]
+ > time:        20.0500 step:  0.0250 [   2 trajectories]
+ > time:        20.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.0750 step:  0.0250 [   2 trajectories]
+ > time:        20.1000 step:  0.0250 [   2 trajectories]
+ > time:        20.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.1250 step:  0.0250 [   2 trajectories]
+ > time:        20.1500 step:  0.0250 [   2 trajectories]
+ > time:        20.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.1750 step:  0.0250 [   2 trajectories]
+ > time:        20.2000 step:  0.0250 [   2 trajectories]
+ > time:        20.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.2250 step:  0.0250 [   2 trajectories]
+ > time:        20.2500 step:  0.0250 [   2 trajectories]
+ > time:        20.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.2750 step:  0.0250 [   2 trajectories]
+ > time:        20.3000 step:  0.0250 [   2 trajectories]
+ > time:        20.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.3250 step:  0.0250 [   2 trajectories]
+ > time:        20.3500 step:  0.0250 [   2 trajectories]
+ > time:        20.3500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.3750 step:  0.0250 [   2 trajectories]
+ > time:        20.4000 step:  0.0250 [   2 trajectories]
+ > time:        20.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.4250 step:  0.0250 [   2 trajectories]
+ > time:        20.4500 step:  0.0250 [   2 trajectories]
+ > time:        20.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.4750 step:  0.0250 [   2 trajectories]
+ > time:        20.5000 step:  0.0250 [   2 trajectories]
+ > time:        20.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.5250 step:  0.0250 [   2 trajectories]
+ > time:        20.5500 step:  0.0250 [   2 trajectories]
+ > time:        20.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.5750 step:  0.0250 [   2 trajectories]
+ > time:        20.6000 step:  0.0250 [   2 trajectories]
+ > time:        20.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.6250 step:  0.0250 [   2 trajectories]
+ > time:        20.6500 step:  0.0250 [   2 trajectories]
+ > time:        20.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.6750 step:  0.0250 [   2 trajectories]
+ > time:        20.7000 step:  0.0250 [   2 trajectories]
+ > time:        20.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.7250 step:  0.0250 [   2 trajectories]
+ > time:        20.7500 step:  0.0250 [   2 trajectories]
+ > time:        20.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.7750 step:  0.0250 [   2 trajectories]
+ > time:        20.8000 step:  0.0250 [   2 trajectories]
+ > time:        20.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.8250 step:  0.0250 [   2 trajectories]
+ > time:        20.8500 step:  0.0250 [   2 trajectories]
+ > time:        20.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.8750 step:  0.0250 [   2 trajectories]
+ > time:        20.9000 step:  0.0250 [   2 trajectories]
+ > time:        20.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.9250 step:  0.0250 [   2 trajectories]
+ > time:        20.9500 step:  0.0250 [   2 trajectories]
+ > time:        20.9500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        20.9750 step:  0.0250 [   2 trajectories]
+ > time:        21.0000 step:  0.0250 [   2 trajectories]
+ > time:        21.0000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.0250 step:  0.0250 [   2 trajectories]
+ > time:        21.0500 step:  0.0250 [   2 trajectories]
+ > time:        21.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.0750 step:  0.0250 [   2 trajectories]
+ > time:        21.1000 step:  0.0250 [   2 trajectories]
+ > time:        21.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.1250 step:  0.0250 [   2 trajectories]
+ > time:        21.1500 step:  0.0250 [   2 trajectories]
+ > time:        21.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.1750 step:  0.0250 [   2 trajectories]
+ > time:        21.2000 step:  0.0250 [   2 trajectories]
+ > time:        21.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.2250 step:  0.0250 [   2 trajectories]
+ > time:        21.2500 step:  0.0250 [   2 trajectories]
+ > time:        21.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        21.2750 step:  0.0250 [   2 trajectories]
+ > time:        21.3000 step:  0.0250 [   2 trajectories]
+ > time:        21.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:        21.3500 step:  0.0500 [   2 trajectories]
+ > time:        21.4000 step:  0.0500 [   2 trajectories]
+ > time:        21.4500 step:  0.0500 [   2 trajectories]
+ > time:        21.5000 step:  0.0500 [   2 trajectories]
+ > time:        21.5500 step:  0.0500 [   2 trajectories]
+ > time:        21.6000 step:  0.0500 [   2 trajectories]
+ > time:        21.6500 step:  0.0500 [   2 trajectories]
+ > time:        21.7000 step:  0.0500 [   2 trajectories]
+ > time:        21.7500 step:  0.0500 [   2 trajectories]
+ > time:        21.8000 step:  0.0500 [   2 trajectories]
+ > time:        21.8500 step:  0.0500 [   2 trajectories]
+ > time:        21.9000 step:  0.0500 [   2 trajectories]
+ > time:        21.9500 step:  0.0500 [   2 trajectories]
+ > time:        22.0000 step:  0.0500 [   2 trajectories]
+ > time:        22.0500 step:  0.0500 [   2 trajectories]
+ > time:        22.1000 step:  0.0500 [   2 trajectories]
+ > time:        22.1500 step:  0.0500 [   2 trajectories]
+ > time:        22.2000 step:  0.0500 [   2 trajectories]
+ > time:        22.2500 step:  0.0500 [   2 trajectories]
+ > time:        22.3000 step:  0.0500 [   2 trajectories]
+ > time:        22.3500 step:  0.0500 [   2 trajectories]
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.3750 step:  0.0250 [   2 trajectories]
+ > time:        22.4000 step:  0.0250 [   2 trajectories]
+ > time:        22.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.4250 step:  0.0250 [   2 trajectories]
+ > time:        22.4500 step:  0.0250 [   2 trajectories]
+ > time:        22.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.4750 step:  0.0250 [   2 trajectories]
+ > time:        22.5000 step:  0.0250 [   2 trajectories]
+ > time:        22.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.5250 step:  0.0250 [   2 trajectories]
+ > time:        22.5500 step:  0.0250 [   2 trajectories]
+ > time:        22.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.5750 step:  0.0250 [   2 trajectories]
+ > time:        22.6000 step:  0.0250 [   2 trajectories]
+ > time:        22.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.6250 step:  0.0250 [   2 trajectories]
+ > time:        22.6500 step:  0.0250 [   2 trajectories]
+ > time:        22.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.6750 step:  0.0250 [   2 trajectories]
+ > time:        22.7000 step:  0.0250 [   2 trajectories]
+ > time:        22.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.7250 step:  0.0250 [   2 trajectories]
+ > time:        22.7500 step:  0.0250 [   2 trajectories]
+ > time:        22.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.7750 step:  0.0250 [   2 trajectories]
+ > time:        22.8000 step:  0.0250 [   2 trajectories]
+ > time:        22.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.8250 step:  0.0250 [   2 trajectories]
+ > time:        22.8500 step:  0.0250 [   2 trajectories]
+ > time:        22.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.8750 step:  0.0250 [   2 trajectories]
+ > time:        22.9000 step:  0.0250 [   2 trajectories]
+ > time:        22.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.9250 step:  0.0250 [   2 trajectories]
+ > time:        22.9500 step:  0.0250 [   2 trajectories]
+ > time:        22.9500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        22.9750 step:  0.0250 [   2 trajectories]
+ > time:        23.0000 step:  0.0250 [   2 trajectories]
+ > time:        23.0000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.0250 step:  0.0250 [   2 trajectories]
+ > time:        23.0500 step:  0.0250 [   2 trajectories]
+ > time:        23.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.0750 step:  0.0250 [   2 trajectories]
+ > time:        23.1000 step:  0.0250 [   2 trajectories]
+ > time:        23.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.1250 step:  0.0250 [   2 trajectories]
+ > time:        23.1500 step:  0.0250 [   2 trajectories]
+ > time:        23.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.1750 step:  0.0250 [   2 trajectories]
+ > time:        23.2000 step:  0.0250 [   2 trajectories]
+ > time:        23.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.2250 step:  0.0250 [   2 trajectories]
+ > time:        23.2500 step:  0.0250 [   2 trajectories]
+ > time:        23.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.2750 step:  0.0250 [   2 trajectories]
+ > time:        23.3000 step:  0.0250 [   2 trajectories]
+ > time:        23.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.3250 step:  0.0250 [   2 trajectories]
+ > time:        23.3500 step:  0.0250 [   2 trajectories]
+ > time:        23.3500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.3750 step:  0.0250 [   2 trajectories]
+ > time:        23.4000 step:  0.0250 [   2 trajectories]
+ > time:        23.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.4250 step:  0.0250 [   2 trajectories]
+ > time:        23.4500 step:  0.0250 [   2 trajectories]
+ > time:        23.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.4750 step:  0.0250 [   2 trajectories]
+ > time:        23.5000 step:  0.0250 [   2 trajectories]
+ > time:        23.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.5250 step:  0.0250 [   2 trajectories]
+ > time:        23.5500 step:  0.0250 [   2 trajectories]
+ > time:        23.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.5750 step:  0.0250 [   2 trajectories]
+ > time:        23.6000 step:  0.0250 [   2 trajectories]
+ > time:        23.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.6250 step:  0.0250 [   2 trajectories]
+ > time:        23.6500 step:  0.0250 [   2 trajectories]
+ > time:        23.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.6750 step:  0.0250 [   2 trajectories]
+ > time:        23.7000 step:  0.0250 [   2 trajectories]
+ > time:        23.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.7250 step:  0.0250 [   2 trajectories]
+ > time:        23.7500 step:  0.0250 [   2 trajectories]
+ > time:        23.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.7750 step:  0.0250 [   2 trajectories]
+ > time:        23.8000 step:  0.0250 [   2 trajectories]
+ > time:        23.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.8250 step:  0.0250 [   2 trajectories]
+ > time:        23.8500 step:  0.0250 [   2 trajectories]
+ > time:        23.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.8750 step:  0.0250 [   2 trajectories]
+ > time:        23.9000 step:  0.0250 [   2 trajectories]
+ > time:        23.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.9250 step:  0.0250 [   2 trajectories]
+ > time:        23.9500 step:  0.0250 [   2 trajectories]
+ > time:        23.9500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        23.9750 step:  0.0250 [   2 trajectories]
+ > time:        24.0000 step:  0.0250 [   2 trajectories]
+ > time:        24.0000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.0250 step:  0.0250 [   2 trajectories]
+ > time:        24.0500 step:  0.0250 [   2 trajectories]
+ > time:        24.0500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.0750 step:  0.0250 [   2 trajectories]
+ > time:        24.1000 step:  0.0250 [   2 trajectories]
+ > time:        24.1000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.1250 step:  0.0250 [   2 trajectories]
+ > time:        24.1500 step:  0.0250 [   2 trajectories]
+ > time:        24.1500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.1750 step:  0.0250 [   2 trajectories]
+ > time:        24.2000 step:  0.0250 [   2 trajectories]
+ > time:        24.2000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.2250 step:  0.0250 [   2 trajectories]
+ > time:        24.2500 step:  0.0250 [   2 trajectories]
+ > time:        24.2500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.2750 step:  0.0250 [   2 trajectories]
+ > time:        24.3000 step:  0.0250 [   2 trajectories]
+ > time:        24.3000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.3250 step:  0.0250 [   2 trajectories]
+ > time:        24.3500 step:  0.0250 [   2 trajectories]
+ > time:        24.3500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.3750 step:  0.0250 [   2 trajectories]
+ > time:        24.4000 step:  0.0250 [   2 trajectories]
+ > time:        24.4000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.4250 step:  0.0250 [   2 trajectories]
+ > time:        24.4500 step:  0.0250 [   2 trajectories]
+ > time:        24.4500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.4750 step:  0.0250 [   2 trajectories]
+ > time:        24.5000 step:  0.0250 [   2 trajectories]
+ > time:        24.5000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.5250 step:  0.0250 [   2 trajectories]
+ > time:        24.5500 step:  0.0250 [   2 trajectories]
+ > time:        24.5500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.5750 step:  0.0250 [   2 trajectories]
+ > time:        24.6000 step:  0.0250 [   2 trajectories]
+ > time:        24.6000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.6250 step:  0.0250 [   2 trajectories]
+ > time:        24.6500 step:  0.0250 [   2 trajectories]
+ > time:        24.6500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.6750 step:  0.0250 [   2 trajectories]
+ > time:        24.7000 step:  0.0250 [   2 trajectories]
+ > time:        24.7000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.7250 step:  0.0250 [   2 trajectories]
+ > time:        24.7500 step:  0.0250 [   2 trajectories]
+ > time:        24.7500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.7750 step:  0.0250 [   2 trajectories]
+ > time:        24.8000 step:  0.0250 [   2 trajectories]
+ > time:        24.8000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.8250 step:  0.0250 [   2 trajectories]
+ > time:        24.8500 step:  0.0250 [   2 trajectories]
+ > time:        24.8500 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+   -- error:  require coupling time step, current step =   0.0500 / re-trying with new time step:   0.0250
+ > time:        24.8750 step:  0.0250 [   2 trajectories]
+ > time:        24.9000 step:  0.0250 [   2 trajectories]
+ > time:        24.9000 step:  0.0000 [   2 trajectories]
+  -- in coupling regime -> timestep reduced to   0.0500
+ > time:        24.9500 step:  0.0500 [   2 trajectories]
+ > time:        25.0000 step:  0.0500 [   2 trajectories]
+ ------- simulation completed --------
+
+--------------------------------------- timings summary --------------------------------------- 
+routine                                   calls       wall time   frac.        cpu time   frac.
+build_hamiltonian                          2113          5.0709    0.43          5.0604    0.43
+bundle.update_logs                          501          2.1774    0.18          2.1821    0.18
+propagators.propagate_bundle               1056          1.7445    0.15          1.7452    0.15
+bundle.update_amplitudes                   2112          0.7931    0.07          0.7902    0.07
+bundle.write_bundle                         501          0.5501    0.05          0.5429    0.05
+trajectory.copy_traj                       2548          0.4515    0.04          0.4463    0.04
+bundle.kin_classical                       1002          0.1972    0.02          0.1951    0.02
+bundle.pot_classical                       1002          0.1619    0.01          0.1601    0.01
+bundle.pop                                 3737          0.1183    0.01          0.1120    0.01
+bundle.copy_bundle                         1274          0.1176    0.01          0.1199    0.01
+bundle.update_matrices                     2113          0.0268    0.00          0.0281    0.00
+bundle.pot_quantum                         1002          0.0257    0.00          0.0240    0.00
+bundle.renormalize                         1057          0.0247    0.00          0.0246    0.00
+bundle.kin_quantum                         1002          0.0229    0.00          0.0215    0.00
+bundle.add_trajectory                         2          0.0000    0.00          0.0000    0.00
+-----------------------------------------------------------------------------------------------
+**total**                                      {0:>16.4f}{1:>8.2f}{2:>16.4f}{3:>8.2f}
+

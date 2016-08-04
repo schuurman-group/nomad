@@ -1,5 +1,6 @@
 """
-Form the non-Hermitian Hamiltonian matrix in the basis of the FMS trajectories.
+Form the non-Hermitian Hamiltonian matrix used in the collocation
+method in the basis of the FMS trajectories.
 
 This will necessarily involve a set of additional matrices. For ab initio
 propagation, this is never the rate determining step. For numerical
@@ -12,6 +13,7 @@ As a matter of course, this function also builds:
    - the effective Hamiltonian (i.e. i * S^-1 [ S * H - Sdot])
      --> this is the matrix employed to solve for the time
          dependent amplitudes
+
 """
 import sys
 import numpy as np
@@ -42,27 +44,33 @@ def pseudo_inverse(mat, dim):
     the the cutoff for singular values can be set to a hard
     value. Note that by default the scipy cutoff of 1e-15*sigma_max is
     taken."""
+
     invmat = np.zeros((dim, dim), dtype=complex)
     mat=np.conjugate(mat)
-    u, s, vt = np.linalg.svd(mat, full_matrices=True)
     
+    # SVD of the overlap matrix
+    u, s, vt = np.linalg.svd(mat, full_matrices=True)
+
+    #print("\n",s,"\n")
+
+    # Condition number
+    if s[dim-1] < 1e-90:
+        cond = 1e+90
+    else:
+        cond = s[0]/s[dim-1]
+
+    # Moore-Penrose pseudo-inverse
     if glbl.fms['sinv_thrsh'] == -1.0:
         cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
     else:
         cutoff = glbl.fms['sinv_thrsh']
-
     for i in range(dim):
         if s[i] > cutoff:
             s[i] = 1./s[i]
         else:
             s[i] = 0.
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))
-
-    if s[dim-1] < 1e-90:
-        cond = 1e+90
-    else:
-        cond = s[0]/s[dim-1]
+                                                  np.transpose(u)))    
 
     return invmat, cond
 
@@ -89,6 +97,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     V        = np.zeros((n_alive, n_alive), dtype=complex)
     H        = np.zeros((n_alive, n_alive), dtype=complex)
     S        = np.zeros((n_alive, n_alive), dtype=complex)
+    Strue    = np.zeros((n_alive, n_alive), dtype=complex)
     S_orthog = np.zeros((n_alive, n_alive), dtype=complex)
     Sinv     = np.zeros((n_alive, n_alive), dtype=complex)
     Sdot     = np.zeros((n_alive, n_alive), dtype=complex)
@@ -102,8 +111,13 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
         # overlap matrix (excluding electronic component)
         S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
-        S[j,i] = traj_list[jj].h_overlap(traj_list[ii])
+        if j != i:
+            S[j,i] = traj_list[jj].h_overlap(traj_list[ii])
         
+        # True overlap matrix
+        Strue[i,j] = traj_list[ii].overlap(traj_list[jj])
+        Strue[j,i] = Strue[i,j].conjugate()
+
         # overlap matrix (including electronic component)
         if traj_list[ii].state == traj_list[jj].state:
             S_orthog[i,j] = S[i,j]
@@ -111,11 +125,13 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
             # time derivative of the overlap matrix
             Sdot[i,j] = sdot_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            Sdot[j,i] = sdot_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
+            if j != i:
+                Sdot[j,i] = sdot_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
 
             # kinetic energy matrix
             T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            T[j,i] = ke_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
+            if j != i:
+                T[j,i] = ke_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
             
         else:
             S_orthog[i,j] = c_zero
@@ -130,7 +146,8 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
                 V[j,i] = v_int(traj_list[jj], traj_list[ii],cent_list[c_ind(jj,ii)],S_ij=S[j,i])
         else:
             V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            V[j,i] = v_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
+            if j != i:
+                V[j,i] = v_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
         
         # Hamiltonian matrix in non-orthongonal basis
         H[i,j] = T[i,j] + V[i,j]
@@ -139,7 +156,9 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     # compute the S^-1, needed to compute Heff
     Sinv, cond = pseudo_inverse(S_orthog, n_alive)
 
+    #print(cond)
+
     Heff = np.dot( Sinv, H - c_imag * Sdot )
 
     timings.stop('build_hamiltonian')
-    return T, V, S, Sdot, Heff
+    return T, V, Strue, Sdot, Heff

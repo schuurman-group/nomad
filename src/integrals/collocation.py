@@ -1,6 +1,6 @@
 """
-Compute dirac delta integrals over trajectories traveling on adiabataic
-potentials
+Computes matrix elements over a dirac delta function at the centre of
+trajectory 1 and trajectory 2.
 """ 
 
 import sys
@@ -21,11 +21,11 @@ hamsym = 'nosym'
 # potential coupling matrix element between two trajectories
 #
 def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
-    """if we are passed a single trajectoy"""
-
+    """ Returns < delta(R-R1) | V | g2 > if state1 = state2, else
+    returns < delta(R-R1) | F . d/dR | g2 > """
     #
     # On-diagonal element
-    if traj2 is None:        
+    if traj2 is None:
         # Adiabatic energy
         return traj1.energy(traj1.state) * traj1.h_overlap(traj1)
 
@@ -33,9 +33,6 @@ def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
     # off-diagonal matrix element, between trajectories on the same
     # state
     elif traj1.state == traj2.state:
-        # Adiabatic energy
-        # SPN
-        #return traj1.energy(traj1.state) * traj2.h_overlap(traj1)
         return traj1.energy(traj1.state) * traj1.h_overlap(traj2)
 
     #
@@ -55,7 +52,7 @@ def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
 # kinetic energy integral over trajectories
 #
 def ke_integral(traj1, traj2, S_ij=None):
-    """Returns kinetic energy integral over trajectories."""
+    """ Returns < delta(R-R1) | T | g2 > """
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
         if glbl.fms['interface'] == 'vibronic':
@@ -66,8 +63,6 @@ def ke_integral(traj1, traj2, S_ij=None):
             for i in range(traj1.n_particle):
                 ke -= (traj1.particles[i].deld2x(traj2.particles[i]) /
                        (2.*traj2.particles[i].mass))
-        # SPN
-        #return ke * traj2.h_overlap(traj1)
         return ke * traj1.h_overlap(traj2)
     else:
         return ke
@@ -76,15 +71,10 @@ def ke_integral(traj1, traj2, S_ij=None):
 # return the matrix element <Psi_1 | d/dt | Psi_2> 
 #
 def sdot_integral(traj1, traj2, S_ij=None):
-
-    #sdot =  np.dot( traj2.velocity(), traj1.deldx(traj2) ) + \
-    #        np.dot( traj2.force()   , traj1.deldp(traj2) ) + \
-    #        complex(0.,1.) * traj2.phase_dot() * traj2.h_overlap(traj1)
-
-    # SPN
-    sdot =  (np.dot( traj1.velocity(), traj1.deldx(traj2) ) + \
-            np.dot( traj1.force()   , traj1.deldp(traj2) ) + \
-            complex(0.,1.) * traj1.phase_dot()) * traj1.h_overlap(traj2)
+    """ Returns < delta(R-R1) | d/dt g2 > """
+    sdot =  (np.dot( traj2.velocity(), traj1.deldx(traj2) ) + \
+            np.dot( traj2.force()   , traj1.deldp(traj2) ) + \
+            complex(0.,1.) * traj2.phase_dot()) * traj1.h_overlap(traj2)
 
     return sdot
     

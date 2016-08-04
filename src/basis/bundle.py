@@ -239,7 +239,7 @@ class Bundle:
         return mulliken
 
     def pop(self):
-        """Returns the populations on each of the states."""
+        """Returns the populations on each of the states."""        
         timings.start('bundle.pop')
         pop = np.zeros(self.nstates)
 

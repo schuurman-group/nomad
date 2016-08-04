@@ -9,6 +9,8 @@ import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
+# Make sure that we print entire arrays
+np.set_printoptions(threshold = np.inf)
 
 home_path   = ''
 scr_path    = ''

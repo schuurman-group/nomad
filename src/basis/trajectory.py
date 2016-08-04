@@ -291,7 +291,7 @@ class Trajectory:
         return self.potential() + self.kinetic()
 
     def velocity(self):
-        """Returns the velocity of the trajectory."""
+        """Returns the velocity of the trajectory."""        
         return self.p() / self.masses()
 
     def force(self):

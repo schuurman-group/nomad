@@ -42,27 +42,33 @@ def pseudo_inverse(mat, dim):
     the the cutoff for singular values can be set to a hard
     value. Note that by default the scipy cutoff of 1e-15*sigma_max is
     taken."""
+
     invmat = np.zeros((dim, dim), dtype=complex)
     mat=np.conjugate(mat)
-    u, s, vt = np.linalg.svd(mat, full_matrices=True)
     
+    # SVD of the overlap matrix
+    u, s, vt = np.linalg.svd(mat, full_matrices=True)
+
+    #print("\n",s,"\n")
+
+    # Condition number
+    if s[dim-1] < 1e-90:
+        cond = 1e+90
+    else:
+        cond = s[0]/s[dim-1]
+
+    # Moore-Penrose pseudo-inverse
     if glbl.fms['sinv_thrsh'] == -1.0:
         cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
     else:
         cutoff = glbl.fms['sinv_thrsh']
-
     for i in range(dim):
         if s[i] > cutoff:
             s[i] = 1./s[i]
         else:
             s[i] = 0.
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))
-
-    if s[dim-1] < 1e-90:
-        cond = 1e+90
-    else:
-        cond = s[0]/s[dim-1]
+                                                  np.transpose(u)))    
 
     return invmat, cond
 
@@ -139,6 +145,8 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     # compute the S^-1, needed to compute Heff
     #Sinv = np.linalg.pinv(S_orthog)
     Sinv, cond = pseudo_inverse(S_orthog, n_alive)
+
+    #print(cond)
 
     Heff = np.dot( Sinv, H - c_imag * Sdot )
 

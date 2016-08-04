@@ -106,7 +106,8 @@ class Particle:
         return S
         
     def h_overlap(self, other):
-        """Returns overlap of two particles."""
+        """Returns either the true overlap or the discretised overlap
+        of two particles, depending on the method being used."""
         S = complex(1.,0.)
         for i in range(self.dim):
             S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
@@ -126,7 +127,7 @@ class Particle:
                             for i in range(self.dim)), dtype=complex)
 
     def deld2x(self, other):
-        """Returns the del^2/dx^2 matrix element between two particles."""        
+        """Returns the del^2/dx^2 matrix element between two particles."""
         d2xval = np.fromiter((self.basis.deld2x(self.x[i], self.p[i], self.width,
                                               other.x[i], other.p[i], other.width)
                               for i in range(self.dim)), dtype=complex)
