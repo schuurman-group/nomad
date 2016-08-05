@@ -6,7 +6,7 @@ from src.fmsio import glbl
 
 
 comp_properties = False
-ncrd = 4
+ncrd = glbl.fms['num_particles']
 delta = 1.
 omega_c = 2.5 * delta
 omega = np.zeros(ncrd)
@@ -38,7 +38,7 @@ def energy(geom):
     by sum(0.5 * omega * momentum**2).
     """
     sgn = np.array([-1., 1.])
-    h0 = sum(0.5 * omega * geom**2)
+    h0 = 0.5 * sum(omega * geom**2)
     hk0 = sum(C * geom)
     return h0 + sgn * hk0
 
