@@ -43,8 +43,11 @@ def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
     # elecronic states
     elif traj1.state != traj2.state:
         # Derivative coupling
-        fij = traj1.derivative(traj1.state)
-        v = np.dot(fij, traj1.deldx_m(traj2))
+        # Note that for now we have to pass S_ij=1 to deldx_m so
+        # that this function does not multiply the result by the overlap
+        # of traj1 and traj2. This isn't ideal, but will do for now.
+        fij = traj1.derivative(traj2.state)
+        v = np.dot(fij, traj1.deldx_m(traj2, S_ij=complex(1.0,0.0)))
         return v * traj1.h_overlap(traj2)
     
     else:
