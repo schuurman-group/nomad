@@ -102,7 +102,7 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         H[j,i] = H[i,j].conjugate()
 
     # compute the S^-1, needed to compute Heff
-    Sinv = linalg.pinvh(S_orthog, rcond=1e-8)
+    Sinv = linalg.pinvh(S_orthog)
     Heff = np.dot( Sinv, H - 1j * Sdot )
 
     timings.stop('build_hamiltonian')

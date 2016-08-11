@@ -283,7 +283,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() / self.masses()
+        return self.p() / self.masses() # * omega # frequency scaled coords
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -297,7 +297,7 @@ class Trajectory:
         else:
             return (self.kinetic() - self.potential() -
                     0.5*sum(self.widths()/self.masses()))
-        
+
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
         if self.state == rstate:
