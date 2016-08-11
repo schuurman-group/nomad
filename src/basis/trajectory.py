@@ -361,7 +361,6 @@ class Trajectory:
         # collocation is being used, I'm not sure else where to put
         # it...
         S = self.basis.overlap_prefactor(self.gamma, other.gamma)
-
         for i in range(self.n_particle):
             S = S * self.particles[i].h_overlap(other.particles[i])
 

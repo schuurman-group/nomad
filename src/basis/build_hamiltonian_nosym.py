@@ -51,8 +51,6 @@ def pseudo_inverse(mat, dim):
     # SVD of the overlap matrix
     u, s, vt = np.linalg.svd(mat, full_matrices=True)
 
-    #print("\n",s,"\n")
-
     # Condition number
     if s[dim-1] < 1e-90:
         cond = 1e+90
