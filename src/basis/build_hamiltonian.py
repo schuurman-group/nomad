@@ -14,6 +14,7 @@ As a matter of course, this function also builds:
          dependent amplitudes
 """
 import numpy as np
+from scipy import linalg
 import src.dynamics.timings as timings
 
 
@@ -53,8 +54,6 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
     n_alive = len(traj_alive)
     n_elem  = int(n_alive * (n_alive + 1) / 2)
-    c_zero  = complex(0., 0.)
-    c_imag  = complex(0., 1.)
 
     T        = np.zeros((n_alive, n_alive), dtype=complex)
     V        = np.zeros((n_alive, n_alive), dtype=complex)
@@ -66,7 +65,6 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     Heff     = np.zeros((n_alive, n_alive), dtype=complex)
 
     for ij in range(n_elem):
-
         i, j = ij_ind(ij)
         ii = traj_alive[i]
         jj = traj_alive[j]
@@ -87,18 +85,16 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
             # kinetic energy matrix
             T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
             T[j,i] = T[i,j].conjugate()
-        else:
-            S_orthog[i,j] = c_zero
-            S_orthog[j,i] = c_zero
 
         # potential energy matrix
-        if req_centroids:
-            if i == j:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],traj_list[ii],S_ij=S[i,j])
-            else:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],cent_list[c_ind(ii,jj)],S_ij=S[i,j])
+        if i == j:
+            V[i,j] = v_int(traj_list[ii])
         else:
-            V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
+            if req_centroids:
+                V[i,j] = v_int(traj_list[ii], traj_list[jj],
+                               centroid=cent_list[c_ind(ii,jj)], S_ij=S[i,j])
+            else:
+                V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
         V[j,i] = V[i,j].conjugate()
 
         # Hamiltonian matrix in non-orthongonal basis
@@ -106,8 +102,8 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         H[j,i] = H[i,j].conjugate()
 
     # compute the S^-1, needed to compute Heff
-    Sinv = np.linalg.pinv(S_orthog)
-    Heff = np.dot( Sinv, H - c_imag * Sdot )
+    Sinv = linalg.pinvh(S_orthog)
+    Heff = np.dot( Sinv, H - 1j * Sdot )
 
     timings.stop('build_hamiltonian')
     return T, V, S, Sdot, Heff

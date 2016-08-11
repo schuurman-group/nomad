@@ -197,10 +197,9 @@ class Trajectory:
     def widths(self):
         """Returns a vector containing the widths of the basis functions
         along each degree of freedom."""
-        width = np.fromiter((self.particles[i].width
+        return np.fromiter((self.particles[i].width
                              for i in range(self.n_particle)
                              for j in range(self.d_particle)), dtype=float)
-        return width
 
     #--------------------------------------------------------------------
     #
@@ -284,7 +283,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() / self.masses()
+        return self.p() / self.masses() # * omega # frequency scaled coords
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -298,7 +297,7 @@ class Trajectory:
         else:
             return (self.kinetic() - self.potential() -
                     0.5*sum(self.widths()/self.masses()))
-        
+
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
         if self.state == rstate:
@@ -343,7 +342,7 @@ class Trajectory:
         #timings.start('trajectory.deldp')
         if S_ij is None:
             S_ij = self.overlap(other, st_orthog=True)
-        dpval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
+        dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dpval[self.d_particle*i:
                   self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
@@ -355,7 +354,7 @@ class Trajectory:
         #timings.start('trajectory.deldx')
         if S_ij is None:
             S_ij = self.overlap(other, st_orthog=True)
-        dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
+        dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:
                   self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
@@ -371,7 +370,7 @@ class Trajectory:
         #timings.start('trajectory.deldx_m')
         if S_ij is None:
             S_ij = self.overlap(other,st_orthog=False)
-        dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
+        dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
                                                               self.particles[i].mass)

@@ -84,7 +84,7 @@ def sample_distribution(master):
             sigma_x = np.sqrt(0.25 / alpha)
             sigma_p = np.sqrt(alpha)
             itry = 0
-            while 0 <= itry <= max_try:
+            while itry <= max_try:
                 dx = random.gauss(0., sigma_x)
                 dp = random.gauss(0., sigma_p)
                 itry += 1
@@ -112,11 +112,8 @@ def sample_distribution(master):
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x
-            disp_p = delta_p
-            for i in range(n_modes):
-                disp_x[i] = disp_x[i] * np.sqrt(freqs[i])
-                disp_p[i] = disp_p[i] * np.sqrt(freqs[i])
+            disp_x = delta_x * np.sqrt(freqs)
+            disp_p = delta_p * np.sqrt(freqs)
 
             for j in range(natm):
                 disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
