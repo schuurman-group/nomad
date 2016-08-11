@@ -4,6 +4,7 @@ Routines for running a vibronic coupling calculation.
 Much of this could benefit from changing for loops to numpy array operations.
 (But this is so computationally cheap that it really doesn't matter...)
 """
+import sys
 import numpy as np
 import src.interfaces.vcham.hampar as ham
 import src.interfaces.vcham.rdoper as rdoper
@@ -11,6 +12,10 @@ import src.interfaces.vcham.rdfreq as rdfreq
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 
+# KE operator coefficients a_i:
+# T = sum_i a_i p_i^2,
+# where p_i is the momentum operator
+kecoeff = None
 
 diabpot = None
 adiabpot = None
@@ -32,6 +37,9 @@ def init_interface():
     As such, we must read the freq.dat file BEFORE reading the
     operator file.
     """
+
+    global kecoeff
+
     rdfreq.rdfreqfile()
 
     # Open the operator file
@@ -43,6 +51,11 @@ def init_interface():
     # Close the operator file
     opfile.close()
 
+    # KE operator coefficients, mass- and frequency-scaled normal mode
+    # coordinates, a_i = 0.5*omega_i
+    kecoeff = np.zeros((ham.nmode_active))
+    kecoeff = 0.5*ham.freq[:ham.nmode_active]
+    
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
@@ -122,11 +135,6 @@ def evaluate_trajectory(tid, geom, stateindx):
     calc_scts()
 
     # Package up the energies, gradients and NACTs
-    # N.B. we need to include here the option to send back either
-    # the adiabatic or diabatic quantities...
-    #
-    # Also note that we return omega*Fij NOT Fij itself: this way
-    # we don't have to modify the rest of the code
     ener = adiabpot
 
     for i in range(nsta):
@@ -134,7 +142,7 @@ def evaluate_trajectory(tid, geom, stateindx):
             if i == stateindx:
                 grad[i][m] = adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
+                grad[i][m]=nactmat[m][stateindx][i]
 
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
@@ -213,9 +221,6 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # Package up the energies, gradients and NACTs
     # N.B. we need to include here the option to send back either
     # the adiabatic or diabatic quantities...
-    #
-    # Also note that we return omega*Fij NOT Fij itself: this way
-    # we don't have to modify the rest of the code
     ener = adiabpot
 
     for i in range(nsta):
@@ -223,8 +228,8 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
             if i == stateindx:
                 grad[i][m] = adiabderiv1[m][i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]*ham.freq[m]
-                
+                grad[i][m]=nactmat[m][stateindx][i]
+
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
     for i in range(nsta):

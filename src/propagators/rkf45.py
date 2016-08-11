@@ -6,7 +6,7 @@ import src.dynamics.surface as surface
 import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 
-tol=1e-4
+tol=1e-6
 
 err=0.
 sfac=0.
@@ -99,9 +99,6 @@ def rkf45_bundle(master, dt):
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
-    # Masses
-    mass = master.traj[0].masses()
-
     # No. coordinates
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
 
@@ -154,7 +151,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k1_x[i,:] = dt*xdot
         k1_p[i,:] = dt*pdot
@@ -177,7 +174,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k2_x[i,:] = dt*xdot
         k2_p[i,:] = dt*pdot
@@ -204,7 +201,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k3_x[i,:] = dt*xdot
         k3_p[i,:] = dt*pdot
@@ -236,7 +233,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k4_x[i,:] = dt*xdot
         k4_p[i,:] = dt*pdot
@@ -269,7 +266,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k5_x[i,:] = dt*xdot
         k5_p[i,:] = dt*pdot
@@ -305,7 +302,7 @@ def rkf45_bundle(master, dt):
     for i in range(master.nalive):
         ii = master.alive[i]
         xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force() / mass
+        pdot = tmpbundle.traj[ii].force()
         gdot = tmpbundle.traj[ii].phase_dot()
         k6_x[i,:] = dt*xdot
         k6_p[i,:] = dt*pdot
@@ -363,7 +360,12 @@ def rkf45_bundle(master, dt):
         if tmp > err:
             err = tmp
 
-    sfac = 0.9*(tol/err)**0.2
+    if err == 0.0:
+        sfac = 1.0
+    else:
+        sfac = 0.9*(tol/err)**0.2
+
+    
         
 ########################################################################
 
@@ -422,9 +424,6 @@ def rkf45_trajectory(traj,dt):
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
-    # Masses
-    mass = traj.masses()
-
     # No. coordinates
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
 
@@ -470,7 +469,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k1_x[:] = dt*xdot
     k1_p[:] = dt*pdot
@@ -489,7 +488,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k2_x[:] = dt*xdot
     k2_p[:] = dt*pdot
@@ -509,7 +508,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k3_x[:] = dt*xdot
     k3_p[:] = dt*pdot
@@ -533,7 +532,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k4_x[:] = dt*xdot
     k4_p[:] = dt*pdot
@@ -559,7 +558,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k5_x[:] = dt*xdot
     k5_p[:] = dt*pdot
@@ -588,7 +587,7 @@ def rkf45_trajectory(traj,dt):
 
     # Calculate the time-derivatives at the new phase space centres
     xdot = tmptraj.velocity()
-    pdot = tmptraj.force() / mass
+    pdot = tmptraj.force()
     gdot = tmptraj.phase_dot()
     k6_x[:] = dt*xdot
     k6_p[:] = dt*pdot

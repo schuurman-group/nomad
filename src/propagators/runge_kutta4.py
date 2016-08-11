@@ -57,7 +57,7 @@ def propagate_bundle(master, dt):
             ii = master.alive[i]
 
             xdot = master.traj[ii].velocity()
-            pdot = master.traj[ii].force() / mass
+            pdot = master.traj[ii].force()
             gdot = master.traj[ii].phase_dot()
 
             xnew[i,:] += dt_seg * k_mult[rk] * xdot
@@ -105,7 +105,7 @@ def propagate_trajectory(traj, dt):
     # Do 4th order RK
     for rk in range(rk_ordr):
         xdot = traj.velocity()
-        pdot = traj.force() / mass
+        pdot = traj.force()
         gdot = traj.phase_dot()
 
         xnew += dt_seg * k_mult[rk] * xdot

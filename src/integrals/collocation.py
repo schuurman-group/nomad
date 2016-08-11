@@ -8,6 +8,9 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
 
+interface = __import__('src.interfaces.' + glbl.fms['interface'],
+                       fromlist = ['a'])
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
@@ -40,9 +43,9 @@ def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
     # elecronic states
     elif traj1.state != traj2.state:
         # Derivative coupling
-        fij = traj1.derivative(traj2.state)
+        fij = traj1.derivative(traj1.state)
         v = np.dot(fij, traj1.deldx_m(traj2))
-        return v
+        return v * traj1.h_overlap(traj2)
     
     else:
         print('ERROR in v_integral -- argument disagreement')
@@ -55,14 +58,9 @@ def ke_integral(traj1, traj2, S_ij=None):
     """ Returns < delta(R-R1) | T | g2 > """
     ke = complex(0.,0.)
     if traj1.state == traj2.state:
-        if glbl.fms['interface'] == 'vibronic':
-            for i in range(traj1.n_particle):
-                ke -= (traj1.particles[i].deld2x(traj2.particles[i])
-                       * ham.freq[i]/2.0)
-        else:
-            for i in range(traj1.n_particle):
-                ke -= (traj1.particles[i].deld2x(traj2.particles[i]) /
-                       (2.*traj2.particles[i].mass))
+        for i in range(traj1.n_particle):
+            ke -= (traj1.particles[i].deld2x(traj2.particles[i]) *
+                   interface.kecoeff[i*traj1.d_particle])
         return ke * traj1.h_overlap(traj2)
     else:
         return ke

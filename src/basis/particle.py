@@ -7,7 +7,6 @@ import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.gaussian as gaussian
-import src.interfaces.vcham.hampar as ham
 
 
 particle_name  = ['H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',

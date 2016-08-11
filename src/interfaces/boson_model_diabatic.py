@@ -4,6 +4,10 @@ Routines for running spin-boson model calculations.
 import numpy as np
 from src.fmsio import glbl
 
+# KE operator coefficients a_i:
+# T = sum_i a_i p_i^2,
+# where p_i is the momentum operator
+kecoeff = None
 
 comp_properties = False
 ncrd = 4
@@ -15,7 +19,7 @@ C = np.zeros(ncrd)
 
 def init_interface():
     """Initializes global variables."""
-    global C, omega, omega_c, delta
+    global C, omega, omega_c, delta, kecoeff
 
     if ncrd == 1:
         omega = np.array(1.34)
@@ -30,6 +34,9 @@ def init_interface():
         alpha   = glbl.boson['coupling']
         C = np.sqrt(d_omega * alpha * omega * np.exp(-omega/omega_c))
 
+    # KE operator coefficients, mass- and frequency-scaled normal mode
+    # coordinates, a_i = 0.5*omega_i
+    kecoeff = 0.5*omega
 
 def evaluate_trajectory(tid, geom, t_state):
     """Evaluates trajectory energy and gradients."""

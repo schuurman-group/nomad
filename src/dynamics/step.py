@@ -6,6 +6,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
+import src.basis.matching_pursuit as mp
 
 
 #-----------------------------------------------------------------------------
@@ -78,6 +79,12 @@ def fms_step_bundle(master, dt):
             # update the bundle hamiltonian after adding/subtracting trajectories
             if basis_grown or basis_pruned:
                 master.update_matrices()
+
+            # re-expression of the basis using the matching pursuit
+            # algorithm
+            if glbl.fms['matching_pursuit'] == 1:
+                mp.reexpress_basis(master)
+
             # update the running log
             fileio.print_fms_logfile('t_step',
                                      [master.time, time_step, master.nalive])

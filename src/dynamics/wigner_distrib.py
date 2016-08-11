@@ -13,10 +13,6 @@ import src.interfaces.vcham.hampar as ham
 
 def sample_distribution(master):
     """Samples a v=0 Wigner distribution
-
-    Modified to allow for the sampling of mass- and frequency-scaled
-    normal mode coordinates in the case that a vibronic coupling
-    Hamiltonian is being used. (SN 15/06/2016)
     """
 
     # Compression parameter

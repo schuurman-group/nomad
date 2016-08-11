@@ -103,6 +103,10 @@ class Trajectory:
         self.basis = __import__('src.basis.' + self.ints.basis,
                                 fromlist = ['a'])
 
+        self.interface = __import__('src.interfaces.' +
+                               glbl.fms['interface'], fromlist =
+                               ['a'])
+
     #-------------------------------------------------------------------
     #
     # Trajectory status functions
@@ -284,7 +288,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return 0.5 * sum( self.p() * self.p() / self.masses() )
+        return sum( self.p() * self.p() * self.interface.kecoeff)
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -292,7 +296,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""        
-        return self.p() / self.masses()
+        return self.p() * 2.0 * self.interface.kecoeff
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -305,7 +309,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    0.5*sum(self.widths()/self.masses()))
+                    sum(self.widths() * self.interface.kecoeff))
         
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
@@ -389,7 +393,14 @@ class Trajectory:
         return dxval * S_ij
 
     def deldx_m(self, other, S_ij=None):
-        """Returns the momentum expectation values of 2 x mass.
+        """Returns the momentum expectation values multiplied by 2*a_i.
+        
+        Here, the a_i are the coefficients entering into the KE
+        operator 
+        
+        T = sum_i a_i * p_i^2,
+        
+        where p_i is the momentum operator for the ith nuclear dof.
 
         This appears in the equations of motion on the off diagonal coupling
         different states together through the NACME.
@@ -398,9 +409,10 @@ class Trajectory:
         if S_ij is None:
             S_ij = self.overlap(other,st_orthog=False)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
+
         for i in range(self.n_particle):
-            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
-                                                              self.particles[i].mass)
+            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i])
+                                                              * 2.0 * self.interface.kecoeff[i*self.d_particle])
         #timings.stop('trajectory.deldx_m')
         return dxval * S_ij
 

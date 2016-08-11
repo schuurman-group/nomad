@@ -139,6 +139,7 @@ class Bundle:
         self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdsic = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
         timings.start('bundle.kill_trajectory')
@@ -342,9 +343,9 @@ class Bundle:
         bundle."""
         S = complex(0.,0.)
         for i in range(self.nalive):
-            for j in range(other.nalive):
+            for j in range(other.nalive):                
                 ii = self.alive[i]
-                jj = self.alive[j]
+                jj = other.alive[j]
                 S += (self.traj[ii].overlap(other.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)

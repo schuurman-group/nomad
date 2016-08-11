@@ -104,14 +104,14 @@ def adjust_child(parent, child, scale_dir):
     p_perp = p_child - p_para
 
     # the kinetic energy is given by:
-    # KE = (P . P) / 2m
-    #    = (p_para + p_perp).(p_para + p_perp) / 2m
-    #    = (p_para.p_para)/2m + (p_para.p_perp)/m + (p_perp.p_perp)/2m
+    # KE = (P . P) * kecoeff
+    #    = (p_para + p_perp).(p_para + p_perp) * kecoeff
+    #    = (p_para.p_para)*kecoeff + (p_para.p_perp)*2*kecoeff + (p_perp.p_perp)*kecoeff
     #    = KE_para_para + KE_para_perp + KE_perp_perp
-    masses = child.masses()
-    ke_para_para = np.dot( p_para, p_para/(2*masses) )
-    ke_para_perp = np.dot( p_para, p_perp/(2*masses) )
-    ke_perp_perp = np.dot( p_perp, p_perp/(2*masses) )
+    kecoeff=child.interface.kecoeff
+    ke_para_para = np.dot( p_para, p_para * kecoeff )
+    ke_para_perp = np.dot( p_para, p_perp * kecoeff )
+    ke_perp_perp = np.dot( p_perp, p_perp * kecoeff )
 
     # scale p_para by x so that KE == ke_goal
     # (ke_para_para)*x^2 + (ke_para_perp)*x + (ke_perp_perp - ke_goal) = 0

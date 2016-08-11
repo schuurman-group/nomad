@@ -66,7 +66,7 @@ def propagate_position(traj, dt):
     p0   = traj.p()
     v0   = traj.velocity()
     f0   = traj.force()
-    mass = traj.masses()
+    kecoeff = traj.interface.kecoeff
 
     # update the nuclear phase
     #  gamma = gamma + dt * phase_dot / 2.0
@@ -77,8 +77,8 @@ def propagate_position(traj, dt):
     #   x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
     #   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
     # --> need to compute forces at new geometry
-    x1 = x0 + v0*dt + 0.5 * (f0/mass) * dt**2
-
+    x1 = x0 + v0*dt + 0.5 * (f0 * 2.0 * kecoeff) * dt**2
+    
     # update x
     traj.update_x(x1)
 
