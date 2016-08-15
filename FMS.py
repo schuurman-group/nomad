@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Main module used to initiate FMSpy.
 """

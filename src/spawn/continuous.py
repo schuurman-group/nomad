@@ -20,12 +20,10 @@ import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
 
 
+@timings.timed_func
 def spawn(master, dt):
     """Spawns a basis function if the minimum overlap drops below a given
     threshold."""
-
-    timings.start('spawn.spawn')
-
     basis_grown  = False
     current_time = master.time
     for i in range(master.n_traj()):
@@ -80,6 +78,4 @@ def spawn(master, dt):
                                    ': ' + 'overlap with bundle too large,' +
                                    ' s_max=' + str(glbl.fms['sij_thresh']))
                         fileio.print_fms_logfile('spawn_bad_step', [err_msg])
-
-    timings.stop('spawn.spawn')
     return basis_grown

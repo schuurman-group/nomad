@@ -18,9 +18,9 @@ import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
 
+@timings.timed_func
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with RK4."""
-    timings.start('propagators.propagate_bundle')
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
     mass = master.traj[0].masses()
 
@@ -82,12 +82,10 @@ def propagate_bundle(master, dt):
         amp_sum += mult * master.amplitudes()
     master.set_amplitudes(amp_sum / sum(k_mult))
 
-    timings.stop('propagators.propagate_bundle')
 
+@timings.timed_func
 def propagate_trajectory(traj, dt):
     """Propagates a single trajectory with RK4."""
-    timings.start('propagators.propagate_trajectory')
-
     mass = traj.masses()
 
     # determine k1, k2, k3, k4
@@ -120,5 +118,3 @@ def propagate_trajectory(traj, dt):
 
         # update potential energy surface only for traj
         surface.update_pes_traj(traj)
-
-    timings.stop('propagators.propagate_trajectory')

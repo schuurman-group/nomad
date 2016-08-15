@@ -38,10 +38,9 @@ def ij_ind(index):
     return int(index-i*(i-1)/2), int(i-1)
 
 
+@timings.timed_func
 def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    timings.start('build_hamiltonian')
-
     try:
         integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
         sdot_int      = integrals.sdot_integral
@@ -88,13 +87,17 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
         # potential energy matrix
         if i == j:
+            timings.start('wrap_this')
             V[i,j] = v_int(traj_list[ii])
+            timings.stop('wrap_this')
         else:
             if req_centroids:
                 V[i,j] = v_int(traj_list[ii], traj_list[jj],
                                centroid=cent_list[c_ind(ii,jj)], S_ij=S[i,j])
             else:
+                timings.start('wrap_this')
                 V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
+                timings.stop('wrap_this')
         V[j,i] = V[i,j].conjugate()
 
         # Hamiltonian matrix in non-orthongonal basis
@@ -102,8 +105,9 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         H[j,i] = H[i,j].conjugate()
 
     # compute the S^-1, needed to compute Heff
+    timings.start('linalg.pinvh')
     Sinv = linalg.pinvh(S_orthog)
+    timings.stop('linalg.pinvh')
     Heff = np.dot( Sinv, H - 1j * Sdot )
 
-    timings.stop('build_hamiltonian')
     return T, V, S, Sdot, Heff
