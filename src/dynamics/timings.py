@@ -11,7 +11,7 @@ timer_list = dict()
 active_stack = []
 
 
-class timed_func:
+class timed:
     """A wrapper/descriptor for timing functions and methods.
 
     This takes advantage of the fact that __call__ is called for a
@@ -150,7 +150,7 @@ def print_timings():
     ostr += ('routine'.ljust(35) + 'calls'.rjust(12) +
              'wall time'.rjust(16) + 'frac.'.rjust(8) +
              'cpu time'.rjust(16)  + 'frac.'.rjust(8) + '\n')
-    ofrm = '{:<35s}{:>12d}{:>16.4f}{:>8.2f}{:>16.4f}{:>8.2f}\n'
+    ofrm = '{:35s}{:12d}{:16.4f}{:8.2f}{:16.4f}{:8.2f}\n'
     frac_wall = 0.
     frac_cpu  = 0.
     for sort in sort_list:
@@ -167,6 +167,6 @@ def print_timings():
 
     ostr += '-'*95 + '\n'
     ostr += ('**total**'.ljust(47) +
-             '{:>16.4f}{:>8.2f}{:>16.4f}{:>8.2f}\n\n'.format(tot_wall, frac_wall,
+             '{:16.4f}{:8.2f}{:16.4f}{:8.2f}\n\n'.format(tot_wall, frac_wall,
                                                              tot_cpu, frac_cpu))
     return ostr

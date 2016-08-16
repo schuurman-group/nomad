@@ -10,7 +10,6 @@ import src.dynamics.timings as timings
 require_centroids = False
 
 
-@timings.timed_func
 def v_integral(traj1, traj2=None, S_ij=None):
     """Returns potential coupling matrix element between two
     trajectories.
@@ -57,7 +56,6 @@ def v_integral(traj1, traj2=None, S_ij=None):
         return boson.delta * S_ij
 
 
-@timings.timed_func
 def ke_integral(traj1, traj2, S_ij=None):
     """Returns kinetic energy integral over trajectories."""
     if traj1.state == traj2.state:
@@ -72,7 +70,6 @@ def ke_integral(traj1, traj2, S_ij=None):
         return complex(0.,0.)
 
 
-@timings.timed_func
 def sdot_integral(traj1, traj2, S_ij=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if S_ij is None:

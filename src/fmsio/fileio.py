@@ -127,22 +127,16 @@ def init_fms_output():
                              'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) +
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
-    dump_format[tkeys[0]] = ('{0:>12.4f}'+
-                             ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(1, nump*numd+1)) +
-                             ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(nump*numd+1, 2*nump*numd+1)) +
-                             ''.join('{' + str(i) + ':>12.6f}'
-                                     for i in range(2*nump*numd+1, 2*nump*numd+6)) +
+    dump_format[tkeys[0]] = ('{:12.4f}'+
+                             ''.join('{:12.6f}' for i in range(3*nump*numd)) +
                              '\n')
 
     # potential energy
     arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nums)]
     tfile_names[tkeys[1]] = 'poten'
     dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[1]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':>16.10f}'
-                                     for i in range(1, nums+1)) + '\n')
+    dump_format[tkeys[1]] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(nums)) + '\n')
 
     # coupling
     arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nums)]
@@ -150,18 +144,17 @@ def init_fms_output():
     tfile_names[tkeys[2]] = 'coupling'
     dump_header[tkeys[2]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + '\n')
-    dump_format[tkeys[2]] = ('{0:>12.4f}' +
-                             ''.join('{'+str(i)+':>12.5f}'
-                                     for i in range(1, 2*nums+1)) + '\n')
+    dump_format[tkeys[2]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}' for i in range(2*nums)) + '\n')
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
             for i in range(nums) for j in range(numd)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[3]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':>12.5f}'
-                                     for i in range(1, nums*numd+1)) + '\n')
+    dump_format[tkeys[3]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
+                                     for i in range(nums*numd)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
@@ -169,8 +162,8 @@ def init_fms_output():
     ncol = int(nums*(nums-1)*numd/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[4]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':12.5f}'
+    dump_format[tkeys[4]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
                                      for i in range(1, ncol)) + '\n')
 
     # second moments
@@ -178,25 +171,25 @@ def init_fms_output():
             for i in range(nums) for j in range(numd)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[5]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':12.5f}'
-                                     for i in range(1, nums*numd+1)) + '\n')
+    dump_format[tkeys[5]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
+                                     for i in range(nums*numd)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_p' + str(j+1)
             for i in range(nums) for j in range(nump)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[6]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':10.5f}'
-                                     for i in range(1, nums*nump+1)) + '\n')
+    dump_format[tkeys[6]] = ('{:12.4f}' +
+                             ''.join('{:10.5f}'
+                                     for i in range(nums*nump)) + '\n')
 
     # gradients
     arr1 = ['  grad_part' + str(i+1) + '.' + dstr[j]
             for i in range(nump) for j in range(numd)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[7]] = ('{0:>12.4f}' +
+    dump_format[tkeys[7]] = ('{:12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
                                      for i in range(1, nump*numd+1)) + '\n')
 
@@ -207,19 +200,17 @@ def init_fms_output():
     bfile_names[bkeys[0]] = 'n.dat'
     dump_header[bkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              'Norm'.rjust(acc1) + '\n')
-    dump_format[bkeys[0]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':12.6f}'
-                                     for i in range(1, nums+1)) +
-                             '{' + str(nums+1) + ':12.6f}\n')
+    dump_format[bkeys[0]] = ('{:12.4f}' +
+                             ''.join('{:12.6f}' for i in range(nums)) +
+                             '{:12.6f}\n')
 
     # the bundle energy
     arr1 = ('   potential(QM)', '     kinetic(QM)', '       total(QM)',
             '  potential(Cl.)', '    kinetic(Cl.)', '      total(Cl.)')
     bfile_names[bkeys[1]] = 'e.dat'
     dump_header[bkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[bkeys[1]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':16.10f}'
-                                     for i in range(1, 6+1)) + '\n')
+    dump_format[bkeys[1]] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(6)) + '\n')
 
     # the spawn log
     lenst = 7
@@ -231,10 +222,9 @@ def init_fms_output():
             'total(parent)'.rjust(acc2), 'total(child)'.rjust(acc2))
     bfile_names[bkeys[2]] = 'spawn.dat'
     dump_header[bkeys[2]] = ''.join(arr1) + '\n'
-    dump_format[bkeys[2]] = ('{0:>12.4f}{1:>12.4f}{2:>12.4f}'  +
-                             '{3:>7d}{4:>7d}{5:>7d}{6:>7d}' +
-                             '{7:>12.8f}{8:>12.8f}{9:>12.8f}{10:>12.8f}' +
-                             '{11:>16.8f}{12:>16.8f}' + '\n')
+    dump_format[bkeys[2]] = ('{:12.4f}{:12.4f}{:12.4f}{:7d}{:7d}{:7d}{:7d}' +
+                             '{:12.8f}{:12.8f}{:12.8f}{:12.8f}' +
+                             '{:16.8f}{:16.8f}\n')
 
     bfile_names[bkeys[3]] = 's.dat'
     bfile_names[bkeys[4]] = 'sdot.dat'
@@ -245,9 +235,8 @@ def init_fms_output():
     arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
     bfile_names[bkeys[7]] = 'auto.dat'
     dump_header[bkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[bkeys[7]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':16.10f}'
-                                     for i in range(1, 3+1)) + '\n')
+    dump_format[bkeys[7]] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(3)) + '\n')
 
     # ------------------------- log file formats --------------------------
     with open(home_path+'/fms.log', 'w') as logfile:
@@ -268,7 +257,7 @@ def init_fms_output():
         log_str = ('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
         for k, v in glbl.fms.items():
-            log_str += ' {0:20s} = {1:20s}\n'.format(str(k), str(v))
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
         if glbl.fms['interface'] == 'columbus':
@@ -283,7 +272,7 @@ def init_fms_output():
         log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
         log_str += ' ----------------------------------------\n'
         for k, v in out_key.items():
-            log_str += ' {0:20s} = {1:20s}\n'.format(str(k), str(v))
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
         log_str = ('\n ***********\n' +
@@ -293,17 +282,17 @@ def init_fms_output():
 
     log_format['general']     = '   ** {:60s} **\n'
     log_format['string']      = ' {:160s}\n'
-    log_format['t_step']      = ' > time: {0:14.4f} step:{1:8.4f} [{2:4d} trajectories]\n'
+    log_format['t_step']      = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
-    log_format['new_step']    = '   -- error: {0:50s} / re-trying with new time step: {1:8.4f}\n'
-    log_format['spawn_start'] = ('  -- spawing: trajectory {0:4d}, ' +
-                                 'state {1:2d} --> state {2:2d}\n' +
+    log_format['new_step']    = '   -- error: {:50s} / re-trying with new time step: {:8.4f}\n'
+    log_format['spawn_start'] = ('  -- spawing: trajectory {:4d}, ' +
+                                 'state {:2d} --> state {:2d}\n' +
                                  'time'.rjust(14) + 'coup'.rjust(10) +
                                  'overlap'.rjust(10) + '   spawn\n')
-    log_format['spawn_step']  = '{0:14.4f}{1:10.4f}{2:10.4f}   {3:<40s}\n'
-    log_format['spawn_back']  = '      back propagating:  {0:12.2f}\n'
+    log_format['spawn_step']  = '{:14.4f}{:10.4f}{:10.4f}   {:40s}\n'
+    log_format['spawn_back']  = '      back propagating:  {:12.2f}\n'
     log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
-    log_format['spawn_success'] = ' - spawn successful, new trajectory created at {0:14.4f}\n'
+    log_format['spawn_success'] = ' - spawn successful, new trajectory created at {:14.4f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
     log_format['complete']      = ' ------- simulation completed --------\n'
     log_format['timings' ]      = '{}'

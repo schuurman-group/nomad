@@ -8,7 +8,7 @@ import src.fmsio.glbl as glbl
 import src.basis.particle as particle
 
 
-@timings.timed_func
+@timings.timed
 def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
     new_traj = Trajectory(orig_traj.nstates)
@@ -289,7 +289,6 @@ class Trajectory:
         """Returns the gradient of the trajectory state."""
         return -self.derivative(self.state)
 
-    @timings.timed_func
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
@@ -327,7 +326,7 @@ class Trajectory:
     # primitive integral routines
     #
     #-----------------------------------------------------------------------------
-    #@timings.timed_func
+    #@timings.timed
     def overlap(self,other,st_orthog=False):
         """Returns overlap of two trajectories."""
         if st_orthog and self.state != other.state:
@@ -337,7 +336,7 @@ class Trajectory:
             S = S * self.particles[i].overlap(other.particles[i])
         return S
 
-    #@timings.timed_func
+    #@timings.timed
     def deldp(self, other, S_ij=None):
         """Returns the del/dp matrix element between two trajectories."""
         if S_ij is None:
@@ -348,7 +347,7 @@ class Trajectory:
                   self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
         return dpval * S_ij
 
-    #@timings.timed_func
+    #@timings.timed
     def deldx(self, other, S_ij=None):
         """Returns the del/dx matrix element between two trajectories."""
         if S_ij is None:
@@ -359,7 +358,7 @@ class Trajectory:
                   self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
         return dxval * S_ij
 
-    #@timings.timed_func
+    #@timings.timed
     def deldx_m(self, other, S_ij=None):
         """Returns the momentum expectation values of 2 x mass.
 
@@ -416,27 +415,27 @@ class Trajectory:
             for j in range(self.nstates):
                 if j == i or j in init_states[0:i]:
                     continue
-                chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}'
+                chkpt.write('# dipoles state1, state2 = {:4d}, {:4d}'
                             '\n'.format(j,i))
                 self.dipoles[j,i,:].tofile(chkpt, ' ', '%10.6f')
                 chkpt.write('\n')
 
         # Writes out gradients
         for i in range(self.nstates):
-            chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}'
+            chkpt.write('# derivatives state1, state2 = {:4d}, {:4d}'
                         '\n'.format(self.state,i))
             self.deriv[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 
         # write out second moments
         for i in range(self.nstates):
-            chkpt.write('# second moments, state = {0:4d}\n'.format(i))
+            chkpt.write('# second moments, state = {:4d}\n'.format(i))
             self.sec_moms[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 
         # write out atomic populations
         for i in range(self.nstates):
-            chkpt.write('# atomic populations, state = {0:4d}\n'.format(i))
+            chkpt.write('# atomic populations, state = {:4d}\n'.format(i))
             self.atom_pops[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 

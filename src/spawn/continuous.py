@@ -20,7 +20,7 @@ import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
 
 
-@timings.timed_func
+@timings.timed
 def spawn(master, dt):
     """Spawns a basis function if the minimum overlap drops below a given
     threshold."""

@@ -12,7 +12,7 @@ from src.basis import trajectory as trajectory
 from src.basis import build_hamiltonian as mbuild
 
 
-@timings.timed_func
+@timings.timed
 def copy_bundle(orig_bundle):
     """Copys a Bundle object with new references.
 
@@ -92,7 +92,7 @@ class Bundle:
             return 0
         return int(n_traj * (n_traj - 1) / 2)
 
-    @timings.timed_func
+    @timings.timed
     def add_trajectory(self, new_traj):
         """Adds a trajectory to the bundle."""
         self.traj.append(new_traj)
@@ -120,7 +120,7 @@ class Bundle:
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
 
-    @timings.timed_func
+    @timings.timed
     def kill_trajectory(self, tid):
         """Moves a live trajectory to the list of dead trajecotries.
 
@@ -136,7 +136,7 @@ class Bundle:
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
 
-    @timings.timed_func
+    @timings.timed
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
@@ -169,7 +169,7 @@ class Bundle:
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
-    @timings.timed_func
+    @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
         current_pop = self.pop()
@@ -226,7 +226,7 @@ class Bundle:
                                         * self.traj[jj].amplitude)
         return mulliken
 
-    @timings.timed_func
+    @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
         pop = np.zeros(self.nstates)
@@ -250,7 +250,7 @@ class Bundle:
 
         return pop
 
-    @timings.timed_func
+    @timings.timed
     def pot_classical(self):
         """Returns the classical potential energy of the bundle.
 
@@ -263,7 +263,7 @@ class Bundle:
                            for i in range(self.n_traj())])
         return sum(weight * v_int).real
 
-    @timings.timed_func
+    @timings.timed
     def pot_quantum(self):
         """Returns the QM (coupled) potential energy of the bundle.
 
@@ -284,7 +284,7 @@ class Bundle:
                 energy += 2. * (weight * v_int).real
         return energy
 
-    @timings.timed_func
+    @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         weight  = np.array([self.traj[i].amplitude *
@@ -294,7 +294,7 @@ class Bundle:
                             for i in range(self.n_traj())])
         return sum(weight * ke_int).real
 
-    @timings.timed_func
+    @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
         energy = 0.
@@ -338,7 +338,7 @@ class Bundle:
     # Private methods/functions (called only within the class)
     #
     #----------------------------------------------------------------------
-    @timings.timed_func
+    @timings.timed
     def update_centroids(self):
         """Updates the centroids."""
         for i in range(self.n_traj()):
@@ -380,7 +380,7 @@ class Bundle:
                     self.cent[ij_ind].update_x(new_x)
                     self.cent[ij_ind].update_p(new_p)
 
-    @timings.timed_func
+    @timings.timed
     def update_matrices(self):
         """Updates T, V, S, Sdot and Heff matrices."""
         # make sure the centroids are up-to-date in order to evaluate
@@ -400,7 +400,7 @@ class Bundle:
     # Functions to read/write bundle to checkpoint files
     #
     #------------------------------------------------------------------------
-    @timings.timed_func
+    @timings.timed
     def update_logs(self):
         """Updates the log files."""
         for i in range(self.n_traj()):
@@ -497,7 +497,7 @@ class Bundle:
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(7, data)
 
-    @timings.timed_func
+    @timings.timed
     def write_bundle(self, filename, mode):
         """Dumps the bundle to file 'filename'.
 
