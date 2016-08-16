@@ -62,8 +62,10 @@ class Trajectory:
         self.c_state    = -1
         # number of particles comprising the trajectory
         self.n_particle = len(self.particles)
-        # whether trajectory is alive (i.e. propagated)
+        # whether the trajectory is alive (i.e. contributes to the wavefunction)
         self.alive      = True
+        # whether the trajectory is active (i.e. is being propagated)
+        self.active     = True
         # amplitude of trajectory
         self.amplitude  = complex(0.,0.)
         # phase of the trajectory
@@ -355,7 +357,6 @@ class Trajectory:
         #timings.start('trajectory.overlap')        
         if st_orthog and self.state != other.state:
             return complex(0.,0.)
-
         # The exponential prefactor doesn't really belong in
         # gaussian/dirac_delta, but, as it depends on whether or not
         # collocation is being used, I'm not sure else where to put
@@ -366,6 +367,13 @@ class Trajectory:
 
         #timings.stop('trajectory.overlap')
         return S
+
+    def overlap_bundle(self, other):
+        """Returns the overlap of a trajectory with a bundle of trajectories"""
+        ovrlp = complex(0., 0.)
+        for i in range(other.nalive+other.ndead):
+            ovrlp += self.overlap(other.traj[i], st_orthog=True) * other.traj[i].amplitude
+        return ovrlp
 
     def deldp(self, other, S_ij=None):
         """Returns the del/dp matrix element between two trajectories."""

@@ -22,7 +22,7 @@ def propagate_bundle(master, dt):
 
     # update position
     for i in range(master.n_traj()):
-        if not master.traj[i].alive:
+        if not master.traj[i].active:
             continue
         propagate_position(master.traj[i], dt)
 
@@ -32,7 +32,7 @@ def propagate_bundle(master, dt):
 
     # finish update of momentum and phase
     for i in range(master.n_traj()):
-        if not master.traj[i].alive:
+        if not master.traj[i].active:
             continue
         propagate_momentum(master.traj[i], dt)
 

@@ -62,11 +62,13 @@ class Bundle:
         self.integrals = int_defs
         self.time = 0.
         self.nalive = 0
+        self.nactive = 0
         self.ndead = 0
         self.nstates = int(nstates)
-        self.traj  = []
-        self.cent  = []
-        self.alive = []
+        self.traj   = []
+        self.cent   = []
+        self.alive  = []
+        self.active = []
         self.T     = np.zeros((0, 0), dtype=complex)
         self.V     = np.zeros((0, 0), dtype=complex)
         self.S     = np.zeros((0, 0), dtype=complex)
@@ -101,10 +103,13 @@ class Bundle:
         """Adds a trajectory to the bundle."""
         timings.start('bundle.add_trajectory')
         self.traj.append(new_traj)
-        self.traj[-1].alive = True
-        self.nalive        += 1
-        self.traj[-1].tid   = self.n_traj() - 1
+        self.nalive         += 1
+        self.nactive        += 1
+        self.traj[-1].alive  = True
+        self.traj[-1].active = True
+        self.traj[-1].tid    = self.n_traj() - 1
         self.alive.append(self.traj[-1].tid)
+        self.active.append(self.traj[-1].tid)
         self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -116,10 +121,13 @@ class Bundle:
         """Adds a set of trajectories to the bundle."""
         for traj in traj_list:
             self.traj.append(traj)
-            self.nalive        += 1
-            self.traj[-1].alive = True
-            self.traj[-1].tid   = self.n_traj() - 1
+            self.nalive         += 1
+            self.nactive        += 1
+            self.traj[-1].alive  = True
+            self.traj[-1].active = True
+            self.traj[-1].tid    = self.n_traj() - 1
             self.alive.append(self.traj[-1].tid)
+            self.active.append(self.traj[-1].tid)
         self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -132,17 +140,46 @@ class Bundle:
         The trajectory will no longer contribute to H, S, etc.
         """
         timings.start('bundle.kill_trajectory')
+        # Remove the trajectory from the list of living trajectories
+        self.alive.remove(tid)
         self.traj[tid].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
-        self.alive.pop(tid)
+        # Remove the trajectory from the list of active trajectories
+        # iff matching pursuit is not being used
+        if glbl.fms['matching_pursuit'] == 0:
+            self.active.remove(tid)
+            self.traj[tid].active = False
+            self.nactive = self.nactive - 1
+        # Reset arrays
         self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdsic = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
-        timings.start('bundle.kill_trajectory')
+        
+        timings.stop('bundle.kill_trajectory')
+
+    def revive_trajectory(self, tid):
+        """
+        Moves a dead trajectory to the list of live trajectories.
+        """
+        timings.start('bundle.revive_trajectory')
+        self.traj[tid].alive = True
+        
+        # Add the trajectory to the list of living trajectories
+        self.alive.append(tid)
+
+        self.nalive          = self.nalive + 1
+        self.ndead           = self.ndead - 1
+
+        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
+
+        timings.stop('bundle.revive_trajectory')
 
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
@@ -255,8 +292,8 @@ class Bundle:
                 jj = self.alive[j]
                 if self.traj[ii].state != self.traj[jj].state:
                     continue
-                popij = (2. * self.S[i,j] * self.traj[j].amplitude *
-                         self.traj[i].amplitude.conjugate())
+                popij = (2. * self.S[i,j] * self.traj[jj].amplitude *
+                         self.traj[ii].amplitude.conjugate())
                 pop[state] += popij.real
 
         # dead contribution?
@@ -411,7 +448,7 @@ class Bundle:
         if self.ints.require_centroids:
             (self.T, self.V, self.S, self.Sdot,
              self.Heff) = self.hambuild.build_hamiltonian(self.integrals, 
-                                self.traj,self.alive, cent_list=self.cent)
+                                self.traj, self.alive, cent_list=self.cent)
         else:
             (self.T, self.V, self.S, self.Sdot,
              self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
@@ -429,7 +466,7 @@ class Bundle:
         timings.start('bundle.update_logs')
 
         for i in range(self.n_traj()):
-            if not self.traj[i].alive:
+            if not self.traj[i].active:
                 continue
 
             # trajectory files

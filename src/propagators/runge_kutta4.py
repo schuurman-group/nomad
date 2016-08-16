@@ -24,17 +24,17 @@ def propagate_bundle(master, dt):
     ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
     mass = master.traj[0].masses()
 
-    x0   = np.zeros((master.nalive, ncrd))
-    p0   = np.zeros((master.nalive, ncrd))
-    g0   = np.zeros(master.nalive)
-    xnew = np.zeros((master.nalive, ncrd))
-    pnew = np.zeros((master.nalive, ncrd))
-    gnew = np.zeros(master.nalive)
+    x0   = np.zeros((master.nactive, ncrd))
+    p0   = np.zeros((master.nactive, ncrd))
+    g0   = np.zeros(master.nactive)
+    xnew = np.zeros((master.nactive, ncrd))
+    pnew = np.zeros((master.nactive, ncrd))
+    gnew = np.zeros(master.nactive)
 
     # initialize position,momentum,phase
     amp0 = master.amplitudes()
-    for i in range(master.nalive):
-        ii = master.alive[i]
+    for i in range(master.nactive):
+        ii = master.active[i]
         x0[i,:]   = master.traj[ii].x()
         p0[i,:]   = master.traj[ii].p()
         g0[i]     = master.traj[ii].phase()
@@ -53,8 +53,8 @@ def propagate_bundle(master, dt):
     for rk in range(rk_ordr):
         # determine x, p, phase at f(t,x)
         H_list.append(master.Heff)
-        for i in range(master.nalive):
-            ii = master.alive[i]
+        for i in range(master.nactive):
+            ii = master.active[i]
 
             xdot = master.traj[ii].velocity()
             pdot = master.traj[ii].force()
