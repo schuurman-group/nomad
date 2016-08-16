@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Main module used to initiate FMSpy.
 """
@@ -20,7 +21,7 @@ def main(sc):
     import src.dynamics.initial as initial
     import src.dynamics.step as step
 
-    # start the master timer
+    # start the global timer
     timings.start('global')
 
     # set the sparkContext, if running on cluster
@@ -57,6 +58,7 @@ def main(sc):
             # update the fms output files, as well as checkpoint, if necessary
             master.update_logs()
 
+    # clean up, stop the global timer and write logs
     fileio.cleanup()
 
 if __name__ == '__main__':

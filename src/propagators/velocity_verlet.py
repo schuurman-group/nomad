@@ -13,10 +13,9 @@ import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
 
+@timings.timed
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with VV."""
-    timings.start('propagators.propagate_bundle')
-
     # propagate amplitudes for 1/2 time step using x0
     master.update_amplitudes(0.5*dt, 10)
 
@@ -39,13 +38,10 @@ def propagate_bundle(master, dt):
     # propagate amplitudes for 1/2 time step using x1
     master.update_amplitudes(0.5*dt, 10)
 
-    timings.stop('propagators.propagate_bundle')
 
-
+@timings.timed
 def propagate_trajectory(traj, dt):
     """Propagates a single trajectory with VV."""
-    timings.start('propagators.propagate_trajectory')
-
     # position update
     propagate_position(traj, dt)
 
@@ -54,8 +50,6 @@ def propagate_trajectory(traj, dt):
 
     # momentum/phase update
     propagate_momentum(traj, dt)
-
-    timings.stop('propagators.propagate_trajectory')
 
 
 def propagate_position(traj, dt):

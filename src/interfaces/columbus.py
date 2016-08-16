@@ -415,8 +415,8 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
                 break
         ciudgin.write('transition\n')
         for i in len(tran_den):
-            ciudgin.write('  1 {0:2d}  1 {1:2d}\n'.format(tran_den[i,1],
-                                                          tran_den[i,2]))
+            ciudgin.write('  1 {:2d}  1 {:2d}\n'.format(tran_den[i,1],
+                                                        tran_den[i,2]))
 
     # make sure we point to the correct formula tape file
     link_force('cidrtfl.ci', 'cidrtfl')

@@ -3,6 +3,7 @@ Compute integrals over trajectories traveling on the boson model potential.
 """
 import numpy as np
 import src.interfaces.boson_model_diabatic as boson
+import src.dynamics.timings as timings
 
 
 # Let propagator know if we need data at centroids to propagate

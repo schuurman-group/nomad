@@ -8,9 +8,9 @@ import src.fmsio.glbl as glbl
 import src.basis.particle as particle
 
 
+@timings.timed
 def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
-    timings.start('trajectory.copy_traj')
     new_traj = Trajectory(orig_traj.nstates)
     p_list = []
     for i in range(orig_traj.n_particle):
@@ -35,7 +35,6 @@ def copy_traj(orig_traj):
     new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
     new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
     new_traj.sct        = copy.deepcopy(orig_traj.sct)
-    timings.stop('trajectory.copy_traj')
     return new_traj
 
 
@@ -275,7 +274,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return 0.5 * sum( self.p() * self.p() / self.masses() )
+        return 0.5 * sum( self.p() ** 2 / self.masses() )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -283,7 +282,8 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() / self.masses() # * omega # frequency scaled coords
+        #from src.interfaces.boson_model_diabatic import omega
+        return self.p() / self.masses() #* omega # frequency scaled coords
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -296,7 +296,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    0.5*sum(self.widths()/self.masses()))
+                    0.5*np.sum(self.widths()/self.masses()))
 
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
@@ -326,55 +326,51 @@ class Trajectory:
     # primitive integral routines
     #
     #-----------------------------------------------------------------------------
+    #@timings.timed
     def overlap(self,other,st_orthog=False):
         """Returns overlap of two trajectories."""
-        #timings.start('trajectory.overlap')
         if st_orthog and self.state != other.state:
             return complex(0.,0.)
-        S = np.exp( complex(0.,1.) * (other.gamma - self.gamma) )
+        S = np.exp( 1j * (other.gamma - self.gamma) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
-        #timings.stop('trajectory.overlap')
         return S
 
+    #@timings.timed
     def deldp(self, other, S_ij=None):
         """Returns the del/dp matrix element between two trajectories."""
-        #timings.start('trajectory.deldp')
         if S_ij is None:
             S_ij = self.overlap(other, st_orthog=True)
         dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dpval[self.d_particle*i:
                   self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
-        #timings.stop('trajectory.deldp')
         return dpval * S_ij
 
+    #@timings.timed
     def deldx(self, other, S_ij=None):
         """Returns the del/dx matrix element between two trajectories."""
-        #timings.start('trajectory.deldx')
         if S_ij is None:
             S_ij = self.overlap(other, st_orthog=True)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:
                   self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
-        #timings.stop('trajectory.deldx')
         return dxval * S_ij
 
+    #@timings.timed
     def deldx_m(self, other, S_ij=None):
         """Returns the momentum expectation values of 2 x mass.
 
         This appears in the equations of motion on the off diagonal coupling
         different states together through the NACME.
         """
-        #timings.start('trajectory.deldx_m')
         if S_ij is None:
             S_ij = self.overlap(other,st_orthog=False)
         dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
         for i in range(self.n_particle):
             dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
                                                               self.particles[i].mass)
-        #timings.stop('trajectory.deldx_m')
         return dxval * S_ij
 
     #--------------------------------------------------------------------------
@@ -419,27 +415,27 @@ class Trajectory:
             for j in range(self.nstates):
                 if j == i or j in init_states[0:i]:
                     continue
-                chkpt.write('# dipoles state1, state2 = {0:4d}, {1:4d}'
+                chkpt.write('# dipoles state1, state2 = {:4d}, {:4d}'
                             '\n'.format(j,i))
                 self.dipoles[j,i,:].tofile(chkpt, ' ', '%10.6f')
                 chkpt.write('\n')
 
         # Writes out gradients
         for i in range(self.nstates):
-            chkpt.write('# derivatives state1, state2 = {0:4d}, {1:4d}'
+            chkpt.write('# derivatives state1, state2 = {:4d}, {:4d}'
                         '\n'.format(self.state,i))
             self.deriv[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 
         # write out second moments
         for i in range(self.nstates):
-            chkpt.write('# second moments, state = {0:4d}\n'.format(i))
+            chkpt.write('# second moments, state = {:4d}\n'.format(i))
             self.sec_moms[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 
         # write out atomic populations
         for i in range(self.nstates):
-            chkpt.write('# atomic populations, state = {0:4d}\n'.format(i))
+            chkpt.write('# atomic populations, state = {:4d}\n'.format(i))
             self.atom_pops[i,:].tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 

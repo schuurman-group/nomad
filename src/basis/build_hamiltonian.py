@@ -38,19 +38,10 @@ def ij_ind(index):
     return int(index-i*(i-1)/2), int(i-1)
 
 
+@timings.timed
 def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    timings.start('build_hamiltonian')
-
-    try:
-        integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
-        sdot_int      = integrals.sdot_integral
-        v_int         = integrals.v_integral
-        ke_int        = integrals.ke_integral
-        req_centroids = integrals.require_centroids
-    except ImportError:
-        raise ImportError('build_hamiltonian cannot import: '
-                          'src.integrals.' + intlib)
+    integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
 
     n_alive = len(traj_alive)
     n_elem  = int(n_alive * (n_alive + 1) / 2)
@@ -79,22 +70,27 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
             S_orthog[j,i] = S[j,i]
 
             # time derivative of the overlap matrix
-            Sdot[i,j] = sdot_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            Sdot[j,i] = sdot_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
+            Sdot[i,j] = integrals.sdot_integral(traj_list[ii], traj_list[jj],
+                                                S_ij=S[i,j])
+            Sdot[j,i] = integrals.sdot_integral(traj_list[jj], traj_list[ii],
+                                                S_ij=S[j,i])
 
             # kinetic energy matrix
-            T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
+            T[i,j] = integrals.ke_integral(traj_list[ii], traj_list[jj],
+                                           S_ij=S[i,j])
             T[j,i] = T[i,j].conjugate()
 
         # potential energy matrix
         if i == j:
-            V[i,j] = v_int(traj_list[ii])
+            V[i,j] = integrals.v_integral(traj_list[ii])
         else:
-            if req_centroids:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],
-                               centroid=cent_list[c_ind(ii,jj)], S_ij=S[i,j])
+            if integrals.require_centroids:
+                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
+                                              centroid=cent_list[c_ind(ii,jj)],
+                                              S_ij=S[i,j])
             else:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
+                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
+                                              S_ij=S[i,j])
         V[j,i] = V[i,j].conjugate()
 
         # Hamiltonian matrix in non-orthongonal basis
@@ -102,8 +98,9 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
         H[j,i] = H[i,j].conjugate()
 
     # compute the S^-1, needed to compute Heff
+    timings.start('linalg.pinvh')
     Sinv = linalg.pinvh(S_orthog)
+    timings.stop('linalg.pinvh')
     Heff = np.dot( Sinv, H - 1j * Sdot )
 
-    timings.stop('build_hamiltonian')
     return T, V, S, Sdot, Heff
