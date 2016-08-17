@@ -49,7 +49,7 @@ def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
         fij = traj1.derivative(traj2.state)
         v = np.dot(fij, traj1.deldx_m(traj2, S_ij=complex(1.0,0.0)))
         return v * traj1.h_overlap(traj2)
-    
+        
     else:
         print('ERROR in v_integral -- argument disagreement')
         return 0.
@@ -76,8 +76,8 @@ def sdot_integral(traj1, traj2, S_ij=None):
     # Note that for now we have to pass S_ij=1 to deldx and deldp so
     # that these functions do not multiply the result by the overlap
     # of traj1 and traj2. This isn't ideal, but will do for now.
-    sdot =  (np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij=complex(1.0,0.0)) ) + \
-            np.dot( traj2.force()   , traj1.deldp(traj2, S_ij=complex(1.0,0.0)) ) + \
-            complex(0.,1.) * traj2.phase_dot()) * traj1.h_overlap(traj2)
+    sdot =  (np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij=complex(1.,0.)) ) + \
+             np.dot( traj2.force()   , traj1.deldp(traj2, S_ij=complex(1.,0.)) ) + \
+             complex(0.,1.) * traj2.phase_dot()) * traj1.h_overlap(traj2)
     return sdot
-    
+

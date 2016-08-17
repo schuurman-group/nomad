@@ -154,8 +154,6 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     # compute the S^-1, needed to compute Heff
     Sinv, cond = pseudo_inverse(S_orthog, n_alive)
 
-    #print(cond)
-
     Heff = np.dot( Sinv, H - c_imag * Sdot )
 
     timings.stop('build_hamiltonian')

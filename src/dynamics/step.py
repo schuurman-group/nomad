@@ -77,7 +77,8 @@ def fms_step_bundle(master, dt):
             # centroids
             if basis_grown:
                 surface.update_pes(master)
-            # update the bundle hamiltonian after adding/subtracting trajectories
+            # update the bundle hamiltonian after adding/subtracting
+            # trajectories
             if basis_grown or basis_pruned:
                 master.update_matrices()
 

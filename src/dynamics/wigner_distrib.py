@@ -9,7 +9,7 @@ import src.dynamics.utilities as utils
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
-
+import src.utils.linear as linear
 
 def sample_distribution(master):
     """Samples a v=0 Wigner distribution
@@ -126,9 +126,25 @@ def sample_distribution(master):
         new_traj = trajectory.Trajectory(glbl.fms['n_states'],
                                          particles=disp_gm,
                                          parent=0)
-        # with unit amplitude
-        new_traj.amplitude = new_traj.overlap(origin_traj)
+        # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
+
+    # Calculate the initial expansion coefficients via projection onto
+    # the initial wavefunction that we are sampling
+    ntraj = glbl.fms['n_init_traj']
+    ovec = np.zeros((ntraj), dtype=np.complex)
+    for i in range(ntraj):
+        ovec[i] = master.traj[i].overlap(origin_traj)
+    smat = np.zeros((ntraj, ntraj), dtype=np.complex)
+    for i in range(ntraj):
+        for j in range(i+1):
+            smat[i,j] = master.traj[i].overlap(master.traj[j])
+            if i != j:
+                smat[j,i] = smat[i,j].conjugate()
+    sinv, cond = linear.pseudo_inverse(smat)
+    cvec = np.dot(sinv, ovec)
+    for i in range(ntraj):
+        master.traj[i].update_amplitude(cvec[i])
 
     # state of trajectory not set, return False
     return False

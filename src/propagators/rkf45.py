@@ -6,7 +6,7 @@ import src.dynamics.surface as surface
 import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 
-tol=1e-6
+tol=1e+6
 
 err=0.
 sfac=0.
@@ -128,7 +128,7 @@ def rkf45_bundle(master, dt):
     k4_p = np.zeros((master.nactive, ncrd))
     k4_g = np.zeros(master.nactive)
     k5_x = np.zeros((master.nactive, ncrd))
-    k5_p = np.zeros((master.nacttive, ncrd))
+    k5_p = np.zeros((master.nactive, ncrd))
     k5_g = np.zeros(master.nactive)
     k6_x = np.zeros((master.nactive, ncrd))
     k6_p = np.zeros((master.nactive, ncrd))
