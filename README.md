@@ -10,7 +10,7 @@ Requires Python 3.? with NumPy 1.? and SciPy 0.?
 
 Setup
 -----
-In src/basis, compile gaussian.pyx with:
+In src/basis, compile gaussian.pyx and dirac_delta.pyx with:
 ```
 python setup.py build_ext --inplace
 ```

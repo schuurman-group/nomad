@@ -21,9 +21,13 @@ def overlap(x1, p1, a1, x2, p2, a2):
     S         = prefactor * cmath.exp(-real_part + 1j * imag_part)
     return S
 
+
 def overlap_prefactor(g1, g2):
-    prefactor = cmath.exp( complex(0., 1.) * (g2 - g1) )
+    """Returns the prefactor value for the overlap between two primitive
+    Gaussian functions."""
+    prefactor = cmath.exp(1j * (g2 - g1))
     return prefactor
+
 
 def deldp(x1, p1, a1, x2, p2, a2):
     """Returns the d/dp matrix element between two primitive Gaussians
