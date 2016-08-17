@@ -85,7 +85,7 @@ def sample_distribution(master):
             sigma_x = beta*np.sqrt(0.25 / alpha)
             sigma_p = beta*np.sqrt(alpha)
             itry = 0
-            while 0 <= itry <= max_try:
+            while itry <= max_try:
                 dx = random.gauss(0., sigma_x)
                 dp = random.gauss(0., sigma_p)
                 itry += 1

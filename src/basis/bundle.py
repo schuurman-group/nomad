@@ -11,6 +11,7 @@ from src.fmsio import fileio as fileio
 from src.basis import particle as particle
 from src.basis import trajectory as trajectory
 
+@timings.timed
 def copy_bundle(orig_bundle):
     """Copys a Bundle object with new references.
 
@@ -18,8 +19,6 @@ def copy_bundle(orig_bundle):
     of a bundle with new references. Overriding deepcopy for
     significantly more work.
     """
-    timings.start('bundle.copy_bundle')
-
     new_bundle = Bundle(orig_bundle.nstates, orig_bundle.integrals)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
@@ -39,8 +38,6 @@ def copy_bundle(orig_bundle):
         else:
             traj_i = trajectory.copy_traj(orig_bundle.cent[i])
         new_bundle.cent.append(traj_i)
-
-    timings.stop('bundle.copy_bundle')
 
     return new_bundle
 
@@ -99,9 +96,9 @@ class Bundle:
             return 0
         return int(n_traj * (n_traj - 1) / 2)
 
+    @timings.timed
     def add_trajectory(self, new_traj):
         """Adds a trajectory to the bundle."""
-        timings.start('bundle.add_trajectory')
         self.traj.append(new_traj)
         self.nalive         += 1
         self.nactive        += 1
@@ -115,7 +112,6 @@ class Bundle:
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
-        timings.stop('bundle.add_trajectory')
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
@@ -134,12 +130,12 @@ class Bundle:
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
 
+    @timings.timed
     def kill_trajectory(self, tid):
         """Moves a live trajectory to the list of dead trajecotries.
 
         The trajectory will no longer contribute to H, S, etc.
         """
-        timings.start('bundle.kill_trajectory')
         # Remove the trajectory from the list of living trajectories
         self.alive.remove(tid)
         self.traj[tid].alive = False
@@ -157,14 +153,12 @@ class Bundle:
         self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
-        
-        timings.stop('bundle.kill_trajectory')
 
+    @timings.timed
     def revive_trajectory(self, tid):
         """
         Moves a dead trajectory to the list of live trajectories.
         """
-        timings.start('bundle.revive_trajectory')
         self.traj[tid].alive = True
         
         # Add the trajectory to the list of living trajectories
@@ -179,15 +173,11 @@ class Bundle:
         self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
 
-        timings.stop('bundle.revive_trajectory')
-
+    @timings.timed
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
-
-        timings.start('bundle.update_amplitudes')
-
         self.update_matrices()
 
         if H is not None:
@@ -216,16 +206,13 @@ class Bundle:
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
-        timings.stop('bundle.update_amplitudes')
-
+    @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
-        timings.start('bundle.renormalize')
         current_pop = self.pop()
         norm = 1. / np.sqrt(sum(current_pop))
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
-        timings.stop('bundle.renormalize')
 
     def prune(self):
         """Kills trajectories that are dead."""
@@ -276,9 +263,9 @@ class Bundle:
                                         * self.traj[jj].amplitude)
         return mulliken
 
+    @timings.timed
     def pop(self):
-        """Returns the populations on each of the states."""        
-        timings.start('bundle.pop')
+        """Returns the populations on each of the states."""
         pop = np.zeros(self.nstates)
 
         # live contribution
@@ -298,29 +285,27 @@ class Bundle:
 
         # dead contribution?
 
-        timings.stop('bundle.pop')
         return pop
 
+    @timings.timed
     def pot_classical(self):
         """Returns the classical potential energy of the bundle.
 
         Currently includes energy from dead trajectories as well...
         """
-        timings.start('bundle.pot_classical')
         weight = np.array([self.traj[i].amplitude *
                            self.traj[i].amplitude.conjugate()
                            for i in range(self.n_traj())])
         v_int  = np.array([self.ints.v_integral(self.traj[i])
                            for i in range(self.n_traj())])
-        timings.stop('bundle.pot_classical')
         return sum(weight * v_int).real
 
+    @timings.timed
     def pot_quantum(self):
         """Returns the QM (coupled) potential energy of the bundle.
 
         Currently includes <live|live> and <dead|dead> contributions...
         """
-        timings.start('bundle.pot_quantum')
         energy = 0.
         for i in range(len(self.alive)):
             ii = self.alive[i]
@@ -334,23 +319,21 @@ class Bundle:
                           self.traj[ii].amplitude.conjugate())
                 v_int  = self.V[i,j]
                 energy += 2. * (weight * v_int).real
-        timings.stop('bundle.pot_quantum')
         return energy
 
+    @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
-        timings.start('bundle.kin_classical')
         weight  = np.array([self.traj[i].amplitude *
                             self.traj[i].amplitude.conjugate()
                             for i in range(self.n_traj())])
         ke_int  = np.array([self.ints.ke_integral(self.traj[i], self.traj[i])
                             for i in range(self.n_traj())])
-        timings.stop('bundle.kin_classical')
         return sum(weight * ke_int).real
 
+    @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
-        timings.start('bundle.kin_quantum')
         energy = 0.
         for i in range(len(self.alive)):
             ii = self.alive[i]
@@ -364,7 +347,6 @@ class Bundle:
                           self.traj[ii].amplitude.conjugate())
                 ke_int = self.T[i,j]
                 energy += 2. * (weight * ke_int).real
-        timings.stop('bundle.kin_quantum')
         return energy
 
     def tot_classical(self):
@@ -393,10 +375,9 @@ class Bundle:
     # Private methods/functions (called only within the class)
     #
     #----------------------------------------------------------------------
+    @timings.timed
     def update_centroids(self):
         """Updates the centroids."""
-        timings.start('bundle.update_centroids')
-
         for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
@@ -436,13 +417,9 @@ class Bundle:
                     self.cent[ij_ind].update_x(new_x)
                     self.cent[ij_ind].update_p(new_p)
 
-        timings.stop('bundle.update_centroids')
-        return
-        
+    @timings.timed
     def update_matrices(self):
         """Updates T, V, S, Sdot and Heff matrices."""
-        timings.start('bundle.update_matrices')
-
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
@@ -454,17 +431,14 @@ class Bundle:
              self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
                                 self.traj, self.alive)
 
-        timings.stop('bundle.update_matrices')
-
     #------------------------------------------------------------------------
     #
     # Functions to read/write bundle to checkpoint files
     #
     #------------------------------------------------------------------------
+    @timings.timed
     def update_logs(self):
         """Updates the log files."""
-        timings.start('bundle.update_logs')
-
         for i in range(self.n_traj()):
             if not self.traj[i].active:
                 continue
@@ -559,15 +533,12 @@ class Bundle:
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(7, data)
 
-        timings.stop('bundle.update_logs')
-
+    @timings.timed
     def write_bundle(self, filename, mode):
         """Dumps the bundle to file 'filename'.
 
         Mode is either 'a'(append) or 'x'(new).
         """
-        timings.start('bundle.write_bundle')
-
         if mode not in ('w','a'):
             raise ValueError('Invalid write mode in bundle.write_bundle')
         npart = self.traj[0].n_particle
@@ -593,8 +564,6 @@ class Bundle:
                 chkpt.write('-------- trajectory {:4d} --------\n'.format(i))
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
-
-        timings.stop('bundle.write_bundle')
 
     def read_bundle(self, filename, t_restart):
         """Reads a bundle at time 't_restart' from a chkpt file."""
