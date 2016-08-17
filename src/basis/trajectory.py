@@ -1,6 +1,7 @@
 """
 The Trajectory object and its associated functions.
 """
+import sys
 import copy
 import numpy as np
 import src.dynamics.timings as timings
@@ -60,8 +61,10 @@ class Trajectory:
         self.c_state    = -1
         # number of particles comprising the trajectory
         self.n_particle = len(self.particles)
-        # whether trajectory is alive (i.e. propagated)
+        # whether the trajectory is alive (i.e. contributes to the wavefunction)
         self.alive      = True
+        # whether the trajectory is active (i.e. is being propagated)
+        self.active     = True
         # amplitude of trajectory
         self.amplitude  = complex(0.,0.)
         # phase of the trajectory
@@ -94,6 +97,16 @@ class Trajectory:
         # Scalar coupling terms involving the state that the
         # trajectory exits on (including DBOCs)        
         self.sct = np.zeros((self.nstates))
+
+        self.ints = __import__('src.integrals.' + glbl.fms['integrals'],
+                               fromlist = ['a'])
+                               
+        self.basis = __import__('src.basis.' + self.ints.basis,
+                                fromlist = ['a'])
+
+        self.interface = __import__('src.interfaces.' +
+                               glbl.fms['interface'], fromlist =
+                               ['a'])
 
     #-------------------------------------------------------------------
     #
@@ -274,16 +287,15 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return 0.5 * sum( self.p() ** 2 / self.masses() )
+        return sum( self.p() * self.p() * self.interface.kecoeff)
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
         return self.potential() + self.kinetic()
 
     def velocity(self):
-        """Returns the velocity of the trajectory."""
-        #from src.interfaces.boson_model_diabatic import omega
-        return self.p() / self.masses() #* omega # frequency scaled coords
+        """Returns the velocity of the trajectory."""        
+        return self.p() * 2.0 * self.interface.kecoeff
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -296,7 +308,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    0.5*np.sum(self.widths()/self.masses()))
+                    sum(self.widths() * self.interface.kecoeff))
 
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""
@@ -335,6 +347,29 @@ class Trajectory:
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
         return S
+        
+    def h_overlap(self,other,st_orthog=False):
+        """Returns overlap of two trajectories."""
+        #timings.start('trajectory.overlap')        
+        if st_orthog and self.state != other.state:
+            return complex(0.,0.)
+        # The exponential prefactor doesn't really belong in
+        # gaussian/dirac_delta, but, as it depends on whether or not
+        # collocation is being used, I'm not sure else where to put
+        # it...
+        S = self.basis.overlap_prefactor(self.gamma, other.gamma)
+        for i in range(self.n_particle):
+            S = S * self.particles[i].h_overlap(other.particles[i])
+
+        #timings.stop('trajectory.overlap')
+        return S
+
+    def overlap_bundle(self, other):
+        """Returns the overlap of a trajectory with a bundle of trajectories"""
+        ovrlp = complex(0., 0.)
+        for i in range(other.nalive+other.ndead):
+            ovrlp += self.overlap(other.traj[i], st_orthog=True) * other.traj[i].amplitude
+        return ovrlp
 
     #@timings.timed
     def deldp(self, other, S_ij=None):
@@ -360,17 +395,24 @@ class Trajectory:
 
     #@timings.timed
     def deldx_m(self, other, S_ij=None):
-        """Returns the momentum expectation values of 2 x mass.
+        """Returns the momentum expectation values multiplied by 2*a_i.
+        
+        Here, the a_i are the coefficients entering into the KE
+        operator 
+        
+        T = sum_i a_i * p_i^2,
+        
+        where p_i is the momentum operator for the ith nuclear dof.
 
         This appears in the equations of motion on the off diagonal coupling
         different states together through the NACME.
         """
         if S_ij is None:
-            S_ij = self.overlap(other,st_orthog=False)
-        dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+            S_ij = self.overlap(other,st_orthog=False)        
+        dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
         for i in range(self.n_particle):
-            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i]) /
-                                                              self.particles[i].mass)
+            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i])
+                                                              * 2.0 * self.interface.kecoeff[i*self.d_particle])
         return dxval * S_ij
 
     #--------------------------------------------------------------------------

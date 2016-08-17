@@ -1,12 +1,12 @@
 """
 The Particle object and its associated functions.
 """
+import sys
 import re
 import copy
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.basis.gaussian as gaussian
-import src.interfaces.vcham.hampar as ham
 
 
 particle_name  = ['H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',
@@ -27,6 +27,7 @@ def valid_particle(particle):
 def load_particle(particle):
     """Loads particle information based on particle name."""
     q = re.compile('q[0-9]', re.IGNORECASE)
+
     if particle.name in particle_name:
         index = particle_name.index(particle.name)
         particle.width = particle_width[index]
@@ -36,6 +37,8 @@ def load_particle(particle):
             print('WARNING: particle ' + str(particle.name) +
                   ' in library, but width = 0')
     elif q.match(particle.name):
+        particle.mass  = 1.
+    else:
         particle.mass  = 1.
 
 def create_particle(pid, dim, name, width, mass):
@@ -80,6 +83,13 @@ class Particle:
         self.charge = 0.
         # a string name for particle (i.e. atom number, mode number, etc.)
         self.name   = ''
+        
+        self.ints = __import__('src.integrals.' + glbl.fms['integrals'],
+                               fromlist = ['a'])
+                               
+        self.basis = __import__('src.basis.' + self.ints.basis,
+                                fromlist = ['a'])
+
 
     #-----------------------------------------------------------------------------
     #
@@ -93,28 +103,33 @@ class Particle:
             S = S * gaussian.overlap(self.x[i], self.p[i], self.width,
                                      other.x[i], other.p[i], other.width)
         return S
+        
+    def h_overlap(self, other):
+        """Returns either the true overlap or the discretised overlap
+        of two particles, depending on the method being used."""
+        S = complex(1.,0.)
+        for i in range(self.dim):
+            S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
+                                       other.x[i], other.p[i], other.width)
+        return S
 
     def deldp(self, other):
         """Returns the del/dp matrix element between two particles."""
-        return np.fromiter((gaussian.deldp(self.x[i], self.p[i], self.width,
+        return np.fromiter((self.basis.deldp(self.x[i], self.p[i], self.width,
                                            other.x[i], other.p[i], other.width)
                             for i in range(self.dim)), dtype=complex)
 
     def deldx(self, other):
         """Returns the del/dx matrix element between two particles."""
-        return np.fromiter((gaussian.deldx(self.x[i], self.p[i], self.width,
+        return np.fromiter((self.basis.deldx(self.x[i], self.p[i], self.width,
                                            other.x[i], other.p[i], other.width)
                             for i in range(self.dim)), dtype=complex)
 
     def deld2x(self, other):
         """Returns the del^2/dx^2 matrix element between two particles."""
-        #print('x1,p1,w1,x2,p2,w2=' + str(self.x[0]) + ' ' + str(self.p[0]) +
-        #      ' ' + str(self.width) + ' ' + str(other.x[0]) + ' ' +
-        #      str(other.p[0]) + ' ' + str(other.width) + ' ')
-        d2xval = np.fromiter((gaussian.deld2x(self.x[i], self.p[i], self.width,
+        d2xval = np.fromiter((self.basis.deld2x(self.x[i], self.p[i], self.width,
                                               other.x[i], other.p[i], other.width)
                               for i in range(self.dim)), dtype=complex)
-        #print('d2xval = ' + str(d2xval))
         return sum(d2xval)
 
     #------------------------------------------------------------------------

@@ -35,7 +35,7 @@ def update_pes(master):
         # update electronic structure
         run_list = []
         for i in range(master.n_traj()):
-            if not master.traj[i].alive or cached(i, master.traj[i].x()):
+            if not master.traj[i].active or cached(i, master.traj[i].x()):
                 continue
             run_list.append([i, master.traj[i].particles,
                              master.traj[i].state])
@@ -76,7 +76,7 @@ def update_pes(master):
     else:
         # iterate over trajectories..
         for i in range(master.n_traj()):
-            if not master.traj[i].alive:
+            if not master.traj[i].active:
                 continue
             results = pes.evaluate_trajectory(i, master.traj[i].particles,
                                               master.traj[i].state)

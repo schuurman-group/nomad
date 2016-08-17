@@ -1,11 +1,13 @@
 """
 Routines for propagating a bundle forward by a time step.
 """
+import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
+import src.basis.matching_pursuit as mp
 
 
 #-----------------------------------------------------------------------------
@@ -55,6 +57,10 @@ def fms_step_bundle(master, dt):
         time_step = min(time_step, end_time-master.time)
         integrator.propagate_bundle(master, time_step)
 
+        # Renormalization
+        if glbl.fms['renorm'] == 1:
+            master.renormalize()
+
         # check time_step is fine, energy/amplitude conserved
         accept, error_msg = check_step_bundle(master0, master, time_step)
 
@@ -71,9 +77,16 @@ def fms_step_bundle(master, dt):
             # centroids
             if basis_grown:
                 surface.update_pes(master)
-            # update the bundle hamiltonian after adding/subtracting trajectories
+            # update the bundle hamiltonian after adding/subtracting
+            # trajectories
             if basis_grown or basis_pruned:
                 master.update_matrices()
+
+            # re-expression of the basis using the matching pursuit
+            # algorithm
+            if glbl.fms['matching_pursuit'] == 1:
+                mp.reexpress_basis(master)
+
             # update the running log
             fileio.print_fms_logfile('t_step',
                                      [master.time, time_step, master.nalive])

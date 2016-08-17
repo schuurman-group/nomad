@@ -1,6 +1,7 @@
 """
 Routines for generating and sampling a Wigner vibrational distribution.
 """
+import sys
 import random
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -8,15 +9,15 @@ import src.dynamics.utilities as utils
 import src.basis.particle as particle
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
-
+import src.utils.linear as linear
 
 def sample_distribution(master):
     """Samples a v=0 Wigner distribution
-
-    Modified to allow for the sampling of mass- and frequency-scaled
-    normal mode coordinates in the case that a vibronic coupling
-    Hamiltonian is being used. (SN 15/06/2016)
     """
+
+    # Compression parameter
+    beta = glbl.fms['sampling_compression']
+
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.fms['interface'] == 'vibronic':
         coordtype = 'normal'
@@ -72,7 +73,7 @@ def sample_distribution(master):
     if coordtype == 'normal':
         n_modes = ham.nmode_active
         freqs = ham.freq
-
+    
     # loop over the number of initial trajectories
     max_try = 1000
     for i in range(glbl.fms['n_init_traj']):
@@ -81,8 +82,8 @@ def sample_distribution(master):
         disp_gm = [particle.copy_part(phase_gm[j]) for j in range(natm)]
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            sigma_x = np.sqrt(0.25 / alpha)
-            sigma_p = np.sqrt(alpha)
+            sigma_x = beta*np.sqrt(0.25 / alpha)
+            sigma_p = beta*np.sqrt(alpha)
             itry = 0
             while itry <= max_try:
                 dx = random.gauss(0., sigma_x)
@@ -112,8 +113,11 @@ def sample_distribution(master):
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x * np.sqrt(freqs)
-            disp_p = delta_p * np.sqrt(freqs)
+            disp_x = delta_x
+            disp_p = delta_p
+            for i in range(n_modes):
+                disp_x[i] = disp_x[i] * np.sqrt(freqs[i])
+                disp_p[i] = disp_p[i] * np.sqrt(freqs[i])
 
             for j in range(natm):
                 disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
@@ -122,9 +126,25 @@ def sample_distribution(master):
         new_traj = trajectory.Trajectory(glbl.fms['n_states'],
                                          particles=disp_gm,
                                          parent=0)
-        # with unit amplitude
-        new_traj.amplitude = new_traj.overlap(origin_traj)
+        # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
+
+    # Calculate the initial expansion coefficients via projection onto
+    # the initial wavefunction that we are sampling
+    ntraj = glbl.fms['n_init_traj']
+    ovec = np.zeros((ntraj), dtype=np.complex)
+    for i in range(ntraj):
+        ovec[i] = master.traj[i].overlap(origin_traj)
+    smat = np.zeros((ntraj, ntraj), dtype=np.complex)
+    for i in range(ntraj):
+        for j in range(i+1):
+            smat[i,j] = master.traj[i].overlap(master.traj[j])
+            if i != j:
+                smat[j,i] = smat[i,j].conjugate()
+    sinv, cond = linear.pseudo_inverse(smat)
+    cvec = np.dot(sinv, ovec)
+    for i in range(ntraj):
+        master.traj[i].update_amplitude(cvec[i])
 
     # state of trajectory not set, return False
     return False

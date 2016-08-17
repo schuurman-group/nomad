@@ -9,6 +9,8 @@ import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
+# Make sure that we print entire arrays
+np.set_printoptions(threshold = np.inf)
 
 home_path   = ''
 scr_path    = ''
@@ -189,7 +191,7 @@ def init_fms_output():
             for i in range(nump) for j in range(numd)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[7]] = ('{:12.4f}' +
+    dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
                                      for i in range(1, nump*numd+1)) + '\n')
 
@@ -325,7 +327,6 @@ def print_traj_row(tid, fkey, data):
     else:
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[tkeys[fkey]].format(*data))
-
 
 def update_logs(bundle):
     """Determines if it is appropriate to update the traj/bundle logs.

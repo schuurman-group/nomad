@@ -9,6 +9,11 @@ import src.dynamics.timings as timings
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
+# Determines the basis set
+basis = 'gaussian'
+
+# Determines the Hamiltonian symmetry
+hamsym = 'hermitian'
 
 def v_integral(traj1, traj2=None, S_ij=None):
     """Returns potential coupling matrix element between two
@@ -37,7 +42,7 @@ def v_integral(traj1, traj2=None, S_ij=None):
         return v_int
 
     if S_ij is None:
-        S_ij = traj1.overlap(traj2)
+        S_ij = traj1.h_overlap(traj2)
 
     if traj1.state == traj2.state:
         sgn  = -1. + 2.*traj1.state
@@ -60,7 +65,7 @@ def ke_integral(traj1, traj2, S_ij=None):
     """Returns kinetic energy integral over trajectories."""
     if traj1.state == traj2.state:
         if S_ij is None:
-            S_ij = traj1.overlap(traj2)
+            S_ij = traj1.h_overlap(traj2)
         ke_int = complex(0.,0.)
         for k in range(boson.ncrd):
             ke_int -= (0.5 * boson.omega[k] *
@@ -73,7 +78,7 @@ def ke_integral(traj1, traj2, S_ij=None):
 def sdot_integral(traj1, traj2, S_ij=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if S_ij is None:
-        S_ij = traj1.overlap(traj2, st_orthog=True)
+        S_ij = traj1.h_overlap(traj2, st_orthog=True)
 
     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2, S_ij) ) +
             np.dot( traj2.force(), traj1.deldp(traj2, S_ij) ) +

@@ -9,7 +9,12 @@ import subprocess
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
+import src.dynamics.utilities as utils
 
+# KE operator coefficients a_i:
+# T = sum_i a_i p_i^2,
+# where p_i is the momentum operator
+kecoeff = None
 
 # set to true if we want to compute electronic structure properties
 comp_properties = True
@@ -53,6 +58,19 @@ def init_interface():
     global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
     global max_l, mrci_lvl, mem_str
 
+    global kecoeff
+
+    # KE operator coefficients: Unscaled Cartesian coordinates,
+    # a_i = 1/2m_i
+    npart = glbl.fms['num_particles']
+    ndim = glbl.fms['dim_particles']
+    kecoeff = np.zeros((npart*ndim))
+    amps, phase_gm = utils.load_geometry()
+    for i in range(npart):
+        mass = phase_gm[i].mass        
+        for j in range(i*3,i*3+3):
+            kecoeff[j]=0.5/mass
+        
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
     columbus_path = os.environ['COLUMBUS']

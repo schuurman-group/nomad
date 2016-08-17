@@ -8,6 +8,11 @@ import numpy as np
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
 
+# Determines the basis set
+basis = 'gaussian'
+
+# Determines the Hamiltonian symmetry
+hamsym = 'hermitian'
 
 def v_integral(traj1, traj2=None, centroid=None, S_ij=None):
     """Returns potential coupling matrix element between two trajectories."""
@@ -38,7 +43,7 @@ def ke_integral(traj1, traj2, S_ij=None):
         for i in range(traj1.n_particle):
             ke -= (traj1.particles[i].deld2x(traj2.particles[i]) /
                    (2.*traj1.particles[i].mass))
-        return ke * traj1.overlap(traj2)
+        return ke * traj1.h_overlap(traj2)
     else:
         return ke
 
@@ -47,5 +52,5 @@ def sdot_integral(traj1, traj2, S_ij=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) ) +
             np.dot( traj2.force()   , traj1.deldp(traj2) ) +
-            complex(0.,1.) * traj2.phase_dot() * traj1.overlap(traj2))
+            complex(0.,1.) * traj2.phase_dot() * traj1.h_overlap(traj2))
     return sdot

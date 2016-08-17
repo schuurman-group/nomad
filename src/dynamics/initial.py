@@ -1,6 +1,7 @@
 """
 Routines for initializing dynamics calculations.
 """
+import sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -55,11 +56,13 @@ def init_bundle(master):
     master.update_matrices()
     # so that we may appropriately renormalize to unity
     master.renormalize()
-    master.update_logs()
 
     # this is the bundle at time t=0.  Save in order to compute auto
     # correlation function
     glbl.bundle0 = bundle.copy_bundle(master)
+
+    # write to the log files
+    master.update_logs()
 
     fileio.print_fms_logfile('t_step', [master.time, glbl.fms['default_time_step'],
                                         master.nalive])
