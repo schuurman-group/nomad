@@ -1,3 +1,8 @@
+"""
+The matching pursuit module.
+
+The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
+"""
 import sys
 import numpy as np
 import copy
@@ -6,34 +11,32 @@ import src.fmsio.glbl as glbl
 import src.basis.bundle as bundle
 import src.utils.linear as linear
 
+
 selected = []
 coeff = []
 nbas = 0
 conv = None
 gamma = 0.
 
+
 def reexpress_basis(master):
     """ Re-expresses the Gaussian basis using the matching pursuit
-    method. The specific algorithm used is taken from
-    S. Habershon, J. Chem. Phys. 136, 014109 (2102)."""
-
+    method."""
     # Condition number threshold
     epsilon = 1e+7
 
     # If the condition number of the overlap matrix is below
     # threshold, then return, else re-exress the basis using the
-    # matching pursuit algorithm 
+    # matching pursuit algorithm
     Sinv, cond = linear.pseudo_inverse(master.S)
     if cond <= epsilon:
         return
     else:
         matching_pursuit(master)
 
-    return
-
 
 def matching_pursuit(master):
-
+    """Performs the matching pursuit algorithm."""
     global conv, gamma, nbas, selected, coeff
 
     # Convergence threshold
@@ -50,16 +53,14 @@ def matching_pursuit(master):
     # Perform the MP iterations
     conv = False
     while not conv:
-        mp_1iter(residual,master)
+        mp_1iter(residual, master)
 
     # Construct the new wavefunction
     reset_wavefunction(master)
 
-    return
 
-
-def mp_1iter(residual,master):
-
+def mp_1iter(residual, master):
+    """Performs one iteration of the matching pursuit algorithm."""
     global selected, nbas, coeff, conv
 
     # (1) Basis function selection
@@ -84,15 +85,13 @@ def mp_1iter(residual,master):
 
     # (4) Update the residual
     update_residual(residual)
-    
-    return
 
 
 def select_basfunc(residual):
-
+    """Returns the index of a selected basis function."""
     global selected
 
-    indx = -1    
+    indx = -1
     maxovrlp = 0.
     for i in range(residual.nalive + residual.ndead):
         ovrlp = residual.traj[i].overlap_bundle(residual)
@@ -104,7 +103,7 @@ def select_basfunc(residual):
 
 
 def coeff_basfunc(residual,master):
-
+    """Determines the coefficients of basis functions."""
     global selected, nbas
 
     # Construct the inverse overlap matrix for the selected basis functions
@@ -113,7 +112,7 @@ def coeff_basfunc(residual,master):
         iindx = selected[i]
         for j in range(i+1):
             jindx = selected[j]
-            smat[i,j] = residual.traj[iindx].overlap(residual.traj[jindx], 
+            smat[i,j] = residual.traj[iindx].overlap(residual.traj[jindx],
                                                      st_orthog=True)
             smat[j,i] = smat[i,j].conjugate()
     sinv, cond = linear.pseudo_inverse(smat)
@@ -126,15 +125,13 @@ def coeff_basfunc(residual,master):
             jindx = selected[j]
             coe += (sinv[i,j] *
                     residual.traj[jindx].overlap_bundle(master))
-        coeff[i]=coe
-
-    return
+        coeff[i] = coe
 
 
 def check_conv(residual,master):
-    
+    """Checks the convergence and sets conv."""
     global selected, nbas, coeff, conv, gamma
-    
+
     # Create a bundle corresponding to the selected basis functions
     new = bundle.copy_bundle(residual)
     for i in range(new.nalive+new.ndead):
@@ -151,28 +148,24 @@ def check_conv(residual,master):
     if eta < gamma:
         conv = True
 
-    return
-
 
 def update_residual(residual):
-
+    """Updates the residual."""
     global selected, nbas, coeff
 
     # Residual -> residual - new
     for i in range(nbas):
-        indx = selected[i]        
+        indx = selected[i]
         residual.traj[indx].amplitude -= np.copy(coeff[i])
 
     # Renormalisation
     residual.renormalize()
 
-    return
-
 
 def reset_wavefunction(master):
-
+    """Resets the FMS wavefunction (to what?)."""
     global selected, nbas, coeff
-    
+
     # Sort the selected basis functions and coefficients in order of
     # ascending basis function index
     indxmap = sorted(range(len(selected)), key=lambda k: selected[k])
@@ -185,7 +178,7 @@ def reset_wavefunction(master):
     indx = np.copy(master.alive)
     for i in range(len(indx)):
         master.kill_trajectory(indx[i])
-    
+
     # Add the selected trajectories
     for i in range(nbas):
         indx = selected[i]
@@ -207,7 +200,7 @@ def reset_wavefunction(master):
     # S-matix, as this matrix is also calculated in update-matrices,
     # but will do for now.
     recalc_overlap(master)
-    
+
     # Renormalise
     master.renormalize()
 
@@ -215,11 +208,9 @@ def reset_wavefunction(master):
     # has changed
     master.update_matrices()
 
-    return
-
 
 def recalc_overlap(master):
-
+    """Recalculates the overlap matrix elements."""
     for i in range(master.nalive):
         iindx = master.alive[i]
         for j in range(i+1):
@@ -227,5 +218,3 @@ def recalc_overlap(master):
             master.S[i,j] = (master.traj[iindx].overlap(master.traj[jindx],
                                                         st_orthog=False))
             master.S[j,i] = master.S[i,j].conjugate()
-
-    return

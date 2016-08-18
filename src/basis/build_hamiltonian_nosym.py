@@ -17,8 +17,10 @@ As a matter of course, this function also builds:
 """
 import sys
 import numpy as np
+from scipy import linalg
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
+
 
 def c_ind(i, j):
     """Returns the index in the cent array of the centroid between
@@ -39,6 +41,8 @@ def ij_ind(index):
         i += 1
     return int(index-i*(i-1)/2), int(i-1)
 
+
+@timings.timed
 def pseudo_inverse(mat, dim):
     """ Modified version of the scipy pinv function. Altered such that
     the the cutoff for singular values can be set to a hard
@@ -46,10 +50,10 @@ def pseudo_inverse(mat, dim):
     taken."""
 
     invmat = np.zeros((dim, dim), dtype=complex)
-    mat=np.conjugate(mat)
-    
+    mat = np.conjugate(mat)
+
     # SVD of the overlap matrix
-    u, s, vt = np.linalg.svd(mat, full_matrices=True)
+    u, s, vt = linalg.svd(mat, full_matrices=True)
 
     # Condition number
     if s[dim-1] < 1e-90:
@@ -59,7 +63,7 @@ def pseudo_inverse(mat, dim):
 
     # Moore-Penrose pseudo-inverse
     if glbl.fms['sinv_thrsh'] == -1.0:
-        cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
+        cutoff = glbl.fms['sinv_thrsh'] * np.maximum.reduce(s)
     else:
         cutoff = glbl.fms['sinv_thrsh']
     for i in range(dim):
@@ -68,28 +72,18 @@ def pseudo_inverse(mat, dim):
         else:
             s[i] = 0.
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))    
+                                                  np.transpose(u)))
 
     return invmat, cond
 
+
+@timings.timed
 def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    timings.start('build_hamiltonian')
-
-    try:
-        integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
-        sdot_int      = integrals.sdot_integral
-        v_int         = integrals.v_integral
-        ke_int        = integrals.ke_integral
-        req_centroids = integrals.require_centroids
-    except ImportError:
-        raise ImportError('build_hamiltonian cannot import: '
-                          'src.integrals.' + intlib)
+    integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
 
     n_alive = len(traj_alive)
     n_elem  = int(n_alive * (n_alive + 1) / 2)
-    c_zero  = complex(0., 0.)
-    c_imag  = complex(0., 1.)
 
     T        = np.zeros((n_alive, n_alive), dtype=complex)
     V        = np.zeros((n_alive, n_alive), dtype=complex)
@@ -109,9 +103,9 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
 
         # overlap matrix (excluding electronic component)
         S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
-        if j != i:
+        if i != j:
             S[j,i] = traj_list[jj].h_overlap(traj_list[ii])
-        
+
         # True overlap matrix
         Strue[i,j] = traj_list[ii].overlap(traj_list[jj])
         Strue[j,i] = Strue[i,j].conjugate()
@@ -122,31 +116,40 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
             S_orthog[j,i] = S[j,i]
 
             # time derivative of the overlap matrix
-            Sdot[i,j] = sdot_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            if j != i:
-                Sdot[j,i] = sdot_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
+            Sdot[i,j] = integrals.sdot_integral(traj_list[ii], traj_list[jj],
+                                                S_ij=S[i,j])
+            if i != j:
+                Sdot[j,i] = integrals.sdot_integral(traj_list[jj], traj_list[ii],
+                                                    S_ij=S[j,i])
 
             # kinetic energy matrix
-            T[i,j] = ke_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            if j != i:
-                T[j,i] = ke_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
-            
+            T[i,j] = integrals.ke_integral(traj_list[ii], traj_list[jj],
+                                           S_ij=S[i,j])
+            if i != j:
+                T[j,i] = integrals.ke_integral(traj_list[jj], traj_list[ii],
+                                               S_ij=S[j,i])
+
         else:
-            S_orthog[i,j] = c_zero
-            S_orthog[j,i] = c_zero
+            S_orthog[i,j] = 0.
+            S_orthog[j,i] = 0.
 
         # potential energy matrix
-        if req_centroids:
+        if integrals.require_centroids:
             if i == j:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],traj_list[ii],S_ij=S[i,j])
+                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
+                                              traj_list[ii], S_ij=S[i,j])
             else:
-                V[i,j] = v_int(traj_list[ii], traj_list[jj],cent_list[c_ind(ii,jj)],S_ij=S[i,j])
-                V[j,i] = v_int(traj_list[jj], traj_list[ii],cent_list[c_ind(jj,ii)],S_ij=S[j,i])
+                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
+                                              cent_list[c_ind(ii,jj)], S_ij=S[i,j])
+                V[j,i] = integrals.v_integral(traj_list[jj], traj_list[ii],
+                                              cent_list[c_ind(jj,ii)], S_ij=S[j,i])
         else:
-            V[i,j] = v_int(traj_list[ii], traj_list[jj], S_ij=S[i,j])
-            if j != i:
-                V[j,i] = v_int(traj_list[jj], traj_list[ii], S_ij=S[j,i])
-        
+            V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
+                                          S_ij=S[i,j])
+            if i != j:
+                V[j,i] = integrals.v_integral(traj_list[jj], traj_list[ii],
+                                              S_ij=S[j,i])
+
         # Hamiltonian matrix in non-orthongonal basis
         H[i,j] = T[i,j] + V[i,j]
         H[j,i] = T[j,i] + V[j,i]
@@ -154,7 +157,5 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     # compute the S^-1, needed to compute Heff
     Sinv, cond = pseudo_inverse(S_orthog, n_alive)
 
-    Heff = np.dot( Sinv, H - c_imag * Sdot )
-
-    timings.stop('build_hamiltonian')
+    Heff = np.dot( Sinv, H - 1j * Sdot )
     return T, V, Strue, Sdot, Heff

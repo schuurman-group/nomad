@@ -160,7 +160,7 @@ class Bundle:
         Moves a dead trajectory to the list of live trajectories.
         """
         self.traj[tid].alive = True
-        
+
         # Add the trajectory to the list of living trajectories
         self.alive.append(tid)
 
@@ -192,7 +192,7 @@ class Bundle:
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
-        B = -complex(0.,1.) * Hmat * dt
+        B = -1j * Hmat * dt
 
         if self.nalive < 150:
             # Eigen-decomposition
@@ -360,9 +360,9 @@ class Bundle:
     def overlap(self, other):
         """Returns the overlap integral of the bundle with another
         bundle."""
-        S = complex(0.,0.)
+        S = 0.
         for i in range(self.nalive):
-            for j in range(other.nalive):                
+            for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
                 S += (self.traj[ii].overlap(other.traj[jj]) *
@@ -424,7 +424,7 @@ class Bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = self.hambuild.build_hamiltonian(self.integrals, 
+             self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
                                 self.traj, self.alive, cent_list=self.cent)
         else:
             (self.T, self.V, self.S, self.Sdot,
