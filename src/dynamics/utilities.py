@@ -13,7 +13,7 @@ def mode_overlap(alpha, dx, dp):
     the overlap of the resultant gaussian primitive with the gaussian primitive
     centered at (x0,p0) (integrate over x, independent of x0).
     """
-    return abs(np.exp((-4.*alpha*dx**2 + 4.*complex(0.,1.)*dx*dp -
+    return abs(np.exp((-4.*alpha*dx**2 + 4.*1j*dx*dp -
                        (1./alpha)*dp**2) / 8.))
 
 
