@@ -5,6 +5,9 @@ FMS Gaussian basis functions are of the form
 g1(x) = (2a1 / pi)^(1/4) exp[-a1 (x - x1)^2 + i p1 (x - x1)]
 where a1 is the width, x1 centre of the Gaussian position and p1 is
 the centre of the Gaussian momentum.
+
+This module is also written in Cython. For optimal performance, compile
+the Cython module using the directions in the README.
 """
 import math
 import cmath

@@ -1,6 +1,9 @@
 """
 Mathematical functions for matrix elements between a Dirac delta
 function and a primitive Gaussian function.
+
+This module is also written in Cython. For optimal performance, compile
+the Cython module using the directions in the README.
 """
 import math
 import cmath
