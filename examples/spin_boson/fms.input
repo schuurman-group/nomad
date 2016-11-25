@@ -1,0 +1,40 @@
+#
+# General variables
+#
+interface = boson_model_diabatic
+
+#
+# Initial Conditions
+#
+spawning = continuous
+n_init_traj = 50
+seed = 1
+init_sampling = wigner_distrib
+integrals = boson_model
+# states run from 0 -> nstates-1
+n_states = 2
+init_state = 0
+num_particles = 4
+dim_particles = 1
+pot_shift = 0
+init_mode_min_olap = 0.1
+propagator = rkf45
+energy_jump_toler = 0.05
+continuous_min_overlap = 0.1
+sij_thresh = 0.5
+hij_coup_thresh = 100
+virtual_basis = 1
+
+#
+# Timing Variables
+#
+simulation_time   = 30.00
+default_time_step = 0.02
+
+#
+# I/O variables
+#
+print_traj = 1
+print_es = 0
+print_matrices = 1
+print_chkpt = 0

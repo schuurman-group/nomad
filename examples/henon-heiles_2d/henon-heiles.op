@@ -1,0 +1,21 @@
+PARAMETER-SECTION
+
+lambda = 0.111803
+
+end-parameter-section
+
+HAMILTONIAN-SECTION
+
+modes   | x1 | x2
+
+0.5 1^2 S1&1
+
+0.5 2^2 S1&1
+
+lambda 1^2 2^1 S1&1
+
+-0.33333333*lambda 2^3 S1&1
+
+end-hamiltonian-section
+
+end-operator
