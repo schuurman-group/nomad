@@ -1,6 +1,5 @@
 """
-Form the non-Hermitian Hamiltonian matrix used in the collocation
-method in the basis of the FMS trajectories.
+Form the Hermitian Hamiltonian matrix in the basis of the FMS trajectories.
 
 This will necessarily involve a set of additional matrices. For ab initio
 propagation, this is never the rate determining step. For numerical
@@ -13,14 +12,12 @@ As a matter of course, this function also builds:
    - the effective Hamiltonian (i.e. i * S^-1 [ S * H - Sdot])
      --> this is the matrix employed to solve for the time
          dependent amplitudes
-
 """
 import sys
 import numpy as np
 from scipy import linalg
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
-
 
 def c_ind(i, j):
     """Returns the index in the cent array of the centroid between
@@ -32,17 +29,19 @@ def c_ind(i, j):
         b = min(i, j)
         return int(a*(a-1)/2 + b)
 
-
-def ij_ind(index):
+def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the
-    sequential matrix index 'index'."""
+    sequential matrix index 'index'"""
     i = 0
     while i*(i+1)/2 - 1 < index:
         i += 1
     return int(index-i*(i-1)/2), int(i-1)
 
+def sq_ind(index, n):
+    """Gets the (i,j) index of a square matrix from the 
+    sequential matrix index 'index'"""
+    return int(index / n), index - int(index / n) * n
 
-@timings.timed
 def pseudo_inverse(mat, dim):
     """ Modified version of the scipy pinv function. Altered such that
     the the cutoff for singular values can be set to a hard
@@ -50,10 +49,12 @@ def pseudo_inverse(mat, dim):
     taken."""
 
     invmat = np.zeros((dim, dim), dtype=complex)
-    mat = np.conjugate(mat)
-
+    mat=np.conjugate(mat)
+    
     # SVD of the overlap matrix
-    u, s, vt = linalg.svd(mat, full_matrices=True)
+    u, s, vt = np.linalg.svd(mat, full_matrices=True)
+
+    #print("\n",s,"\n")
 
     # Condition number
     if s[dim-1] < 1e-90:
@@ -63,7 +64,7 @@ def pseudo_inverse(mat, dim):
 
     # Moore-Penrose pseudo-inverse
     if glbl.fms['sinv_thrsh'] == -1.0:
-        cutoff = glbl.fms['sinv_thrsh'] * np.maximum.reduce(s)
+        cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
     else:
         cutoff = glbl.fms['sinv_thrsh']
     for i in range(dim):
@@ -72,10 +73,9 @@ def pseudo_inverse(mat, dim):
         else:
             s[i] = 0.
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))
+                                                  np.transpose(u)))    
 
     return invmat, cond
-
 
 @timings.timed
 def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
@@ -83,79 +83,77 @@ def build_hamiltonian(intlib, traj_list, traj_alive, cent_list=None):
     integrals = __import__('src.integrals.' + intlib, fromlist=['a'])
 
     n_alive = len(traj_alive)
-    n_elem  = int(n_alive * (n_alive + 1) / 2)
+    if integrals.hermitian:
+        n_elem  = int(n_alive * (n_alive + 1) / 2)
+    else:
+        n_elem  = n_alive * n_alive
 
     T        = np.zeros((n_alive, n_alive), dtype=complex)
     V        = np.zeros((n_alive, n_alive), dtype=complex)
     H        = np.zeros((n_alive, n_alive), dtype=complex)
-    S        = np.zeros((n_alive, n_alive), dtype=complex)
-    Strue    = np.zeros((n_alive, n_alive), dtype=complex)
-    S_orthog = np.zeros((n_alive, n_alive), dtype=complex)
+    Snuc     = np.zeros((n_alive, n_alive), dtype=complex)
+    Stotal   = np.zeros((n_alive, n_alive), dtype=complex)
     Sinv     = np.zeros((n_alive, n_alive), dtype=complex)
     Sdot     = np.zeros((n_alive, n_alive), dtype=complex)
     Heff     = np.zeros((n_alive, n_alive), dtype=complex)
 
     for ij in range(n_elem):
+        if integrals.hermitian:
+            i, j = ut_ind(ij)
+        else:
+            i, j = sq_ind(ij, n_alive)
 
-        i, j = ij_ind(ij)
         ii = traj_alive[i]
         jj = traj_alive[j]
 
         # overlap matrix (excluding electronic component)
-        S[i,j] = traj_list[ii].h_overlap(traj_list[jj])
-        if i != j:
-            S[j,i] = traj_list[jj].h_overlap(traj_list[ii])
-
-        # True overlap matrix
-        Strue[i,j] = traj_list[ii].overlap(traj_list[jj])
-        Strue[j,i] = Strue[i,j].conjugate()
+        Snuc[i,j] = integrals.snuc_integral(traj_list[ii],traj_list[jj])
 
         # overlap matrix (including electronic component)
-        if traj_list[ii].state == traj_list[jj].state:
-            S_orthog[i,j] = S[i,j]
-            S_orthog[j,i] = S[j,i]
+        Stotal[i,j] = integrals.stotal_integral(traj_list[ii], 
+                                        traj_list[jj], Snuc=Snuc[i,j])
 
-            # time derivative of the overlap matrix
-            Sdot[i,j] = integrals.sdot_integral(traj_list[ii], traj_list[jj],
-                                                S_ij=S[i,j])
-            if i != j:
-                Sdot[j,i] = integrals.sdot_integral(traj_list[jj], traj_list[ii],
-                                                    S_ij=S[j,i])
+        # time-derivative of the overlap matrix (not hermitian in general)
+        Sdot[i,j]   = integrals.sdot_integral(traj_list[ii], 
+                                        traj_list[jj], Snuc=Snuc[i,j])
+        Sdot[j,i]   = integrals.sdot_integral(traj_list[ii], 
+                                        traj_list[jj], Snuc=Snuc[j,i])
 
-            # kinetic energy matrix
-            T[i,j] = integrals.ke_integral(traj_list[ii], traj_list[jj],
-                                           S_ij=S[i,j])
-            if i != j:
-                T[j,i] = integrals.ke_integral(traj_list[jj], traj_list[ii],
-                                               S_ij=S[j,i])
-
-        else:
-            S_orthog[i,j] = 0.
-            S_orthog[j,i] = 0.
+        # kinetic energy matrix
+        T[i,j] = integrals.ke_integral(traj_list[ii], 
+                                       traj_list[jj], Snuc=Snuc[i,j])
 
         # potential energy matrix
         if integrals.require_centroids:
-            if i == j:
-                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
-                                              traj_list[ii], S_ij=S[i,j])
-            else:
-                V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
-                                              cent_list[c_ind(ii,jj)], S_ij=S[i,j])
-                V[j,i] = integrals.v_integral(traj_list[jj], traj_list[ii],
-                                              cent_list[c_ind(jj,ii)], S_ij=S[j,i])
+            V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj], 
+                              centroid=cent_list[c_ind(ii,jj)], Snuc=Snuc[i,j])
         else:
-            V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj],
-                                          S_ij=S[i,j])
-            if i != j:
-                V[j,i] = integrals.v_integral(traj_list[jj], traj_list[ii],
-                                              S_ij=S[j,i])
+            V[i,j] = integrals.v_integral(traj_list[ii], 
+                                          traj_list[jj], Snuc=Snuc[i,j])
 
-        # Hamiltonian matrix in non-orthongonal basis
+        # Hamiltonian matrix in non-orthogonal basis
         H[i,j] = T[i,j] + V[i,j]
-        H[j,i] = T[j,i] + V[j,i]
 
-    # compute the S^-1, needed to compute Heff
-    Sinv, cond = pseudo_inverse(S_orthog, n_alive)
+        # if hermitian matrix, set (j,i) indices
+        if integrals.hermitian:
+            Snuc[j,i]   = Snuc[i,j].conjugate()
+            Stotal[j,i] = Stotal[i,j].conjugate()
+            T[j,i]      = T[i,j].conjugate()
+            V[j,i]      = V[i,j].conjugate()
+            H[j,i]      = H[i,j].conjugate()
+
+
+    if integrals.hermitian:
+        # compute the S^-1, needed to compute Heff
+        timings.start('linalg.pinvh')
+        Sinv = linalg.pinvh(Stotal)
+        timings.stop('linalg.pinvh')
+    else:
+        # compute the S^-1, needed to compute Heff
+        timings.start('build_hamiltonian.pseudo_inverse')
+        Sinv, cond = pseudo_inverse(Stotal, n_alive)
+        timings.stop('build_hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
-    return T, V, Strue, Sdot, Heff
+
+    return T, V, Snuc, Sdot, Heff
