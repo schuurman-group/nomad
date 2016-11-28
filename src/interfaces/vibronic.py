@@ -54,7 +54,7 @@ def init_interface():
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
     kecoeff = np.zeros((ham.nmode_active))
-    kecoeff = 0.5*ham.freq[:ham.nmode_active]
+    kecoeff = -0.5*ham.freq[:ham.nmode_active]
     
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])

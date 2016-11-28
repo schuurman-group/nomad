@@ -1,6 +1,7 @@
 """
 Compute integrals over trajectories traveling on vibronic potentials
 """
+import math
 import numpy as np
 
 
@@ -11,9 +12,27 @@ require_centroids = False
 basis = 'gaussian'
 
 # Determines the Hamiltonian symmetry
-hamsym = 'hermitian'
+hermitian = True
 
-def v_integral(traj1, traj2=None, centroid=None):
+# returns overlap integral
+def snuc_integral(traj1, traj2):
+    """ Returns < chi(R) | chi'(R') >, the overlap of the nuclear
+    component of the wave function only"""
+    return traj1.nuc_overlap(traj2)
+
+# returns total overlap of trajectory basis function
+def stotal_integral(traj1, traj2, Snuc=None):
+    """ Returns < Psi | Psi' >, the overlap of the nuclear
+    component of the wave function only"""
+    if traj1.state != traj2.state:
+        return complex(0.,0.)
+    else:
+        if Snuc is None:
+            return snuc_integral(traj1,traj2)
+        else:
+            return Snuc
+
+def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories.
 
     This will depend on how the operator is stored, and
@@ -48,21 +67,24 @@ def prim_v_integral(n, p1, p2):
     return v_total * np.math.factorial(N) / 2.**N
 
 
-def ke_integral(traj1, traj2):
+def ke_integral(traj1, traj2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
-    ke = complex(0.,0.)
-    if traj1.state == traj2.state:
-        for i in range(traj1.nparticles):
-            ke = (ke - traj1.particles[i].deld2x(traj2.particles[i]) /
-                  (2.*traj1.particles[i].mass))
-        return ke * traj1.h_overlap(traj2)
+    if traj1.state != traj2.state:
+        return complex(0.,0.)
     else:
-        return ke
+        if Snuc is None:
+            Snuc = snuc_integral(traj1, traj2)
+        ke = traj1.deld2x(traj2, S=Snuc)
+        return sum( ke * interface.kecoeff)
 
-
-def sdot_integral(traj1, traj2):
+def sdot_integral(traj1, traj2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2) ) +
-            np.dot( traj2.force(), traj1.deldp(traj2) ) +
-            complex(0.,1.) * traj2.phase_dot() * traj1.h_overlap(traj2))
-    return sdot
+    if traj1.state != traj2.state:
+        return complex(0.,0.)
+    else:
+        if Snuc is None:
+            Snuc = snuc_integral(traj1, traj2)
+        sdot = -np.dot( traj2.velocity(), traj1.deldx(traj2,S=Snuc) ) +
+                np.dot( traj2.force(),    traj1.deldp(traj2,S=Snuc) ) +
+                1.j * traj2.phase_dot() * Snuc
+        return sdot

@@ -112,8 +112,8 @@ def coeff_basfunc(residual,master):
         iindx = selected[i]
         for j in range(i+1):
             jindx = selected[j]
-            smat[i,j] = residual.traj[iindx].overlap(residual.traj[jindx],
-                                                     st_orthog=True)
+            smat[i,j] = residual.integrals.stotal_integral(residual.traj[iindx], 
+                                                           residual.traj[jindx])
             smat[j,i] = smat[i,j].conjugate()
     sinv, cond = linear.pseudo_inverse(smat)
 
@@ -215,6 +215,5 @@ def recalc_overlap(master):
         iindx = master.alive[i]
         for j in range(i+1):
             jindx = master.alive[j]
-            master.S[i,j] = (master.traj[iindx].overlap(master.traj[jindx],
-                                                        st_orthog=False))
+            master.S[i,j] = master.traj[iindx].nuc_overlap(master.traj[jindx])
             master.S[j,i] = master.S[i,j].conjugate()

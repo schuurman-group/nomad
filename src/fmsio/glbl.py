@@ -60,7 +60,9 @@ fms = dict(
     renorm                 = 0,
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
-    matching_pursuit       = 0
+    matching_pursuit       = 0,
+# MSS -- can be 'adiabatic','diabatic','crude_adiabatic'
+    representation         = 'adiabatic'
     )
 
 # Electronic structure information read from interface-specific

@@ -10,6 +10,7 @@ from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
 from src.basis import particle as particle
 from src.basis import trajectory as trajectory
+from src.basis import build_hamiltonian
 
 @timings.timed
 def copy_bundle(orig_bundle):
@@ -76,9 +77,6 @@ class Bundle:
                                    fromlist=['a'])
         except ImportError:
             print('BUNDLE INIT FAIL: src.integrals.' + self.integrals)
-
-        self.hambuild = __import__('src.basis.build_hamiltonian_' +
-                                   self.ints.hamsym , fromlist=['a'])
 
     def n_traj(self):
         """Returns total number of trajectories."""
@@ -180,11 +178,15 @@ class Bundle:
         exp(-i H(t) dt) C(t)."""
         self.update_matrices()
 
+        # if no Hamiltonian is pased, use the current effective
+        # Hamiltonian
         if H is not None:
             Hmat = H
         else:
             Hmat = self.Heff
 
+        # if no vector of amplitdues are supplied (to propagate),
+        # propogate the current amplitudes
         if Ct is not None:
             old_amp = Ct
         else:
@@ -296,7 +298,7 @@ class Bundle:
         weight = np.array([self.traj[i].amplitude *
                            self.traj[i].amplitude.conjugate()
                            for i in range(self.n_traj())])
-        v_int  = np.array([self.ints.v_integral(self.traj[i])
+        v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i])
                            for i in range(self.n_traj())])
         return sum(weight * v_int).real
 
@@ -365,7 +367,7 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.traj[ii].overlap(other.traj[jj]) *
+                S += (self.ints.stotal_integral(self.traj[ii], self.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
         return S
@@ -424,11 +426,11 @@ class Bundle:
         # self.H -- if we need them
         if self.ints.require_centroids:
             (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
+             self.Heff) = build_hamiltonian.build_hamiltonian(self.integrals,
                                 self.traj, self.alive, cent_list=self.cent)
         else:
             (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = self.hambuild.build_hamiltonian(self.integrals,
+             self.Heff) = build_hamiltonian.build_hamiltonian(self.integrals,
                                 self.traj, self.alive)
 
     #------------------------------------------------------------------------

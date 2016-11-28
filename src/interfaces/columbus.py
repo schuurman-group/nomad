@@ -69,7 +69,7 @@ def init_interface():
     for i in range(npart):
         mass = phase_gm[i].mass        
         for j in range(i*3,i*3+3):
-            kecoeff[j]=0.5/mass
+            kecoeff[j]=-0.5/mass
         
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)

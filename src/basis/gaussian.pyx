@@ -1,9 +1,26 @@
 cdef extern from "math.h":
     double sqrt(double)
+cdef extern from "math.h":
+    double M_PI
 cdef extern from "complex.h":
     double complex cexp(double complex)
 cdef extern from "complex.h":
     double complex I
+
+#
+# Returns the value of the gaussian parameterized by x1, p1, a1, 
+# evaluated at x2.
+#
+def evaluate_gaussian(double x2, 
+                      double x1, double p1, double a1):
+    cdef double dx, prefactor, real_part, imag_part
+    cdef double complex cval
+    dx        = x2 - x1
+    prefactor = sqrt(sqrt(2. * a1 / M_PI ))
+    real_part = a1*dx**2
+    imag_part = p1*dx
+    cval      = prefactor*cexp(-real_part + I*imag_part)
+    return cval 
 
 #
 # Returns the overlap of two primitive Gaussian functions.

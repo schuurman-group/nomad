@@ -134,11 +134,11 @@ def sample_distribution(master):
     ntraj = glbl.fms['n_init_traj']
     ovec = np.zeros((ntraj), dtype=np.complex)
     for i in range(ntraj):
-        ovec[i] = master.traj[i].overlap(origin_traj)
+        ovec[i] = master.traj[i].nuc_overlap(origin_traj)
     smat = np.zeros((ntraj, ntraj), dtype=np.complex)
     for i in range(ntraj):
         for j in range(i+1):
-            smat[i,j] = master.traj[i].overlap(master.traj[j])
+            smat[i,j] = master.traj[i].nuc_overlap(master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
     sinv, cond = linear.pseudo_inverse(smat)

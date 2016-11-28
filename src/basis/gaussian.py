@@ -12,6 +12,14 @@ the Cython module using the directions in the README.
 import math
 import cmath
 
+def evaluate_gaussian(x2, x1, p1, a1):
+    """Returns the value of the gaussian parameterized by x1, p1, a1, 
+    evaluated at x2."""
+    dx        = x2 - x1
+    prefactor = math.sqrt(math.sqrt(2. * a1 / math.pi ))
+    real_part = a1*dx**2
+    imag_part = p1*dx
+    return  prefactor * cmath.exp(-real_part + 1j * imag_part)
 
 def overlap(x1, p1, a1, x2, p2, a2):
     """Returns the overlap of two primitive Gaussian functions."""
@@ -24,13 +32,11 @@ def overlap(x1, p1, a1, x2, p2, a2):
     S         = prefactor * cmath.exp(-real_part + 1j * imag_part)
     return S
 
-
 def overlap_prefactor(g1, g2):
     """Returns the prefactor value for the overlap between two primitive
     Gaussian functions."""
     prefactor = cmath.exp(1j * (g2 - g1))
     return prefactor
-
 
 def deldp(x1, p1, a1, x2, p2, a2):
     """Returns the d/dp matrix element between two primitive Gaussians

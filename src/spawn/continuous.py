@@ -36,7 +36,7 @@ def spawn(master, dt):
             if st == parent.state:
                 continue
 
-            s_array = [abs(parent.overlap(master.traj[j], st_orthog=False))
+            s_array = [abs(parent.nuc_overlap(master.traj[j]))
                        if master.traj[j].state == st
                        and master.traj[j].alive else 0.
                        for j in range(master.n_traj())]
@@ -48,7 +48,7 @@ def spawn(master, dt):
 
                 success = utilities.adjust_child(parent, child,
                                                  parent.derivative(st))
-                sij = parent.overlap(child)
+                sij = parent.nuc_overlap(child)
 
                 # try to set up the child
                 if not success:

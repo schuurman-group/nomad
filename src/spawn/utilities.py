@@ -145,7 +145,10 @@ def overlap_with_bundle(traj, bundle):
     for i in range(bundle.n_traj()):
         if bundle.traj[i].alive:
 
-            sij = traj.overlap(bundle.traj[i], st_orthog=True)
+            if traj.state != bundle.traj[i].state:
+                sij = complex(0.,0.)
+            else:
+                sij = traj.nuc_overlap(bundle.traj[i])
             if abs(sij) > glbl.fms['sij_thresh']:
                 t_overlap_bundle = True
                 break

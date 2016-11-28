@@ -8,7 +8,6 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.particle as particle
 
-
 @timings.timed
 def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
@@ -101,9 +100,6 @@ class Trajectory:
         self.ints = __import__('src.integrals.' + glbl.fms['integrals'],
                                fromlist = ['a'])
                                
-        self.basis = __import__('src.basis.' + self.ints.basis,
-                                fromlist = ['a'])
-
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist =
                                ['a'])
@@ -339,81 +335,116 @@ class Trajectory:
     #
     #-----------------------------------------------------------------------------
     #@timings.timed
-    def overlap(self,other,st_orthog=False):
-        """Returns overlap of two trajectories."""
-        if st_orthog and self.state != other.state:
-            return complex(0.,0.)
+    def nuc_overlap(self, other):
+        """Returns overlap of the nuclear component between two trajectories."""
         S = np.exp( 1j * (other.gamma - self.gamma) )
         for i in range(self.n_particle):
             S = S * self.particles[i].overlap(other.particles[i])
         return S
         
-    def h_overlap(self,other,st_orthog=False):
-        """Returns overlap of two trajectories."""
-        #timings.start('trajectory.overlap')        
-        if st_orthog and self.state != other.state:
-            return complex(0.,0.)
-        # The exponential prefactor doesn't really belong in
-        # gaussian/dirac_delta, but, as it depends on whether or not
-        # collocation is being used, I'm not sure else where to put
-        # it...
-        S = self.basis.overlap_prefactor(self.gamma, other.gamma)
-        for i in range(self.n_particle):
-            S = S * self.particles[i].h_overlap(other.particles[i])
-
-        #timings.stop('trajectory.overlap')
-        return S
+#    def h_overlap(self,other,st_orthog=False):
+#        """Returns overlap of two trajectories."""
+#        #timings.start('trajectory.overlap')        
+#        if st_orthog and self.state != other.state:
+#            return complex(0.,0.)
+#        # The exponential prefactor doesn't really belong in
+#        # gaussian/dirac_delta, but, as it depends on whether or not
+#        # collocation is being used, I'm not sure else where to put
+#        # it...
+#        S = self.basis.overlap_prefactor(self.gamma, other.gamma)
+#        for i in range(self.n_particle):
+#            S = S * self.particles[i].h_overlap(other.particles[i])
+#
+#        #timings.stop('trajectory.overlap')
+#        return S
 
     def overlap_bundle(self, other):
         """Returns the overlap of a trajectory with a bundle of trajectories"""
         ovrlp = complex(0., 0.)
         for i in range(other.nalive+other.ndead):
-            ovrlp += self.overlap(other.traj[i], st_orthog=True) * other.traj[i].amplitude
+            ovrlp += self.ints.stotal_integral(self,other.traj[i]) * other.traj[i].amplitude
         return ovrlp
 
-    #@timings.timed
-    def deldp(self, other, S_ij=None):
-        """Returns the del/dp matrix element between two trajectories."""
-        if S_ij is None:
-            S_ij = self.overlap(other, st_orthog=True)
-        dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+    def evaluate_traj(self, x):
+        """Returns the value of the trajectory basis function evaluated at 'x'"""
+        val = np.exp( 1j * self.gamma ) 
         for i in range(self.n_particle):
-            dpval[self.d_particle*i:
-                  self.d_particle*(i+1)] = self.particles[i].deldp(other.particles[i])
-        return dpval * S_ij
+            val = val * self.particles[i].evaluate_particle(
+                                     x[self.d_particle*i:self.d_particle*(i+1)])
+        return val
 
     #@timings.timed
-    def deldx(self, other, S_ij=None):
-        """Returns the del/dx matrix element between two trajectories."""
-        if S_ij is None:
-            S_ij = self.overlap(other, st_orthog=True)
-        dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
-        for i in range(self.n_particle):
-            dxval[self.d_particle*i:
-                  self.d_particle*(i+1)] = self.particles[i].deldx(other.particles[i])
-        return dxval * S_ij
+    def deldp(self, other, S=None):
+        """Returns the del/dp matrix element between two trajectories --
+           (does not sum over terms). If no value for overlap is given,
+           default is to evaluate the total overlap (i.e. including 
+           electronic component)"""
+        if S is None:
+            S = self.ints.stotal_integral(self, other)
+        if S == 0.:
+            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+        else:
+            dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+            for i in range(self.n_particle):
+                dpval[self.d_particle*i:self.d_particle*(i+1)] =               \
+                                     self.particles[i].deldp(other.particles[i])
+            return dpval * S
 
     #@timings.timed
-    def deldx_m(self, other, S_ij=None):
-        """Returns the momentum expectation values multiplied by 2*a_i.
-        
-        Here, the a_i are the coefficients entering into the KE
-        operator 
-        
-        T = sum_i a_i * p_i^2,
-        
-        where p_i is the momentum operator for the ith nuclear dof.
+    def deldx(self, other, S=None):
+        """Returns the del/dx matrix element between two trajectories --
+           (does not sum over terms).If no value for overlap is given,
+           default is to evaluate the total overlap (i.e. including
+           electronic component)"""
+        if S is None:
+            S = self.ints.stotal_integral(self,other)
+        if S == 0.:
+            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+        else:
+            dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+            for i in range(self.n_particle):
+                dxval[self.d_particle*i:self.d_particle*(i+1)] =               \
+                                    self.particles[i].deldx(other.particles[i])
+            return dxval * S
 
-        This appears in the equations of motion on the off diagonal coupling
-        different states together through the NACME.
-        """
-        if S_ij is None:
-            S_ij = self.overlap(other,st_orthog=False)        
-        dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
-        for i in range(self.n_particle):
-            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i])
-                                                              * 2.0 * self.interface.kecoeff[i*self.d_particle])
-        return dxval * S_ij
+    #@timings.timed
+    def deld2x(self, other, S=None):
+        """Returns the del2/d2x matrix element between two trajectories --
+           (does not sum over terms).If no value for overlap is given,
+           default is to evaluate the total overlap (i.e. including
+           electronic component)"""
+        if S is None:
+            S = self.ints.stotal_integral(self,other)
+        if S == 0.:
+            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+        else:
+            d2xval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+            for i in range(self.n_particle):
+                d2xval[self.d_particle*i:self.d_particle*(i+1)] =              \
+                                    self.particles[i].deld2x(other.particles[i])
+            return d2xval * S
+
+    #@timings.timed
+#    def deldx_m(self, other, Snuc=None):
+#        """Returns the momentum expectation values multiplied by 2*a_i.
+#        
+#        Here, the a_i are the coefficients entering into the KE
+#        operator 
+#        
+#        T = sum_i a_i * p_i^2,
+#        
+#        where p_i is the momentum operator for the ith nuclear dof.
+#
+#        This appears in the equations of motion on the off diagonal coupling
+#        different states together through the NACME.
+#        """
+#        if Snuc is None:
+#            Snuc = self.ints.snuc_integral(self,other)       
+#        dxval = np.zeros(self.n_particle * self.d_particle, dtype=np.cfloat)
+#        for i in range(self.n_particle):
+#            dxval[self.d_particle*i:self.d_particle*(i+1)] = (self.particles[i].deldx(other.particles[i])
+#                                                              * 2.0 * self.interface.kecoeff[i*self.d_particle])
+#        return dxval * Snuc
 
     #--------------------------------------------------------------------------
     #

@@ -96,6 +96,16 @@ class Particle:
     # Integral Routines
     #
     #-----------------------------------------------------------------------------
+
+    def evaluate_particle(self, x):
+        """Returns the value of the particle (i.e. a product of self.dim
+        gaussian primitives) evaluated at the coordinate 'x'"""
+        val = complex(1.,0.)
+        for i in range(self.dim):
+            val = val * gaussian.evaluate_gaussian( x[i], self.x[i], self.p[i],
+                                                    self.width)
+        return val
+
     def overlap(self, other):
         """Returns overlap of two particles."""
         S = complex(1.,0.)
@@ -104,14 +114,15 @@ class Particle:
                                      other.x[i], other.p[i], other.width)
         return S
         
-    def h_overlap(self, other):
-        """Returns either the true overlap or the discretised overlap
-        of two particles, depending on the method being used."""
-        S = complex(1.,0.)
-        for i in range(self.dim):
-            S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
-                                       other.x[i], other.p[i], other.width)
-        return S
+#    def h_overlap(self, other):
+#        """Returns either the true overlap or the discretised overlap
+#        of two particles, depending on the method being used."""
+#        S = complex(1.,0.)
+#        for i in range(self.dim):
+#            S = S * self.basis.overlap(self.x[i], self.p[i], self.width,
+#                                       other.x[i], other.p[i], other.width)
+#        return S
+
 
     def deldp(self, other):
         """Returns the del/dp matrix element between two particles."""
