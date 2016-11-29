@@ -8,9 +8,10 @@ import src.basis.trajectory as trajectory
 
 def sample_distribution(master):
     """Takes initial position and momentum from geometry.dat file."""
-    amps, geoms = utils.load_geometry()
+    amps, geoms, crd_dim = utils.load_geometry()
     ngeoms = len(amps)
-    natms  = int(len(geoms)/ngeoms)
+    ndim   = len(geoms[0])
+    natms  = int(ndim/crd_dim)
 
     for i in range(ngeoms):
         amp  = amps[i]
@@ -22,6 +23,7 @@ def sample_distribution(master):
 
         # add a single trajectory specified by geometry.dat
         master.add_trajectory(trajectory.Trajectory(glbl.fms['n_states'],
+                                                    ndim,
                                                     particles=geom,
                                                     parent=0))
         # ...with unit amplitude

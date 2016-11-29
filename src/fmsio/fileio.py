@@ -8,6 +8,7 @@ import shutil
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
+import src.dynamics.atom_lib as atom_lib
 
 # Make sure that we print entire arrays
 np.set_printoptions(threshold = np.inf)
@@ -390,6 +391,8 @@ def read_geometry():
     geom_data  = []
     mom_data   = []
     width_data = []
+    label_data = []
+    mass_data  = []
 
     with open(home_path + '/geometry.dat', 'r', encoding='utf-8') as gfile:
         gm_file = gfile.readlines()
@@ -406,32 +409,56 @@ def read_geometry():
         else:
             amp_data.append(complex(1.,0.))
 
-        # number of atoms
+        # number of atoms/coordinates
         lcnt += 1
-        natm = int(gm_file[lcnt])
+        nq = int(gm_file[lcnt])
 
         # read in geometry
-        for i in range(natm):
+        for i in range(nq):
             lcnt += 1
-            geom_data.append(gm_file[lcnt].rstrip().split())
+            geom_data.append(gm_file[lcnt].rstrip().split()[1:])
+            crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
+            label_data.append([gm_file[lcnt].rstrip().split()[0] 
+                                                   for i in range(crd_dim))
 
         # read in momenta
-        for i in range(natm):
+        for i in range(nq):
             lcnt += 1
             mom_data.append(gm_file[lcnt].rstrip().split())
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
-            for i in range(natm):
+            for i in range(nq):
                 lcnt += 1
-                width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
+                width_data.append(float(gm_file[lcnt].rstrip().split()[1:]))
+        else:
+            labels = label_data[-nq * crd_dim]
+            for lbl in labels:
+                if atom_lib.valid_atom(lbl):
+                    adata = atom_data(lbl)
+                    width_data.append(adata[0])
+                else:
+                    width_data.append(0)
+
+        # read in masses, if present
+        if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
+            for i in range(nq):
+                lcnt += 1
+                mass_data.append(float(gm_file[lcnt].rstrip().split()[1:]))
+        else:
+            labels = label_data[-nq * crd_dim]
+            for lbl in labels:
+                if atom_lib.valid_atom(lbl):
+                    adata = atom_data(lbl)
+                    mass_data.append(adata[1])
+                else:
+                    mass_data.append(1.)
 
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return amp_data, geom_data, mom_data, width_data
-
+    return amp_data, label_data, geom_data, mom_data, width_data, mass_data
 
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""

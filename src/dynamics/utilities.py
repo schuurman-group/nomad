@@ -24,10 +24,13 @@ def load_geometry():
     basis (i.e. atom centered cartesians vs. normal modes).
     """
     a_list                       = []
+    x_list                       = []
     p_list                       = []
-    a_data, g_data, p_data, w_data  = fileio.read_geometry()
+    a_data, lbl_data, g_data, p_data, w_data  = fileio.read_geometry()
 
-    for a_item in a_data:
+    for q in lbl_data:
+        
+ 
         a_list.append(a_item)
 
     for i in range(len(g_data)):
@@ -42,7 +45,7 @@ def load_geometry():
         if len(w_data) > i:
             p_list[i].width = w_data[i]
 
-    return a_list, p_list
+    return a_list, x_list, p_list
 
 
 def load_hessian():
