@@ -7,34 +7,26 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
-
+nuc_ints  = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
+                     fromlist=['NA'])
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
-# Determines the basis set
-basis = 'dirac_delta'
-
 # Determines the Hamiltonian symmetry
 hermitian = False
 
-# returns overlap integral
-def snuc_integral(traj1, traj2):
-    """ Returns < chi(R) | chi'(R') >, the overlap of the nuclear
-    component of the wave function only"""
-    return traj2.evaluate_traj(traj1.x())
-
 # returns total overlap of trajectory basis function
-def stotal_integral(traj1, traj2, Snuc=None):
+def s_integral(traj1, traj2, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state:
         return complex(0.,0.) 
     else:
         if Snuc is None:
-            return snuc_integral(traj1,traj2)
+            return nuc_ints.overlap(traj1,traj2)
         else:
             return Snuc
 
@@ -42,7 +34,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """ Returns < delta(R-R1) | V | g2 > if state1 = state2, else
     returns < delta(R-R1) | F . d/dR | g2 > """
     if Snuc is None:
-        Snuc = snuc_integral(traj1,traj2)
+        Snuc = nuc_ints.overlap(traj1,traj2)
 
     # Off-diagonal element between trajectories on the same adiabatic
     # state
@@ -55,7 +47,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
-        v = np.dot(fij, traj1.deldx(traj2, S=Snuc)* 
+        v = np.dot(fij, nuc_ints.deldx(traj1, traj2, S=Snuc)* 
                         2.*interface.kecoeff[i*traj1.d_particle])
         return v * Snuc
     else:
@@ -69,8 +61,8 @@ def ke_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            Snuc = snuc_integral(traj1,traj2)
-        ke = traj1.deld2x(traj2, S=Snuc)
+            Snuc = nuc_ints.overlap(traj1,traj2)
+        ke = nuc_ints.deld2x(traj1, traj2, S=Snuc)
         return -sum(ke * interface.kecoeff)
 
 #evaulate the time derivative of the overlap
@@ -85,8 +77,8 @@ def sdot_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.) 
     else:
         if Snuc is None:
-            Snuc = snuc_integral(traj1,traj2)
-        sdot = (np.dot( traj2.velocity(), traj1.deldx(traj2, S=Snuc) ) +
-                np.dot( traj2.force()   , traj1.deldp(traj2, S=Snuc) ) +
+            Snuc = nuc_ints.overlap(traj1,traj2)
+        sdot = (np.dot(traj2.velocity(), nuc_ints.deldx(traj1, traj2, S=Snuc)) +
+                np.dot(traj2.force()   , nuc_ints.deldp(traj1, traj2, S=Snuc)) +
                 1j * traj2.phase_dot() * Snuc)
         return sdot

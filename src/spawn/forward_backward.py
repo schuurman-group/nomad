@@ -19,7 +19,8 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-
+nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
+                     fromlist=['NA'])
 
 coup_hist = []
 
@@ -54,7 +55,7 @@ def spawn(master, dt):
             max_sij = 0.
             for j in range(master.n_traj()):
                 if master.traj[j].alive and master.traj[j].state == st:
-                    sij = abs(master.traj[i].nuc_overlap(master.traj[j]))
+                    sij = abs(nuc_ints(master.traj[i],master.traj[j]))
                     if sij > max_sij:
                         max_sij = sij
                         if max_sij > glbl.fms['sij_thresh']:
@@ -131,7 +132,7 @@ def spawn_forward(parent, child, initial_time, dt):
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
                                                      parent.derivative(child_state))
-        sij = abs(parent.nuc_overlap(child_attempt))
+        sij = abs(nuc_ints(parent,child_attemp))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail

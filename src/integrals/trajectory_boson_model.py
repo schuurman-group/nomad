@@ -5,6 +5,8 @@ import math
 import numpy as np
 import src.interfaces.boson_model_diabatic as boson
 import src.dynamics.timings as timings
+nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
+                     fromlist=['NA'])
 
 
 # Let propagator know if we need data at centroids to propagate
@@ -13,21 +15,15 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = True
 
-# returns overlap integral
-def snuc_integral(traj1, traj2):
-    """ Returns < chi(R) | chi'(R') >, the overlap of the nuclear
-    component of the wave function only"""
-    return traj1.nuc_overlap(traj2)
-
 # returns total overlap of trajectory basis function
-def stotal_integral(traj1, traj2, Snuc=None):
+def s_integral(traj1, traj2, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state:
         return complex(0.,0.)
     else:
         if Snuc is None:
-            return snuc_integral(traj1,traj2)
+            return nuc_ints.overlap(traj1,traj2)
         else:
             return Snuc
 
@@ -48,7 +44,7 @@ def v_integral(traj1, traj2, Snuc=None):
     int( dx x^2 g1 g2 ) = ((2a + b^2) / 4a^2) S_12.
     """
     if Snuc is None:
-        Snuc = snuc_integral(traj1, traj2)
+        Snuc = nuc_ints.overlap(traj1, traj2)
 
     if traj1.state == traj2.state:
         sgn  = -1. + 2.*traj1.state
@@ -73,7 +69,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else
         if Snuc is None:
-            Snuc = snuc_integral(traj1, traj2)
+            Snuc = nuc_ints.overlap(traj1, traj2)
         ke = traj1.deld2x(traj2, S=Snuc)
         return -sum(ke * boson.kecoeff)
 
@@ -84,7 +80,7 @@ def sdot_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else
         if Snuc is None:
-            Snuc = snuc_integral(traj1, traj2)
+            Snuc = nuc_ints.overlap(traj1, traj2)
         sdot = -np.dot( traj2.velocity(), traj1.deldx(traj2, S=Snuc) ) +
                 np.dot( traj2.force(), traj1.deldp(traj2, S=Snuc) ) +
                 1j * traj2.phase_dot() * Snuc 

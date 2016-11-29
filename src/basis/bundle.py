@@ -56,27 +56,28 @@ def cent_ind(i, j):
 
 class Bundle:
     """Class constructor for the Bundle object."""
-    def __init__(self, nstates, int_defs):
-        self.integrals = int_defs
-        self.time = 0.
-        self.nalive = 0
-        self.nactive = 0
-        self.ndead = 0
-        self.nstates = int(nstates)
-        self.traj   = []
-        self.cent   = []
-        self.alive  = []
-        self.active = []
+    def __init__(self, nstates, nuc_ints, traj_ints):
+        self.nuc_ints  = nuc_ints
+        self.traj_ints = traj_ints
+        self.time      = 0.
+        self.nalive    = 0
+        self.nactive   = 0
+        self.ndead     = 0
+        self.nstates   = int(nstates)
+        self.traj      = []
+        self.cent      = []
+        self.alive     = []
+        self.active    = []
         self.T     = np.zeros((0, 0), dtype=complex)
         self.V     = np.zeros((0, 0), dtype=complex)
         self.S     = np.zeros((0, 0), dtype=complex)
         self.Sdot  = np.zeros((0, 0), dtype=complex)
         self.Heff  = np.zeros((0, 0), dtype=complex)
         try:
-            self.ints = __import__('src.integrals.' + self.integrals,
-                                   fromlist=['a'])
+            self.ints = __import__('src.integrals.trajectory_'+self.traj_ints,
+                                                               fromlist=['a'])
         except ImportError:
-            print('BUNDLE INIT FAIL: src.integrals.' + self.integrals)
+            print('BUNDLE INIT FAIL: src.integrals.' + self.traj_ints)
 
     def n_traj(self):
         """Returns total number of trajectories."""

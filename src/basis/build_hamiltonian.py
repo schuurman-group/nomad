@@ -78,10 +78,10 @@ def pseudo_inverse(mat, dim):
     return invmat, cond
 
 @timings.timed
-def build_hamiltonian(nuclib, intlib, traj_list, traj_alive, cent_list=None):
+def build_hamiltonian(nucint, trajint, traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    nuclear_int = __import__('src.integrals.' + nuclib, fromlist=['a'])
-    integrals   = __import__('src.integrals.' + intlib, fromlist=['a'])
+    nuc_int  = __import__('src.integrals.' + nucint,  fromlist=['a'])
+    traj_int = __import__('src.integrals.' + trajint, fromlist=['a'])
 
     n_alive = len(traj_alive)
     if integrals.hermitian:
@@ -108,37 +108,37 @@ def build_hamiltonian(nuclib, intlib, traj_list, traj_alive, cent_list=None):
         jj = traj_alive[j]
 
         # overlap matrix (excluding electronic component)
-        Snuc[i,j] = nuclear_int.overlap(traj_list[ii],traj_list[jj])
+        Snuc[i,j] = nuc_int.overlap(traj_list[ii],traj_list[jj])
 
         # overlap matrix (including electronic component)
-        S[i,j]    = integrals.s_integral(traj_list[ii], 
-                                          traj_list[jj], Snuc=Snuc[i,j])
+        S[i,j]    = traj_int.s_integral(traj_list[ii], 
+                                        traj_list[jj], Snuc=Snuc[i,j])
 
         # time-derivative of the overlap matrix (not hermitian in general)
-        Sdot[i,j] = integrals.sdot_integral(traj_list[ii], 
-                                          traj_list[jj], Snuc=Snuc[i,j])
+        Sdot[i,j] = traj_int.sdot_integral(traj_list[ii], 
+                                           traj_list[jj], Snuc=Snuc[i,j])
 
         # kinetic energy matrix
-        T[i,j]    = integrals.ke_integral(traj_list[ii], 
-                                          traj_list[jj], Snuc=Snuc[i,j])
+        T[i,j]    = traj_int.ke_integral(traj_list[ii], 
+                                         traj_list[jj], Snuc=Snuc[i,j])
 
         # potential energy matrix
-        if integrals.require_centroids:
-            V[i,j] = integrals.v_integral(traj_list[ii], traj_list[jj], 
+        if traj_int.require_centroids:
+            V[i,j] = traj_int.v_integral(traj_list[ii], traj_list[jj], 
                        centroid=cent_list[c_ind(ii,jj)], Snuc=Snuc[i,j])
         else:
-            V[i,j] = integrals.v_integral(traj_list[ii], 
-                                          traj_list[jj], Snuc=Snuc[i,j])
+            V[i,j] = traj_int.v_integral(traj_list[ii], 
+                                         traj_list[jj], Snuc=Snuc[i,j])
 
         # Hamiltonian matrix in non-orthogonal basis
         H[i,j] = T[i,j] + V[i,j]
 
         # if hermitian matrix, set (j,i) indices
-        if integrals.hermitian:
+        if traj_int.hermitian:
             Snuc[j,i]   = Snuc[i,j].conjugate()
             Stotal[j,i] = Stotal[i,j].conjugate()
-            Sdot[j,i]   = integrals.sdot_integral(traj_list[jj],
-                                          traj_list[ii], Snuc=Snuc[j,i])
+            Sdot[j,i]   = traj_int.sdot_integral(traj_list[jj],
+                                                 traj_list[ii], Snuc=Snuc[j,i])
             T[j,i]      = T[i,j].conjugate()
             V[j,i]      = V[i,j].conjugate()
             H[j,i]      = H[i,j].conjugate()
