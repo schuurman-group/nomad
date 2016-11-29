@@ -458,7 +458,8 @@ def read_geometry():
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return amp_data, label_data, geom_data, mom_data, width_data, mass_data
+    return (crd_dim, amp_data, label_data, 
+            geom_data, mom_data, width_data, mass_data)
 
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""

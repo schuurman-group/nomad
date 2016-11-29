@@ -5,8 +5,7 @@ import sys
 import random
 import numpy as np
 import src.fmsio.glbl as glbl
-import src.dynamics.utilities as utils
-import src.basis.particle as particle
+import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
 import src.utils.linear as linear
@@ -25,28 +24,32 @@ def sample_distribution(master):
         coordtype = 'cart'
 
     # Read the geometry.dat file
-    amps, phase_gm = utils.load_geometry()
+    crd_dim, amps, lbls, geoms, moms, width, mass = fileio.read_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
-    natm = int(len(phase_gm)/len(amps))
-    geom = [phase_gm[i] for i in range(natm)]
+    ndim = int(len(geoms)/len(amps))
+    geom_ref = geoms[0:ndim]
+    mom_ref  = moms[0:ndim]
 
     # Read the hessian.dat file (Cartesian coordinates only)
     if coordtype == 'cart':
-        hessian = utils.load_hessian()
+        hessian = fileio.read_hessian()
 
     origin_traj = trajectory.Trajectory(glbl.fms['n_states'],
-                                        particles=phase_gm,
-                                        parent=0)
-
-    dim = phase_gm[0].dim
+                                        ndim,
+                                        widths=width[0:ndim],
+                                        masses=mass[0:ndim],
+                                        labels=lbls[0:ndim],
+                                        crd_dim=crd_dim,
+                                        parent=0))
+    origin_traj.update_x(geom_ref)
+    origin_traj.update_p(mom_ref)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        masses  = np.asarray([phase_gm[i].mass for i in range(natm)
-                              for j in range(dim)], dtype=float)
+        masses  = np.asarray([mass[i] for i in range(ndim)], dtype=float)
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
                               else 0 for i in range(len(masses))], dtype=float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]
@@ -76,10 +79,12 @@ def sample_distribution(master):
     
     # loop over the number of initial trajectories
     max_try = 1000
-    for i in range(glbl.fms['n_init_traj']):
-        delta_x = np.zeros(n_modes)
-        delta_p = np.zeros(n_modes)
-        disp_gm = [particle.copy_part(phase_gm[j]) for j in range(natm)]
+    n_traj  = glbl.fms['n_init_traj']
+    for i in range(n_traj):
+        delta_x   = np.zeros(n_modes)
+        delta_p   = np.zeros(n_modes)
+        x_sample  = geom_ref
+        p_sample  = mom_ref 
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             sigma_x = beta*np.sqrt(0.25 / alpha)
@@ -104,34 +109,27 @@ def sample_distribution(master):
             disp_x = np.dot(modes, delta_x) / np.sqrt(masses)
             disp_p = np.dot(modes, delta_p) / np.sqrt(masses)
 
-            for j in range(len(disp_gm)):
-                disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
-                disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]
-
         # ... else if mass- and frequency-scaled normal modes are
         # being used, then take the frequency-scaled normal mode
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x
-            disp_p = delta_p
-            for i in range(n_modes):
-                disp_x[i] = disp_x[i] * np.sqrt(freqs[i])
-                disp_p[i] = disp_p[i] * np.sqrt(freqs[i])
+            disp_x = delta_x * np.sqrt(freqs)
+            disp_p = delta_p * np.sqrt(freqs)
 
-            for j in range(natm):
-                disp_gm[j].x[:] += disp_x[j*dim:(j+1)*dim]
-                disp_gm[j].p[:] += disp_p[j*dim:(j+1)*dim]
+        x_sample += disp_x
+        p_sample += disp_p
 
-        new_traj = trajectory.Trajectory(glbl.fms['n_states'],
-                                         particles=disp_gm,
-                                         parent=0)
+        # add new trajectory to the bundle
+        new_traj = trajectory.copy_traj(origin_traj)
+        new_traj.update_x(x_sample)
+        new_traj.update_p(p_sample)
+
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
 
     # Calculate the initial expansion coefficients via projection onto
     # the initial wavefunction that we are sampling
-    ntraj = glbl.fms['n_init_traj']
     ovec = np.zeros((ntraj), dtype=np.complex)
     for i in range(ntraj):
         ovec[i] = master.traj[i].nuc_overlap(origin_traj)
