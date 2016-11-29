@@ -372,6 +372,15 @@ class Bundle:
                       other.traj[jj].amplitude)
         return S
 
+    def overlap_traj(self, traj):
+        """Returns the overlap of the bundle with a trajectory (assumes the
+        amplitude on the trial trajectory is (1.,0.)"""
+        ovrlp = complex(0., 0.)
+        for i in range(self.nalive+self.ndead):
+            ovrlp += (self.ints.stotal_integral(traj,self.traj[i]) * 
+                                                     self.traj[i].amplitude)
+        return ovrlp
+
     #----------------------------------------------------------------------
     #
     # Private methods/functions (called only within the class)

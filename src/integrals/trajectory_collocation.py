@@ -71,7 +71,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         if Snuc is None:
             Snuc = snuc_integral(traj1,traj2)
         ke = traj1.deld2x(traj2, S=Snuc)
-        return sum(ke * interface.kecoeff)
+        return -sum(ke * interface.kecoeff)
 
 #evaulate the time derivative of the overlap
 def sdot_integral(traj1, traj2, Snuc=None):

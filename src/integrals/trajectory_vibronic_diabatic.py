@@ -8,9 +8,6 @@ import numpy as np
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
-# Determines the basis set
-basis = 'gaussian'
-
 # Determines the Hamiltonian symmetry
 hermitian = True
 
@@ -75,7 +72,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         if Snuc is None:
             Snuc = snuc_integral(traj1, traj2)
         ke = traj1.deld2x(traj2, S=Snuc)
-        return sum( ke * interface.kecoeff)
+        return -sum( ke * interface.kecoeff)
 
 def sdot_integral(traj1, traj2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
@@ -84,7 +81,7 @@ def sdot_integral(traj1, traj2, Snuc=None):
     else:
         if Snuc is None:
             Snuc = snuc_integral(traj1, traj2)
-        sdot = -np.dot( traj2.velocity(), traj1.deldx(traj2,S=Snuc) ) +
+        sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2,S=Snuc) ) +
                 np.dot( traj2.force(),    traj1.deldp(traj2,S=Snuc) ) +
-                1.j * traj2.phase_dot() * Snuc
+                1.j * traj2.phase_dot() * Snuc)
         return sdot

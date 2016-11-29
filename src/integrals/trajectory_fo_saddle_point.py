@@ -16,9 +16,6 @@ interface = __import__('src.interfaces.' + glbl.fms['interface'],
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
 
-# Determines the basis set
-basis = 'gaussian'
-
 # Determines the Hamiltonian symmetry
 hermitian = True
 
@@ -69,7 +66,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = centroid.derivative(traj1.state)
-        v = np.vdot( fij, traj1.deldx(traj2)*2.*interface.kecoeff )
+        v = np.vdot( fij, traj1.deldx(traj2, S=Snuc)*2.*interface.kecoeff )
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
             v += traj1.scalar_coup(traj2.state) * Snuc
@@ -89,7 +86,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         if Snuc is None:
             Snuc = snuc_integral(traj1, traj2)
         ke = traj1.deld2x(traj2, S=Snuc)
-        return sum(ke * interface.kecoeff)
+        return -sum(ke * interface.kecoeff)
  
 
 def sdot_integral(traj1, traj2, Snuc=None):
@@ -100,7 +97,7 @@ def sdot_integral(traj1, traj2, Snuc=None):
     else:
         if Snuc is None:
             Snuc = snuc_integral(traj1, traj2)
-        sdot = -np.dot( traj2.velocity(), traj1.deldx(traj2,S=Snuc) ) +
+        sdot = (-np.dot( traj2.velocity(), traj1.deldx(traj2,S=Snuc) ) +
                 np.dot( traj2.force()   , traj1.deldp(traj2,S=Snuc) ) +
-                1j * traj2.phase_dot() * Snuc
+                1j * traj2.phase_dot() * Snuc)
         return sdot

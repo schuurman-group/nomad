@@ -6,18 +6,19 @@ import copy
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
-import src.basis.particle as particle
 
 @timings.timed
 def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
-    new_traj = Trajectory(orig_traj.nstates)
-    p_list = []
-    for i in range(orig_traj.n_particle):
-        p_list.append(particle.copy_part(orig_traj.particles[i]))
-    new_traj.update_particles(p_list)
-    new_traj.tid        = copy.copy(orig_traj.tid)
-    new_traj.parent     = copy.copy(orig_traj.parent)
+    new_traj = Trajectory(orig_traj.nstates,
+                          orig_traj.dim,
+                          orig_traj.widths,
+                          orig_traj.masses,
+                          orig_traj.labels,
+                          orig_traj.crd_dim,
+                          orig_traj.tid,
+                          orig_traj.parent,
+                          orig_traj.nbasis)
     new_traj.state      = copy.copy(orig_traj.state)
     new_traj.c_state    = copy.copy(orig_traj.c_state)
     new_traj.alive      = copy.copy(orig_traj.alive)
@@ -25,6 +26,8 @@ def copy_traj(orig_traj):
     new_traj.gamma      = copy.copy(orig_traj.gamma)
     new_traj.deadtime   = copy.copy(orig_traj.deadtime)
     new_traj.nbf        = copy.copy(orig_traj.nbf)
+    new_traj.x          = copy.deepcopy(orig_traj.x)
+    new_traj.p          = copy.deepcopy(orig_traj.p)
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
     new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
     new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
@@ -40,26 +43,55 @@ def copy_traj(orig_traj):
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
-    def __init__(self, nstates, particles=None, tid=0, parent=0, n_basis=0):
+    def __init__(self, 
+                 nstates, 
+                 dim,
+                 widths=None, 
+                 masses=None, 
+                 labels=None, 
+                 crd_dim=3,
+                 tid=0, 
+                 parent=0, 
+                 n_basis=0):
+
         # total number of states
         self.nstates = nstates
-        # allow for population of trajectory particles via set_particles
-        if particles is None:
-            self.particles = []
-            self.d_particle = 0
+        # dimensionality of the trajectory
+        self.dim     = dim
+        # widths of gaussians for each dimension
+        if widths is None:
+            self.widths = np.zeros(dim)
         else:
-            self.particles = particles
-            self.d_particle = self.particles[0].dim
+            self.widths = widths
+        # masses associated with each dimension
+        if masses is None:
+            self.masses = np.zeros(dim)
+        else:
+            self.masses = masses
+        # labels for each dimension (i.e. atom types, etc.)
+        if labels is None:
+            self.labels = ['c'+str(i) for i in range(dim)]
+        else:
+            self.labels = labels
+        # dimension of the coordinate system 
+        #(i.e. ==3 for Cartesian, ==3N-6 for internals)
+        self.crd_dim = crd_dim
         # unique identifier for trajectory
         self.tid        = tid
         # trajectory that spawned this one:
         self.parent     = parent
+        # number of mos
+        self.nbf        = n_basis
+
+
+        # current position of the trajectory
+        self.x          = np.zeros(self.dim)
+        # current momentum of the trajecotry
+        self.p          = np.zeros(self.dim)
         # state trajectory exists on
         self.state      = 0
         # if a centroid, state for second trajectory
         self.c_state    = -1
-        # number of particles comprising the trajectory
-        self.n_particle = len(self.particles)
         # whether the trajectory is alive (i.e. contributes to the wavefunction)
         self.alive      = True
         # whether the trajectory is active (i.e. is being propagated)
@@ -76,30 +108,25 @@ class Trajectory:
         self.exit_time  = np.zeros(self.nstates)
         # if not zero, coupled to traj=array value
         self.spawn_coup = np.zeros(self.nstates)
-        # number of mos
-        self.nbf        = n_basis
         # geometry of the current potential information
-        self.pes_geom   = np.zeros(self.n_particle*self.d_particle)
+        self.pes_geom   = np.zeros(self.dim)
         # value of the potential energy
         self.poten      = np.zeros(self.nstates)
         # derivatives of the potential -- if off-diagonal, corresponds
         # to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros((self.nstates,
-                                    self.n_particle*self.d_particle))
+        self.deriv      = np.zeros((self.nstates,self.dim))
         # dipoles and transition dipoles
-        self.dipoles    = np.zeros((self.nstates, self.nstates,
-                                    self.d_particle))
+        self.dipoles    = np.zeros((self.nstates, self.nstates, self.crd_dim))
         # second moment tensor for each state
-        self.sec_moms   = np.zeros((self.nstates, self.d_particle))
+        self.sec_moms   = np.zeros((self.nstates, self.crd_dim))
+        # number of atoms (or internal coordinates, etc.) 
+        self.natoms = int(self.dim / self.crd_dim) 
         # electronic populations on the atoms
-        self.atom_pops  = np.zeros((self.nstates, self.n_particle))
+        self.atom_pops  = np.zeros((self.nstates, self.natoms))
         # Scalar coupling terms involving the state that the
         # trajectory exits on (including DBOCs)        
         self.sct = np.zeros((self.nstates))
-
-        self.ints = __import__('src.integrals.' + glbl.fms['integrals'],
-                               fromlist = ['a'])
-                               
+        # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist =
                                ['a'])
@@ -118,33 +145,15 @@ class Trajectory:
     # Functions for setting basic pes information from trajectory
     #
     #----------------------------------------------------------------------
-    def update_particles(self, p_list):
-        """Updates the particle list."""
-        self.particles  = p_list
-        self.d_particle = self.particles[0].dim
-        self.n_particle = len(self.particles)
-        self.deriv      = np.zeros((self.nstates,
-                                    self.n_particle*self.d_particle))
-        self.dipoles    = np.zeros((self.nstates, self.nstates,
-                                    self.d_particle))
-        self.sec_moms   = np.zeros((self.nstates, self.d_particle))
-        self.atom_pops  = np.zeros((self.nstates, self.n_particle))
-
     def update_x(self, pos):
         """Updates the position of the particles in trajectory.
-
-        Flips up2date switch to False.
         """
-        for i in range(self.n_particle):
-            self.particles[i].x = pos[i*self.d_particle : (i+1)*self.d_particle]
+        self.x = pos
 
     def update_p(self, mom):
         """Updates the momentum of the particles in the trajectory.
-
-        Flips up2date switch to False.
         """
-        for i in range(self.n_particle):
-            self.particles[i].p = mom[i*self.d_particle : (i+1)*self.d_particle]
+        self.p = mom
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
@@ -181,16 +190,12 @@ class Trajectory:
     def x(self):
         """Returns the position of the particles in the trajectory as an
         array."""
-        return np.fromiter((self.particles[i].x[j]
-                            for i in range(self.n_particle)
-                            for j in range(self.d_particle)), dtype=float)
+        return self.x
 
     def p(self):
         """Returns the momentum of the particles in the trajectory as an
         array."""
-        return np.fromiter((self.particles[i].p[j]
-                            for i in range(self.n_particle)
-                            for j in range(self.d_particle)), dtype=float)
+        return self.p
 
     def phase(self):
         """Returns the phase of the trajectory."""
@@ -198,16 +203,12 @@ class Trajectory:
 
     def masses(self):
         """Returns a vector containing masses of particles."""
-        return np.fromiter((self.particles[i].mass
-                            for i in range(self.n_particle)
-                            for j in range(self.d_particle)), dtype=float)
+        return self.masses
 
     def widths(self):
         """Returns a vector containing the widths of the basis functions
         along each degree of freedom."""
-        return np.fromiter((self.particles[i].width
-                             for i in range(self.n_particle)
-                             for j in range(self.d_particle)), dtype=float)
+        return self.widths
 
     #--------------------------------------------------------------------
     #
@@ -335,96 +336,80 @@ class Trajectory:
     #
     #-----------------------------------------------------------------------------
     #@timings.timed
-    def nuc_overlap(self, other):
-        """Returns overlap of the nuclear component between two trajectories."""
-        S = np.exp( 1j * (other.gamma - self.gamma) )
-        for i in range(self.n_particle):
-            S = S * self.particles[i].overlap(other.particles[i])
-        return S
-        
-#    def h_overlap(self,other,st_orthog=False):
-#        """Returns overlap of two trajectories."""
-#        #timings.start('trajectory.overlap')        
-#        if st_orthog and self.state != other.state:
-#            return complex(0.,0.)
-#        # The exponential prefactor doesn't really belong in
-#        # gaussian/dirac_delta, but, as it depends on whether or not
-#        # collocation is being used, I'm not sure else where to put
-#        # it...
-#        S = self.basis.overlap_prefactor(self.gamma, other.gamma)
+#    def nuc_overlap(self, other):
+#        """Returns overlap of the nuclear component between two trajectories."""
+#        S = np.exp( 1j * (other.gamma - self.gamma) )
 #        for i in range(self.n_particle):
-#            S = S * self.particles[i].h_overlap(other.particles[i])
-#
-#        #timings.stop('trajectory.overlap')
+#            S = S * self.particles[i].overlap(other.particles[i])
 #        return S
-
-    def overlap_bundle(self, other):
-        """Returns the overlap of a trajectory with a bundle of trajectories"""
-        ovrlp = complex(0., 0.)
-        for i in range(other.nalive+other.ndead):
-            ovrlp += self.ints.stotal_integral(self,other.traj[i]) * other.traj[i].amplitude
-        return ovrlp
-
-    def evaluate_traj(self, x):
-        """Returns the value of the trajectory basis function evaluated at 'x'"""
-        val = np.exp( 1j * self.gamma ) 
-        for i in range(self.n_particle):
-            val = val * self.particles[i].evaluate_particle(
-                                     x[self.d_particle*i:self.d_particle*(i+1)])
-        return val
-
-    #@timings.timed
-    def deldp(self, other, S=None):
-        """Returns the del/dp matrix element between two trajectories --
-           (does not sum over terms). If no value for overlap is given,
-           default is to evaluate the total overlap (i.e. including 
-           electronic component)"""
-        if S is None:
-            S = self.ints.stotal_integral(self, other)
-        if S == 0.:
-            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
-        else:
-            dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
-            for i in range(self.n_particle):
-                dpval[self.d_particle*i:self.d_particle*(i+1)] =               \
-                                     self.particles[i].deldp(other.particles[i])
-            return dpval * S
-
-    #@timings.timed
-    def deldx(self, other, S=None):
-        """Returns the del/dx matrix element between two trajectories --
-           (does not sum over terms).If no value for overlap is given,
-           default is to evaluate the total overlap (i.e. including
-           electronic component)"""
-        if S is None:
-            S = self.ints.stotal_integral(self,other)
-        if S == 0.:
-            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
-        else:
-            dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
-            for i in range(self.n_particle):
-                dxval[self.d_particle*i:self.d_particle*(i+1)] =               \
-                                    self.particles[i].deldx(other.particles[i])
-            return dxval * S
-
-    #@timings.timed
-    def deld2x(self, other, S=None):
-        """Returns the del2/d2x matrix element between two trajectories --
-           (does not sum over terms).If no value for overlap is given,
-           default is to evaluate the total overlap (i.e. including
-           electronic component)"""
-        if S is None:
-            S = self.ints.stotal_integral(self,other)
-        if S == 0.:
-            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
-        else:
-            d2xval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
-            for i in range(self.n_particle):
-                d2xval[self.d_particle*i:self.d_particle*(i+1)] =              \
-                                    self.particles[i].deld2x(other.particles[i])
-            return d2xval * S
-
-    #@timings.timed
+#        
+#    def overlap_bundle(self, other):
+#        """Returns the overlap of a trajectory with a bundle of trajectories"""
+#        ovrlp = complex(0., 0.)
+#        for i in range(other.nalive+other.ndead):
+#            ovrlp += self.ints.stotal_integral(self,other.traj[i]) * other.traj[i].amplitude
+#        return ovrlp
+#
+#    def evaluate_traj(self, x):
+#        """Returns the value of the trajectory basis function evaluated at 'x'"""
+#        val = np.exp( 1j * self.gamma ) 
+#        for i in range(self.n_particle):
+#            val = val * self.particles[i].evaluate_particle(
+#                                     x[self.d_particle*i:self.d_particle*(i+1)])
+#        return val
+#
+#    #@timings.timed
+#    def deldp(self, other, S=None):
+#        """Returns the del/dp matrix element between two trajectories --
+#           (does not sum over terms). If no value for overlap is given,
+#           default is to evaluate the total overlap (i.e. including 
+#           electronic component)"""
+#        if S is None:
+#            S = self.ints.stotal_integral(self, other)
+#        if S == 0.:
+#            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#        else:
+#            dpval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#            for i in range(self.n_particle):
+#                dpval[self.d_particle*i:self.d_particle*(i+1)] =               \
+#                                     self.particles[i].deldp(other.particles[i])
+#            return dpval * S
+#
+#    #@timings.timed
+#    def deldx(self, other, S=None):
+#        """Returns the del/dx matrix element between two trajectories --
+#           (does not sum over terms).If no value for overlap is given,
+#           default is to evaluate the total overlap (i.e. including
+#           electronic component)"""
+#        if S is None:
+#            S = self.ints.stotal_integral(self,other)
+#        if S == 0.:
+#            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#        else:
+#            dxval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#            for i in range(self.n_particle):
+#                dxval[self.d_particle*i:self.d_particle*(i+1)] =               \
+#                                    self.particles[i].deldx(other.particles[i])
+#            return dxval * S
+#
+#    #@timings.timed
+#    def deld2x(self, other, S=None):
+#        """Returns the del2/d2x matrix element between two trajectories --
+#           (does not sum over terms).If no value for overlap is given,
+#           default is to evaluate the total overlap (i.e. including
+#           electronic component)"""
+#        if S is None:
+#            S = self.ints.stotal_integral(self,other)
+#        if S == 0.:
+#            return np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#        else:
+#            d2xval = np.zeros(self.n_particle * self.d_particle, dtype=complex)
+#            for i in range(self.n_particle):
+#                d2xval[self.d_particle*i:self.d_particle*(i+1)] =              \
+#                                    self.particles[i].deld2x(other.particles[i])
+#            return d2xval * S
+#
+#    #@timings.timed
 #    def deldx_m(self, other, Snuc=None):
 #        """Returns the momentum expectation values multiplied by 2*a_i.
 #        

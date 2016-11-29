@@ -10,9 +10,6 @@ import src.dynamics.timings as timings
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
-# Determines the basis set
-basis = 'gaussian'
-
 # Determines the Hamiltonian symmetry
 hermitian = True
 
@@ -78,7 +75,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         if Snuc is None:
             Snuc = snuc_integral(traj1, traj2)
         ke = traj1.deld2x(traj2, S=Snuc)
-        return sum(ke * boson.kecoeff)
+        return -sum(ke * boson.kecoeff)
 
 
 def sdot_integral(traj1, traj2, Snuc=None):
