@@ -8,7 +8,6 @@ from scipy import linalg
 from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
-from src.basis import particle as particle
 from src.basis import trajectory as trajectory
 from src.basis import build_hamiltonian
 
