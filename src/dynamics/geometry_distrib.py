@@ -7,7 +7,8 @@ import src.basis.trajectory as trajectory
 
 def sample_distribution(master):
     """Takes initial position and momentum from geometry.dat file."""
-    crd_dim, amps, lbls, geoms, moms, width, mass = fileio.read_geometry()
+    (ncrd, crd_dim, amps, label, 
+                 geoms, moms, width, mass) = fileio.read_geometry()
     ngeoms  = len(amps)
     ndim    = int(len(geoms) / ngeoms)
 
@@ -17,9 +18,8 @@ def sample_distribution(master):
         master.add_trajectory(trajectory.Trajectory(
                                      glbl.fms['n_states'],
                                      ndim,
-                                     widths=width[i*ndim:(i+1)*ndim],
-                                     masses=mass[i*ndim:(i+1)*ndim],
-                                      labels=lbls[i*ndim:(i+1)*ndim],
+                                     width=width[i*ndim:(i+1)*ndim],
+                                     mass=mass[i*ndim:(i+1)*ndim],
                                      crd_dim=crd_dim,
                                      parent=0))
 

@@ -88,7 +88,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     global diablap, sctmat, dbocderiv1, nsta
 
     # System dimensions
-    ncoo = glbl.fms['num_particles']
+    ncoo = len(geom)
     nsta = glbl.fms['n_states']
 
     # Initialisation of arrays
@@ -104,9 +104,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
-    qcoo = np.zeros(ncoo)
-    for i in range(ncoo):
-        qcoo[i] = geom[i].x
+    qcoo = geom
 
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
@@ -162,7 +160,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     global diablap, sctmat, dbocderiv1, nsta
 
     # System dimensions
-    ncoo = glbl.fms['num_particles']
+    ncoo = len(geom) 
     nsta = glbl.fms['n_states']
 
     # Initialisation of arrays
@@ -188,9 +186,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
-    qcoo = np.zeros(ncoo)
-    for i in range(ncoo):
-        qcoo[i] = geom[i].x
+    qcoo = geom 
 
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)

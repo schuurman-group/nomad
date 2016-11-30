@@ -47,8 +47,8 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
-        v = np.dot(fij, nuc_ints.deldx(traj1, traj2, S=Snuc)* 
-                        2.*interface.kecoeff[i*traj1.d_particle])
+        v = np.dot(fij, nuc_ints.deldx(traj1, traj2, S=Snuc) * 
+                                                 2.*interface.kecoeff)
         return v * Snuc
     else:
         print('ERROR in v_integral -- argument disagreement')

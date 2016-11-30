@@ -9,8 +9,8 @@ import numpy as np
 def overlap(t1, t2):
     """Returns overlap of the nuclear component between two trajectories."""
     S  = np.exp( 1j * (t2.gamma - t1.gamma) )
-    a1 = t1.widths
-    a2 = t2.widths
+    a1 = t1.widths()
+    a2 = t2.widths()
     x1 = t1.x()
     x2 = t2.x()
     p1 = t1.p()
@@ -31,8 +31,8 @@ def deldp(t1, t2, S=None):
        of two trajectories for each componet of 'p' (does not sum over terms)"""
     if S is None:
         S = overlap(t1,t2)
-    a1    = t1.widths
-    a2    = t2.widths
+    a1    = t1.widths()
+    a2    = t2.widths()
     x1    = t1.x()
     x2    = t2.x()
     p1    = t1.p()
@@ -48,8 +48,8 @@ def deldx(t1, t2, S=None):
        of two trajectories for each componet of 'x' (does not sum over terms)"""
     if S is None:
         S = overlap(t1,t2)
-    a1 = t1.widths
-    a2 = t2.widths
+    a1 = t1.widths()
+    a2 = t2.widths()
     x1 = t1.x()
     x2 = t2.x()
     p1 = t1.p()
@@ -65,12 +65,13 @@ def deld2x(t1, t2, S=None):
        of two trajectories for each componet of 'x' (does not sum over terms)"""
     if S is None:
         S  = overlap(t1,t2)
-    a1 = t1.widths
-    a2 = t2.widths
+    a1 = t1.widths()
+    a2 = t2.widths()
     x1 = t1.x()
     x2 = t2.x()
     p1 = t1.p()
     p2 = t2.p()
+    dx     = x1 - x2
     psum   = a1*p2 + a2*p1
     d2xval = -(1j * 4. * a1 * a2 * dx * psum + 2. * a1 * a2 * (a1 + a2) -
                4. * dx**2 * a1**2 * a2**2 + psum**2) / (a1 + a2)**2

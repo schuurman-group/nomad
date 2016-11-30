@@ -37,7 +37,7 @@ def update_pes(master):
         for i in range(master.n_traj()):
             if not master.traj[i].active or cached(i, master.traj[i].x()):
                 continue
-            run_list.append([i, master.traj[i].particles,
+            run_list.append([i, master.traj[i].x(),
                              master.traj[i].state])
         if master.ints.require_centroids:
             # update the geometries
@@ -47,7 +47,7 @@ def update_pes(master):
             for i in range(master.n_cent()):
                 if not master.cent[i] or cached(-i, master.cent[i].x()):
                     continue
-                run_list.append([-i, master.cent[i].particles,
+                run_list.append([-i, master.cent[i].x(),
                                  master.cent[i].state, master.cent[i].c_state])
         jobs = glbl.sc.parallelize(run_list)
         rdd = jobs.map(partial(pes.evaluate_worker, global_var=gvars))
@@ -78,7 +78,7 @@ def update_pes(master):
         for i in range(master.n_traj()):
             if not master.traj[i].active:
                 continue
-            results = pes.evaluate_trajectory(i, master.traj[i].particles,
+            results = pes.evaluate_trajectory(i, master.traj[i].x(),
                                               master.traj[i].state)
             master.traj[i].update_pes(results)
 
@@ -90,7 +90,7 @@ def update_pes(master):
                 # if centroid not initialized, skip it
                 if not master.cent[i]:
                     continue
-                results = pes.evaluate_centroid(i, master.cent[i].particles,
+                results = pes.evaluate_centroid(i, master.cent[i].x(),
                                                 master.cent[i].state,
                                                 master.cent[i].c_state)
                 master.cent[i].update_pes(results)
@@ -105,7 +105,7 @@ def update_pes_traj(traj):
     """
     global pes
 
-    results = pes.evaluate_trajectory(traj.tid, traj.particles, traj.state)
+    results = pes.evaluate_trajectory(traj.tid, traj.x(), traj.state)
     traj.update_pes(results)
 
 

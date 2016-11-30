@@ -80,26 +80,26 @@ def pseudo_inverse(mat, dim):
 @timings.timed
 def build_hamiltonian(nucint, trajint, traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    nuc_int  = __import__('src.integrals.' + nucint,  fromlist=['a'])
-    traj_int = __import__('src.integrals.' + trajint, fromlist=['a'])
+    nuc_int  = __import__('src.integrals.nuclear_'+ nucint,  fromlist=['a'])
+    traj_int = __import__('src.integrals.trajectory_'+ trajint, fromlist=['a'])
 
     n_alive = len(traj_alive)
-    if integrals.hermitian:
+    if traj_int.hermitian:
         n_elem  = int(n_alive * (n_alive + 1) / 2)
     else:
         n_elem  = n_alive * n_alive
 
-    T        = np.zeros((n_alive, n_alive), dtype=complex)
-    V        = np.zeros((n_alive, n_alive), dtype=complex)
-    H        = np.zeros((n_alive, n_alive), dtype=complex)
-    Snuc     = np.zeros((n_alive, n_alive), dtype=complex)
-    Stotal   = np.zeros((n_alive, n_alive), dtype=complex)
-    Sinv     = np.zeros((n_alive, n_alive), dtype=complex)
-    Sdot     = np.zeros((n_alive, n_alive), dtype=complex)
-    Heff     = np.zeros((n_alive, n_alive), dtype=complex)
+    T    = np.zeros((n_alive, n_alive), dtype=complex)
+    V    = np.zeros((n_alive, n_alive), dtype=complex)
+    H    = np.zeros((n_alive, n_alive), dtype=complex)
+    Snuc = np.zeros((n_alive, n_alive), dtype=complex)
+    S    = np.zeros((n_alive, n_alive), dtype=complex)
+    Sinv = np.zeros((n_alive, n_alive), dtype=complex)
+    Sdot = np.zeros((n_alive, n_alive), dtype=complex)
+    Heff = np.zeros((n_alive, n_alive), dtype=complex)
 
     for ij in range(n_elem):
-        if integrals.hermitian:
+        if traj_int.hermitian:
             i, j = ut_ind(ij)
         else:
             i, j = sq_ind(ij, n_alive)
@@ -135,24 +135,24 @@ def build_hamiltonian(nucint, trajint, traj_list, traj_alive, cent_list=None):
 
         # if hermitian matrix, set (j,i) indices
         if traj_int.hermitian:
-            Snuc[j,i]   = Snuc[i,j].conjugate()
-            Stotal[j,i] = Stotal[i,j].conjugate()
-            Sdot[j,i]   = traj_int.sdot_integral(traj_list[jj],
-                                                 traj_list[ii], Snuc=Snuc[j,i])
+            Snuc[j,i] = Snuc[i,j].conjugate()
+            S[j,i]    = S[i,j].conjugate()
+            Sdot[j,i] = traj_int.sdot_integral(traj_list[jj],
+                                               traj_list[ii], Snuc=Snuc[j,i])
             T[j,i]      = T[i,j].conjugate()
             V[j,i]      = V[i,j].conjugate()
             H[j,i]      = H[i,j].conjugate()
 
 
-    if integrals.hermitian:
+    if traj_int.hermitian:
         # compute the S^-1, needed to compute Heff
         timings.start('linalg.pinvh')
-        Sinv = linalg.pinvh(Stotal)
+        Sinv = linalg.pinvh(S)
         timings.stop('linalg.pinvh')
     else:
         # compute the S^-1, needed to compute Heff
         timings.start('build_hamiltonian.pseudo_inverse')
-        Sinv, cond = pseudo_inverse(Stotal, n_alive)
+        Sinv, cond = pseudo_inverse(S, n_alive)
         timings.stop('build_hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )

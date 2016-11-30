@@ -5,6 +5,7 @@ function and a primitive Gaussian function.
 This module is also written in Cython. For optimal performance, compile
 the Cython module using the directions in the README.
 """
+import math
 import operator, functools
 import numpy as np
 
@@ -14,7 +15,7 @@ def overlap(t1, t2):
     Gaussian function."""
     S         = np.exp( 1j * t2.gamma )
     x1        = t1.x()
-    a2        = t2.widths
+    a2        = t2.widths()
     x2        = t2.x()
     p2        = t2.p()
     dx        = x1 - x2
@@ -44,7 +45,7 @@ def deldx(t1, t2, S=None):
     if S is None:
         S = overlap(t1,t2)
     x1    = t1.x()
-    a2    = t2.widths
+    a2    = t2.widths()
     x2    = t2.x()
     p2    = t2.p()
     dx    = x1 - x2
@@ -58,7 +59,7 @@ def deld2x(t1, t2, S=None):
     if S is None:
         S = overlap(t1,t2)
     x1    = t1.x()
-    a2    = t2.widths
+    a2    = t2.widths()
     x2    = t2.x()
     p2    = t2.p()
     dx     = x1 - x2

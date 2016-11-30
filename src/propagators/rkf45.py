@@ -100,7 +100,7 @@ def rkf45_bundle(master, dt):
     # Initialisation
     #-------------------------------------------------------------------
     # No. coordinates
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
+    ncrd = master.traj[0].dim
 
     # Work arrays
     x0   = np.zeros((master.nactive, ncrd))
@@ -425,7 +425,7 @@ def rkf45_trajectory(traj,dt):
     # Initialisation
     #-------------------------------------------------------------------
     # No. coordinates
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
+    ncrd = traj.dim
 
     # Work arrays
     x0   = np.zeros((ncrd))

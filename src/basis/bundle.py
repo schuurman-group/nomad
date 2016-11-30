@@ -9,7 +9,7 @@ from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
 from src.basis import trajectory as trajectory
-from src.basis import build_hamiltonian
+from src.basis import build_hamiltonian as ham
 
 @timings.timed
 def copy_bundle(orig_bundle):
@@ -19,7 +19,9 @@ def copy_bundle(orig_bundle):
     of a bundle with new references. Overriding deepcopy for
     significantly more work.
     """
-    new_bundle = Bundle(orig_bundle.nstates, orig_bundle.integrals)
+    new_bundle = Bundle(orig_bundle.nstates, 
+                        orig_bundle.nuc_ints,
+                        orig_bundle.traj_ints)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
@@ -367,7 +369,7 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.ints.stotal_integral(self.traj[ii], self.traj[jj]) *
+                S += (self.ints.s_integral(self.traj[ii], self.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
         return S
@@ -377,8 +379,8 @@ class Bundle:
         amplitude on the trial trajectory is (1.,0.)"""
         ovrlp = complex(0., 0.)
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.ints.stotal_integral(traj,self.traj[i]) * 
-                                                     self.traj[i].amplitude)
+            ovrlp += (self.ints.s_integral(traj,self.traj[i]) * 
+                                                self.traj[i].amplitude)
         return ovrlp
 
     #----------------------------------------------------------------------
@@ -434,13 +436,18 @@ class Bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
-            (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = build_hamiltonian.build_hamiltonian(self.integrals,
-                                self.traj, self.alive, cent_list=self.cent)
+            (self.T, self.V, self.S, self.Sdot, self.Heff) = \
+                        ham.build_hamiltonian(self.nuc_ints,
+                                              self.traj_ints,
+                                              self.traj, 
+                                              self.alive, 
+                                              cent_list=self.cent)
         else:
-            (self.T, self.V, self.S, self.Sdot,
-             self.Heff) = build_hamiltonian.build_hamiltonian(self.integrals,
-                                self.traj, self.alive)
+            (self.T, self.V, self.S, self.Sdot, self.Heff) = \
+                        ham.build_hamiltonian(self.nuc_ints,
+                                              self.traj_ints,
+                                              self.traj, 
+                                              self.alive)
 
     #------------------------------------------------------------------------
     #
@@ -552,8 +559,8 @@ class Bundle:
         """
         if mode not in ('w','a'):
             raise ValueError('Invalid write mode in bundle.write_bundle')
-        npart = self.traj[0].n_particle
-        ndim  = self.traj[0].d_particle
+        crd_dim = self.traj[0].crd_dim
+        ndim    = self.traj[0].dim
         with open(filename, mode) as chkpt:
             # first write out the bundle-level information
             chkpt.write('------------- BEGIN BUNDLE SUMMARY --------------\n')
@@ -561,13 +568,15 @@ class Bundle:
             chkpt.write('{:10d}            live trajectories\n'.format(self.nalive))
             chkpt.write('{:10d}            dead trajectories\n'.format(self.ndead))
             chkpt.write('{:10d}            number of states\n'.format(self.nstates))
-            chkpt.write('{:10d}            number of particles\n'.format(npart))
-            chkpt.write('{:10d}            dimensions of particles\n'.format(ndim))
+            chkpt.write('{:10d}            number of coordinates\n'.format(ndim))
+            chkpt.write('{:10d}            dimensions of coord system\n'.format(crd_dim))
 
-            # particle information common to all trajectories
-            for i in range(npart):
-                chkpt.write('--------- common particle information --------\n')
-                self.traj[0].particles[i].write_particle(chkpt)
+            # information common to all trajectories
+            chkpt.write('--------- common trajectory information --------\n')
+            chkpt.write('coordinate widths -- ')
+            self.traj[0].widths
+            chkpt.write('coordinate masses -- ')
+            self.traj[0].masses
 
             # first write out the live trajectories. The function
             # write_trajectory can only write to a pre-existing file stream
@@ -608,24 +617,29 @@ class Bundle:
         self.nalive  = int(chkpt.readline().split()[0])
         self.ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
-        npart        = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
+        crd_dim      = int(chkpt.readline().split()[0])
 
-        # the particle list will be the same for all trajectories
-        p_list = []
-        for i in range(npart):
-            chkpt.readline()
-            part = particle.Particle(ndim, 0)
-            part.read_particle(chkpt)
-            p_list.append(part)
+        # the read common info that will be the same for all trajectories
+        chkpt.readline()
+        # widths
+        chkpt.readline()
+        widths = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
+        # masses
+        chkpt.readline()
+        masses = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
 
         # read-in trajectories
         for i in range(self.nalive + self.ndead):
             chkpt.readline()
-            t_read = trajectory.Trajectory(glbl.fms['interface'],
-                                           self.nstates,
-                                           particles=p_list, tid=i,
-                                           parent=0, n_basis=0)
+            t_read = trajectory.Trajectory(self.nstates,
+                                           dim,
+                                           width=widths,
+                                           mass=masses,
+                                           crd_dim=crd_dim,
+                                           tid=i,
+                                           parent=0,
+                                           n_basis=0)
             t_read.read_trajectory(chkpt)
             self.traj.append(t_read)
 

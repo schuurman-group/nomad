@@ -12,13 +12,12 @@ def copy_traj(orig_traj):
     """Copys a Trajectory object with new references."""
     new_traj = Trajectory(orig_traj.nstates,
                           orig_traj.dim,
-                          orig_traj.widths,
-                          orig_traj.masses,
-                          orig_traj.labels,
+                          orig_traj.width,
+                          orig_traj.mass,
                           orig_traj.crd_dim,
                           orig_traj.tid,
                           orig_traj.parent,
-                          orig_traj.nbasis)
+                          orig_traj.nbf)
     new_traj.state      = copy.copy(orig_traj.state)
     new_traj.c_state    = copy.copy(orig_traj.c_state)
     new_traj.alive      = copy.copy(orig_traj.alive)
@@ -26,8 +25,8 @@ def copy_traj(orig_traj):
     new_traj.gamma      = copy.copy(orig_traj.gamma)
     new_traj.deadtime   = copy.copy(orig_traj.deadtime)
     new_traj.nbf        = copy.copy(orig_traj.nbf)
-    new_traj.x          = copy.deepcopy(orig_traj.x)
-    new_traj.p          = copy.deepcopy(orig_traj.p)
+    new_traj.pos        = copy.deepcopy(orig_traj.pos)
+    new_traj.mom        = copy.deepcopy(orig_traj.mom)
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
     new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
     new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
@@ -46,33 +45,27 @@ class Trajectory:
     def __init__(self, 
                  nstates, 
                  dim,
-                 widths=None, 
-                 masses=None, 
-                 labels=None, 
+                 width=None, 
+                 mass=None, 
                  crd_dim=3,
                  tid=0, 
                  parent=0, 
                  n_basis=0):
 
         # total number of states
-        self.nstates = nstates
+        self.nstates = int(nstates)
         # dimensionality of the trajectory
-        self.dim     = dim
+        self.dim     = int(dim)
         # widths of gaussians for each dimension
-        if widths is None:
-            self.widths = np.zeros(dim)
+        if width is None:
+            self.width = np.zeros(dim)
         else:
-            self.widths = widths
+            self.width = np.asarray(width)
         # masses associated with each dimension
-        if masses is None:
-            self.masses = np.zeros(dim)
+        if mass is None:
+            self.mass = np.zeros(dim)
         else:
-            self.masses = masses
-        # labels for each dimension (i.e. atom types, etc.)
-        if labels is None:
-            self.labels = ['c'+str(i) for i in range(dim)]
-        else:
-            self.labels = labels
+            self.mass = np.asarray(mass)
         # dimension of the coordinate system 
         #(i.e. ==3 for Cartesian, ==3N-6 for internals)
         self.crd_dim = crd_dim
@@ -85,9 +78,9 @@ class Trajectory:
 
 
         # current position of the trajectory
-        self.x          = np.zeros(self.dim)
+        self.pos        = np.zeros(self.dim)
         # current momentum of the trajecotry
-        self.p          = np.zeros(self.dim)
+        self.mom        = np.zeros(self.dim)
         # state trajectory exists on
         self.state      = 0
         # if a centroid, state for second trajectory
@@ -128,8 +121,7 @@ class Trajectory:
         self.sct = np.zeros((self.nstates))
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
-                               glbl.fms['interface'], fromlist =
-                               ['a'])
+                               glbl.fms['interface'], fromlist = ['a'])
 
     #-------------------------------------------------------------------
     #
@@ -146,14 +138,14 @@ class Trajectory:
     #
     #----------------------------------------------------------------------
     def update_x(self, pos):
-        """Updates the position of the particles in trajectory.
+        """Updates the position of the trajectory.
         """
-        self.x = pos
+        self.pos = np.array(pos)
 
     def update_p(self, mom):
-        """Updates the momentum of the particles in the trajectory.
+        """Updates the momentum of the trajectory.
         """
-        self.p = mom
+        self.mom = np.array(mom)
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
@@ -188,27 +180,25 @@ class Trajectory:
     #
     #-----------------------------------------------------------------------
     def x(self):
-        """Returns the position of the particles in the trajectory as an
-        array."""
-        return self.x
+        """Returns the position of the trajectory as an array."""
+        return self.pos
 
     def p(self):
-        """Returns the momentum of the particles in the trajectory as an
-        array."""
-        return self.p
+        """Returns the momentum of the trajectory as an array."""
+        return self.mom
 
     def phase(self):
         """Returns the phase of the trajectory."""
         return self.gamma
 
     def masses(self):
-        """Returns a vector containing masses of particles."""
-        return self.masses
+        """Returns a vector containing masses associated with each dimension"""
+        return self.mass
 
     def widths(self):
         """Returns a vector containing the widths of the basis functions
         along each degree of freedom."""
-        return self.widths
+        return self.width
 
     #--------------------------------------------------------------------
     #

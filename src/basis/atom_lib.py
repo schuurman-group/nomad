@@ -1,5 +1,5 @@
 """
-The Particle object and its associated functions.
+A library containing atom widths, atomic numbers, etc.
 """
 
 atom_name  = ['H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',
@@ -13,7 +13,7 @@ atom_anum  = [1., 1., 1., 2., 3., 4., 5., 6., 7., 8., 9.,
 
 
 def valid_atom(atom_sym):
-    """Returns True if the particle name appears in particle_name."""
+    """Returns True if the atomic symbol is in the library."""
     return atom_sym in atom_name
 
 def atom_data(atom_sym):
@@ -25,5 +25,5 @@ def atom_data(atom_sym):
         return atom_width[index],atom_mass[index],atom_anum[index]
 
     else:
-        raise ValueError('Atom: '+str(atom_sym)+' not found in library')) 
+        raise ValueError('Atom: '+str(atom_sym)+' not found in library') 
         return

@@ -8,7 +8,7 @@ import shutil
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
-import src.dynamics.atom_lib as atom_lib
+import src.basis.atom_lib as atom_lib
 
 # Make sure that we print entire arrays
 np.set_printoptions(threshold = np.inf)
@@ -111,8 +111,9 @@ def init_fms_output():
     global home_path, scr_path, log_format, tkeys, bkeys
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    nump = int(glbl.fms['num_particles'])
-    numd = int(glbl.fms['dim_particles'])
+    (ncrd, crd_dim, amp_data, label_data,
+            geom_data, mom_data, width_data, mass_data) = read_geometry() 
+
     nums = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
     acc1 = 12
@@ -121,9 +122,9 @@ def init_fms_output():
     # ----------------- dump formats (trajectory files) -----------------
     # trajectory output
     arr1 = ['{:>12s}'.format('pos' + str(i+1) + '.' + dstr[x])
-            for i in range(nump) for x in range(numd)]
+            for i in range(ncrd) for x in range(crd_dim)]
     arr2 = ['{:>12s}'.format('mom' + str(i+1) + '.' + dstr[x])
-            for i in range(nump) for x in range(numd)]
+            for i in range(ncrd) for x in range(crd_dim)]
     tfile_names[tkeys[0]] = 'trajectory'
     dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + 'Phase'.rjust(acc1) +
@@ -131,7 +132,7 @@ def init_fms_output():
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
     dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(3*nump*numd)) +
+                             ''.join('{:12.6f}' for i in range(3*ncrd*crd_dim)) +
                              '\n')
 
     # potential energy
@@ -152,17 +153,17 @@ def init_fms_output():
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nums) for j in range(numd)]
+            for i in range(nums) for j in range(crd_dim)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*numd)) + '\n')
+                                     for i in range(nums*crd_dim)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nums) for j in range(i) for k in range(numd)]
-    ncol = int(nums*(nums-1)*numd/2+1)
+            for i in range(nums) for j in range(i) for k in range(crd_dim)]
+    ncol = int(nums*(nums-1)*crd_dim/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{:12.4f}' +
@@ -171,30 +172,30 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nums) for j in range(numd)]
+            for i in range(nums) for j in range(crd_dim)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*numd)) + '\n')
+                                     for i in range(nums*crd_dim)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_p' + str(j+1)
-            for i in range(nums) for j in range(nump)]
+            for i in range(nums) for j in range(ncrd)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{:12.4f}' +
                              ''.join('{:10.5f}'
-                                     for i in range(nums*nump)) + '\n')
+                                     for i in range(nums*ncrd)) + '\n')
 
     # gradients
     arr1 = ['  grad_part' + str(i+1) + '.' + dstr[j]
-            for i in range(nump) for j in range(numd)]
+            for i in range(ncrd) for j in range(crd_dim)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, nump*numd+1)) + '\n')
+                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
@@ -409,6 +410,8 @@ def read_geometry():
         else:
             amp_data.append(complex(1.,0.))
 
+        print("amp_data=",amp_data)
+
         # number of atoms/coordinates
         lcnt += 1
         nq = int(gm_file[lcnt])
@@ -416,49 +419,52 @@ def read_geometry():
         # read in geometry
         for i in range(nq):
             lcnt += 1
-            geom_data.append(gm_file[lcnt].rstrip().split()[1:])
+            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+                      for j in range(1,len(gm_file[lcnt].rstrip().split()))])
             crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
-            label_data.append([gm_file[lcnt].rstrip().split()[0] 
-                                                   for i in range(crd_dim))
+            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0] 
+                       for i in range(crd_dim)])
 
         # read in momenta
         for i in range(nq):
             lcnt += 1
-            mom_data.append(gm_file[lcnt].rstrip().split())
+            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+                       for j in range(len(gm_file[lcnt].rstrip().split()))])
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                width_data.append(float(gm_file[lcnt].rstrip().split()[1:]))
+                width_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+                               for j in range(1,len(gm_file[lcnt].split()))])
         else:
             labels = label_data[-nq * crd_dim]
             for lbl in labels:
                 if atom_lib.valid_atom(lbl):
                     adata = atom_data(lbl)
-                    width_data.append(adata[0])
+                    width_data.extend([float(adata[0])])
                 else:
-                    width_data.append(0)
+                    width_data.extend([0.])
 
         # read in masses, if present
         if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                mass_data.append(float(gm_file[lcnt].rstrip().split()[1:]))
+                mass_data.extend(float(gm_file[lcnt].rstrip().split()[1:]))
         else:
             labels = label_data[-nq * crd_dim]
             for lbl in labels:
                 if atom_lib.valid_atom(lbl):
                     adata = atom_data(lbl)
-                    mass_data.append(adata[1])
+                    mass_data.extend([float(adata[1])])
                 else:
-                    mass_data.append(1.)
+                    mass_data.extend([1.])
 
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return (crd_dim, amp_data, label_data, 
+    return (nq, crd_dim, amp_data, label_data, 
             geom_data, mom_data, width_data, mass_data)
 
 def read_hessian():

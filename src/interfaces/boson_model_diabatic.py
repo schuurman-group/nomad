@@ -10,7 +10,7 @@ from src.fmsio import glbl
 kecoeff = None
 
 comp_properties = False
-ncrd = glbl.fms['num_particles']
+ncrd = 1 
 delta = 1.
 omega_c = 2.5 * delta
 omega = np.zeros(ncrd)
@@ -19,7 +19,7 @@ C = np.zeros(ncrd)
 
 def init_interface():
     """Initializes global variables."""
-    global C, omega, omega_c, delta, kecoeff
+    global ncrd, C, omega, omega_c, delta, kecoeff
 
     if ncrd == 1:
         omega = np.array(1.34)

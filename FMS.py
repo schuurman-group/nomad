@@ -36,7 +36,9 @@ def main(sc):
     random.seed(glbl.fms['seed'])
 
     # Create the collection of trajectories
-    master = bundle.Bundle(glbl.fms['n_states'], glbl.fms['integrals'])
+    master = bundle.Bundle(glbl.fms['n_states'], 
+                           glbl.fms['test_function'],
+                           glbl.fms['integrals'])
 
     # set the initial conditions for trajectories
     initial.init_bundle(master)

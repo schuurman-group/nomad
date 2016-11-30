@@ -34,22 +34,21 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     pass
 
 
-def prim_v_integral(n, p1, p2):
+def prim_v_integral(n, a1, x1, p1, a2, x2, p2):
     """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
 
     Takes the arguments as particles.
     """
     n_2 = np.floor(0.5 * n)
     a   = p1.width + p2.width
-    b   = np.fromiter((complex(2.*(p1.width*p1.x[i] + p2.width*p2.x[i]),
-                               -(p1.p[i]-p2.p[i])) for i in range(p1.dim)),
-                      dtype=complex)
+    b   = np.fromiter((complex(2.*(a1*x1 + a2*x2),-(p1-p2)) 
+                                         for i in range(1)),dtype=complex)
 
     # generally these should be 1D harmonic oscillators. If
     # multi-dimensional, the final result is a direct product of
     # each dimension
     v_total  = complex(1.,0.)
-    for d in range(p1.dim):
+    for d in range(1):
         v = complex(0.,0.)
         for i in range(n_2):
             v = (v + a**(i-N) * b**(N-2*i) /

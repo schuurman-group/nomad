@@ -17,11 +17,10 @@ import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
-
 @timings.timed
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with RK4."""
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
+    ncrd = master.traj[0].dim
     mass = master.traj[0].masses()
 
     x0   = np.zeros((master.nactive, ncrd))
