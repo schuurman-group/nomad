@@ -9,7 +9,7 @@ import copy
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.bundle as bundle
-import src.utils.linear as linear
+import src.utils.linalg as linalg
 
 
 selected = []
@@ -28,7 +28,7 @@ def reexpress_basis(master):
     # If the condition number of the overlap matrix is below
     # threshold, then return, else re-exress the basis using the
     # matching pursuit algorithm
-    Sinv, cond = linear.pseudo_inverse(master.S)
+    Sinv, cond = linalg.pseudo_inverse(master.S)
     if cond <= epsilon:
         return
     else:
@@ -115,7 +115,7 @@ def coeff_basfunc(residual,master):
             smat[i,j] = residual.integrals.stotal_integral(residual.traj[iindx], 
                                                            residual.traj[jindx])
             smat[j,i] = smat[i,j].conjugate()
-    sinv, cond = linear.pseudo_inverse(smat)
+    sinv, cond = linalg.pseudo_inverse(smat)
 
     # Project the selected basis functions onto the target
     for i in range(nbas):

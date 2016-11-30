@@ -15,9 +15,10 @@ As a matter of course, this function also builds:
 """
 import sys
 import numpy as np
-from scipy import linalg
+import scipy.linalg as sp_linalg
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
+import src.utils.linalg as fms_linalg
 
 def c_ind(i, j):
     """Returns the index in the cent array of the centroid between
@@ -41,41 +42,6 @@ def sq_ind(index, n):
     """Gets the (i,j) index of a square matrix from the 
     sequential matrix index 'index'"""
     return int(index / n), index - int(index / n) * n
-
-def pseudo_inverse(mat, dim):
-    """ Modified version of the scipy pinv function. Altered such that
-    the the cutoff for singular values can be set to a hard
-    value. Note that by default the scipy cutoff of 1e-15*sigma_max is
-    taken."""
-
-    invmat = np.zeros((dim, dim), dtype=complex)
-    mat=np.conjugate(mat)
-    
-    # SVD of the overlap matrix
-    u, s, vt = np.linalg.svd(mat, full_matrices=True)
-
-    #print("\n",s,"\n")
-
-    # Condition number
-    if s[dim-1] < 1e-90:
-        cond = 1e+90
-    else:
-        cond = s[0]/s[dim-1]
-
-    # Moore-Penrose pseudo-inverse
-    if glbl.fms['sinv_thrsh'] == -1.0:
-        cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
-    else:
-        cutoff = glbl.fms['sinv_thrsh']
-    for i in range(dim):
-        if s[i] > cutoff:
-            s[i] = 1./s[i]
-        else:
-            s[i] = 0.
-    invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))    
-
-    return invmat, cond
 
 @timings.timed
 def build_hamiltonian(nucint, trajint, traj_list, traj_alive, cent_list=None):
@@ -147,12 +113,12 @@ def build_hamiltonian(nucint, trajint, traj_list, traj_alive, cent_list=None):
     if traj_int.hermitian:
         # compute the S^-1, needed to compute Heff
         timings.start('linalg.pinvh')
-        Sinv = linalg.pinvh(S)
+        Sinv = sp_linalg.pinvh(S)
         timings.stop('linalg.pinvh')
     else:
         # compute the S^-1, needed to compute Heff
         timings.start('build_hamiltonian.pseudo_inverse')
-        Sinv, cond = pseudo_inverse(S, n_alive)
+        Sinv, cond = fms_linalg.pseudo_inverse(S)
         timings.stop('build_hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )

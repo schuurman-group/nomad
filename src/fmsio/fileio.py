@@ -132,7 +132,7 @@ def init_fms_output():
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
     dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(3*ncrd*crd_dim)) +
+                             ''.join('{:12.6f}' for i in range(2*ncrd*crd_dim+5))+
                              '\n')
 
     # potential energy

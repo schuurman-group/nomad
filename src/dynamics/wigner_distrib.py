@@ -4,12 +4,12 @@ Routines for generating and sampling a Wigner vibrational distribution.
 import sys
 import random
 import numpy as np
+import scipy.linalg as linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
-import src.utils.linear as linear
-nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
+nuc_ints = __import__('src.integrals.nuclear_gaussian',
                      fromlist=['NA'])
 
 def sample_distribution(master):
@@ -141,7 +141,7 @@ def sample_distribution(master):
             smat[i,j] = nuc_ints.overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
-    sinv, cond = linear.pseudo_inverse(smat)
+    sinv = linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):
         master.traj[i].update_amplitude(cvec[i])
