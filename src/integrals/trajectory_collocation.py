@@ -7,9 +7,9 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
-nuc_ints  = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
-interface = __import__('src.interfaces.' + glbl.fms['interface'],
+import src.integrals.nuclear_dirac as nuc_ints
+import src.integrals.nuclear_gaussian as gauss_ints
+interface  = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
 # Let propagator know if we need data at centroids to propagate
@@ -18,11 +18,22 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = False
 
-# returns total overlap of trajectory basis function
-def s_integral(traj1, traj2, Snuc=None):
-    """ Returns < Psi | Psi' >, the overlap of the nuclear
-    component of the wave function only"""
-    if traj1.state != traj2.state:
+# returns the overlap between two trajectories (differs from s_integral in that
+# the bra and ket functions for the s_integral may be different
+# (i.e. pseudospectral/collocation methods). 
+def overlap(traj1, traj2, nuc_only=False):
+    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+    if traj1.state != traj2.state and not nuc_only:
+        return complex(0.,0)
+    else:
+        return gauss_ints.overlap(traj1,traj2)
+
+# returns total overlap of trajectory basis function using a 
+# dirac delta test function
+def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
+    """ Returns < chi | Psi' >, the overlap integral under the pseudospectral
+    projection."""
+    if traj1.state != traj2.state and not nuc_only:
         return complex(0.,0.) 
     else:
         if Snuc is None:

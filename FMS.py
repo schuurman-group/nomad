@@ -37,7 +37,6 @@ def main(sc):
 
     # Create the collection of trajectories
     master = bundle.Bundle(glbl.fms['n_states'], 
-                           glbl.fms['test_function'],
                            glbl.fms['integrals'])
 
     # set the initial conditions for trajectories

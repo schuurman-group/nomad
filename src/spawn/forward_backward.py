@@ -19,11 +19,9 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
+import src.integrals.nuclear_gaussian as nuc_ints
 
 coup_hist = []
-
 
 def spawn(master, dt):
     """Propagates to the point of maximum coupling, spawns a new

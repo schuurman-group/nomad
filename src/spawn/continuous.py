@@ -18,8 +18,7 @@ import src.fmsio.fileio as fileio
 import src.dynamics.timings as timings
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
+import src.integrals.nuclear_gaussian as nuc_ints
 
 @timings.timed
 def spawn(master, dt):

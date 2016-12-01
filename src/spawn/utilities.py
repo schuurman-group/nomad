@@ -5,8 +5,7 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
+import src.integrals.nuclear_gaussian as nuc_ints
 
 def fms_step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.

@@ -3,9 +3,9 @@ Compute integrals over trajectories traveling on vibronic potentials
 """
 import math
 import numpy as np
+import src.integrals.nuclear_gaussian as gauss_ints
 nuc_ints  = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
                      fromlist=['NA'])
-
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -13,17 +13,24 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = True
 
+# returns the overlap between two trajectories (differs from s_integral in that
+# the bra and ket functions for the s_integral may be different
+# (i.e. pseudospectral/collocation methods). 
+def overlap(traj1, traj2, nuc_only=True):
+    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+    if traj1.state != traj2.state and not nuc_only:
+        return complex(0.,0)
+    else
+        return gauss_ints.overlap(traj1,traj2)
+
 # returns total overlap of trajectory basis function
-def s_integral(traj1, traj2, Snuc=None):
+def s_integral(traj1, traj2):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state:
         return complex(0.,0.)
     else:
-        if Snuc is None:
-            return nuc_ints.overlap(traj1,traj2)
-        else:
-            return Snuc
+        return nuc_ints.overlap(traj1,traj2)
 
 def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories.

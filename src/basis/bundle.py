@@ -20,8 +20,7 @@ def copy_bundle(orig_bundle):
     significantly more work.
     """
     new_bundle = Bundle(orig_bundle.nstates, 
-                        orig_bundle.nuc_ints,
-                        orig_bundle.traj_ints)
+                        orig_bundle.integrals)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
@@ -31,6 +30,7 @@ def copy_bundle(orig_bundle):
     new_bundle.S      = copy.deepcopy(orig_bundle.S)
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
+    new_bundle.Ovrlp  = copy.deepcopy(orig_bundle.Ovrlp)
     for i in range(new_bundle.n_traj()):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
@@ -57,9 +57,8 @@ def cent_ind(i, j):
 
 class Bundle:
     """Class constructor for the Bundle object."""
-    def __init__(self, nstates, nuc_ints, traj_ints):
-        self.nuc_ints  = nuc_ints
-        self.traj_ints = traj_ints
+    def __init__(self, nstates, integrals):
+        self.integrals = integrals
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -69,16 +68,17 @@ class Bundle:
         self.cent      = []
         self.alive     = []
         self.active    = []
-        self.T     = np.zeros((0, 0), dtype=complex)
-        self.V     = np.zeros((0, 0), dtype=complex)
-        self.S     = np.zeros((0, 0), dtype=complex)
-        self.Sdot  = np.zeros((0, 0), dtype=complex)
-        self.Heff  = np.zeros((0, 0), dtype=complex)
+        self.T         = np.zeros((0, 0), dtype=complex)
+        self.V         = np.zeros((0, 0), dtype=complex)
+        self.S         = np.zeros((0, 0), dtype=complex)
+        self.Sdot      = np.zeros((0, 0), dtype=complex)
+        self.Heff      = np.zeros((0, 0), dtype=complex)
+        self.Ovrlp   = np.zeros((0, 0), dtype=complex)
         try:
-            self.ints = __import__('src.integrals.trajectory_'+self.traj_ints,
+            self.ints = __import__('src.integrals.trajectory_'+self.integrals,
                                                                fromlist=['a'])
         except ImportError:
-            print('BUNDLE INIT FAIL: src.integrals.' + self.traj_ints)
+            print('BUNDLE INIT FAIL: src.integrals.trajectory_'+self.integrals)
 
     def n_traj(self):
         """Returns total number of trajectories."""
@@ -107,11 +107,12 @@ class Bundle:
         self.traj[-1].tid    = self.n_traj() - 1
         self.alive.append(self.traj[-1].tid)
         self.active.append(self.traj[-1].tid)
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
@@ -124,11 +125,12 @@ class Bundle:
             self.traj[-1].tid    = self.n_traj() - 1
             self.alive.append(self.traj[-1].tid)
             self.active.append(self.traj[-1].tid)
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
     def kill_trajectory(self, tid):
@@ -148,11 +150,13 @@ class Bundle:
             self.traj[tid].active = False
             self.nactive = self.nactive - 1
         # Reset arrays
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+
 
     @timings.timed
     def revive_trajectory(self, tid):
@@ -167,11 +171,12 @@ class Bundle:
         self.nalive          = self.nalive + 1
         self.ndead           = self.ndead - 1
 
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
@@ -263,8 +268,9 @@ class Bundle:
         i = self.alive.index(tid)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.S[i,j] * self.traj[tid].amplitude.conjugate()
-                                        * self.traj[jj].amplitude)
+            mulliken += abs(self.Ovrlp[i,j] * 
+                            self.traj[tid].amplitude.conjugate() *
+                            self.traj[jj].amplitude)
         return mulliken
 
     @timings.timed
@@ -283,7 +289,8 @@ class Bundle:
                 jj = self.alive[j]
                 if self.traj[ii].state != self.traj[jj].state:
                     continue
-                popij = (2. * self.S[i,j] * self.traj[jj].amplitude *
+                popij = (2. * self.Ovrlp[i,j]  * 
+                         self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij.real
 
@@ -369,7 +376,7 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.ints.s_integral(self.traj[ii], self.traj[jj]) *
+                S += (self.ints.overlap(self.traj[ii], self.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
         return S
@@ -379,8 +386,8 @@ class Bundle:
         amplitude on the trial trajectory is (1.,0.)"""
         ovrlp = complex(0., 0.)
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.ints.s_integral(traj,self.traj[i]) * 
-                                                self.traj[i].amplitude)
+            ovrlp += (self.ints.overlap(traj,self.traj[i]) * 
+                                             self.traj[i].amplitude)
         return ovrlp
 
     #----------------------------------------------------------------------
@@ -436,18 +443,16 @@ class Bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
-            (self.T, self.V, self.S, self.Sdot, self.Heff) = \
-                        ham.build_hamiltonian(self.nuc_ints,
-                                              self.traj_ints,
-                                              self.traj, 
-                                              self.alive, 
-                                              cent_list=self.cent)
+            (self.T, self.V, self.S, self.Sdot, self.Heff, self.Ovrlp) = \
+                                      ham.build_hamiltonian(self.integrals,
+                                                            self.traj, 
+                                                            self.alive, 
+                                                            cent_list=self.cent)
         else:
-            (self.T, self.V, self.S, self.Sdot, self.Heff) = \
-                        ham.build_hamiltonian(self.nuc_ints,
-                                              self.traj_ints,
-                                              self.traj, 
-                                              self.alive)
+            (self.T, self.V, self.S, self.Sdot, self.Heff, self.Ovrlp) = \
+                                      ham.build_hamiltonian(self.integrals,
+                                                            self.traj, 
+                                                            self.alive)
 
     #------------------------------------------------------------------------
     #
@@ -536,7 +541,7 @@ class Bundle:
 
         # bundle matrices
         if glbl.fms['print_matrices']:
-            fileio.print_bund_mat(self.time, 's.dat', self.S)
+            fileio.print_bund_mat(self.time, 's.dat', self.Ovrlp)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
             fileio.print_bund_mat(self.time, 'heff.dat', self.Heff)
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
@@ -644,11 +649,11 @@ class Bundle:
             self.traj.append(t_read)
 
         # create the bundle matrices
-        self.T    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.V    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.S    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Sdot = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Heff = np.zeros((self.nalive, self.nalive), dtype=complex)
-
+        self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
         # once bundle is read, close the stream
         chkpt.close()
