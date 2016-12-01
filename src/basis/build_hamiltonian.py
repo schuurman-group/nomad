@@ -44,9 +44,9 @@ def sq_ind(index, n):
     return int(index / n), index - int(index / n) * n
 
 @timings.timed
-def build_hamiltonian(integrals, traj_list, traj_alive, cent_list=None):
+def build_hamiltonian(traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    ints = __import__('src.integrals.trajectory_'+integrals, fromlist=['a'])
+    ints = __import__('src.integrals.'+glbl.fms['integrals'], fromlist=['a'])
 
     n_alive = len(traj_alive)
     if ints.hermitian:
@@ -61,17 +61,8 @@ def build_hamiltonian(integrals, traj_list, traj_alive, cent_list=None):
     Sinv    = np.zeros((n_alive, n_alive), dtype=complex)
     Sdot    = np.zeros((n_alive, n_alive), dtype=complex)
     Heff    = np.zeros((n_alive, n_alive), dtype=complex)
-    overlap = np.zeros((n_alive, n_alive), dtype=complex)
+    t_ovrlp = np.zeros((n_alive, n_alive), dtype=complex)
 
-    # first evaluate overlap of trajectories (always hermitian)
-    for i in range(n_alive):
-        ii = traj_alive[i]
-        overlap[i,i] = ints.overlap(traj_list[ii],traj_list[ii])
-        for j in range(i):
-            jj = traj_alive[j]
-            overlap[i,j] = ints.overlap(traj_list[ii],traj_list[jj])
-            overlap[j,i] = overlap[i,j].conjugate()    
-    
     # now evaluate the hamiltonian matrix
     for ij in range(n_elem):
         if ints.hermitian:
@@ -81,6 +72,10 @@ def build_hamiltonian(integrals, traj_list, traj_alive, cent_list=None):
 
         ii = traj_alive[i]
         jj = traj_alive[j]
+
+        # compute overlap of trajectories (different from S, which may or may
+        # not involve integration in a gaussian basis
+        t_ovrlp[i,j] = ints.traj_overlap(traj_list[ii],traj_list[jj])
 
         # overlap matrix (excluding electronic component)
         Snuc      = ints.s_integral(traj_list[ii],traj_list[jj],nuc_only=True)
@@ -109,13 +104,14 @@ def build_hamiltonian(integrals, traj_list, traj_alive, cent_list=None):
 
         # if hermitian matrix, set (j,i) indices
         if ints.hermitian:
-            Snuc       = Snuc.conjugate()
-            S[j,i]     = S[i,j].conjugate()
-            Sdot[j,i]  = ints.sdot_integral(traj_list[jj],
-                                            traj_list[ii], Snuc=Snuc)
-            T[j,i]      = T[i,j].conjugate()
-            V[j,i]      = V[i,j].conjugate()
-            H[j,i]      = H[i,j].conjugate()
+            Snuc         = Snuc.conjugate()
+            S[j,i]       = S[i,j].conjugate()
+            t_ovrlp[j,i] = t_ovrlp[i,j].conjugate()
+            Sdot[j,i]    = ints.sdot_integral(traj_list[jj],
+                                              traj_list[ii], Snuc=Snuc)
+            T[j,i]       = T[i,j].conjugate()
+            V[j,i]       = V[i,j].conjugate()
+            H[j,i]       = H[i,j].conjugate()
 
     if ints.hermitian:
         # compute the S^-1, needed to compute Heff
@@ -130,4 +126,4 @@ def build_hamiltonian(integrals, traj_list, traj_alive, cent_list=None):
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
 
-    return T, V, S, Sdot, Heff, overlap
+    return t_ovrlp, T, V, S, Sdot, Heff

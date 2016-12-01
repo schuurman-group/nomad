@@ -19,7 +19,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-import src.integrals.nuclear_gaussian as nuc_ints
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 coup_hist = []
 
@@ -53,7 +53,9 @@ def spawn(master, dt):
             max_sij = 0.
             for j in range(master.n_traj()):
                 if master.traj[j].alive and master.traj[j].state == st:
-                    sij = abs(nuc_ints.overlap(master.traj[i],master.traj[j]))
+                    sij = abs(integrals.traj_overlap(master.traj[i],
+                                                     master.traj[j],
+                                                     nuc_only=True))
                     if sij > max_sij:
                         max_sij = sij
                         if max_sij > glbl.fms['sij_thresh']:
@@ -83,8 +85,10 @@ def spawn(master, dt):
                 child.tid       = parent.tid
 
                 # propagate the parent forward in time until coupling maximized
-                spawn_time, exit_time, success = spawn_forward(parent, child,
-                                                               current_time, dt)
+                spawn_time, exit_time, success = spawn_forward(parent, 
+                                                               child,
+                                                               current_time,
+                                                               dt)
                 master.traj[i].last_spawn[st] = spawn_time
                 master.traj[i].exit_time[st]  = exit_time
 
@@ -130,7 +134,7 @@ def spawn_forward(parent, child, initial_time, dt):
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
                                                      parent.derivative(child_state))
-        sij = abs(nuc_ints.overlap(parent,child_attempt))
+        sij = abs(integrals.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail

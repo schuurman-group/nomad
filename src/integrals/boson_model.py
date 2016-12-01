@@ -6,8 +6,6 @@ import numpy as np
 import src.interfaces.boson_model_diabatic as boson
 import src.dynamics.timings as timings
 import src.integrals.nuclear_gaussian as gauss_ints
-nuc_ints = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -15,15 +13,15 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = True
 
+# Returns functional form of bra function ('dirac_delta', 'gaussian')
+basis = 'gaussian'
+
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
-def overlap(traj1, traj2, nuc_only=True):
+def traj_overlap(traj1, traj2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    if traj1.state != traj2.state and not nuc_only:
-        return complex(0.,0)
-    else
-        return gauss_ints.overlap(traj1,traj2)
+    return s_integral(traj1, traj2, nuc_only, Snuc)
 
 # returns total overlap of trajectory basis function
 def s_integral(traj1, traj2):
@@ -32,7 +30,10 @@ def s_integral(traj1, traj2):
     if traj1.state != traj2.state:
         return complex(0.,0.)
     else:
-        return nuc_ints.overlap(traj1,traj2)
+        if Snuc is None:
+            return nuc_ints.overlap(traj1,traj2)
+        else:
+            return Snuc
 
 def v_integral(traj1, traj2, Snuc=None):
     """Returns potential coupling matrix element between two

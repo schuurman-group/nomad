@@ -5,7 +5,8 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-import src.integrals.nuclear_gaussian as nuc_ints
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
+
 
 def fms_step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.
@@ -148,7 +149,7 @@ def overlap_with_bundle(traj, bundle):
             if traj.state != bundle.traj[i].state:
                 sij = complex(0.,0.)
             else:
-                sij = nuc_ints.overlap(traj,bundle.traj[i])
+                sij = integrals.traj_overlap(traj, bundle.traj[i])
             if abs(sij) > glbl.fms['sij_thresh']:
                 t_overlap_bundle = True
                 break

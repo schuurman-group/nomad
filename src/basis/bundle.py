@@ -30,7 +30,7 @@ def copy_bundle(orig_bundle):
     new_bundle.S      = copy.deepcopy(orig_bundle.S)
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
-    new_bundle.Ovrlp  = copy.deepcopy(orig_bundle.Ovrlp)
+    new_bundle.traj_ovrlp = copy.deepcopy(orig_bundle.traj_ovrlp)
     for i in range(new_bundle.n_traj()):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
@@ -73,12 +73,11 @@ class Bundle:
         self.S         = np.zeros((0, 0), dtype=complex)
         self.Sdot      = np.zeros((0, 0), dtype=complex)
         self.Heff      = np.zeros((0, 0), dtype=complex)
-        self.Ovrlp   = np.zeros((0, 0), dtype=complex)
+        self.traj_ovrlp= np.zeros((0, 0), dtype=complex)
         try:
-            self.ints = __import__('src.integrals.trajectory_'+self.integrals,
-                                                               fromlist=['a'])
+            self.ints=__import__('src.integrals.'+self.integrals,fromlist=['a'])
         except ImportError:
-            print('BUNDLE INIT FAIL: src.integrals.trajectory_'+self.integrals)
+            print('BUNDLE INIT FAIL: src.integrals.'+self.integrals)
 
     def n_traj(self):
         """Returns total number of trajectories."""
@@ -112,7 +111,7 @@ class Bundle:
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
@@ -130,7 +129,7 @@ class Bundle:
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
     def kill_trajectory(self, tid):
@@ -155,8 +154,7 @@ class Bundle:
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
-
+        self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
     def revive_trajectory(self, tid):
@@ -176,7 +174,7 @@ class Bundle:
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
     def update_amplitudes(self, dt, n_max, H=None, Ct=None):
@@ -268,7 +266,7 @@ class Bundle:
         i = self.alive.index(tid)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.Ovrlp[i,j] * 
+            mulliken += abs(self.traj_ovrlp[i,j] * 
                             self.traj[tid].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -287,9 +285,7 @@ class Bundle:
             pop[state] += popii.real
             for j in range(i):
                 jj = self.alive[j]
-                if self.traj[ii].state != self.traj[jj].state:
-                    continue
-                popij = (2. * self.Ovrlp[i,j]  * 
+                popij = (2. * self.traj_ovrlp[i,j]  * 
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij.real
@@ -302,20 +298,20 @@ class Bundle:
     def pot_classical(self):
         """Returns the classical potential energy of the bundle.
 
-        Currently includes energy from dead trajectories as well...
+        Currently only includes energy from alive trajectories
         """
-        weight = np.array([self.traj[i].amplitude *
-                           self.traj[i].amplitude.conjugate()
-                           for i in range(self.n_traj())])
-        v_int  = np.array([self.ints.v_integral(self.traj[i],self.traj[i])
-                           for i in range(self.n_traj())])
+        weight = np.array([self.traj[self.alive[i]].amplitude *
+                           self.traj[self.alive[i]].amplitude.conjugate() 
+                           for i in range(len(self.alive))])
+        v_int  = np.array([self.V[i,i] 
+                           for i in range(self.nalive)])
         return sum(weight * v_int).real
 
     @timings.timed
     def pot_quantum(self):
         """Returns the QM (coupled) potential energy of the bundle.
 
-        Currently includes <live|live> and <dead|dead> contributions...
+        Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
         energy = 0.
         for i in range(len(self.alive)):
@@ -335,11 +331,11 @@ class Bundle:
     @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
-        weight  = np.array([self.traj[i].amplitude *
-                            self.traj[i].amplitude.conjugate()
-                            for i in range(self.n_traj())])
-        ke_int  = np.array([self.ints.ke_integral(self.traj[i], self.traj[i])
-                            for i in range(self.n_traj())])
+        weight = np.array([self.traj[self.alive[i]].amplitude *
+                           self.traj[self.alive[i]].amplitude.conjugate() 
+                           for i in range(len(self.alive))])
+        ke_int  = np.array([self.T[i,i] 
+                           for i in range(self.nalive)])
         return sum(weight * ke_int).real
 
     @timings.timed
@@ -376,7 +372,7 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.ints.overlap(self.traj[ii], self.traj[jj]) *
+                S += (self.ints.traj_overlap(self.traj[ii], other.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
         return S
@@ -386,7 +382,7 @@ class Bundle:
         amplitude on the trial trajectory is (1.,0.)"""
         ovrlp = complex(0., 0.)
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.ints.overlap(traj,self.traj[i]) * 
+            ovrlp += (self.ints.traj_overlap(traj,self.traj[i]) * 
                                              self.traj[i].amplitude)
         return ovrlp
 
@@ -443,15 +439,13 @@ class Bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.ints.require_centroids:
-            (self.T, self.V, self.S, self.Sdot, self.Heff, self.Ovrlp) = \
-                                      ham.build_hamiltonian(self.integrals,
-                                                            self.traj, 
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
+                                      ham.build_hamiltonian(self.traj, 
                                                             self.alive, 
                                                             cent_list=self.cent)
         else:
-            (self.T, self.V, self.S, self.Sdot, self.Heff, self.Ovrlp) = \
-                                      ham.build_hamiltonian(self.integrals,
-                                                            self.traj, 
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
+                                      ham.build_hamiltonian(self.traj, 
                                                             self.alive)
 
     #------------------------------------------------------------------------
@@ -541,7 +535,9 @@ class Bundle:
 
         # bundle matrices
         if glbl.fms['print_matrices']:
-            fileio.print_bund_mat(self.time, 's.dat', self.Ovrlp)
+            if self.ints.basis != 'gaussian':
+                fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp) 
+            fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
             fileio.print_bund_mat(self.time, 'heff.dat', self.Heff)
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
@@ -654,6 +650,6 @@ class Bundle:
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
-        self.Ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
         # once bundle is read, close the stream
         chkpt.close()

@@ -18,7 +18,7 @@ import src.fmsio.fileio as fileio
 import src.dynamics.timings as timings
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-import src.integrals.nuclear_gaussian as nuc_ints
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 @timings.timed
 def spawn(master, dt):
@@ -36,7 +36,9 @@ def spawn(master, dt):
             if st == parent.state:
                 continue
 
-            s_array = [abs(nuc_ints.overlap(parent,master.traj[i]))
+            s_array = [abs(integrals.traj_overlap(parent,
+                                                  master.traj[i],
+                                                  nuc_only=True))
                        if master.traj[j].state == st
                        and master.traj[j].alive else 0.
                        for j in range(master.n_traj())]
@@ -48,7 +50,7 @@ def spawn(master, dt):
 
                 success = utilities.adjust_child(parent, child,
                                                  parent.derivative(st))
-                sij = nuc_ints.overlap(parent,child)
+                sij = integrals.traj_overlap(parent, child, nuc_only=True)
 
                 # try to set up the child
                 if not success:

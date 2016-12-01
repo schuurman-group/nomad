@@ -112,8 +112,8 @@ def coeff_basfunc(residual,master):
         iindx = selected[i]
         for j in range(i+1):
             jindx = selected[j]
-            smat[i,j] = residual.integrals.stotal_integral(residual.traj[iindx], 
-                                                           residual.traj[jindx])
+            smat[i,j] = residual.ints.traj_overlap(residual.traj[iindx], 
+                                                   residual.traj[jindx])
             smat[j,i] = smat[i,j].conjugate()
     sinv, cond = linalg.pseudo_inverse(smat)
 

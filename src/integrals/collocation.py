@@ -18,10 +18,13 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = False
 
+# Returns functional form of bra function ('dirac_delta', 'gaussian')
+basis = 'dirac_delta'
+
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
-def overlap(traj1, traj2, nuc_only=False):
+def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     if traj1.state != traj2.state and not nuc_only:
         return complex(0.,0)

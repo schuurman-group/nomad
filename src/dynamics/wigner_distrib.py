@@ -9,8 +9,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
-nuc_ints = __import__('src.integrals.nuclear_gaussian',
-                     fromlist=['NA'])
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 def sample_distribution(master):
     """Samples a v=0 Wigner distribution
@@ -134,11 +133,11 @@ def sample_distribution(master):
     # the initial wavefunction that we are sampling
     ovec = np.zeros(ntraj, dtype=np.complex)
     for i in range(ntraj):
-        ovec[i] = nuc_ints.overlap(master.traj[i],origin_traj)
+        ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
     smat = np.zeros((ntraj, ntraj), dtype=np.complex)
     for i in range(ntraj):
         for j in range(i+1):
-            smat[i,j] = nuc_ints.overlap(master.traj[i],master.traj[j])
+            smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
     sinv = linalg.pinvh(smat)
