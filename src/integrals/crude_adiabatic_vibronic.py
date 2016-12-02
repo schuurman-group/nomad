@@ -10,11 +10,10 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
 import src.integrals.nuclear_gaussian as ints
-interface = __import__('src.interfaces.' + glbl.fms['interface'],
-                       fromlist = ['a'])
+import src.interface.vibronic as interface
 
 # Let propagator know if we need data at centroids to propagate
-require_centroids = True
+require_centroids = False 
 
 # Determines the Hamiltonian symmetry
 hermitian = True
