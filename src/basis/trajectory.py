@@ -295,7 +295,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    sum(self.widths() * self.interface.kecoeff))
+                    sum(2. * self.widths() * self.interface.kecoeff))
 
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""

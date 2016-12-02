@@ -18,7 +18,7 @@ scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump', 'coup_dump', 'dipole_dump',
                'secm_dump', 'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'spawn_dump',
-               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','auto.dat']
+               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','t_ovrlp','auto.dat']
 dump_header = dict()
 dump_format = dict()
 log_format  = dict()
@@ -234,12 +234,13 @@ def init_fms_output():
     bfile_names[bkeys[4]] = 'sdot.dat'
     bfile_names[bkeys[5]] = 'h.dat'
     bfile_names[bkeys[6]] = 'heff.dat'
+    bfile_names[bkeys[7]] = 't_ovrlp.dat'
 
     # autocorrelation function
     arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
-    bfile_names[bkeys[7]] = 'auto.dat'
-    dump_header[bkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[bkeys[7]] = ('{:12.4f}' +
+    bfile_names[bkeys[8]] = 'auto.dat'
+    dump_header[bkeys[8]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[bkeys[8]] = ('{:12.4f}' +
                              ''.join('{:16.10f}' for i in range(3)) + '\n')
 
     # ------------------------- log file formats --------------------------

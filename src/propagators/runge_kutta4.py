@@ -50,12 +50,8 @@ def propagate_bundle(master, dt):
     # Do 4th order RK
     H_list = []
     for rk in range(rk_ordr):
-<<<<<<< HEAD
 
         # determine x,p,phase,at f(t,x)
-=======
-        # determine x, p, phase at f(t,x)
->>>>>>> 9f51871a5c5b0131d943ee01c051d4b8978f4af1
         H_list.append(master.Heff)
         for i in range(master.nactive):
             ii = master.active[i]

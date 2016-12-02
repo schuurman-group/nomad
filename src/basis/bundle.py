@@ -550,7 +550,7 @@ class Bundle:
         if glbl.fms['auto'] == 1 and glbl.bundle0 is not None:
             auto = self.overlap(glbl.bundle0)
             data = [self.time, auto.real, auto.imag, abs(auto)]
-            fileio.print_bund_row(7, data)
+            fileio.print_bund_row(8, data)
 
     @timings.timed
     def write_bundle(self, filename, mode):

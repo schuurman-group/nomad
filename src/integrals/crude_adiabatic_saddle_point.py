@@ -9,8 +9,7 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
-nuc_ints  = __import__('src.integrals.nuclear_'+glbl.fms['test_function'],
-                     fromlist=['NA'])
+import src.integrals.nuclear_gaussian as ints
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
@@ -19,6 +18,9 @@ require_centroids = True
 
 # Determines the Hamiltonian symmetry
 hermitian = True
+
+# returns basis in which matrix elements are evaluated
+basis = 'gaussian'
 
 # returns total overlap of trajectory basis function
 def s_integral(traj1, traj2, Snuc=None):
