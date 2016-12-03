@@ -8,70 +8,97 @@ cdef extern from "complex.h":
     double complex cexp(double complex)
 cdef extern from "complex.h":
     double complex I
-import operator, functools
+
+import cython
+import numpy as np
 
 #@timings.timed
-cdef double complex overlap(double g1, 
-                           double[:] a1, double[:] x1, double[:] p1,
-                           double g2, 
-                           double[:] a2, double[:] x2, double[:] p2):
+@cython.boundscheck(False)
+def overlap(double g1, 
+            double[::1] a1, double[::1] x1, double[::1] p1,
+            double g2, 
+            double[::1] a2, double[::1] x2, double[::1] p2):
     """Returns overlap of the nuclear component between two trajectories."""
-    cdef double dx, dp, x_center, prefactor, real_part, imag_part
-    cdef double complex S
-    dx        = x1 - x2
-    dp        = p1 - p2
-    x_center  = (a1 * x1 + a2 * x2) / (a1 + a2)
-    prefactor = sqrt(2. * sqrt(a1 * a2) / (a1 + a2))
-    real_part = (a1*a2*dx**2 + 0.25*dp**2) / (a1 + a2)
-    imag_part = (p1 * x1 - p2 * x2) - x_center * dp
-    S         = (functools.reduce(operator.mul,prefactor) * 
-                 cexp(sum(-real_part + I*imag_part) + I*(g2-g1)))
+    cdef double dx, dp, x_center, real_part, imag_part
+    cdef double complex S = 1.
+    cdef int i
+    cdef int n = a1.shape[0]
+
+    real_part = 0.
+    imag_part = 0.
+    for i in range(n):
+        dx        = x1[i] - x2[i]
+        dp        = p1[i] - p2[i]
+        x_center  = (a1[i] * x1[i] + a2[i] * x2[i]) / (a1[i] + a2[i])
+        real_part += (a1[i]*a2[i]*dx**2 + 0.25*dp**2) / (a1[i] + a2[i])
+        imag_part += (p1[i]*x1[i] - p2[i]*x2[i]) - x_center * dp
+        S         *= sqrt(2. * sqrt(a1[i] * a2[i]) / (a1[i] + a2[i]))
+    
+    S *= cexp( -real_part + I*imag_part +I*(g2-g1) )
     return S
 
 #@timings.timed
-cdef double complex[:] deldp(double g1, 
-                            double[:] a1, double[:] x1, double[:] p1,
-                            double g2, 
-                            double[:] a2, double[:] x2, double[:] p2,
-                            double complex S=None):
+@cython.boundscheck(False)
+def deldp(double complex S,
+          double g1, 
+          double[::1] a1, double[::1] x1, double[::1] p1,
+          double g2, 
+          double[::1] a2, double[::1] x2, double[::1] p2):
     """Returns the del/dp matrix element between the nuclear component
        of two trajectories for each componet of 'p' (does not sum over terms)"""
+    cdef int i
+    cdef int n = a1.shape[0]
     cdef double dx, dp
-    if S is None:
-        S = overlap(g1, a1, x1, p1, g2, a2, x2, p2)
-    dx    = x1 - x2
-    dp    = p1 - p2
-    return (dp + 2. * I * a1 * dx) / (2. * (a1 + a2)) * S
+    cdef double complex[::1] delpv = np.empty((n),dtype=np.complex)
+
+    for i in range(n):
+        dx       = x1[i] - x2[i]
+        dp       = p1[i] - p2[i]
+        delpv[i] = (dp + 2. * I * a1[i] * dx) / (2. * (a1[i] + a2[i])) * S
+
+    return delpv 
 
 #@timings.timed
-cdef double complex[:] deldx(double g1, 
-                            double[:] a1, double[:] x1, double[:] p1,
-                            double g2, 
-                            double[:] a2, double[:] x2, double[:] p2,
-                            double complex S=None):
+@cython.boundscheck(False)
+def deldx(double complex S,
+          double g1, 
+          double[::1] a1, double[::1] x1, double[::1] p1,
+          double g2, 
+          double[::1] a2, double[::1] x2, double[::1] p2):
     """Returns the del/dx matrix element between the nuclear component
        of two trajectories for each componet of 'x' (does not sum over terms)"""
+    cdef int i
+    cdef int n = a1.shape[0]
     cdef double dx, psum 
-    if S is None:
-        S = overlap(g1, a1, x1, p1, g2, a2, x2, p2)
-    dx    = x1 - x2
-    psum  = a1 * p2 + a2 * p1
-    return (I * psum - 2. * a1 * a2 * dx) / (a1 + a2) * S
+    cdef double complex[::1] delxv = np.empty((n),dtype=np.complex)
+
+    for i in range(n):
+        dx       = x1[i] - x2[i]
+        psum     = a1[i] * p2[i] + a2[i] * p1[i]
+        delxv[i] = (I * psum - 2. * a1[i] * a2[i] * dx) / (a1[i] + a2[i]) * S
+
+    return delxv
 
 #@timings.timed
-cdef double complex[:] deld2x(double g1, 
-                             double[:] a1, double[:] x1, double[:] p1,
-                             double g2, 
-                             double[:] a2, double[:] x2, double[:] p2,
-                             double complex S=None):
+@cython.boundscheck(False)
+def deld2x(double complex S,
+           double g1, 
+           double[::1] a1, double[::1] x1, double[::1] p1,
+           double g2, 
+           double[::1] a2, double[::1] x2, double[::1] p2):
     """Returns the del^2/d^2x matrix element between the nuclear component
        of two trajectories for each componet of 'x' (does not sum over terms)"""
+    cdef int i
+    cdef int n = a1.shape[0]
     cdef double dx, psum
-    if S is None:
-        S = overlap(g1, a1, x1, p1, g2, a2, x2, p2)
-    dx     = x1 - x2
-    psum   = a1 * p2 + a2 * p1
-    d2xval = -(1j * 4. * a1 * a2 * dx * psum + 2. * a1 * a2 * (a1 + a2) -
-               4. * dx**2 * a1**2 * a2**2 + psum**2) / (a1 + a2)**2
-    return d2xval * S
+    cdef double complex[::1] delx2v = np.empty((n),dtype=np.complex)
+
+    for i in range(n):
+        dx        = x1[i] - x2[i]
+        psum      = a1[i] * p2[i] + a2[i] * p1[i]
+        delx2v[i] =  -S * (I*4.*a1[i]*a2[i]*dx*psum + 
+                      2.*a1[i]*a2[i]*(a1[i] + a2[i]) -
+                      4.* dx**2 * a1[i]**2 * a2[i]**2 + 
+                      psum**2) / (a1[i] + a2[i])**2
+    return delx2v
 

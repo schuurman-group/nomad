@@ -36,7 +36,14 @@ def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            return nuc_ints.overlap(traj1,traj2)
+            return nuc_ints.overlap(traj1.phase(),
+                                    traj1.widths(),
+                                    traj1.x(),
+                                    traj1.p(),
+                                    traj2.phase(),
+                                    traj2.widths(),
+                                    traj2.x(),
+                                    traj2.p())
         else:
             return Snuc
 
@@ -53,7 +60,14 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         return v
 
     if Snuc is None:
-        Snuc = nuc_ints.overlap(traj1, traj2)
+        Snuc = nuc_ints.overlap(traj1.phase(),
+                                traj1.widths(),
+                                traj1.x(),
+                                traj1.p(),
+                                traj2.phase(),
+                                traj2.widths(),
+                                traj2.x(),
+                                traj2.p())
 
     # off-diagonal matrix element, between trajectories on the same
     # state [this also requires the centroid be present
@@ -71,7 +85,16 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         # Derivative coupling
         fij = centroid.derivative(traj1.state)
         v = np.vdot(fij, 
-                    nuc_ints.deldx(traj1,traj2, S=Snuc)* 2.* interface.kecoeff)
+                    2.* interface.kecoeff *
+                    nuc_ints.deldx(Snuc,
+                                   traj1.phase(),
+                                   traj1.widths(),
+                                   traj1.x(),
+                                   traj1.p(),
+                                   traj2.phase(),
+                                   traj2.widths(),
+                                   traj2.x(),
+                                   traj2.p()))
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
             v += traj1.scalar_coup(traj2.state) * Snuc
@@ -89,8 +112,24 @@ def ke_integral(traj1, traj2, Snuc=None):
 
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        ke = nuc_ints.deld2x(traj1, traj2, S = Snuc)
+            Snuc = nuc_ints.overlap(traj1.phase(),
+                                    traj1.widths(),
+                                    traj1.x(),
+                                    traj1.p(),
+                                    traj2.phase(),
+                                    traj2.widths(),
+                                    traj2.x(),
+                                    traj2.p())
+
+        ke = nuc_ints.deld2x(Snuc,
+                             traj1.phase(),
+                             traj1.widths(),
+                             traj1.x(),
+                             traj1.p(),
+                             traj2.phase(),
+                             traj2.widths(),
+                             traj2.x(),
+                             traj2.p())
         return -sum( ke * interface.kecoeff)
 
 # time derivative of the overlap
@@ -101,8 +140,34 @@ def sdot_integral(traj1, traj2, Snuc=None):
 
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        sdot = (-np.dot( traj2.velocity(), nuc_ints.deldx(traj1,traj2,S=Snuc) ) +
-                 np.dot( traj2.force()   , nuc_ints.deldp(traj1,traj2,S=Snuc) ) +
+            Snuc = nuc_ints.overlap(traj1.phase(),
+                                    traj1.widths(),
+                                    traj1.x(),
+                                    traj1.p(),
+                                    traj2.phase(),
+                                    traj2.widths(),
+                                    traj2.x(),
+                                    traj2.p())
+
+        sdot = (-np.dot( traj2.velocity(), 
+                         nuc_ints.deldx(Snuc,
+                                        traj1.phase(),
+                                        traj1.widths(),
+                                        traj1.x(),
+                                        traj1.p(),
+                                        traj2.phase(),
+                                        traj2.widths(),
+                                        traj2.x(),
+                                        traj2.p()) ) +
+                 np.dot( traj2.force()   , 
+                         nuc_ints.deldp(Snuc,
+                                        traj1.phase(),
+                                        traj1.widths(),
+                                        traj1.x(),
+                                        traj1.p(),
+                                        traj2.phase(),
+                                        traj2.widths(),
+                                        traj2.x(),
+                                        traj2.p()) ) +
                  1j * traj2.phase_dot() * Snuc)
         return sdot
