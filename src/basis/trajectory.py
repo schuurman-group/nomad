@@ -33,10 +33,10 @@ def copy_traj(orig_traj):
     new_traj.pes_geom   = copy.deepcopy(orig_traj.pes_geom)
     new_traj.poten      = copy.deepcopy(orig_traj.poten)
     new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
-    new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
-    new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
-    new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
-    new_traj.sct        = copy.deepcopy(orig_traj.sct)
+#    new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
+#    new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
+#    new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
+#    new_traj.sct        = copy.deepcopy(orig_traj.sct)
     return new_traj
 
 
@@ -101,27 +101,32 @@ class Trajectory:
         self.exit_time  = np.zeros(self.nstates)
         # if not zero, coupled to traj=array value
         self.spawn_coup = np.zeros(self.nstates)
-        # geometry of the current potential information
-        self.pes_geom   = np.zeros(self.dim)
         # value of the potential energy
         self.poten      = np.zeros(self.nstates)
         # derivatives of the potential -- if off-diagonal, corresponds
         # to Fij (not non-adiabatic coupling vector)
         self.deriv      = np.zeros((self.nstates,self.dim))
+        # geometry of the current potential information
+        self.pes_geom   = np.zeros(self.dim)
+
         # dipoles and transition dipoles
-        self.dipoles    = np.zeros((self.nstates, self.nstates, self.crd_dim))
+#        self.dipoles    = np.zeros((self.nstates, self.nstates, self.crd_dim))
         # second moment tensor for each state
-        self.sec_moms   = np.zeros((self.nstates, self.crd_dim))
+#        self.sec_moms   = np.zeros((self.nstates, self.crd_dim))
         # number of atoms (or internal coordinates, etc.) 
-        self.natoms = int(self.dim / self.crd_dim) 
+#        self.natoms = int(self.dim / self.crd_dim) 
         # electronic populations on the atoms
-        self.atom_pops  = np.zeros((self.nstates, self.natoms))
+#        self.atom_pops  = np.zeros((self.nstates, self.natoms))
         # Scalar coupling terms involving the state that the
         # trajectory exits on (including DBOCs)        
-        self.sct = np.zeros((self.nstates))
+#        self.sct = np.zeros((self.nstates))
+
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist = ['a'])
+
+        # data structure to hold the data from the interface
+        self.pes_data  = None 
 
     #-------------------------------------------------------------------
     #
@@ -159,20 +164,26 @@ class Trajectory:
 
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
-        self.pes_geom  = pes_info[0]
-        self.poten     = pes_info[1]
+        self.pes_data   = self.interface.copy_data(pes_info)
+        self.pes_geom   = self.pes_data.geom
+        self.poten      = self.pes_data.energies
+        if 'deriv' in self.pes_data.data_keys:
+            self.deriv  = self.pes_data.grads
+        
+#        self.pes_geom  = pes_info[0]
+#        self.poten     = pes_info[1]
         # centroids do not necessarily require gradient info
-        if len(pes_info) >= 3:
-            self.deriv     = pes_info[2]
+#        if len(pes_info) >= 3:
+#            self.deriv     = pes_info[2]
         # if we have electronic structure info
-        if len(pes_info) == 6:
-            self.dipoles   = pes_info[3]
-            self.sec_moms  = pes_info[4]
-            self.atom_pops = pes_info[5]
+#        if len(pes_info) == 6:
+#            self.dipoles   = pes_info[3]
+#            self.sec_moms  = pes_info[4]
+#            self.atom_pops = pes_info[5]
         # SCTs (vibronic interface only, so dipoles, etc. wont be in
         # the pes_geom array)
-        if glbl.fms['coupling_order'] > 1:
-            self.sct = pes_info[3]
+#        if glbl.fms['coupling_order'] > 1:
+#            self.sct = pes_info[3]
 
     #-----------------------------------------------------------------------
     #
@@ -225,40 +236,40 @@ class Trajectory:
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
         return self.deriv[state,:]
 
-    def dipole(self, state):
-        """Returns permanent dipoles."""
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print('WARNING: trajectory.dipole() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.dipoles[state,state,:]
+#    def dipole(self, state):
+#        """Returns permanent dipoles."""
+#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+#            print('WARNING: trajectory.dipole() called, ' +
+#                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+#        return self.dipoles[state,state,:]
 
-    def tdipole(self, state_i, state_j):
-        """Returns transition dipoles."""
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print('WARNING: trajectory.tdipole() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.dipoles[state_i,state_j,:]
+#    def tdipole(self, state_i, state_j):
+#        """Returns transition dipoles."""
+#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+#            print('WARNING: trajectory.tdipole() called, ' +
+#                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+#        return self.dipoles[state_i,state_j,:]
 
-    def sec_mom(self, state):
-        """Returns second moments."""
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print('WARNING: trajectory.sec_mom() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.sec_moms[state,:]
+#    def sec_mom(self, state):
+#        """Returns second moments."""
+#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+#            print('WARNING: trajectory.sec_mom() called, ' +
+#                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+#        return self.sec_moms[state,:]
 
-    def atom_pop(self, state):
-        """Returns atomic populations."""
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print('WARNING: trajectory.atom_pop() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.atom_pops[state,:]
+#    def atom_pop(self, state):
+#        """Returns atomic populations."""
+#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+#            print('WARNING: trajectory.atom_pop() called, ' +
+#                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+#        return self.atom_pops[state,:]
 
-    def scalar_coup(self,state):
-        """Returns scalar coupling terms"""
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print("WARNING: trajectory.scalar_coup() called, "+
-                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
-        return self.sct[state]
+#    def scalar_coup(self,state):
+#        """Returns scalar coupling terms"""
+#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+#            print("WARNING: trajectory.scalar_coup() called, "+
+#                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
+#        return self.sct[state]
 
     #def orbitals(self):
     #    return self.pes.orbitals(self.tid, self.particles, self.state)
@@ -316,8 +327,12 @@ class Trajectory:
         # F.p/m
         coup = np.dot( self.velocity(), self.derivative(c_state) )
         # G
-        if glbl.fms['coupling_order'] > 1:
-            coup += self.scalar_coup(c_state)
+        if glbl.fms['coupling_order'] > 1 and \
+           'scalar_coup' in self.pes_data.data_keys:
+            coup += self.pes_data.scalar_coup(c_state)
+
+#        if glbl.fms['coupling_order'] > 1:
+#            coup += self.scalar_coup(c_state)
         return coup
 
     #--------------------------------------------------------------------------
@@ -357,15 +372,15 @@ class Trajectory:
         chkpt.write('\n')
 
         # Writes out dipole moments in cartesian coordinates
-        init_states = [0, self.state]
-        for i in init_states:
-            for j in range(self.nstates):
-                if j == i or j in init_states[0:i]:
-                    continue
-                chkpt.write('# dipoles state1, state2 = {:4d}, {:4d}'
-                            '\n'.format(j,i))
-                self.dipoles[j,i,:].tofile(chkpt, ' ', '%10.6f')
-                chkpt.write('\n')
+#        init_states = [0, self.state]
+#        for i in init_states:
+#            for j in range(self.nstates):
+#                if j == i or j in init_states[0:i]:
+#                    continue
+#                chkpt.write('# dipoles state1, state2 = {:4d}, {:4d}'
+#                            '\n'.format(j,i))
+#                self.dipoles[j,i,:].tofile(chkpt, ' ', '%10.6f')
+#                chkpt.write('\n')
 
         # Writes out gradients
         for i in range(self.nstates):
@@ -375,16 +390,16 @@ class Trajectory:
             chkpt.write('\n')
 
         # write out second moments
-        for i in range(self.nstates):
-            chkpt.write('# second moments, state = {:4d}\n'.format(i))
-            self.sec_moms[i,:].tofile(chkpt, ' ', '%16.10e')
-            chkpt.write('\n')
+#        for i in range(self.nstates):
+#            chkpt.write('# second moments, state = {:4d}\n'.format(i))
+#            self.sec_moms[i,:].tofile(chkpt, ' ', '%16.10e')
+#            chkpt.write('\n')
 
         # write out atomic populations
-        for i in range(self.nstates):
-            chkpt.write('# atomic populations, state = {:4d}\n'.format(i))
-            self.atom_pops[i,:].tofile(chkpt, ' ', '%16.10e')
-            chkpt.write('\n')
+#        for i in range(self.nstates):
+#            chkpt.write('# atomic populations, state = {:4d}\n'.format(i))
+#            self.atom_pops[i,:].tofile(chkpt, ' ', '%16.10e')
+#            chkpt.write('\n')
 
     def read_trajectory(self,chkpt):
         """Reads the trajectory information from a file.
@@ -421,16 +436,16 @@ class Trajectory:
         # momentum
         self.update_p(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
 
-        for i in range(self.nstates):
-            for j in range(i + 1):
-                chkpt.readline()
-                self.dipoles[i,j,:] = np.fromstring(chkpt.readline(),
-                                                    sep=' ', dtype=float)
+#        for i in range(self.nstates):
+#            for j in range(i + 1):
+#                chkpt.readline()
+#                self.dipoles[i,j,:] = np.fromstring(chkpt.readline(),
+#                                                    sep=' ', dtype=float)
 
-        for i in range(self.nstates):
-            chkpt.readline()
-            self.deriv[i,:] = np.fromstring(chkpt.readline(),
-                                            sep=' ', dtype=float)
+#        for i in range(self.nstates):
+#            chkpt.readline()
+#            self.deriv[i,:] = np.fromstring(chkpt.readline(),
+#                                            sep=' ', dtype=float)
 
-        chkpt.readline()
+#        chkpt.readline()
         # orbitals?

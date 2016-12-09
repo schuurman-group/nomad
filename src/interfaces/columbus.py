@@ -52,6 +52,34 @@ mrci_lvl     = 0
 # amount of memory per process, in MB
 mem_str      = ''
 
+class surface_data:
+    def __init__(self, n_states, t_dim, crd_dim):
+
+        # necessary for array allocation
+        self.n_states     = n_states
+        self.t_dim        = t_dim
+        self.crd_dim      = crd_dim
+
+        # these are the standard quantities ALL interface_data objects return
+        self.data_keys    = []
+        self.geom         = np.zeros(t_dim)
+        self.energies     = np.zeros(n_states)
+        self.grads        = np.zeros((n_states, t_dim))
+
+        # these are interface-specific quantities
+
+# 
+def copy_data(orig_info):
+    new_info = surface_data(orig_info.n_states,
+                            orig_info.t_dim,
+                            orig_info.crd_dim)
+
+    new_info.data_keys    = copy.copy(orig_info.data_keys)
+    new_info.geom         = copy.deepcopy(orig_info.geom)
+    new_info.energies     = copy.deepcopy(orig_info.energies)
+    new_info.grads        = copy.deepcopy(orig_info.grads)
+
+    return new_info
 
 #----------------------------------------------------------------
 #

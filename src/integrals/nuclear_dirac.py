@@ -49,7 +49,7 @@ def deldx(t1, t2, S=None):
     x2    = t2.x()
     p2    = t2.p()
     dx    = x1 - x2
-    dxval = (2. * a2 * dx - 1j * p2)
+    dxval = (-2. * a2 * dx - 1j * p2)
     return dxval * S
 
 #@timings.timed
@@ -63,6 +63,6 @@ def deld2x(t1, t2, S=None):
     x2    = t2.x()
     p2    = t2.p()
     dx     = x1 - x2
-    d2xval = (-2. * a2 + (-2. * a2 * dx + 1j * p2)**2)
+    d2xval = (2. * a2 + (2. * a2 * dx + 1j * p2)**2)
     return d2xval * S
 

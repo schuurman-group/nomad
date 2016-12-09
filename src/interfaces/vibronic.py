@@ -5,6 +5,7 @@ Much of this could benefit from changing for loops to numpy array operations.
 (But this is so computationally cheap that it really doesn't matter...)
 """
 import sys
+import copy
 import numpy as np
 import src.interfaces.vcham.hampar as ham
 import src.interfaces.vcham.rdoper as rdoper
@@ -28,7 +29,40 @@ sctmat = None
 dbocderiv1 = None
 nsta = 0
 
+class surface_data:
+    def __init__(self, n_states, t_dim, crd_dim):
 
+        # necessary for array allocation
+        self.n_states     = n_states
+        self.t_dim        = t_dim
+        self.crd_dim      = crd_dim
+
+        # these are the standard quantities ALL interface_data objects return
+        self.data_keys    = []
+        self.geom         = np.zeros(t_dim)
+        self.energies     = np.zeros(n_states)
+        self.grads        = np.zeros((n_states, t_dim)) 
+    
+        # these are interface-specific quantities
+        self.scalar_coup  = np.zeros(n_states)
+        self.ad_transform = np.zeros((n_states, n_states))    
+
+# 
+def copy_data(orig_info):
+    new_info = surface_data(orig_info.n_states,
+                            orig_info.t_dim,
+                            orig_info.crd_dim)
+
+    new_info.data_keys    = copy.copy(orig_info.data_keys)
+    new_info.geom         = copy.deepcopy(orig_info.geom)
+    new_info.energies     = copy.deepcopy(orig_info.energies)
+    new_info.grads        = copy.deepcopy(orig_info.grads)
+    new_info.scalar_coup  = copy.deepcopy(orig_info.scalar_coup)
+    new_info.ad_transform = copy.deepcopy(orig_info.ad_transform)
+
+    return new_info 
+
+#
 def init_interface():
     """Read the freq.dat file
 
@@ -88,8 +122,9 @@ def evaluate_trajectory(tid, geom, stateindx):
     global diablap, sctmat, dbocderiv1, nsta
 
     # System dimensions
-    ncoo = len(geom)
-    nsta = glbl.fms['n_states']
+    ncoo   = len(geom)
+    nsta   = glbl.fms['n_states']
+    t_data = surface_data(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot = np.zeros((nsta, nsta))
@@ -147,7 +182,13 @@ def evaluate_trajectory(tid, geom, stateindx):
     for i in range(nsta):
         sct_return[i]=0.5*sctmat[stateindx][i]
 
-    return[qcoo,ener,grad,sct_return]
+    t_data.geom         = qcoo
+    t_data.energies     = ener
+    t_data.grads        = grad
+    t_data.scalar_coup  = sct_return
+    t_data.ad_transform = adtmat
+    t_data.data_keys    = ['geom','poten','deriv','scalar_coup','ad_transform']
+    return t_data
 
 def evaluate_centroid(tid, geom, stateindx, stateindx2):
     """Evaluates the centroid.
@@ -162,6 +203,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # System dimensions
     ncoo = len(geom) 
     nsta = glbl.fms['n_states']
+    t_data = surface_data(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot=np.zeros((nsta,nsta), dtype=np.float)
@@ -231,7 +273,17 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     for i in range(nsta):
         sct_return[i]=0.5*sctmat[stateindx][i]
 
-    return[qcoo,ener,grad,sct_return]
+    t_data.geom         = qcoo
+    t_data.energies     = ener
+    t_data.grads        = grad
+    t_data.scalar_coup  = sct_return
+    t_data.ad_transform = adtmat
+    t_data.data_keys    = ['geom','poten','deriv','scalar_coup','ad_transform']
+    return t_data
+
+#--------------------------------------------------------------------
+#*****PRIVATE FUNCTIONS (should not be called outside interface)*****
+#--------------------------------------------------------------------
 
 def calc_diabpot(q):
     """Constructs the diabatic potential matrix for a given nuclear
@@ -542,22 +594,3 @@ def calc_scts():
             for k in range(nsta):
                 dbocderiv1[m][i] -= 2. * delnactmat[i][k] * nactmat[m][i][k]
 
-
-def orbitals(tid, geom, t_state):
-    pass
-
-
-def derivative(tid, geom, t_state, lstate, rstate):
-    pass
-
-
-def dipole(tid, geom, t_state, lstate, rstate):
-    pass
-
-
-def sec_mom(tid, geom, t_state, rstate):
-    pass
-
-
-def atom_pop(tid, geom, t_state, rstate):
-    pass

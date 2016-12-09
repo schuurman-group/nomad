@@ -489,29 +489,29 @@ class Bundle:
             # print electronic structure info
             if glbl.fms['print_es']:
                 # permanent dipoles
-                data = [self.time]
-                for j in range(self.nstates):
-                    data.extend(self.traj[i].dipole(j).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 3, data)
+#                data = [self.time]
+#                for j in range(self.nstates):
+#                    data.extend(self.traj[i].dipole(j).tolist())
+#                fileio.print_traj_row(self.traj[i].tid, 3, data)
 
                 # transition dipoles
-                data = [self.time]
-                for j in range(self.nstates):
-                    for k in range(j):
-                        data.extend(self.traj[i].tdipole(k,j).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 4, data)
+#                data = [self.time]
+#                for j in range(self.nstates):
+#                    for k in range(j):
+#                        data.extend(self.traj[i].tdipole(k,j).tolist())
+#                fileio.print_traj_row(self.traj[i].tid, 4, data)
 
                 # second moments
-                data = [self.time]
-                for j in range(self.nstates):
-                    data.extend(self.traj[i].sec_mom(j).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 5, data)
+#                data = [self.time]
+#                for j in range(self.nstates):
+#                    data.extend(self.traj[i].sec_mom(j).tolist())
+#                fileio.print_traj_row(self.traj[i].tid, 5, data)
 
                 # atomic populations
-                data = [self.time]
-                for j in range(self.nstates):
-                    data.extend(self.traj[i].atom_pop(j).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 6, data)
+#                data = [self.time]
+#                for j in range(self.nstates):
+#                    data.extend(self.traj[i].atom_pop(j).tolist())
+#                fileio.print_traj_row(self.traj[i].tid, 6, data)
 
                 # gradients
                 data = [self.time]
