@@ -45,7 +45,13 @@ class surface_data:
     
         # these are interface-specific quantities
         self.scalar_coup  = np.zeros(n_states)
-        self.ad_transform = np.zeros((n_states, n_states))    
+        self.adt_mat      = np.zeros((n_states, n_states))    
+        self.dat_mat      = np.zeros((n_states, n_states))
+        self.ddat_mat     = np.zeros((t_dim,n_states, n_states))
+        self.diabat_pot   = np.zeros((n_states, n_states))
+        self.diabat_deriv = np.zeros((t_dim, n_states, n_states))
+        self.adiabat_pot   = np.zeros((n_states, n_states))
+        self.adiabat_deriv = np.zeros((t_dim, n_states, n_states))
 
 # 
 def copy_data(orig_info):
@@ -58,8 +64,13 @@ def copy_data(orig_info):
     new_info.energies     = copy.deepcopy(orig_info.energies)
     new_info.grads        = copy.deepcopy(orig_info.grads)
     new_info.scalar_coup  = copy.deepcopy(orig_info.scalar_coup)
-    new_info.ad_transform = copy.deepcopy(orig_info.ad_transform)
-
+    new_info.adt_mat      = copy.deepcopy(orig_info.adt_mat)
+    new_info.dat_mat      = copy.deepcopy(orig_info.dat_mat)
+    new_info.ddat_mat      = copy.deepcopy(orig_info.ddat_mat)
+    new_info.diabat_pot   = copy.deepcopy(orig_info.diabat_pot)
+    new_info.diabat_deriv = copy.deepcopy(orig_info.diabat_deriv)
+    new_info.adiabat_pot   = copy.deepcopy(orig_info.adiabat_pot)
+    new_info.adiabat_deriv = copy.deepcopy(orig_info.adiabat_deriv)
     return new_info 
 
 #
@@ -88,8 +99,9 @@ def init_interface():
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
     kecoeff = np.zeros((ham.nmode_active))
-    kecoeff = 0.5*ham.freq[:ham.nmode_active]
-    
+#    kecoeff = 0.5*ham.freq[:ham.nmode_active]
+    kecoeff = 0.5*np.ones((ham.nmode_active)) 
+   
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
@@ -173,21 +185,41 @@ def evaluate_trajectory(tid, geom, stateindx):
     for i in range(nsta):
         for m in range(ncoo):
             if i == stateindx:
-                grad[i][m] = adiabderiv1[m][i]
+                grad[i,m] = adiabderiv1[m,i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]
+                grad[i,m]=nactmat[m,stateindx,i]
 
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
     for i in range(nsta):
-        sct_return[i]=0.5*sctmat[stateindx][i]
+        sct_return[i]=0.5*sctmat[stateindx,i]
 
-    t_data.geom         = qcoo
-    t_data.energies     = ener
-    t_data.grads        = grad
-    t_data.scalar_coup  = sct_return
-    t_data.ad_transform = adtmat
-    t_data.data_keys    = ['geom','poten','deriv','scalar_coup','ad_transform']
+#    print("adt="+str(adtmat))
+#    print("dat="+str(np.linalg.inv(adtmat)))
+    de    = diabpot[1,1]-diabpot[0,0]
+    v12   = diabpot[0,1]
+    argt  = 2*v12/de
+    theta = 0.5*np.arctan(argt)
+#    print("dat2="+str([[np.cos(theta),np.sin(theta)],[-np.sin(theta),np.cos(theta)]]))
+    dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
+    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
+#    print("ddat2="+str(ddat2)) 
+
+    t_data.geom          = qcoo
+    t_data.energies      = ener
+    t_data.grads         = grad
+    t_data.scalar_coup   = sct_return
+    t_data.adt_mat       = adtmat
+    t_data.dat_mat       = np.linalg.inv(adtmat)
+    t_data.ddat_mat      = ddat2
+    t_data.diabat_pot    = diabpot
+    t_data.diabat_deriv  = diabderiv1
+    t_data.adiabat_pot   = adiabpot
+    t_data.adiabat_deriv = adiabderiv1
+    t_data.data_keys    = ['geom','poten','deriv',
+                           'scalar_coup','adt_mat','dat_mat','ddat_mat',
+                           'diabat_pot','diabat_deriv',
+                           'adiabat_pot','adiabat_deriv']
     return t_data
 
 def evaluate_centroid(tid, geom, stateindx, stateindx2):
@@ -264,21 +296,29 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     for i in range(nsta):
         for m in range(ncoo):
             if i == stateindx:
-                grad[i][m] = adiabderiv1[m][i]
+                grad[i,m] = adiabderiv1[m,i]
             else:
-                grad[i][m]=nactmat[m][stateindx][i]
+                grad[i,m]=nactmat[m,stateindx,i]
 
     # Package the SCTs: here we account for the 1/2 prefactor
     # in the EOMs
     for i in range(nsta):
-        sct_return[i]=0.5*sctmat[stateindx][i]
+        sct_return[i]=0.5*sctmat[stateindx,i]
 
     t_data.geom         = qcoo
     t_data.energies     = ener
     t_data.grads        = grad
     t_data.scalar_coup  = sct_return
-    t_data.ad_transform = adtmat
-    t_data.data_keys    = ['geom','poten','deriv','scalar_coup','ad_transform']
+    t_data.adt_mat      = adtmat
+    t_data.dat_mat      = np.linalg.inv(adtmat)
+    t_data.diabat_pot   = diabpot
+    t_data.diabat_deriv = diabderiv1
+    t_data.adiabat_pot   = adiabpot
+    t_data.adiabat_deriv = adiabderiv1
+    t_data.data_keys    = ['geom','poten','deriv',
+                           'scalar_coup','adt_mat','dat_mat',
+                           'diabat_pot','diabat_deriv',
+                           'adiabat_pot','adiabat_deriv']
     return t_data
 
 #--------------------------------------------------------------------
@@ -298,18 +338,18 @@ def calc_diabpot(q):
     #-------------------------------------------------------------------
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i][0] - 1
-        s2 = ham.stalbl[i][1] - 1
+        s1 = ham.stalbl[i,0] - 1
+        s2 = ham.stalbl[i,1] - 1
         fac = ham.coe[i]
         for m in range(ham.nmode_active):
-            fac = fac * q[m]**ham.order[i][m]
+            fac = fac * q[m]**ham.order[i,m]
 
-        diabpot[s1][s2] = diabpot[s1][s2] + fac
+        diabpot[s1,s2] = diabpot[s1,s2] + fac
 
     # Fill in the upper-triangle
     for s1 in range(nsta-1):
         for s2 in range(s1+1, nsta):
-            diabpot[s2][s1] = diabpot[s1][s2]
+            diabpot[s2,s1] = diabpot[s1,s2]
 
 
 def calc_adt():
@@ -318,7 +358,14 @@ def calc_adt():
     global adiabpot, adtmat
 
     adiabpot, adtmat = np.linalg.eigh(diabpot)
-
+    
+    # set phase convention that largest element in adt column vector is 
+    # positive
+    # array index of maximum values for each column
+    mxvals = np.argmax(np.abs(adtmat),axis=0)
+    for i in range(len(mxvals)):
+        if adtmat[mxvals[i],i] < 0:
+            adtmat[:,i] *= -1.
 
 def calc_diabderiv1(q):
     """Calculates the 1st derivatives of the elements of the diabatic
@@ -330,26 +377,26 @@ def calc_diabderiv1(q):
     #-------------------------------------------------------------------
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i][0] - 1
-        s2 = ham.stalbl[i][1] - 1
+        s1 = ham.stalbl[i,0] - 1
+        s2 = ham.stalbl[i,1] - 1
         for m in range(ham.nmode_active):
             fac = 0.0
-            if ham.order[i][m] != 0:
+            if ham.order[i,m] != 0:
                 fac = ham.coe[i]
                 for n in range(ham.nmode_active):
-                    p = ham.order[i][n]
+                    p = ham.order[i,n]
                     if n == m:
                         fac *= p * q[n]**(p-1)
                     else:
                         fac *= q[n]**p
 
-            diabderiv1[m][s1][s2] += fac
+            diabderiv1[m,s1,s2] += fac
 
     # Fill in the upper-triangle
     for m in range(ham.nmode_active):
         for s1 in range(nsta-1):
             for s2 in range(s1+1, nsta):
-                diabderiv1[m][s2][s1] = diabderiv1[m][s1][s2]
+                diabderiv1[m,s2,s1] = diabderiv1[m,s1,s2]
 
 
 def calc_nacts():
@@ -374,8 +421,8 @@ def calc_nacts():
             for j in range(nsta):
                 for k in range(nsta):
                     for l in range(nsta):
-                        tmpmat[m][i][j] += (adtmat[k][i] *
-                                            diabderiv1[m][k][l] * adtmat[l][j])
+                        tmpmat[m,i,j] += (adtmat[k,i] *
+                                            diabderiv1[m,k,l] * adtmat[l,j])
 
     #-------------------------------------------------------------------
     # (2) Calculation of the non-adiabatic coupling terms
@@ -385,13 +432,13 @@ def calc_nacts():
     for m in range(ham.nmode_active):
         for i in range(nsta-1):
             for j in range(i+1, nsta):
-                nactmat[m][i][j] = tmpmat[m][i][j] / (adiabpot[j]-adiabpot[i])
+                nactmat[m,i,j] = tmpmat[m,i,j] / (adiabpot[j]-adiabpot[i])
 
     # Fill in the upper-triangle using the anti-symmetry of the NACTs
     for m in range(ham.nmode_active):
         for i in range(nsta-1):
             for j in range(i+1, nsta):
-                nactmat[m][j][i] = -nactmat[m][i][j]
+                nactmat[m,j,i] = -nactmat[m,i,j]
 
 
 def calc_adiabderiv1():
@@ -405,8 +452,8 @@ def calc_adiabderiv1():
         for i in range(nsta):
             for k in range(nsta):
                 for l in range(nsta):
-                    adiabderiv1[m][i] += (adtmat[k][i] *
-                                          diabderiv1[m][k][l] * adtmat[l][i])
+                    adiabderiv1[m,i] += (adtmat[k,i] *
+                                          diabderiv1[m,k,l] * adtmat[l,i])
 
 
 def calc_diablap(q):
@@ -422,29 +469,29 @@ def calc_diablap(q):
     #-----------------------------------------------------------------------
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i][0] - 1
-        s2 = ham.stalbl[i][1] - 1
+        s1 = ham.stalbl[i,0] - 1
+        s2 = ham.stalbl[i,1] - 1
         for m in range(ham.nmode_active):
             fac = 0.0
-            if ham.order[i][m] > 1:
+            if ham.order[i,m] > 1:
                 fac = ham.coe[i]
                 for n in range(ham.nmode_active):
-                    p = ham.order[i][n]
+                    p = ham.order[i,n]
                     if n == m:
                         fac *= p * (p-1) * q[n]**(p-2)
                     else:
                         fac *= q[n]**p
-            der2[m][s1][s2] += fac
+            der2[m,s1,s2] += fac
 
     for i in range(nsta):
         for j in range(nsta):
             for m in range(ham.nmode_active):
-                diablap[i][j] += der2[m][i][j]
+                diablap[i,j] += der2[m,i,j]
 
     # Fill in the upper-triangle
     for i in range(nsta-1):
         for j in range(i+1, nsta):
-            diablap[j][i] = diablap[i][j]
+            diablap[j,i] = diablap[i,j]
 
 
 def calc_scts():
@@ -494,7 +541,7 @@ def calc_scts():
         for j in range(nsta):
             for k in range(nsta):
                 for l in range(nsta):
-                    tmp1[i][j] += adtmat[k][i] * diablap[k][l] * adtmat[l][j]
+                    tmp1[i,j] += adtmat[k,i] * diablap[k,l] * adtmat[l,j]
 
     # tmp2 <-> -FS{d/dX W}S^T
     for i in range(nsta):
@@ -504,8 +551,8 @@ def calc_scts():
                     for m in range(nsta):
                         dp = 0.0
                         for n in range(ham.nmode_active):
-                            dp+=ham.freq[n]*nactmat[n][i][k]*diabderiv1[n][l][m]
-                        tmp2[i][j]-=adtmat[l][k]*adtmat[m][j]*dp
+                            dp+=ham.freq[n]*nactmat[n,i,k]*diabderiv1[n,l,m]
+                        tmp2[i,j]-=adtmat[l,k]*adtmat[m,j]*dp
 
     # tmp3 <-> S{d/dX W}S^TF
     for i in range(nsta):
@@ -515,13 +562,13 @@ def calc_scts():
                     for m in range(nsta):
                         dp = 0.0
                         for n in range(ham.nmode_active):
-                            dp+=ham.freq[n]*nactmat[n][m][j]*diabderiv1[n][k][l]
-                        tmp3[i][j]+=adtmat[k][i]*adtmat[l][m]*dp
+                            dp+=ham.freq[n]*nactmat[n,m,j]*diabderiv1[n,k,l]
+                        tmp3[i,j]+=adtmat[k,i]*adtmat[l,m]*dp
 
     # deltmat
     for i in range(nsta):
         for j in range(nsta):
-            deltmat[i][j] = tmp1[i][j] + tmp2[i][j] + tmp3[i][j]
+            deltmat[i,j] = tmp1[i,j] + tmp2[i,j] + tmp3[i,j]
 
 
     # (b) delximat
@@ -529,8 +576,8 @@ def calc_scts():
         for i in range(nsta):
             for j in range(nsta):
                 if i != j:
-                    delximat[m][i][j] = -(adiabderiv1[m][j] - adiabderiv1[m][i])
-                    delximat[m][i][j] /= (adiabpot[j] - adiabpot[i])**2
+                    delximat[m,i,j] = -(adiabderiv1[m,j] - adiabderiv1[m,i])
+                    delximat[m,i,j] /= (adiabpot[j] - adiabpot[i])**2
 
     # (c) tmat
     for m in range(ham.nmode_active):
@@ -538,14 +585,14 @@ def calc_scts():
             for j in range(nsta):
                 for k in range(nsta):
                     for l in range(nsta):
-                        tmat[m][i][j] += (adtmat[k][i] *
-                                          diabderiv1[m][k][l] * adtmat[l][j])
+                        tmat[m,i,j] += (adtmat[k,i] *
+                                          diabderiv1[m,k,l] * adtmat[l,j])
 
     # (d) ximat
     for i in range(nsta):
         for j in range(nsta):
             if i != j:
-                ximat[i][j] = 1. / (adiabpot[j] - adiabpot[i])
+                ximat[i,j] = 1. / (adiabpot[j] - adiabpot[i])
 
     # (f) delnactmat_ij = delximat_ij*tmat_ij + ximat_ij*deltmat_ij (i.ne.j)
     # tmp1 = delximat_ij*tmat_ij
@@ -554,19 +601,19 @@ def calc_scts():
         for j in range(nsta):
             if i != j:
                 for m in range(ham.nmode_active):
-                    tmp1[i][j] += delximat[m][i][j] * tmat[m][i][j]
+                    tmp1[i,j] += delximat[m,i,j] * tmat[m,i,j]
 
     # tmp2 = ximat_ij*deltmat_ij
     tmp2 = np.zeros((nsta, nsta))
     for i in range(nsta):
         for j in range(nsta):
             if i != j:
-                tmp2[i][j] = ximat[i][j] * deltmat[i][j]
+                tmp2[i,j] = ximat[i,j] * deltmat[i,j]
 
     # delnactmat
     for i in range(nsta):
         for j in range(nsta):
-            delnactmat[i][j] = tmp1[i][j] + tmp2[i][j]
+            delnactmat[i,j] = tmp1[i,j] + tmp2[i,j]
 
     #-------------------------------------------------------------------
     # (2) Construct F.F (fdotf)
@@ -575,14 +622,14 @@ def calc_scts():
         for j in range(nsta):
             for k in range(nsta):
                 for m in range(ham.nmode_active):
-                    fdotf[i][j]+=ham.freq[m]*nactmat[m][i][k]*nactmat[m][k][j]
+                    fdotf[i,j]+=ham.freq[m]*nactmat[m,i,k]*nactmat[m,k,j]
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F
     #-------------------------------------------------------------------
     for i in range(nsta):
         for j in range(nsta):
-            sctmat[i][j] = delnactmat[i][j] - fdotf[i][j]
+            sctmat[i,j] = delnactmat[i,j] - fdotf[i,j]
 
     #-------------------------------------------------------------------
     # (4) Calculation of the 1st derivatives of the DBOCs
@@ -592,5 +639,5 @@ def calc_scts():
     for i in range(nsta):
         for m in range(ham.nmode_active):
             for k in range(nsta):
-                dbocderiv1[m][i] -= 2. * delnactmat[i][k] * nactmat[m][i][k]
+                dbocderiv1[m,i] -= 2. * delnactmat[i,k] * nactmat[m,i,k]
 

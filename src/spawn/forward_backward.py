@@ -100,7 +100,7 @@ def spawn(master, dt):
                     if not bundle_overlap:
                         basis_grown = True
                         master.add_trajectory(child)
-                        if master.ints.require_centroids:
+                        if integrals.require_centroids:
                             master.update_centroids()
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',

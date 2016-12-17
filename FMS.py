@@ -44,8 +44,12 @@ def main(sc):
 
     # propagate the trajectories
     while master.time < glbl.fms['simulation_time']:
-        # set the time step
-        time_step = step.time_step(master)
+
+        # set the time step --> top level time step should always 
+        # be default time step. fms_step_bundle will decide if/how
+        # dt should be shortened for numerics 
+#        time_step = step.time_step(master)
+        time_step = float(glbl.fms['default_time_step'])
 
         # take an fms dynamics step
         master = step.fms_step_bundle(master, time_step)

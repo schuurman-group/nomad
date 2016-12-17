@@ -44,7 +44,7 @@ def sq_ind(index, n):
     return int(index / n), index - int(index / n) * n
 
 @timings.timed
-def build_hamiltonian(traj_list, traj_alive, cent_list=None):
+def hamiltonian(traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
     ints = __import__('src.integrals.'+glbl.fms['integrals'], fromlist=['a'])
 
@@ -120,9 +120,9 @@ def build_hamiltonian(traj_list, traj_alive, cent_list=None):
         timings.stop('linalg.pinvh')
     else:
         # compute the S^-1, needed to compute Heff
-        timings.start('build_hamiltonian.pseudo_inverse')
+        timings.start('hamiltonian.pseudo_inverse')
         Sinv, cond = fms_linalg.pseudo_inverse(S)
-        timings.stop('build_hamiltonian.pseudo_inverse')
+        timings.stop('hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
 

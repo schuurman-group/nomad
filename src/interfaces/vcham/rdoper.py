@@ -11,6 +11,8 @@ def convfac(string):
     """Gets conversion factor."""
     if string == 'ev':
         factor = 1. / glbl.au2ev
+    elif string == 'au':
+        factor = 1.
     else:
         raise ValueError('Unknown conversion factor: ' + string)
 

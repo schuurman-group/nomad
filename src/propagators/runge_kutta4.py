@@ -78,7 +78,7 @@ def propagate_bundle(master, dt):
 
     amp_sum = 0
     for H_elem, mult in zip(H_list, k_mult):
-        master.update_amplitudes(dt, 10, H_elem, amp0)
+        master.update_amplitudes(dt, H_elem, amp0)
         amp_sum += mult * master.amplitudes()
     master.set_amplitudes(amp_sum / sum(k_mult))
 

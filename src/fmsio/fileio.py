@@ -341,7 +341,8 @@ def update_logs(bundle):
     dt    = glbl.fms['default_time_step']
     mod_t = bundle.time % dt
 
-    return mod_t < 0.1*dt or mod_t > 0.9*dt
+    # this. is. ugly.
+    return (mod_t < 0.0001*dt or mod_t > 0.999*dt)
 
 
 def print_bund_row(fkey, data):
@@ -451,7 +452,8 @@ def read_geometry():
         if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                mass_data.extend(float(gm_file[lcnt].rstrip().split()[1:]))
+                mass_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                               for j in range(1,len(gm_file[lcnt].split()))])
         else:
             labels = label_data[-nq * crd_dim]
             for lbl in labels:

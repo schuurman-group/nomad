@@ -38,7 +38,7 @@ def update_pes(master):
                 continue
             run_list.append([i, master.traj[i].x(),
                              master.traj[i].state])
-        if master.ints.require_centroids:
+        if master.integrals.require_centroids:
             # update the geometries
             master.update_centroids()
             # now update electronic structure in a controled way to allow for
@@ -82,7 +82,7 @@ def update_pes(master):
             master.traj[i].update_pes(results)
 
         # ...and centroids if need be
-        if master.ints.require_centroids:
+        if master.integrals.require_centroids:
             # update the geometries
             master.update_centroids()
             for i in range(master.n_cent()):

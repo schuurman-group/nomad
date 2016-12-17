@@ -3,7 +3,7 @@ Compute integrals over trajectories traveling on vibronic potentials
 """
 import math
 import numpy as np
-import src.integrals.nuclear_gaussian as nuc_ints
+import src.integrals.nuclear_gaussian as nuclear
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -29,7 +29,7 @@ def s_integral(traj1, traj2):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            return nuc_ints.overlap(traj1, traj2)
+            return nuclear.overlap(traj1, traj2)
         else:
             return Snuc
 
@@ -42,12 +42,12 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     pass
 
 
-def prim_v_integral(n, a1, x1, p1, a2, x2, p2):
+def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
     """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
 
     Takes the arguments as particles.
     """
-    n_2 = np.floor(0.5 * n)
+    n_2 = np.floor(0.5 * N)
     a   = p1.width + p2.width
     b   = np.fromiter((complex(2.*(a1*x1 + a2*x2),-(p1-p2)) 
                                          for i in range(1)),dtype=complex)
@@ -59,7 +59,7 @@ def prim_v_integral(n, a1, x1, p1, a2, x2, p2):
     for d in range(1):
         v = complex(0.,0.)
         for i in range(n_2):
-            v = (v + a**(i-N) * b**(N-2*i) /
+            v += (v + a**(i-N) * b**(N-2*i) /
                  (np.math.factorial(i) * np.math.factorial(N-2*i)))
         v_total = v_total * v
 
@@ -73,8 +73,8 @@ def ke_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        ke = nuc_ints.deld2x(traj1,traj2, S=Snuc)
+            Snuc = nuclear.overlap(traj1, traj2)
+        ke = nuclear.deld2x(traj1,traj2, S=Snuc)
         return -sum( ke * interface.kecoeff)
 
 def sdot_integral(traj1, traj2, Snuc=None):
@@ -83,8 +83,8 @@ def sdot_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        sdot = (-np.dot( traj2.velocity(), nuc_ints.deldx(traj1,traj2,S=Snuc) )+
-                 np.dot( traj2.force(),    nuc_ints.deldp(traj1,traj2,S=Snuc) )+
+            Snuc = nuclear.overlap(traj1, traj2)
+        sdot = (-np.dot( traj2.velocity(), nuclear.deldx(traj1,traj2,S=Snuc) )+
+                 np.dot( traj2.force(),    nuclear.deldp(traj1,traj2,S=Snuc) )+
                  1.j * traj2.phase_dot() * Snuc)
         return sdot

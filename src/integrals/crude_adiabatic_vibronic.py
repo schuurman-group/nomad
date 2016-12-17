@@ -4,123 +4,159 @@ potentials
 
 This currently uses first-order saddle point.
 """
-import sys
-import math
 import numpy as np
-import src.fmsio.glbl as glbl
+import src.integrals.nuclear_gaussian as nuclear
+import src.interfaces.vibronic as vibronic 
 import src.interfaces.vcham.hampar as ham
-import src.integrals.nuclear_gaussian as ints
-import src.interface.vibronic as interface
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False 
 
 # Determines the Hamiltonian symmetry
-hermitian = True
+hermitian = False 
 
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
 
-def elec_overlap(traj1, traj2, centroid):
+def elec_overlap(traj1, traj2, centroid=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    # get adiabatic to diabatic transformation matrix and invert
-    traj.ad:
 
     # determine overlap of adiabatic wave functions in diabatic basis
-
+    return complex( np.dot(traj1.pes_data.adt_mat[:,traj1.state],
+                           traj2.pes_data.adt_mat[:,traj2.state]), 0.)
 
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
 def traj_overlap(traj1, traj2, centroid=None, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    nuc_ovrlp = ints.overlap(traj1.phase(),
-                            traj1.widths(),
-                            traj1.x(),
-                            traj1.p(),
-                            traj2.phase(),
-                            traj2.widths(),
-                            traj2.x(),
-                            traj2.p())
+    nuc_ovrlp = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     if nuc_only:
         return nuc_ovrlp
     else:
-        return elec_overlap(traj1, traj2, centroid) * nuc_ovrlp
+        return nuc_ovrlp * elec_overlap(traj1, traj2, centroid=centroid)
 
 # total overlap of trajectory basis function
-def s_integral(traj1, traj2, centroid=None, Snuc=None):
+def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if Snuc is None:
-        Snuc = traj_overlap(traj1, traj2, cent, nuc_only=True)
+        Snuc = traj_overlap(traj1, traj2, centroid=centroid, nuc_only=True)
 
-    return elec_overlap(traj1, traj2, centroid) * Snuc
+    if nuc_only:
+        return Snuc
+    else:
+        return Snuc * elec_overlap(traj1, traj2, centroid=centroid) 
+
+def prim_v_integral(N, a1, x1, p1, a2, x2, p2, gauss_overlap=None):
+    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+     -- up to an overlap integral -- 
+    """
+    # since range(N) runs up to N-1, add "1" to result of floor
+    n_2 = int(np.floor(0.5 * N) + 1)
+    a   = a1 + a2
+    b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
+
+    # generally these should be 1D harmonic oscillators. If
+    # multi-dimensional, the final result is a direct product of
+    # each dimension
+    v_int = complex(0.,0.)
+    for i in range(n_2):
+        v_int += (a**(i-N) * b**(N-2*i) /
+                 (np.math.factorial(i) * np.math.factorial(N-2*i)))
+
+    # refer to appendix for derivation of these relations
+    return v_int * np.math.factorial(N) / 2.**N
 
 #
 def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
-    # if we are passed a single trajectory, this is a diagonal
-    # matrix element -- simply return potential energy of trajectory
-    if traj1.tid == traj2.tid:
-        # Adiabatic energy
-        v = traj1.energy(traj1.state)
-        # DBOC
-        if glbl.fms['coupling_order'] == 3:
-            v += traj1.scalar_coup(traj1.state)
-        return v
-
+    # evaluate just the nuclear component (for re-use)
     if Snuc is None:
-        Snuc = nuc_ints.overlap(traj1, traj2)
+        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-    # off-diagonal matrix element, between trajectories on the same
-    # state [this also requires the centroid be present
-    elif traj1.state == traj2.state:
-        # Adiabatic energy
-        v = centroid.energy(traj1.state) * Snuc
-        # DBOC
-        if glbl.fms['coupling_order'] == 3:
-            v += centroid.scalar_coup(traj1.state) * Snuc
-        return v
+    # get the linear combinations corresponding to the adiabatic states
+    nst = traj1.nstates
+    st1 = traj1.pes_data.adt_mat[:,traj1.state]
+    st2 = traj2.pes_data.adt_mat[:,traj2.state]
 
-    # [necessarily] off-diagonal matrix element between trajectories
-    # on different electronic states
-    elif traj1.state != traj2.state:
-        # Derivative coupling
-        fij = centroid.derivative(traj1.state)
-        v = np.vdot(fij, 
-                    nuc_ints.deldx(traj1,traj2, S=Snuc)* 2.* interface.kecoeff)
-        # Scalar coupling
-        if glbl.fms['coupling_order'] > 1:
-            v += traj1.scalar_coup(traj2.state) * Snuc
-        return v
+    # roll through terms in the hamiltonian
+    v_total = complex(0.,0.)
+    for i in range(ham.nterms):
+        s1    = ham.stalbl[i,0] - 1
+        s2    = ham.stalbl[i,1] - 1
+      
+        # adiabatic states in diabatic basis -- cross terms between orthogonal
+        # diabatic states are zero
+        if s1 == s2:
+            cf    = ham.coe[i]
+            v_term = complex(1.,0.)
+            for q in range(ham.nmode_active):
+                if ham.order[i,q] > 0:
+                    v_term *= prim_v_integral(ham.order[i,q],
+                               traj1.widths()[q],traj1.x()[q],traj1.p()[q],
+                               traj2.widths()[q],traj2.x()[q],traj2.p()[q])            
+            v_term *= cf * Snuc
+        
+            # now determine electronic factor
+            v_term *= st1[s1] * st2[s2]     
 
-    else:
-        print('ERROR in v_integral -- argument disagreement')
-        return complex(0.,0.)
+            # add this term to the total integral
+            v_total += v_term
+
+
+    # return potential matrix element, multplied by nuclear overlap
+    return v_total 
 
 # kinetic energy integral
-def ke_integral(traj1, traj2, Snuc=None):
+def ke_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
-    if traj1.state != traj2.state:
-        return complex(0.,0.)
+    # evaluate just the nuclear component (for re-use)
+    if Snuc is None:
+        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-    else:
-        if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        ke = nuc_ints.deld2x(traj1, traj2, S = Snuc)
-        return -sum( ke * interface.kecoeff)
+    # overlap of electronic functions
+    Selec = elec_overlap(traj1, traj2, centroid=centroid)
 
+    # < chi | del^2 / dx^2 | chi'> 
+    ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                             traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+   
+    return -sum( ke * vibronic.kecoeff) * Selec
+#    return -sum(ke * np.array([0.5 for i in range(traj1.dim)]) ) * Selec
+
+    
 # time derivative of the overlap
-def sdot_integral(traj1, traj2, Snuc=None):
+def sdot_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if traj1.state != traj2.state:
-        return complex(0.,0.)
+    if Snuc is None:
+        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-    else:
-        if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1, traj2)
-        sdot = (-np.dot( traj2.velocity(), nuc_ints.deldx(traj1,traj2,S=Snuc) ) +
-                 np.dot( traj2.force()   , nuc_ints.deldp(traj1,traj2,S=Snuc) ) +
-                 1j * traj2.phase_dot() * Snuc)
-        return sdot
+    # overlap of electronic functions
+    Selec = elec_overlap(traj1, traj2, centroid=centroid)
+
+    # < chi | d / dx | chi'>
+    deldx = nuclear.deldx(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+    # < chi | d / dp | chi'>
+    deldp = nuclear.deldp(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+
+    # the nuclear contribution to the sdot matrix
+    sdot = ( -np.dot(traj2.velocity(), deldx) + np.dot(traj2.force(), deldp)
+            + 1j * traj2.phase_dot() * Snuc) * Selec
+
+    # the derivative coupling
+    deriv_coup = traj2.pes_data.grads[traj1.state,:]
+
+
+    # time-derivative of the electronic component
+    sdot += np.dot(deriv_coup, traj2.velocity()) * Snuc
+
+    return sdot
+ 

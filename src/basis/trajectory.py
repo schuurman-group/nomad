@@ -33,10 +33,7 @@ def copy_traj(orig_traj):
     new_traj.pes_geom   = copy.deepcopy(orig_traj.pes_geom)
     new_traj.poten      = copy.deepcopy(orig_traj.poten)
     new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
-#    new_traj.dipoles    = copy.deepcopy(orig_traj.dipoles)
-#    new_traj.sec_moms   = copy.deepcopy(orig_traj.sec_moms)
-#    new_traj.atom_pops  = copy.deepcopy(orig_traj.atom_pops)
-#    new_traj.sct        = copy.deepcopy(orig_traj.sct)
+    new_traj.pes_data   = orig_traj.interface.copy_data(orig_traj.pes_data)
     return new_traj
 
 
@@ -109,18 +106,6 @@ class Trajectory:
         # geometry of the current potential information
         self.pes_geom   = np.zeros(self.dim)
 
-        # dipoles and transition dipoles
-#        self.dipoles    = np.zeros((self.nstates, self.nstates, self.crd_dim))
-        # second moment tensor for each state
-#        self.sec_moms   = np.zeros((self.nstates, self.crd_dim))
-        # number of atoms (or internal coordinates, etc.) 
-#        self.natoms = int(self.dim / self.crd_dim) 
-        # electronic populations on the atoms
-#        self.atom_pops  = np.zeros((self.nstates, self.natoms))
-        # Scalar coupling terms involving the state that the
-        # trajectory exits on (including DBOCs)        
-#        self.sct = np.zeros((self.nstates))
-
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist = ['a'])
@@ -170,21 +155,6 @@ class Trajectory:
         if 'deriv' in self.pes_data.data_keys:
             self.deriv  = self.pes_data.grads
         
-#        self.pes_geom  = pes_info[0]
-#        self.poten     = pes_info[1]
-        # centroids do not necessarily require gradient info
-#        if len(pes_info) >= 3:
-#            self.deriv     = pes_info[2]
-        # if we have electronic structure info
-#        if len(pes_info) == 6:
-#            self.dipoles   = pes_info[3]
-#            self.sec_moms  = pes_info[4]
-#            self.atom_pops = pes_info[5]
-        # SCTs (vibronic interface only, so dipoles, etc. wont be in
-        # the pes_geom array)
-#        if glbl.fms['coupling_order'] > 1:
-#            self.sct = pes_info[3]
-
     #-----------------------------------------------------------------------
     #
     # Functions for retrieving basic pes information from trajectory

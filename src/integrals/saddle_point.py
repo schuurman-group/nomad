@@ -9,7 +9,7 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
-import src.integrals.nuclear_gaussian as nuc_ints
+import src.integrals.nuclear_gaussian as nuclear
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
@@ -24,80 +24,60 @@ basis = 'gaussian'
 
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
-def traj_overlap(traj1, traj2, nuc_only=False, Snuc=None):
+def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(traj1, traj2, nuc_only, Snuc)
+    return s_integral(t1, t2, nuc_only, Snuc)
 
 # returns total overlap of trajectory basis function
-def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
+def s_integral(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
-    if traj1.state != traj2.state and not nuc_only:
+    if t1.state != t2.state and not nuc_only:
         return complex(0.,0.)
     else:
         if Snuc is None:
-            return nuc_ints.overlap(traj1.phase(),
-                                    traj1.widths(),
-                                    traj1.x(),
-                                    traj1.p(),
-                                    traj2.phase(),
-                                    traj2.widths(),
-                                    traj2.x(),
-                                    traj2.p())
+            return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
         else:
             return Snuc
 
-def v_integral(traj1, traj2, centroid=None, Snuc=None):
+def v_integral(t1, t2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
-    if traj1.tid == traj2.tid:
+    if t1.tid == t2.tid:
         # Adiabatic energy
-        v = traj1.energy(traj1.state)
+        v = t1.energy(t1.state)
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += traj1.scalar_coup(traj1.state)
+            v += t1.scalar_coup(t1.state)
         return v
 
     if Snuc is None:
-        Snuc = nuc_ints.overlap(traj1.phase(),
-                                traj1.widths(),
-                                traj1.x(),
-                                traj1.p(),
-                                traj2.phase(),
-                                traj2.widths(),
-                                traj2.x(),
-                                traj2.p())
+        Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                               t2.phase(),t2.widths(),t2.x(),t2.p())
 
     # off-diagonal matrix element, between trajectories on the same
     # state [this also requires the centroid be present
-    elif traj1.state == traj2.state:
+    elif t1.state == t2.state:
         # Adiabatic energy
-        v = centroid.energy(traj1.state) * Snuc
+        v = centroid.energy(t1.state) * Snuc
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += centroid.scalar_coup(traj1.state) * Snuc
+            v += centroid.scalar_coup(t1.state) * Snuc
         return v
 
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
-    elif traj1.state != traj2.state:
+    elif t1.state != t2.state:
         # Derivative coupling
-        fij = centroid.derivative(traj1.state)
-        v = np.vdot(fij, 
-                    2.* interface.kecoeff *
-                    nuc_ints.deldx(Snuc,
-                                   traj1.phase(),
-                                   traj1.widths(),
-                                   traj1.x(),
-                                   traj1.p(),
-                                   traj2.phase(),
-                                   traj2.widths(),
-                                   traj2.x(),
-                                   traj2.p()))
+        fij = centroid.derivative(t1.state)
+        v = np.vdot(fij, 2.* interface.kecoeff *
+                    nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                       t2.phase(),t2.widths(),t2.x(),t2.p()))
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
-            v += traj1.scalar_coup(traj2.state) * Snuc
+            v += t1.scalar_coup(t2.state) * Snuc
         return v
 
     else:
@@ -105,69 +85,36 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         return complex(0.,0.)
 
 # kinetic energy integral
-def ke_integral(traj1, traj2, Snuc=None):
+def ke_integral(t1, t2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
-    if traj1.state != traj2.state:
+    if t1.state != t2.state:
         return complex(0.,0.)
 
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1.phase(),
-                                    traj1.widths(),
-                                    traj1.x(),
-                                    traj1.p(),
-                                    traj2.phase(),
-                                    traj2.widths(),
-                                    traj2.x(),
-                                    traj2.p())
+            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        ke = nuc_ints.deld2x(Snuc,
-                             traj1.phase(),
-                             traj1.widths(),
-                             traj1.x(),
-                             traj1.p(),
-                             traj2.phase(),
-                             traj2.widths(),
-                             traj2.x(),
-                             traj2.p())
+        ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                 t2.phase(),t2.widths(),t2.x(),t2.p())
         return -sum( ke * interface.kecoeff)
 
 # time derivative of the overlap
-def sdot_integral(traj1, traj2, Snuc=None):
+def sdot_integral(t1, t2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if traj1.state != traj2.state:
+    if t1.state != t2.state:
         return complex(0.,0.)
 
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1.phase(),
-                                    traj1.widths(),
-                                    traj1.x(),
-                                    traj1.p(),
-                                    traj2.phase(),
-                                    traj2.widths(),
-                                    traj2.x(),
-                                    traj2.p())
+            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        sdot = (-np.dot( traj2.velocity(), 
-                         nuc_ints.deldx(Snuc,
-                                        traj1.phase(),
-                                        traj1.widths(),
-                                        traj1.x(),
-                                        traj1.p(),
-                                        traj2.phase(),
-                                        traj2.widths(),
-                                        traj2.x(),
-                                        traj2.p()) ) +
-                 np.dot( traj2.force()   , 
-                         nuc_ints.deldp(Snuc,
-                                        traj1.phase(),
-                                        traj1.widths(),
-                                        traj1.x(),
-                                        traj1.p(),
-                                        traj2.phase(),
-                                        traj2.widths(),
-                                        traj2.x(),
-                                        traj2.p()) ) +
-                 1j * traj2.phase_dot() * Snuc)
+        deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+        deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+
+        sdot = (-np.dot(t2.velocity(),deldx) + np.dot(t2.force(), deldp) 
+                +1j * t2.phase_dot() * Snuc)
         return sdot

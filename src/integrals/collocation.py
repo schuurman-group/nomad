@@ -7,7 +7,7 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.interfaces.vcham.hampar as ham
-import src.integrals.nuclear_dirac as nuc_ints 
+import src.integrals.nuclear_dirac as nuc_dirac 
 import src.integrals.nuclear_gaussian as nuc_gauss
 interface  = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
@@ -47,7 +47,7 @@ def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
         return complex(0.,0.) 
     else:
         if Snuc is None:
-            return nuc_ints.overlap(traj1.x(),
+            return nuc_dirac.overlap(traj1.x(),
                                     traj2.phase(),
                                     traj2.widths(),
                                     traj2.x(),
@@ -59,7 +59,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """ Returns < delta(R-R1) | V | g2 > if state1 = state2, else
     returns < delta(R-R1) | F . d/dR | g2 > """
     if Snuc is None:
-        Snuc = nuc_ints.overlap(traj1.x(),
+        Snuc = nuc_dirac.overlap(traj1.x(),
                                 traj2.phase(),
                                 traj2.widths(),
                                 traj2.x(),
@@ -76,7 +76,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
-        v = np.dot(fij, 2.*interface.kecoeff*nuc_ints.deldx(S,
+        v = np.dot(fij, 2.*interface.kecoeff*nuc_dirac.deldx(S,
                                                             traj1.x(), 
                                                             traj2.phase(),
                                                             traj2.widths(),
@@ -94,13 +94,13 @@ def ke_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.)
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1.x(),
+            Snuc = nuc_dirac.overlap(traj1.x(),
                                     traj2.phase(),
                                     traj2.widths(),
                                     traj2.x(),
                                     traj2.p())
 
-        ke = nuc_ints.deld2x(Snuc,
+        ke = nuc_dirac.deld2x(Snuc,
                              traj1.x(),
                              traj2.phase(),
                              traj2.widths(),
@@ -120,20 +120,20 @@ def sdot_integral(traj1, traj2, Snuc=None):
         return complex(0.,0.) 
     else:
         if Snuc is None:
-            Snuc = nuc_ints.overlap(traj1.x(),
+            Snuc = nuc_dirac.overlap(traj1.x(),
                                     traj2.phase(),
                                     traj2.widths(),
                                     traj2.x(),
                                     traj2.p())
         sdot = (np.dot(traj2.velocity(), 
-                       nuc_ints.deldx(Snuc,
+                       nuc_dirac.deldx(Snuc,
                                       traj1.x(),
                                       traj2.phase(),
                                       traj2.widths(),
                                       traj2.x(),
                                       traj2.p())) +
                 np.dot(traj2.force(), 
-                       nuc_ints.deldp(Snuc,
+                       nuc_dirac.deldp(Snuc,
                                       traj1.x(),
                                       traj2.phase(),
                                       traj2.widths(),

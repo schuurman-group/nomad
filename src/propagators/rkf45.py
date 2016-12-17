@@ -41,7 +41,7 @@ def propagate_bundle(master, dt):
         h=hlast
     
     # propagate amplitudes for 1/2 time step using x0
-    #master.update_amplitudes(0.5*dt, 10)
+    #master.update_amplitudes(0.5*dt)
     
     # Propagate the bundle of trajectories
     t=0.
@@ -69,7 +69,7 @@ def propagate_bundle(master, dt):
                     h=h*2.
 
         # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*hsucc, 10)
+        master.update_amplitudes(0.5*hsucc)
 
         # Update the Gaussian parameters and PESs
         for i in range(master.nactive):
@@ -80,10 +80,10 @@ def propagate_bundle(master, dt):
         surface.update_pes(master)
         
         # propagate amplitudes for 1/2 time step using x1
-        master.update_amplitudes(0.5*hsucc, 10)
+        master.update_amplitudes(0.5*hsucc)
 
     # propagate amplitudes for 1/2 time step using x1
-    #master.update_amplitudes(0.5*dt, 10)
+    #master.update_amplitudes(0.5*dt)
 
 ########################################################################
         

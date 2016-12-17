@@ -9,7 +9,7 @@ from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
 from src.basis import trajectory as trajectory
-from src.basis import build_hamiltonian as ham
+from src.basis import hamiltonian as fms_ham 
 
 @timings.timed
 def copy_bundle(orig_bundle):
@@ -20,7 +20,7 @@ def copy_bundle(orig_bundle):
     significantly more work.
     """
     new_bundle = Bundle(orig_bundle.nstates, 
-                        orig_bundle.integrals)
+                        orig_bundle.integral_type)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
     new_bundle.ndead  = copy.copy(orig_bundle.ndead)
@@ -57,8 +57,8 @@ def cent_ind(i, j):
 
 class Bundle:
     """Class constructor for the Bundle object."""
-    def __init__(self, nstates, integrals):
-        self.integrals = integrals
+    def __init__(self, nstates, integral_type):
+        self.integral_type  = integral_type
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -75,9 +75,10 @@ class Bundle:
         self.Heff      = np.zeros((0, 0), dtype=complex)
         self.traj_ovrlp= np.zeros((0, 0), dtype=complex)
         try:
-            self.ints=__import__('src.integrals.'+self.integrals,fromlist=['a'])
+            self.integrals=__import__('src.integrals.'+
+                                       self.integral_type,fromlist=['a'])
         except ImportError:
-            print('BUNDLE INIT FAIL: src.integrals.'+self.integrals)
+            print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
 
     def n_traj(self):
         """Returns total number of trajectories."""
@@ -177,7 +178,7 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def update_amplitudes(self, dt, n_max, H=None, Ct=None):
+    def update_amplitudes(self, dt, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
@@ -185,17 +186,17 @@ class Bundle:
 
         # if no Hamiltonian is pased, use the current effective
         # Hamiltonian
-        if H is not None:
-            Hmat = H
-        else:
+        if H is None:
             Hmat = self.Heff
+        else:
+            Hmat = H 
 
         # if no vector of amplitdues are supplied (to propagate),
         # propogate the current amplitudes
-        if Ct is not None:
-            old_amp = Ct
-        else:
+        if Ct is None:
             old_amp = self.amplitudes()
+        else:
+            old_amp = Ct 
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
@@ -217,7 +218,9 @@ class Bundle:
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
         current_pop = self.pop()
+        print("current_pop="+str(current_pop))
         norm = 1. / np.sqrt(sum(current_pop))
+        print("normalization: "+str(norm))
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
 
@@ -274,10 +277,11 @@ class Bundle:
     @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
-        pop = np.zeros(self.nstates)
+        pop    = np.zeros(self.nstates)
+        nalive = len(self.alive) 
 
         # live contribution
-        for i in range(len(self.alive)):
+        for i in range(nalive):
             ii = self.alive[i]
             state = self.traj[ii].state
             popii = (self.traj[ii].amplitude *
@@ -291,7 +295,6 @@ class Bundle:
                 pop[state] += popij.real
 
         # dead contribution?
-
         return pop
 
     @timings.timed
@@ -372,7 +375,7 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.ints.traj_overlap(self.traj[ii], other.traj[jj]) *
+                S += (self.integrals.traj_overlap(self.traj[ii], other.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
         return S
@@ -382,7 +385,7 @@ class Bundle:
         amplitude on the trial trajectory is (1.,0.)"""
         ovrlp = complex(0., 0.)
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.ints.traj_overlap(traj,self.traj[i]) * 
+            ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) * 
                                              self.traj[i].amplitude)
         return ovrlp
 
@@ -438,15 +441,15 @@ class Bundle:
         """Updates T, V, S, Sdot and Heff matrices."""
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
-        if self.ints.require_centroids:
+        if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      ham.build_hamiltonian(self.traj, 
-                                                            self.alive, 
-                                                            cent_list=self.cent)
+                                      fas_ham.hamiltonian(self.traj, 
+                                                          self.alive, 
+                                                          cent_list=self.cent)
         else:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      ham.build_hamiltonian(self.traj, 
-                                                            self.alive)
+                                      fms_ham.hamiltonian(self.traj, 
+                                                          self.alive)
 
     #------------------------------------------------------------------------
     #
@@ -486,8 +489,18 @@ class Bundle:
                              for j in range(self.nstates)])
                 fileio.print_traj_row(self.traj[i].tid, 2, data)
 
-            # print electronic structure info
+            # print pes information relevant to the chosen interface
             if glbl.fms['print_es']:
+
+                # print the interface-specific data 
+                for key in self.traj[i].pes_data.data_keys:
+
+                    # skip the stuff that is NOT interface speicifc
+                    if key in ['geom','poten','deriv']:
+                        continue
+
+                    # 
+
                 # permanent dipoles
 #                data = [self.time]
 #                for j in range(self.nstates):
@@ -535,7 +548,7 @@ class Bundle:
 
         # bundle matrices
         if glbl.fms['print_matrices']:
-            if self.ints.basis != 'gaussian':
+            if self.integrals.basis != 'gaussian':
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp) 
             fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
