@@ -154,9 +154,23 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None):
     # the derivative coupling
     deriv_coup = traj2.pes_data.grads[traj1.state,:]
 
+    dia      = traj2.pes_data.diabat_pot
+    diaderiv = traj2.pes_data.diabat_deriv
+    v12      = dia[0,1]
+    de       = dia[1,1] - dia[0,0]
+    argt     = 2. * v12 / de
+    theta    = 0.5 * np.arctan(argt)
+    dtheta = np.array([(diaderiv[q,0,1]/de - v12*(diaderiv[q,1,1]- diaderiv[q,0,0])/de**2)/(1+argt**2) for q in range(traj2.dim)])
+
+    st1  = traj1.pes_data.dat_mat[:,traj1.state]
+    dst12  = np.array([[-np.sin(theta),np.cos(theta)],[-np.cos(theta),-np.sin(theta)]])
+    deriv_coup2 = np.array([np.dot(dst12[traj2.state,:],np.array([dtheta[q],dtheta[q]])) for q in range(traj2.dim)])
+#    print("d1 = "+str(deriv_coup))
+#    print("d2 = "+str(deriv_coup2))
+#    print("")
 
     # time-derivative of the electronic component
-    sdot += np.dot(deriv_coup, traj2.velocity()) * Snuc
+    sdot += np.dot(deriv_coup2, traj2.velocity()) * Snuc
 
     return sdot
  

@@ -99,8 +99,8 @@ def init_interface():
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
     kecoeff = np.zeros((ham.nmode_active))
-#    kecoeff = 0.5*ham.freq[:ham.nmode_active]
-    kecoeff = 0.5*np.ones((ham.nmode_active)) 
+    kecoeff = 0.5*ham.freq[:ham.nmode_active]
+#    kecoeff = 0.5*np.ones((ham.nmode_active)) 
    
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])
@@ -198,11 +198,11 @@ def evaluate_trajectory(tid, geom, stateindx):
 #    print("dat="+str(np.linalg.inv(adtmat)))
     de    = diabpot[1,1]-diabpot[0,0]
     v12   = diabpot[0,1]
-    argt  = 2*v12/de
+    argt  = 2.*v12/de
     theta = 0.5*np.arctan(argt)
 #    print("dat2="+str([[np.cos(theta),np.sin(theta)],[-np.sin(theta),np.cos(theta)]]))
     dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
-    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
+    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
 #    print("ddat2="+str(ddat2)) 
 
     t_data.geom          = qcoo
