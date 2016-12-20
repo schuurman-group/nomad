@@ -13,17 +13,28 @@ import src.interfaces.vcham.hampar as ham
 require_centroids = False 
 
 # Determines the Hamiltonian symmetry
-hermitian = False 
+hermitian = True 
 
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
 
-def elec_overlap(traj1, traj2, centroid=None):
+def elec_overlap(traj1, traj2):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
 
+    dia1      = traj1.pes_data.diabat_pot
+    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
+    theta1    = 0.5 * np.arctan(argt1)
+    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
+
+    dia2      = traj2.pes_data.diabat_pot
+    argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
+    theta2    = 0.5 * np.arctan(argt2)
+    st2      = np.array([[np.cos(theta2),np.sin(theta2)],[-np.sin(theta2),np.cos(theta2)]])
+
     # determine overlap of adiabatic wave functions in diabatic basis
-    return complex( np.dot(traj1.pes_data.adt_mat[:,traj1.state],
-                           traj2.pes_data.adt_mat[:,traj2.state]), 0.)
+#    return complex( np.dot(traj1.pes_data.dat_mat[:,traj1.state],
+#                           traj2.pes_data.dat_mat[:,traj2.state]), 0.)
+    return complex( np.dot(st1[traj1.state,:],st2[traj2.state,:]), 0.)
 
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
@@ -36,7 +47,7 @@ def traj_overlap(traj1, traj2, centroid=None, nuc_only=False):
     if nuc_only:
         return nuc_ovrlp
     else:
-        return nuc_ovrlp * elec_overlap(traj1, traj2, centroid=centroid)
+        return nuc_ovrlp * elec_overlap(traj1, traj2)
 
 # total overlap of trajectory basis function
 def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
@@ -48,7 +59,7 @@ def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
     if nuc_only:
         return Snuc
     else:
-        return Snuc * elec_overlap(traj1, traj2, centroid=centroid) 
+        return Snuc * elec_overlap(traj1, traj2) 
 
 def prim_v_integral(N, a1, x1, p1, a2, x2, p2, gauss_overlap=None):
     """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
@@ -80,8 +91,18 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
 
     # get the linear combinations corresponding to the adiabatic states
     nst = traj1.nstates
-    st1 = traj1.pes_data.adt_mat[:,traj1.state]
-    st2 = traj2.pes_data.adt_mat[:,traj2.state]
+#    st1 = traj1.pes_data.dat_mat[:,traj1.state]
+#    st2 = traj2.pes_data.dat_mat[:,traj2.state]
+
+    dia1      = traj1.pes_data.diabat_pot
+    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
+    theta1    = 0.5 * np.arctan(argt1)
+    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
+
+    dia2      = traj2.pes_data.diabat_pot
+    argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
+    theta2    = 0.5 * np.arctan(argt2)
+    st2      = np.array([[np.cos(theta2),np.sin(theta2)],[-np.sin(theta2),np.cos(theta2)]])
 
     # roll through terms in the hamiltonian
     v_total = complex(0.,0.)
@@ -96,20 +117,18 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
             v_term = complex(1.,0.)
             for q in range(ham.nmode_active):
                 if ham.order[i,q] > 0:
-                    v_term *= prim_v_integral(ham.order[i,q],
+                    v_term *=  prim_v_integral(ham.order[i,q],
                                traj1.widths()[q],traj1.x()[q],traj1.p()[q],
                                traj2.widths()[q],traj2.x()[q],traj2.p()[q])            
-            v_term *= cf * Snuc
         
             # now determine electronic factor
-            v_term *= st1[s1] * st2[s2]     
+            v_term *= (cf * st1[traj1.state,s1] * st2[traj2.state,s2])   
 
             # add this term to the total integral
             v_total += v_term
 
-
-    # return potential matrix element, multplied by nuclear overlap
-    return v_total 
+    # return potential matrix element
+    return v_total * Snuc
 
 # kinetic energy integral
 def ke_integral(traj1, traj2, centroid=None, Snuc=None):
@@ -120,14 +139,13 @@ def ke_integral(traj1, traj2, centroid=None, Snuc=None):
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
-    Selec = elec_overlap(traj1, traj2, centroid=centroid)
+    Selec = elec_overlap(traj1, traj2)
 
     # < chi | del^2 / dx^2 | chi'> 
     ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                              traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
    
     return -sum( ke * vibronic.kecoeff) * Selec
-#    return -sum(ke * np.array([0.5 for i in range(traj1.dim)]) ) * Selec
 
     
 # time derivative of the overlap
@@ -138,7 +156,7 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None):
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
-    Selec = elec_overlap(traj1, traj2, centroid=centroid)
+    Selec = elec_overlap(traj1, traj2)
 
     # < chi | d / dx | chi'>
     deldx = nuclear.deldx(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
@@ -162,12 +180,13 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None):
     theta    = 0.5 * np.arctan(argt)
     dtheta = np.array([(diaderiv[q,0,1]/de - v12*(diaderiv[q,1,1]- diaderiv[q,0,0])/de**2)/(1+argt**2) for q in range(traj2.dim)])
 
-    st1  = traj1.pes_data.dat_mat[:,traj1.state]
-    dst12  = np.array([[-np.sin(theta),np.cos(theta)],[-np.cos(theta),-np.sin(theta)]])
-    deriv_coup2 = np.array([np.dot(dst12[traj2.state,:],np.array([dtheta[q],dtheta[q]])) for q in range(traj2.dim)])
-#    print("d1 = "+str(deriv_coup))
-#    print("d2 = "+str(deriv_coup2))
-#    print("")
+    dia1      = traj1.pes_data.diabat_pot
+    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
+    theta1    = 0.5 * np.arctan(argt1)
+    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
+
+    dphi  = np.array([[-np.sin(theta),np.cos(theta)],[-np.cos(theta),-np.sin(theta)]])
+    deriv_coup2 = np.array([np.dot(st1[traj1.state,:],dphi[traj2.state,:]*dtheta[q]) for q in range(traj2.dim)])
 
     # time-derivative of the electronic component
     sdot += np.dot(deriv_coup2, traj2.velocity()) * Snuc

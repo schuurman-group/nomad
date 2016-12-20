@@ -284,12 +284,9 @@ class Bundle:
         for i in range(nalive):
             ii = self.alive[i]
             state = self.traj[ii].state
-            popii = (self.traj[ii].amplitude *
-                     self.traj[ii].amplitude.conjugate())
-            pop[state] += popii.real
-            for j in range(i):
+            for j in range(nalive):
                 jj = self.alive[j]
-                popij = (2. * self.traj_ovrlp[i,j]  * 
+                popij = (self.traj_ovrlp[i,j]  * 
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij.real
@@ -587,10 +584,12 @@ class Bundle:
 
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
-            chkpt.write('coordinate widths -- ')
-            self.traj[0].widths
-            chkpt.write('coordinate masses -- ')
-            self.traj[0].masses
+            chkpt.write('coordinate widths --\n')
+            chkpt.write(str(np.array2string(self.traj[0].widths(), 
+                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
+            chkpt.write('coordinate masses --\n')
+            chkpt.write(str(np.array2string(self.traj[0].masses(), 
+                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
 
             # first write out the live trajectories. The function
             # write_trajectory can only write to a pre-existing file stream

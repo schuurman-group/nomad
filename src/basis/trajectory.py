@@ -140,6 +140,7 @@ class Trajectory:
     def update_phase(self, phase):
         """Updates the nuclear phase."""
         self.gamma = phase
+#        self.gamma = 0.5 * np.dot(self.x(), self.p())
         if abs(self.gamma) > 2*np.pi:
             self.gamma = self.gamma - int(self.gamma/(2. * np.pi)) * 2. * np.pi
 
