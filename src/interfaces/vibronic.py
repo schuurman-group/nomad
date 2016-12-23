@@ -29,53 +29,54 @@ sctmat = None
 dbocderiv1 = None
 nsta = 0
 
-class surface_data:
+class Surface:
+    """Object containing potential energy surface data."""
     def __init__(self, n_states, t_dim, crd_dim):
-
         # necessary for array allocation
-        self.n_states     = n_states
-        self.t_dim        = t_dim
-        self.crd_dim      = crd_dim
+        self.n_states = n_states
+        self.t_dim    = t_dim
+        self.crd_dim  = crd_dim
 
         # these are the standard quantities ALL interface_data objects return
-        self.data_keys    = []
-        self.geom         = np.zeros(t_dim)
-        self.energies     = np.zeros(n_states)
-        self.grads        = np.zeros((n_states, t_dim)) 
-    
+        self.data_keys = []
+        self.geom      = np.zeros(t_dim)
+        self.energies  = np.zeros(n_states)
+        self.grads     = np.zeros((n_states, t_dim))
+
         # these are interface-specific quantities
-        self.scalar_coup  = np.zeros(n_states)
-        self.adt_mat      = np.zeros((n_states, n_states))    
-        self.dat_mat      = np.zeros((n_states, n_states))
-        self.ddat_mat     = np.zeros((t_dim,n_states, n_states))
-        self.diabat_pot   = np.zeros((n_states, n_states))
-        self.diabat_deriv = np.zeros((t_dim, n_states, n_states))
+        self.scalar_coup   = np.zeros(n_states)
+        self.adt_mat       = np.zeros((n_states, n_states))
+        self.dat_mat       = np.zeros((n_states, n_states))
+        self.ddat_mat      = np.zeros((t_dim,n_states, n_states))
+        self.diabat_pot    = np.zeros((n_states, n_states))
+        self.diabat_deriv  = np.zeros((t_dim, n_states, n_states))
         self.adiabat_pot   = np.zeros((n_states, n_states))
         self.adiabat_deriv = np.zeros((t_dim, n_states, n_states))
 
-# 
-def copy_data(orig_info):
-    new_info = surface_data(orig_info.n_states,
-                            orig_info.t_dim,
-                            orig_info.crd_dim)
 
-    new_info.data_keys    = copy.copy(orig_info.data_keys)
-    new_info.geom         = copy.deepcopy(orig_info.geom)
-    new_info.energies     = copy.deepcopy(orig_info.energies)
-    new_info.grads        = copy.deepcopy(orig_info.grads)
-    new_info.scalar_coup  = copy.deepcopy(orig_info.scalar_coup)
-    new_info.adt_mat      = copy.deepcopy(orig_info.adt_mat)
-    new_info.dat_mat      = copy.deepcopy(orig_info.dat_mat)
+def copy_data(orig_info):
+    """Creates a copy of a Surface object."""
+    new_info = Surface(orig_info.n_states,
+                       orig_info.t_dim,
+                       orig_info.crd_dim)
+
+    new_info.data_keys     = copy.copy(orig_info.data_keys)
+    new_info.geom          = copy.deepcopy(orig_info.geom)
+    new_info.energies      = copy.deepcopy(orig_info.energies)
+    new_info.grads         = copy.deepcopy(orig_info.grads)
+    new_info.scalar_coup   = copy.deepcopy(orig_info.scalar_coup)
+    new_info.adt_mat       = copy.deepcopy(orig_info.adt_mat)
+    new_info.dat_mat       = copy.deepcopy(orig_info.dat_mat)
     new_info.ddat_mat      = copy.deepcopy(orig_info.ddat_mat)
-    new_info.diabat_pot   = copy.deepcopy(orig_info.diabat_pot)
-    new_info.diabat_deriv = copy.deepcopy(orig_info.diabat_deriv)
+    new_info.diabat_pot    = copy.deepcopy(orig_info.diabat_pot)
+    new_info.diabat_deriv  = copy.deepcopy(orig_info.diabat_deriv)
     new_info.adiabat_pot   = copy.deepcopy(orig_info.adiabat_pot)
     new_info.adiabat_deriv = copy.deepcopy(orig_info.adiabat_deriv)
-    return new_info 
+    return new_info
 
-#
+
 def init_interface():
-    """Read the freq.dat file
+    """Reads the freq.dat file
 
     Note that, at least for now, the no. active modes and their
     labels are determined from the freq.dat file.
@@ -136,7 +137,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     # System dimensions
     ncoo   = len(geom)
     nsta   = glbl.fms['n_states']
-    t_data = surface_data(nsta,ncoo,1)
+    t_data = Surface(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot = np.zeros((nsta, nsta))
@@ -235,7 +236,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     # System dimensions
     ncoo = len(geom) 
     nsta = glbl.fms['n_states']
-    t_data = surface_data(nsta,ncoo,1)
+    t_data = Surface(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot=np.zeros((nsta,nsta), dtype=np.float)

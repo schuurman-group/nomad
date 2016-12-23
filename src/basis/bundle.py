@@ -52,7 +52,7 @@ def cent_ind(i, j):
     else:
         a = max(i,j)
         b = min(i,j)
-        return int(a*(a-1)/2 + b)
+        return a*(a-1)//2 + b
 
 
 class Bundle:
@@ -440,7 +440,7 @@ class Bundle:
         # self.H -- if we need them
         if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      fas_ham.hamiltonian(self.traj, 
+                                      fms_ham.hamiltonian(self.traj, 
                                                           self.alive, 
                                                           cent_list=self.cent)
         else:

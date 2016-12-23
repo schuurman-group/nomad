@@ -28,7 +28,7 @@ def c_ind(i, j):
     else:
         a = max(i, j)
         b = min(i, j)
-        return int(a*(a-1)/2 + b)
+        return a*(a-1)//2 + b
 
 def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the
@@ -36,12 +36,12 @@ def ut_ind(index):
     i = 0
     while i*(i+1)/2 - 1 < index:
         i += 1
-    return int(index-i*(i-1)/2), int(i-1)
+    return index - i*(i-1)//2, i-1
 
 def sq_ind(index, n):
-    """Gets the (i,j) index of a square matrix from the 
+    """Gets the (i,j) index of a square matrix from the
     sequential matrix index 'index'"""
-    return int(index / n), index - int(index / n) * n
+    return index // n, index % n
 
 @timings.timed
 def hamiltonian(traj_list, traj_alive, cent_list=None):

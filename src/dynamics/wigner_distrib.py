@@ -7,6 +7,7 @@ import numpy as np
 import scipy.linalg as linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
+import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
 import src.interfaces.vcham.hampar as ham
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
@@ -45,6 +46,7 @@ def sample_distribution(master):
                                         parent=0)
     origin_traj.update_x(geom_ref)
     origin_traj.update_p(mom_ref)
+    surface.update_pes_traj(origin_traj)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes

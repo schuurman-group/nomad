@@ -50,7 +50,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         v = t1.energy(t1.state)
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += t1.scalar_coup(t1.state)
+            v += t1.pes_data.scalar_coup[t1.state]
         return v
 
     if Snuc is None:
@@ -58,13 +58,13 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                                t2.phase(),t2.widths(),t2.x(),t2.p())
 
     # off-diagonal matrix element, between trajectories on the same
-    # state [this also requires the centroid be present
+    # state (this also requires the centroid be present)
     elif t1.state == t2.state:
         # Adiabatic energy
         v = centroid.energy(t1.state) * Snuc
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += centroid.scalar_coup(t1.state) * Snuc
+            v += centroid.pes_data.scalar_coup[t1.state] * Snuc
         return v
 
     # [necessarily] off-diagonal matrix element between trajectories
@@ -74,10 +74,10 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         fij = centroid.derivative(t1.state)
         v = np.vdot(fij, 2.* interface.kecoeff *
                     nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                       t2.phase(),t2.widths(),t2.x(),t2.p()))
+                                  t2.phase(),t2.widths(),t2.x(),t2.p()))
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
-            v += t1.scalar_coup(t2.state) * Snuc
+            v += t1.pes_data.scalar_coup[t2.state] * Snuc
         return v
 
     else:
