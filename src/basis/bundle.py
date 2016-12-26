@@ -48,16 +48,6 @@ def copy_bundle(orig_bundle):
 
     return new_bundle
 
-def cent_ind(i, j):
-    """Returns the index in the cent array of the centroid between
-    trajectories i and j."""
-    if i == j:
-        return -1
-    else:
-        a = max(i,j)
-        b = min(i,j)
-        return a*(a-1)//2 + b
-
 class Bundle:
     """Class constructor for the Bundle object."""
     def __init__(self, nstates, integral_type):

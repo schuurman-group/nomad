@@ -20,16 +20,6 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.utils.linalg as fms_linalg
 
-def c_ind(i, j):
-    """Returns the index in the cent array of the centroid between
-    trajectories i and j."""
-    if i == j:
-        return -1
-    else:
-        a = max(i, j)
-        b = min(i, j)
-        return a*(a-1)//2 + b
-
 def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the
     sequential matrix index 'index'"""
