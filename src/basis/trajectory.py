@@ -139,7 +139,8 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-        self.gamma = phase
+        if glbl.fms['phase_prop'] != 0:
+            self.gamma = phase
 #        self.gamma = 0.5 * np.dot(self.x(), self.p())
         if abs(self.gamma) > 2*np.pi:
             self.gamma = self.gamma - int(self.gamma/(2. * np.pi)) * 2. * np.pi
@@ -278,6 +279,7 @@ class Trajectory:
         else:
             return (self.kinetic() - self.potential() -
                     sum(2. * self.widths() * self.interface.kecoeff))
+#            return 0.5*(-np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
     def coupling_norm(self, rstate):
         """Returns the norm of the coupling vector."""

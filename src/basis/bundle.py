@@ -9,6 +9,7 @@ from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
 from src.basis import trajectory as trajectory
+from src.basis import centroid as centroid
 from src.basis import hamiltonian as fms_ham 
 
 @timings.timed
@@ -31,29 +32,21 @@ def copy_bundle(orig_bundle):
     new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
     new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
     new_bundle.traj_ovrlp = copy.deepcopy(orig_bundle.traj_ovrlp)
-    for i in range(new_bundle.n_traj()):
+
+    # copy the trajectory array
+    for i in range(orig_bundle.n_traj()):
         traj_i = trajectory.copy_traj(orig_bundle.traj[i])
         new_bundle.traj.append(traj_i)
-    for i in range(len(orig_bundle.cent)):
-        if orig_bundle.cent[i] is None:
-            traj_i = None
-        else:
-            traj_i = trajectory.copy_traj(orig_bundle.cent[i])
-        new_bundle.cent.append(traj_i)
+
+    # copy the centroid matrix
+    if new_bundle.integrals.require_centroids:
+        for i in range(len(orig_bundle.cent)):
+            new_bundle.cent.append([None for j in range(orig_bundle.n_traj())])
+            for j in range(i):
+                new_bundle.cent[i][j] = centroid.copy_cent(orig_bundle.cent[i][j])
+                new_bundle.cent[j][i] = new_bundle.cent[i][j]
 
     return new_bundle
-
-
-def cent_ind(i, j):
-    """Returns the index in the cent array of the centroid between
-    trajectories i and j."""
-    if i == j:
-        return -1
-    else:
-        a = max(i,j)
-        b = min(i,j)
-        return int(a*(a-1)/2 + b)
-
 
 class Bundle:
     """Class constructor for the Bundle object."""
@@ -83,18 +76,6 @@ class Bundle:
     def n_traj(self):
         """Returns total number of trajectories."""
         return self.nalive + self.ndead
-
-    def n_cent(self):
-        """Returns length of centroid array."""
-        return len(self.cent)
-
-    def cent_len(self, n):
-        """Returns length of centroid array for n_traj length
-        traj array."""
-        n_traj=n+1
-        if n_traj == 0:
-            return 0
-        return int(n_traj * (n_traj - 1) / 2)
 
     @timings.timed
     def add_trajectory(self, new_traj):
@@ -218,9 +199,7 @@ class Bundle:
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
         current_pop = self.pop()
-        print("current_pop="+str(current_pop))
         norm = 1. / np.sqrt(sum(current_pop))
-        print("normalization: "+str(norm))
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
 
@@ -275,6 +254,12 @@ class Bundle:
         return mulliken
 
     @timings.timed
+    def norm(self):
+        """Returns the norm of the wavefunction """
+        return np.dot(np.dot(
+               np.conj(self.amplitudes()),self.traj_ovrlp),self.amplitudes()).real
+
+    @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
         pop    = np.zeros(self.nstates)
@@ -300,61 +285,77 @@ class Bundle:
 
         Currently only includes energy from alive trajectories
         """
-        weight = np.array([self.traj[self.alive[i]].amplitude *
-                           self.traj[self.alive[i]].amplitude.conjugate() 
-                           for i in range(len(self.alive))])
-        v_int  = np.array([self.V[i,i] 
-                           for i in range(self.nalive)])
-        return sum(weight * v_int).real
+        nalive = len(self.alive)
+        v_vec = np.array([self.traj[self.alive[i]].potential()
+                          for i in range(nalive)])
+        return sum(v_vec).real / nalive
+#        weight = np.array([self.traj[self.alive[i]].amplitude *
+#                           self.traj[self.alive[i]].amplitude.conjugate() 
+#                           for i in range(len(self.alive))])
+#        v_int  = np.array([self.V[i,i] 
+#                           for i in range(self.nalive)])
+#        return np.dot(weight, v_int).real
 
     @timings.timed
     def pot_quantum(self):
         """Returns the QM (coupled) potential energy of the bundle.
-
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
-        energy = 0.
-        for i in range(len(self.alive)):
-            ii = self.alive[i]
-            weight = (self.traj[ii].amplitude *
-                      self.traj[ii].amplitude.conjugate())
-            v_int  = self.V[i,i]
-            energy += (weight * v_int).real
-            for j in range(i):
-                jj     = self.alive[j]
-                weight = (self.traj[jj].amplitude *
-                          self.traj[ii].amplitude.conjugate())
-                v_int  = self.V[i,j]
-                energy += 2. * (weight * v_int).real
-        return energy
+        return np.dot(np.dot(
+               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
+#        energy = 0.
+#        for i in range(len(self.alive)):
+#            ii = self.alive[i]
+#            weight = (self.traj[ii].amplitude *
+#                      self.traj[ii].amplitude.conjugate())
+#            v_int  = self.V[i,i]
+#            energy += (weight * v_int).real
+#            for j in range(len(self.alive)):
+#                jj     = self.alive[j]
+#                weight = (self.traj[jj].amplitude *
+#                          self.traj[ii].amplitude.conjugate())
+#                v_int  = self.V[i,j]
+#                print("pot quan="+str(weight * v_int))
+#                energy += (weight * v_int).real
+#        return energy
 
     @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
-        weight = np.array([self.traj[self.alive[i]].amplitude *
-                           self.traj[self.alive[i]].amplitude.conjugate() 
-                           for i in range(len(self.alive))])
-        ke_int  = np.array([self.T[i,i] 
-                           for i in range(self.nalive)])
-        return sum(weight * ke_int).real
+        nalive = len(self.alive)
+        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()*
+                                  self.traj[self.alive[i]].p(),
+                                  self.traj[self.alive[i]].interface.kecoeff)
+                                  for i in range(nalive)])
+        return sum(ke_vec).real / nalive
+#        weight = np.array([self.traj[self.alive[i]].amplitude *
+#                           self.traj[self.alive[i]].amplitude.conjugate() 
+#                           for i in range(len(self.alive))])
+#        ke_int  = np.array([self.T[i,i] 
+#                           for i in range(self.nalive)])
+#        return np.dot(weight, ke_int).real
 
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
-        energy = 0.
-        for i in range(len(self.alive)):
-            ii = self.alive[i]
-            weight = (self.traj[ii].amplitude *
-                      self.traj[ii].amplitude.conjugate())
-            ke_int = self.T[i,i]
-            energy += (weight * ke_int).real
-            for j in range(i):
-                jj     = self.alive[j]
-                weight = (self.traj[jj].amplitude *
-                          self.traj[ii].amplitude.conjugate())
-                ke_int = self.T[i,j]
-                energy += 2. * (weight * ke_int).real
-        return energy
+        Sinv = np.linalg.pinv(self.traj_ovrlp)
+        return np.dot(np.dot(
+               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
+#        energy = 0.
+#        for i in range(len(self.alive)):
+#            ii = self.alive[i]
+#            weight = (self.traj[ii].amplitude *
+#                      self.traj[ii].amplitude.conjugate())
+#            ke_int = self.T[i,i]
+#            energy += (weight * ke_int).real
+#            for j in range(len(self.alive)):
+#                jj     = self.alive[j]
+#                weight = (self.traj[jj].amplitude *
+#                          self.traj[ii].amplitude.conjugate())
+#                ke_int = self.T[i,j]
+#                print("kin quan="+str(weight * ke_int))
+#                energy += (weight * ke_int).real
+#        return energy
 
     def tot_classical(self):
         """Returns the total classical energy of the bundle."""
@@ -394,44 +395,39 @@ class Bundle:
     @timings.timed
     def update_centroids(self):
         """Updates the centroids."""
+
+        # make sure centroid array has sufficient space to hold required 
+        # centroids. Note that n_traj includes alive AND dead trajectories --
+        # therefore it can only increase. So, only need to check n_traj > dim_cent
+        # condition 
+        dim_cent = len(self.cent)
+
+        if self.n_traj() < dim_cent:
+            sys.exit('n_traj() < dim_cent in bundle. Exiting...')            
+
+        if self.n_traj() > dim_cent:
+            for i in range(dim_cent):
+                self.cent[i].extend([None for j in range(self.n_traj()-dim_cent)])
+
+            for i in range(self.n_traj() - dim_cent):        
+                self.cent.append([])
+                self.cent[-1].extend([None for j in range(self.n_traj())])
+                
         for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
-            wid_i = self.traj[i].widths()
 
             for j in range(i):
                 if not self.traj[j].alive:
                     continue
 
-                # first check that we have added trajectory i or j (i.e.
-                # that the cent array is long enough), if not, append the
-                # appropriate number of slots (just do this once for
-                if len(self.cent) < self.cent_len(i):
-                    n_add = self.cent_len(i) - len(self.cent)
-                    for k in range(n_add):
-                        self.cent.append(None)
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
                 # required slots
-                ij_ind = cent_ind(i,j)
-                if self.cent[ij_ind] is None:
-                    self.cent[ij_ind] = trajectory.copy_traj(self.traj[i])
-                    self.cent[ij_ind].tid = -ij_ind
-
-                    # set cent[ij_ind].c_state (note that cent[ij_ind].state
-                    # is set by calling trajectory.copy_traj)
-                    self.cent[ij_ind].c_state=self.traj[j].state
-
-                    # now update the position in phase space of the centroid
-                    # if wid_i == wid_j, this is clearly just the simply mean
-                    # position.
-                    wid_j = self.traj[j].widths()
-                    new_x = (wid_i * self.traj[i].x() + wid_j *
-                             self.traj[j].x()) / (wid_i + wid_j)
-                    new_p = (wid_i * self.traj[i].p() + wid_j *
-                             self.traj[j].p()) / (wid_i + wid_j)
-                    self.cent[ij_ind].update_x(new_x)
-                    self.cent[ij_ind].update_p(new_p)
+                if self.cent[i][j] is None:
+                    self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
+                                                        traj_j=self.traj[j])
+                    self.cent[j][i] = self.cent[i][j]
 
     @timings.timed
     def update_matrices(self):
@@ -440,7 +436,7 @@ class Bundle:
         # self.H -- if we need them
         if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      fas_ham.hamiltonian(self.traj, 
+                                      fms_ham.hamiltonian(self.traj, 
                                                           self.alive, 
                                                           cent_list=self.cent)
         else:
@@ -456,7 +452,26 @@ class Bundle:
     @timings.timed
     def update_logs(self):
         """Updates the log files."""
+
+#        dia1      = self.traj[0].pes_data.diabat_pot
+#        argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
+#        theta1    = 0.5 * np.arctan(argt1)
+
+#        dia2      = self.traj[1].pes_data.diabat_pot
+#        argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
+#        theta2    = 0.5 * np.arctan(argt2)
+
+#        print("theta1, theta2: "+str(theta1)+' '+str(theta2))
+#        print("cos,sin1: "+str([np.cos(theta1),np.sin(theta1)]))
+#        print("adt_mat:  "+str(self.traj[0].pes_data.adt_mat[:,self.traj[0].state]))
+#        print("dat_mat1:  "+str(self.traj[0].pes_data.dat_mat[:,self.traj[0].state]))
+#        print("cos,sin2: "+str([np.cos(theta2),np.sin(theta2)]))
+#        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
+#        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
+        
+
         for i in range(self.n_traj()):
+
             if not self.traj[i].active:
                 continue
 
@@ -530,11 +545,13 @@ class Bundle:
 
         # now dump bundle information ####################################
 
+#        print("T="+str(self.T))
+#        print("V="+str(self.V))
+
         # state populations
         data = [self.time]
-        st_pop = self.pop().tolist()
         data.extend(self.pop().tolist())
-        data.append(sum(st_pop))
+        data.append(self.norm())
         fileio.print_bund_row(0, data)
 
         # bundle energy
@@ -549,6 +566,8 @@ class Bundle:
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp) 
             fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
+ #           fileio.print_bund_mat(self.time, 't.dat', self.T)
+ #           fileio.print_bund_mat(self.time, 'v.dat', self.V)
             fileio.print_bund_mat(self.time, 'heff.dat', self.Heff)
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
 

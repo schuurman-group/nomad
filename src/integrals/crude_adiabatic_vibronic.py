@@ -21,20 +21,29 @@ basis = 'gaussian'
 def elec_overlap(traj1, traj2):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
 
-    dia1      = traj1.pes_data.diabat_pot
-    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
-    theta1    = 0.5 * np.arctan(argt1)
-    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
+#    dia1      = traj1.pes_data.diabat_pot
+#    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
+#    theta1    = 0.5 * np.arctan(argt1)
+#    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
 
-    dia2      = traj2.pes_data.diabat_pot
-    argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
-    theta2    = 0.5 * np.arctan(argt2)
-    st2      = np.array([[np.cos(theta2),np.sin(theta2)],[-np.sin(theta2),np.cos(theta2)]])
+#    dia2      = traj2.pes_data.diabat_pot
+#    argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
+#    theta2    = 0.5 * np.arctan(argt2)
+#    st2      = np.array([[np.cos(theta2),np.sin(theta2)],[-np.sin(theta2),np.cos(theta2)]])
 
     # determine overlap of adiabatic wave functions in diabatic basis
 #    return complex( np.dot(traj1.pes_data.dat_mat[:,traj1.state],
 #                           traj2.pes_data.dat_mat[:,traj2.state]), 0.)
-    return complex( np.dot(st1[traj1.state,:],st2[traj2.state,:]), 0.)
+#    if traj1.tid != traj2.tid:
+#        print('tid1, tid2='+str(traj1.tid)+' '+str(traj2.tid))
+#        print('arg1,arg2='+str(argt1)+' '+str(argt2))
+#        print('v12_1, v12_2='+str(dia1[0,1])+' '+str(dia2[0,1]))
+#        print('de_1, de_2='+str(dia1[1,1]-dia1[0,0])+' '+str(dia2[1,1]-dia2[0,0]))
+#        print('theta1, theta2='+str(theta1)+' '+str(theta2))
+#        print('electronic ovrlp='+str(np.dot(st1[traj1.state,:],st2[traj2.state,:])))
+#    return complex( np.dot(st1[traj1.state,:],st2[traj2.state,:]), 0.)
+    return complex( np.dot(traj1.pes_data.dat_mat[:,traj1.state],
+                           traj2.pes_data.dat_mat[:,traj2.state]), 0.)
 
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
@@ -91,44 +100,35 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
 
     # get the linear combinations corresponding to the adiabatic states
     nst = traj1.nstates
-#    st1 = traj1.pes_data.dat_mat[:,traj1.state]
-#    st2 = traj2.pes_data.dat_mat[:,traj2.state]
-
-    dia1      = traj1.pes_data.diabat_pot
-    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
-    theta1    = 0.5 * np.arctan(argt1)
-    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
-
-    dia2      = traj2.pes_data.diabat_pot
-    argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
-    theta2    = 0.5 * np.arctan(argt2)
-    st2      = np.array([[np.cos(theta2),np.sin(theta2)],[-np.sin(theta2),np.cos(theta2)]])
+    st1 = traj1.pes_data.dat_mat[:,traj1.state]
+    st2 = traj2.pes_data.dat_mat[:,traj2.state]
 
     # roll through terms in the hamiltonian
-    v_total = complex(0.,0.)
+    h_nuc = np.zeros((nst,nst),dtype=complex)
     for i in range(ham.nterms):
         s1    = ham.stalbl[i,0] - 1
         s2    = ham.stalbl[i,1] - 1
       
         # adiabatic states in diabatic basis -- cross terms between orthogonal
         # diabatic states are zero
-        if s1 == s2:
-            cf    = ham.coe[i]
-            v_term = complex(1.,0.)
-            for q in range(ham.nmode_active):
-                if ham.order[i,q] > 0:
-                    v_term *=  prim_v_integral(ham.order[i,q],
-                               traj1.widths()[q],traj1.x()[q],traj1.p()[q],
-                               traj2.widths()[q],traj2.x()[q],traj2.p()[q])            
-        
-            # now determine electronic factor
-            v_term *= (cf * st1[traj1.state,s1] * st2[traj2.state,s2])   
+        v_term = complex(1.,0.) * ham.coe[i]
+        for q in range(ham.nmode_active):
+            if ham.order[i,q] > 0:
+                v_term *=  prim_v_integral(ham.order[i,q],
+                           traj1.widths()[q],traj1.x()[q],traj1.p()[q],
+                           traj2.widths()[q],traj2.x()[q],traj2.p()[q])            
+      
+        h_nuc[s1,s2] += (v_term * Snuc)
+      
+    # Fill in the upper-triangle
+    for s1 in range(nst-1):
+        for s2 in range(s1+1, nst):
+            h_nuc[s1,s2] = complex(0.,0.)
+            h_nuc[s2,s1] = h_nuc[s1,s2]
 
-            # add this term to the total integral
-            v_total += v_term
-
+#    print("v integral: "+str(h_nuc))
     # return potential matrix element
-    return v_total * Snuc
+    return np.dot(np.dot(st1,h_nuc),st2)
 
 # kinetic energy integral
 def ke_integral(traj1, traj2, centroid=None, Snuc=None):
@@ -166,30 +166,37 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None):
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
-    sdot = ( -np.dot(traj2.velocity(), deldx) + np.dot(traj2.force(), deldp)
+    sdot = ( -np.dot(traj2.velocity(), deldx) + np.dot(traj2.force(), deldp) 
             + 1j * traj2.phase_dot() * Snuc) * Selec
 
     # the derivative coupling
-    deriv_coup = traj2.pes_data.grads[traj1.state,:]
+#    dia      = traj2.pes_data.diabat_pot
+#    diaderiv = traj2.pes_data.diabat_deriv
+#    v12      = dia[0,1]
+#    de       = dia[1,1] - dia[0,0]
+#    argt     = 2. * v12 / de
+#    t1       = 0.5 * np.arctan2(2.*v12, de)
 
-    dia      = traj2.pes_data.diabat_pot
-    diaderiv = traj2.pes_data.diabat_deriv
-    v12      = dia[0,1]
-    de       = dia[1,1] - dia[0,0]
-    argt     = 2. * v12 / de
-    theta    = 0.5 * np.arctan(argt)
-    dtheta = np.array([(diaderiv[q,0,1]/de - v12*(diaderiv[q,1,1]- diaderiv[q,0,0])/de**2)/(1+argt**2) for q in range(traj2.dim)])
+    # ensure theta agrees with dat matrix
+#    pi_mult  = [-2.,1.,0.,1.,2.]
+#    dif_vec  = np.array([np.linalg.norm(traj2.pes_data.dat_mat - 
+#                                 np.array([[np.cos(t1+i*np.pi),-np.sin(t1+i*np.pi)],
+#                                           [np.sin(t1+i*np.pi),np.cos(t1+i*np.pi)]])) 
+#                                           for i in pi_mult])
 
-    dia1      = traj1.pes_data.diabat_pot
-    argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
-    theta1    = 0.5 * np.arctan(argt1)
-    st1      = np.array([[np.cos(theta1),np.sin(theta1)],[-np.sin(theta1),np.cos(theta1)]])
+#    theta = t1 + pi_mult[np.argmin(dif_vec)]*np.pi
+#    dtheta = np.array([(diaderiv[q,0,1]/de - 
+#                        v12*(diaderiv[q,1,1]- diaderiv[q,0,0])/de**2)/(1+argt**2) 
+#                        for q in range(traj2.dim)])
+    
 
-    dphi  = np.array([[-np.sin(theta),np.cos(theta)],[-np.cos(theta),-np.sin(theta)]])
-    deriv_coup2 = np.array([np.dot(st1[traj1.state,:],dphi[traj2.state,:]*dtheta[q]) for q in range(traj2.dim)])
+#    dphi  = np.array([[-np.sin(theta),-np.cos(theta)],
+#                      [ np.cos(theta),-np.sin(theta)]])
+#    deriv_coup = np.array([np.dot(traj1.pes_data.dat_mat[:,traj1.state],
+#                                  dphi[:,traj2.state]*dtheta[q]) for q in range(traj2.dim)])
 
     # time-derivative of the electronic component
-    sdot += np.dot(deriv_coup2, traj2.velocity()) * Snuc
+#    sdot += np.dot(deriv_coup, traj2.velocity()) * Snuc
 
     return sdot
  

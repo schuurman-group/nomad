@@ -70,6 +70,10 @@ class surface_data:
 
 # 
 def copy_data(orig_info):
+
+    if orig_info is None:
+        return None
+
     new_info = surface_data(orig_info.n_states,
                             orig_info.t_dim,
                             orig_info.crd_dim)
@@ -177,17 +181,18 @@ def evalutate_trajectory(tid, geom, state):
     return surf_info
 
 
-def evalutate_centroid(tid, geom, state_i, state_j):
+def evalutate_centroid(tid, geom, states):
     """Evaluates  all requested electronic structure information at a
     centroid."""
     if tid >= 0:
         print('evaluate_centroid called with ' +
               'id associated with trajectory, tid=' + str(tid))
     # run_centroid returns None...
+    state_i = states[0]
+    state_j = states[1]
     surf_info = run_centroid(tid, geom, state_i, state_j)
 
     return surf_info
-
 
 def evaluate_worker(args, global_vars):
     """Evaluates worker on a slave mode."""

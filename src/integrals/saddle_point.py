@@ -64,14 +64,14 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         v = centroid.energy(t1.state) * Snuc
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += centroid.scalar_coup(t1.state) * Snuc
+            v += centroid.scalar_coup() * Snuc
         return v
 
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     elif t1.state != t2.state:
         # Derivative coupling
-        fij = centroid.derivative(t1.state)
+        fij = centroid.derivative()
         v = np.vdot(fij, 2.* interface.kecoeff *
                     nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                        t2.phase(),t2.widths(),t2.x(),t2.p()))

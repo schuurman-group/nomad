@@ -28,6 +28,7 @@ diablap = None
 sctmat = None
 dbocderiv1 = None
 nsta = 0
+data_cache = dict()
 
 class surface_data:
     def __init__(self, n_states, t_dim, crd_dim):
@@ -55,6 +56,10 @@ class surface_data:
 
 # 
 def copy_data(orig_info):
+
+    if orig_info is None:
+        return None
+
     new_info = surface_data(orig_info.n_states,
                             orig_info.t_dim,
                             orig_info.crd_dim)
@@ -132,6 +137,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     """Evaluates the trajectory."""
     global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
     global diablap, sctmat, dbocderiv1, nsta
+    global data_cache
 
     # System dimensions
     ncoo   = len(geom)
@@ -157,7 +163,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     calc_diabpot(qcoo)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt()
+    calc_adt(tid)
 
     # Calculation of the nuclear derivatives of the diabatic potential
     calc_diabderiv1(qcoo)
@@ -196,13 +202,13 @@ def evaluate_trajectory(tid, geom, stateindx):
 
 #    print("adt="+str(adtmat))
 #    print("dat="+str(np.linalg.inv(adtmat)))
-    de    = diabpot[1,1]-diabpot[0,0]
-    v12   = diabpot[0,1]
-    argt  = 2.*v12/de
-    theta = 0.5*np.arctan(argt)
+#    de    = diabpot[1,1]-diabpot[0,0]
+#    v12   = diabpot[0,1]
+#    argt  = 2.*v12/de
+#    theta = 0.5*np.arctan(argt)
 #    print("dat2="+str([[np.cos(theta),np.sin(theta)],[-np.sin(theta),np.cos(theta)]]))
-    dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
-    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
+#    dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
+#    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
 #    print("ddat2="+str(ddat2)) 
 
     t_data.geom          = qcoo
@@ -211,7 +217,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     t_data.scalar_coup   = sct_return
     t_data.adt_mat       = adtmat
     t_data.dat_mat       = np.linalg.inv(adtmat)
-    t_data.ddat_mat      = ddat2
+#    t_data.ddat_mat      = ddat2
     t_data.diabat_pot    = diabpot
     t_data.diabat_deriv  = diabderiv1
     t_data.adiabat_pot   = adiabpot
@@ -220,9 +226,11 @@ def evaluate_trajectory(tid, geom, stateindx):
                            'scalar_coup','adt_mat','dat_mat','ddat_mat',
                            'diabat_pot','diabat_deriv',
                            'adiabat_pot','adiabat_deriv']
+
+    data_cache[tid] = t_data    
     return t_data
 
-def evaluate_centroid(tid, geom, stateindx, stateindx2):
+def evaluate_centroid(tid, geom, stateindices):
     """Evaluates the centroid.
 
     Note that because energies, gradients and couplings are so cheap
@@ -231,8 +239,11 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     """
     global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
     global diablap, sctmat, dbocderiv1, nsta
+    global data_cache
 
     # System dimensions
+    stateindx  = stateindices[0]
+    stateindx2 = stateindices[1]
     ncoo = len(geom) 
     nsta = glbl.fms['n_states']
     t_data = surface_data(nsta,ncoo,1)
@@ -266,7 +277,7 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     calc_diabpot(qcoo)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt()
+    calc_adt(tid)
 
     # Calculation of the nuclear derivatives of the diabatic potential
     calc_diabderiv1(qcoo)
@@ -315,10 +326,11 @@ def evaluate_centroid(tid, geom, stateindx, stateindx2):
     t_data.diabat_deriv = diabderiv1
     t_data.adiabat_pot   = adiabpot
     t_data.adiabat_deriv = adiabderiv1
-    t_data.data_keys    = ['geom','poten','deriv',
+    t_data.data_keys     = ['geom','poten','deriv',
                            'scalar_coup','adt_mat','dat_mat',
                            'diabat_pot','diabat_deriv',
                            'adiabat_pot','adiabat_deriv']
+    data_cache[tid] = t_data
     return t_data
 
 #--------------------------------------------------------------------
@@ -352,20 +364,25 @@ def calc_diabpot(q):
             diabpot[s2,s1] = diabpot[s1,s2]
 
 
-def calc_adt():
+def calc_adt(tid):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
-    global adiabpot, adtmat
+    global adiabpot, adtmat, data_cache
 
     adiabpot, adtmat = np.linalg.eigh(diabpot)
     
-    # set phase convention that largest element in adt column vector is 
+    # ensure phase continuity from geometry to another
+    if tid in data_cache:
+        for i in range(nsta):
+            adtmat[:,i] *= np.sign(np.dot(adtmat[:,i],
+                                          data_cache[tid].adt_mat[:,i]))
+    # else, set  phase convention that largest element in adt column vector is 
     # positive
-    # array index of maximum values for each column
-    mxvals = np.argmax(np.abs(adtmat),axis=0)
-    for i in range(len(mxvals)):
-        if adtmat[mxvals[i],i] < 0:
-            adtmat[:,i] *= -1.
+    else:
+        mxvals = np.argmax(np.abs(adtmat),axis=0)
+        for i in range(len(mxvals)):
+            if adtmat[mxvals[i],i] < 0:
+                adtmat[:,i] *= -1.
 
 def calc_diabderiv1(q):
     """Calculates the 1st derivatives of the elements of the diabatic

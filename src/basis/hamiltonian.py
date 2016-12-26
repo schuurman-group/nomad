@@ -20,16 +20,6 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.utils.linalg as fms_linalg
 
-def c_ind(i, j):
-    """Returns the index in the cent array of the centroid between
-    trajectories i and j."""
-    if i == j:
-        return -1
-    else:
-        a = max(i, j)
-        b = min(i, j)
-        return int(a*(a-1)/2 + b)
-
 def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the
     sequential matrix index 'index'"""
@@ -94,7 +84,7 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         # potential energy matrix
         if ints.require_centroids:
             V[i,j] = ints.v_integral(traj_list[ii], traj_list[jj], 
-                            centroid=cent_list[c_ind(ii,jj)], Snuc=Snuc)
+                            centroid=cent_list[ii][jj], Snuc=Snuc)
         else:
             V[i,j] = ints.v_integral(traj_list[ii], 
                                      traj_list[jj], Snuc=Snuc)
