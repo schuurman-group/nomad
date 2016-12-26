@@ -52,38 +52,36 @@ mrci_lvl     = 0
 # amount of memory per process, in MB
 mem_str      = ''
 
-class surface_data:
+class Surface:
+    """Object containing potential energy surface data."""
     def __init__(self, n_states, t_dim, crd_dim):
-
         # necessary for array allocation
-        self.n_states     = n_states
-        self.t_dim        = t_dim
-        self.crd_dim      = crd_dim
+        self.n_states = n_states
+        self.t_dim    = t_dim
+        self.crd_dim  = crd_dim
 
         # these are the standard quantities ALL interface_data objects return
-        self.data_keys    = []
-        self.geom         = np.zeros(t_dim)
-        self.energies     = np.zeros(n_states)
-        self.grads        = np.zeros((n_states, t_dim))
+        self.data_keys = []
+        self.geom      = np.zeros(t_dim)
+        self.energies  = np.zeros(n_states)
+        self.grads     = np.zeros((n_states, t_dim))
 
         # these are interface-specific quantities
 
-# 
+
 def copy_data(orig_info):
-
-    if orig_info is None:
-        return None
-
-    new_info = surface_data(orig_info.n_states,
+    """Creates a copy of a Surface object."""
+    new_info = Surface(orig_info.n_states,
                             orig_info.t_dim,
                             orig_info.crd_dim)
 
-    new_info.data_keys    = copy.copy(orig_info.data_keys)
-    new_info.geom         = copy.deepcopy(orig_info.geom)
-    new_info.energies     = copy.deepcopy(orig_info.energies)
-    new_info.grads        = copy.deepcopy(orig_info.grads)
+    new_info.data_keys = copy.copy(orig_info.data_keys)
+    new_info.geom      = copy.deepcopy(orig_info.geom)
+    new_info.energies  = copy.deepcopy(orig_info.energies)
+    new_info.grads     = copy.deepcopy(orig_info.grads)
 
     return new_info
+
 
 #----------------------------------------------------------------
 #
@@ -93,7 +91,7 @@ def copy_data(orig_info):
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path
-    global a_sym, a_num, a_mass, n_atoms, n_cart, 
+    global a_sym, a_num, a_mass, n_atoms, n_cart
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     global kecoeff

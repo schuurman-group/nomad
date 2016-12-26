@@ -300,12 +300,12 @@ class Trajectory:
         # F.p/m
         coup = np.dot( self.velocity(), self.derivative(c_state) )
         # G
-        if glbl.fms['coupling_order'] > 1 and \
-           'scalar_coup' in self.pes_data.data_keys:
-            coup += self.pes_data.scalar_coup(c_state)
+        if (glbl.fms['coupling_order'] > 1 and
+            'scalar_coup' in self.pes_data.data_keys):
+            coup += self.pes_data.scalar_coup[c_state]
 
-#        if glbl.fms['coupling_order'] > 1:
-#            coup += self.scalar_coup(c_state)
+        #if glbl.fms['coupling_order'] > 1:
+        #    coup += self.scalar_coup(c_state)
         return coup
 
     #--------------------------------------------------------------------------
