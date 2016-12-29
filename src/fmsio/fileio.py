@@ -410,7 +410,7 @@ def read_geometry():
             ind = line.index('amplitude')
             amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
         else:
-            amp_data.append(complex(1.,0.))
+            amp_data.append(1 + 0j)
 
         print("amp_data=",amp_data)
 

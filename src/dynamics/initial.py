@@ -120,6 +120,6 @@ def virtual_basis(master):
                 continue
 
             new_traj = trajectory.copy_traj(master.traj[i])
-            new_traj.amplitude = complex(0.,0.)
+            new_traj.amplitude = 0j
             new_traj.state = j
             master.add_trajectory(new_traj)

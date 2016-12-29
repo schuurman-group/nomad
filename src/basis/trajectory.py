@@ -39,14 +39,14 @@ def copy_traj(orig_traj):
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
-    def __init__(self, 
-                 nstates, 
+    def __init__(self,
+                 nstates,
                  dim,
-                 width=None, 
-                 mass=None, 
+                 width=None,
+                 mass=None,
                  crd_dim=3,
-                 tid=0, 
-                 parent=0, 
+                 tid=0,
+                 parent=0,
                  n_basis=0):
 
         # total number of states
@@ -63,7 +63,7 @@ class Trajectory:
             self.mass = np.zeros(dim)
         else:
             self.mass = np.asarray(mass)
-        # dimension of the coordinate system 
+        # dimension of the coordinate system
         #(i.e. ==3 for Cartesian, ==3N-6 for internals)
         self.crd_dim = crd_dim
         # unique identifier for trajectory
@@ -76,7 +76,7 @@ class Trajectory:
 
         # current position of the trajectory
         self.pos        = np.zeros(self.dim)
-        # current momentum of the trajecotry
+        # current momentum of the trajectory
         self.mom        = np.zeros(self.dim)
         # state trajectory exists on
         self.state      = 0
@@ -87,7 +87,7 @@ class Trajectory:
         # whether the trajectory is active (i.e. is being propagated)
         self.active     = True
         # amplitude of trajectory
-        self.amplitude  = complex(0.,0.)
+        self.amplitude  = 0j
         # phase of the trajectory
         self.gamma      = 0.
         # time from which the death watch begini as
@@ -111,7 +111,7 @@ class Trajectory:
                                glbl.fms['interface'], fromlist = ['a'])
 
         # data structure to hold the data from the interface
-        self.pes_data  = None 
+        self.pes_data  = None
 
     #-------------------------------------------------------------------
     #
@@ -156,7 +156,7 @@ class Trajectory:
         self.poten      = self.pes_data.energies
         if 'deriv' in self.pes_data.data_keys:
             self.deriv  = self.pes_data.grads
-        
+
     #-----------------------------------------------------------------------
     #
     # Functions for retrieving basic pes information from trajectory
@@ -264,7 +264,7 @@ class Trajectory:
         return self.potential() + self.kinetic()
 
     def velocity(self):
-        """Returns the velocity of the trajectory."""        
+        """Returns the velocity of the trajectory."""
         return self.p() * 2.0 * self.interface.kecoeff
 
     def force(self):
@@ -306,7 +306,7 @@ class Trajectory:
         return coup
 
     def scalar_coup(self, c_state):
-        """Returns the scalar coupling for Hamiltonian 
+        """Returns the scalar coupling for Hamiltonian
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes_data.data_keys:
             return 0.

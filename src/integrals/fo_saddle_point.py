@@ -33,7 +33,7 @@ def s_integral(traj1, traj2, nuc_only=True Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state and not nuc_only:
-        return complex(0.,0.) 
+        return 0j 
     else:
         if Snuc is None:
             return nuc_ints.overlap(traj1,traj2)
@@ -78,13 +78,13 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
 
     else:
         print('ERROR in v_integral -- argument disagreement')
-        return complex(0.,0.)
+        return 0j
 
 
 def ke_integral(traj1, traj2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     if traj1.state != traj2.state:
-        return complex(0.,0.)
+        return 0j
 
     else:
         if Snuc is None:
@@ -96,7 +96,7 @@ def ke_integral(traj1, traj2, Snuc=None):
 def sdot_integral(traj1, traj2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if traj1.state != traj2.state:
-        return complex(0.,0.)
+        return 0j
    
     else:
         if Snuc is None:

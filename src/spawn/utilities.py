@@ -147,7 +147,7 @@ def overlap_with_bundle(traj, bundle):
         if bundle.traj[i].alive:
 
             if traj.state != bundle.traj[i].state:
-                sij = complex(0.,0.)
+                sij = 0j
             else:
                 sij = integrals.traj_overlap(traj, bundle.traj[i])
             if abs(sij) > glbl.fms['sij_thresh']:
