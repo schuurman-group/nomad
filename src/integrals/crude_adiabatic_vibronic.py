@@ -82,7 +82,7 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2, gauss_overlap=None):
     # generally these should be 1D harmonic oscillators. If
     # multi-dimensional, the final result is a direct product of
     # each dimension
-    v_int = complex(0.,0.)
+    v_int = 0j
     for i in range(n_2):
         v_int += (a**(i-N) * b**(N-2*i) /
                  (np.math.factorial(i) * np.math.factorial(N-2*i)))
@@ -123,7 +123,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     # Fill in the upper-triangle
     for s1 in range(nst-1):
         for s2 in range(s1+1, nst):
-            h_nuc[s1,s2] = complex(0.,0.)
+            h_nuc[s1,s2] = 0j
             h_nuc[s2,s1] = h_nuc[s1,s2]
 
 #    print("v integral: "+str(h_nuc))

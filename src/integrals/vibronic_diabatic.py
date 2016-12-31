@@ -26,7 +26,7 @@ def s_integral(traj1, traj2):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state and not nuc_only:
-        return complex(0.,0.)
+        return 0j
     else:
         if Snuc is None:
             return nuclear.overlap(traj1, traj2)
@@ -55,9 +55,9 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
     # generally these should be 1D harmonic oscillators. If
     # multi-dimensional, the final result is a direct product of
     # each dimension
-    v_total  = complex(1.,0.)
+    v_total  = 1 + 0j
     for d in range(1):
-        v = complex(0.,0.)
+        v = 0j
         for i in range(n_2):
             v += (v + a**(i-N) * b**(N-2*i) /
                  (np.math.factorial(i) * np.math.factorial(N-2*i)))
@@ -70,7 +70,7 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
 def ke_integral(traj1, traj2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     if traj1.state != traj2.state:
-        return complex(0.,0.)
+        return 0j
     else:
         if Snuc is None:
             Snuc = nuclear.overlap(traj1, traj2)
@@ -80,7 +80,7 @@ def ke_integral(traj1, traj2, Snuc=None):
 def sdot_integral(traj1, traj2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if traj1.state != traj2.state:
-        return complex(0.,0.)
+        return 0j
     else:
         if Snuc is None:
             Snuc = nuclear.overlap(traj1, traj2)

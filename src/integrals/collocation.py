@@ -27,7 +27,7 @@ basis = 'dirac_delta'
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     if traj1.state != traj2.state and not nuc_only:
-        return complex(0.,0)
+        return 0j
     else:
         return nuc_gauss.overlap(traj1.phase(),
                                  traj1.widths(),
@@ -44,7 +44,7 @@ def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
     """ Returns < chi | Psi' >, the overlap integral under the pseudospectral
     projection."""
     if traj1.state != traj2.state and not nuc_only:
-        return complex(0.,0.) 
+        return 0j 
     else:
         if Snuc is None:
             return nuc_dirac.overlap(traj1.x(),
@@ -85,13 +85,13 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         return v * Snuc
     else:
         print('ERROR in v_integral -- argument disagreement')
-        return complex(0.,0.) 
+        return 0j 
 
 # evaluate the kinetic energy integral
 def ke_integral(traj1, traj2, Snuc=None):
     """ Returns < delta(R-R1) | T | g2 > """
     if traj1.state != traj2.state:
-        return complex(0.,0.)
+        return 0j
     else:
         if Snuc is None:
             Snuc = nuc_dirac.overlap(traj1.x(),
@@ -117,7 +117,7 @@ def sdot_integral(traj1, traj2, Snuc=None):
     of traj1 and traj2. This isn't ideal, but will do for now.
     """
     if traj1.state != traj2.state:
-        return complex(0.,0.) 
+        return 0j 
     else:
         if Snuc is None:
             Snuc = nuc_dirac.overlap(traj1.x(),

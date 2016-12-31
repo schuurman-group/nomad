@@ -1,5 +1,5 @@
 """
-The Trajectory object and its associated functions.
+The Centroid object and its associated functions.
 """
 import sys
 import copy
@@ -9,9 +9,9 @@ import src.fmsio.glbl as glbl
 
 @timings.timed
 def copy_cent(orig_cent):
-    """Copys a Trajectory object with new references."""
+    """Copys a Centroid object with new references."""
 
-    # should do more rigorous checking that "orig_cent" is actually 
+    # should do more rigorous checking that "orig_cent" is actually
     # a centroid object
     if orig_cent is None:
         return None
@@ -31,14 +31,14 @@ def copy_cent(orig_cent):
     return new_cent
 
 class Centroid:
-    """Class constructor for the Trajectory object."""
-    def __init__(self, 
+    """Class constructor for the Centroid object."""
+    def __init__(self,
                  traj_i=None,
                  traj_j=None,
                  nstates=0,
-                 pstates=[-1,-1], 
+                 pstates=[-1,-1],
                  dim=0,
-                 width=None, 
+                 width=None,
                  crd_dim=3,
                  cid=-1):
 
@@ -54,15 +54,15 @@ class Centroid:
                 self.width = np.zeros(dim)
             else:
                 self.width = np.asarray(width)
-            # dimension of the coordinate system 
+            # dimension of the coordinate system
             #(i.e. ==3 for Cartesian, == 3N-6 for internals)
             self.crd_dim = crd_dim
-            # unique identifier for trajectory
-            self.cid        = cid
-            # current position of the trajectory
-            self.pos        = np.zeros(self.dim)
-            # current momentum of the trajecotry
-            self.mom        = np.zeros(self.dim)
+            # unique identifier for centroid
+            self.cid     = cid
+            # current position of the centroid
+            self.pos     = np.zeros(self.dim)
+            # current momentum of the centroid
+            self.mom     = np.zeros(self.dim)
 
         else:
             idi          = max(traj_i.tid, traj_j.tid)
@@ -71,7 +71,7 @@ class Centroid:
             self.pstates = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
             self.crd_dim = max(traj_i.crd_dim, traj_j.crd_dim)
-            self.cid     = -((idi * (idi - 1) / 2) + idj + 1)
+            self.cid     = -((idi * (idi - 1) // 2) + idj + 1)
             # now update the position in phase space of the centroid
             # if wid_i == wid_j, this is clearly just the simply mean
             # position.
@@ -93,7 +93,7 @@ class Centroid:
                                glbl.fms['interface'], fromlist = ['a'])
 
         # data structure to hold the data from the interface
-        self.pes_data  = None 
+        self.pes_data  = None
 
     #----------------------------------------------------------------------
     #
@@ -125,13 +125,11 @@ class Centroid:
     #
     #----------------------------------------------------------------------
     def update_x(self, pos):
-        """Updates the position of the trajectory.
-        """
+        """Updates the position of the centroid."""
         self.pos = np.array(pos)
 
     def update_p(self, mom):
-        """Updates the momentum of the trajectory.
-        """
+        """Updates the momentum of the centroid."""
         self.mom = np.array(mom)
 
     def update_pes(self, pes_info):
@@ -144,15 +142,15 @@ class Centroid:
         
     #-----------------------------------------------------------------------
     #
-    # Functions for retrieving basic pes information from trajectory
+    # Functions for retrieving basic pes information from centroid
     #
     #-----------------------------------------------------------------------
     def x(self):
-        """Returns the position of the trajectory as an array."""
+        """Returns the position of the centroid as an array."""
         return self.pos
 
     def p(self):
-        """Returns the momentum of the trajectory as an array."""
+        """Returns the momentum of the centroid as an array."""
         return self.mom
 
     def widths(self):
@@ -171,12 +169,12 @@ class Centroid:
         Add the energy shift right here. If not current, recompute them.
         """
         if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-            print('WARNING: trajectory.energy() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+            print('WARNING: centroid.energy() called, ' +
+                  'but pes_geom != centroid.x(). ID=' + str(self.cid))
         return self.poten[state] + glbl.fms['pot_shift']
 
     def derivative(self):
-        """Returns either a gradient or derivative coupling depending 
+        """Returns either a gradient or derivative coupling depending
            on the states in pstates.
         """
         if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
@@ -186,27 +184,27 @@ class Centroid:
 
     #------------------------------------------------------------------------
     #
-    # Computed quantities from the 
+    # Computed quantities from the
     #
     #------------------------------------------------------------------------
     def potential(self):
-        """Returns classical potential energy of the trajectory."""
+        """Returns classical potential energy of the centroid."""
         return 0.5 * (self.energy(self.pstate[0]) + self.energy(self.pstate[1]))
 
     def kinetic(self):
-        """Returns classical kinetic energy of the trajectory."""
+        """Returns classical kinetic energy of the centroid."""
         return sum( self.p() * self.p() * self.interface.kecoeff)
 
     def classical(self):
-        """Returns the classical energy of the trajectory."""
+        """Returns the classical energy of the centroid."""
         return self.potential() + self.kinetic()
 
     def velocity(self):
-        """Returns the velocity of the trajectory."""        
+        """Returns the velocity of the centroid."""
         return self.p() * 2.0 * self.interface.kecoeff
 
     def force(self):
-        """Returns the gradient of the trajectory state."""
+        """Returns the gradient of the centroid state."""
         if self.pstates[0] != self.pstates[1]:
             return np.zeros(self.dim)
         return -self.derivative()
@@ -243,7 +241,7 @@ class Centroid:
         return 0.
     #--------------------------------------------------------------------------
     #
-    # routines to write/read trajectory from a file stream
+    # routines to write/read centroid from a file stream
     #
     #--------------------------------------------------------------------------
     def write_centroid(self, chkpt):
@@ -269,9 +267,9 @@ class Centroid:
         chkpt.write('\n')
 
     def read_centroid(self,chkpt):
-        """Reads the trajectory information from a file.
+        """Reads the centroid information from a file.
 
-        This assumes the trajectory invoking this function has been
+        This assumes the centroid invoking this function has been
         initially correctly and can hold all the information.
         """
         self.nstates   = int(chkpt.readline().split()[0])

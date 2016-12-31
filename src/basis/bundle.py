@@ -10,7 +10,7 @@ from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
 from src.basis import trajectory as trajectory
 from src.basis import centroid as centroid
-from src.basis import hamiltonian as fms_ham 
+from src.basis import hamiltonian as fms_ham
 
 @timings.timed
 def copy_bundle(orig_bundle):
@@ -20,7 +20,7 @@ def copy_bundle(orig_bundle):
     of a bundle with new references. Overriding deepcopy for
     significantly more work.
     """
-    new_bundle = Bundle(orig_bundle.nstates, 
+    new_bundle = Bundle(orig_bundle.nstates,
                         orig_bundle.integral_type)
     new_bundle.time   = copy.copy(orig_bundle.time)
     new_bundle.nalive = copy.copy(orig_bundle.nalive)
@@ -170,14 +170,14 @@ class Bundle:
         if H is None:
             Hmat = self.Heff
         else:
-            Hmat = H 
+            Hmat = H
 
         # if no vector of amplitdues are supplied (to propagate),
         # propogate the current amplitudes
         if Ct is None:
             old_amp = self.amplitudes()
         else:
-            old_amp = Ct 
+            old_amp = Ct
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
@@ -248,7 +248,7 @@ class Bundle:
         i = self.alive.index(tid)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.traj_ovrlp[i,j] * 
+            mulliken += abs(self.traj_ovrlp[i,j] *
                             self.traj[tid].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -263,7 +263,7 @@ class Bundle:
     def pop(self):
         """Returns the populations on each of the states."""
         pop    = np.zeros(self.nstates)
-        nalive = len(self.alive) 
+        nalive = len(self.alive)
 
         # live contribution
         for i in range(nalive):
@@ -271,7 +271,7 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
-                popij = (self.traj_ovrlp[i,j]  * 
+                popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij.real
@@ -351,9 +351,9 @@ class Bundle:
     def overlap_traj(self, traj):
         """Returns the overlap of the bundle with a trajectory (assumes the
         amplitude on the trial trajectory is (1.,0.)"""
-        ovrlp = complex(0., 0.)
+        ovrlp = 0j
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) * 
+            ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) *
                                              self.traj[i].amplitude)
         return ovrlp
 
@@ -366,23 +366,24 @@ class Bundle:
     def update_centroids(self):
         """Updates the centroids."""
 
-        # make sure centroid array has sufficient space to hold required 
+        # make sure centroid array has sufficient space to hold required
         # centroids. Note that n_traj includes alive AND dead trajectories --
         # therefore it can only increase. So, only need to check n_traj > dim_cent
-        # condition 
+        # condition
         dim_cent = len(self.cent)
 
         if self.n_traj() < dim_cent:
-            sys.exit('n_traj() < dim_cent in bundle. Exiting...')            
+            raise ValueError('n_traj() < dim_cent in bundle. Exiting...')
 
         if self.n_traj() > dim_cent:
             for i in range(dim_cent):
-                self.cent[i].extend([None for j in range(self.n_traj()-dim_cent)])
+                self.cent[i].extend([None for j in range(self.n_traj() -
+                                                         dim_cent)])
 
-            for i in range(self.n_traj() - dim_cent):        
+            for i in range(self.n_traj() - dim_cent):
                 self.cent.append([])
                 self.cent[-1].extend([None for j in range(self.n_traj())])
-                
+
         for i in range(self.n_traj()):
             if not self.traj[i].alive:
                 continue
@@ -405,14 +406,12 @@ class Bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
         if self.integrals.require_centroids:
-            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      fms_ham.hamiltonian(self.traj, 
-                                                          self.alive, 
-                                                          cent_list=self.cent)
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
+             self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
+                                              cent_list=self.cent)
         else:
-            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot, self.Heff ) = \
-                                      fms_ham.hamiltonian(self.traj, 
-                                                          self.alive)
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
+             self.Heff) = fms_ham.hamiltonian(self.traj, self.alive)
 
     #------------------------------------------------------------------------
     #
@@ -438,7 +437,7 @@ class Bundle:
 #        print("cos,sin2: "+str([np.cos(theta2),np.sin(theta2)]))
 #        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
-        
+
 
         for i in range(self.n_traj()):
 
@@ -474,14 +473,14 @@ class Bundle:
             # print pes information relevant to the chosen interface
             if glbl.fms['print_es']:
 
-                # print the interface-specific data 
+                # print the interface-specific data
                 for key in self.traj[i].pes_data.data_keys:
 
                     # skip the stuff that is NOT interface speicifc
                     if key in ['geom','poten','deriv']:
                         continue
 
-                    # 
+                    #
 
                 # permanent dipoles
 #                data = [self.time]
@@ -533,7 +532,7 @@ class Bundle:
         # bundle matrices
         if glbl.fms['print_matrices']:
             if self.integrals.basis != 'gaussian':
-                fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp) 
+                fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp)
             fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
             fileio.print_bund_mat(self.time, 't.dat', self.T)
@@ -574,10 +573,10 @@ class Bundle:
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
             chkpt.write('coordinate widths --\n')
-            chkpt.write(str(np.array2string(self.traj[0].widths(), 
+            chkpt.write(str(np.array2string(self.traj[0].widths(),
                         formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
             chkpt.write('coordinate masses --\n')
-            chkpt.write(str(np.array2string(self.traj[0].masses(), 
+            chkpt.write(str(np.array2string(self.traj[0].masses(),
                         formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
 
             # first write out the live trajectories. The function

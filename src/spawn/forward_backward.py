@@ -75,7 +75,7 @@ def spawn(master, dt):
                                 current_time):
                 parent = trajectory.copy_traj(master.traj[i])
                 child  = trajectory.copy_traj(parent)
-                child.amplitude = complex(0.,0.)
+                child.amplitude = 0j
                 child.state     = st
                 child.parent    = parent.tid
                 # the child and parent share an id before the child is added
