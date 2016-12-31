@@ -299,11 +299,11 @@ class Bundle:
         """Returns the QM (coupled) potential energy of the bundle.
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
-#        return np.dot(np.dot(
-#               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
-        Sinv = np.linalg.pinv(self.S)
         return np.dot(np.dot(
-               np.conj(self.amplitudes()),np.dot(Sinv,self.V)),self.amplitudes()).real
+               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
+#        Sinv = np.linalg.pinv(self.S)
+#        return np.dot(np.dot(
+#               np.conj(self.amplitudes()),np.dot(Sinv,self.V)),self.amplitudes()).real
 
     @timings.timed
     def kin_classical(self):
@@ -321,11 +321,11 @@ class Bundle:
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
-#         return np.dot(np.dot(
-#               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
-        Sinv = np.linalg.pinv(self.S)
-        return np.dot(np.dot(
-               np.conj(self.amplitudes()),np.dot(Sinv,self.T)),self.amplitudes()).real
+         return np.dot(np.dot(
+               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
+#        Sinv = np.linalg.pinv(self.S)
+#        return np.dot(np.dot(
+#               np.conj(self.amplitudes()),np.dot(Sinv,self.T)),self.amplitudes()).real
 
     def tot_classical(self):
         """Returns the total classical energy of the bundle."""
