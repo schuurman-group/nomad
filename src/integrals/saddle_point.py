@@ -38,6 +38,7 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
         if Snuc is None:
             return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
+#            return nuclear.overlap(t1,t2) 
         else:
             return Snuc
 
@@ -56,6 +57,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     if Snuc is None:
         Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                t2.phase(),t2.widths(),t2.x(),t2.p())
+#        Snuc = nuclear.overlap(t1,t2)
 
     # off-diagonal matrix element, between trajectories on the same
     # state (this also requires the centroid be present)
@@ -72,9 +74,10 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     elif t1.state != t2.state:
         # Derivative coupling
         fij = centroid.derivative()
-        v = np.vdot(fij, 2.* interface.kecoeff *
-                    nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                       t2.phase(),t2.widths(),t2.x(),t2.p()))
+        v = 2.*np.vdot(fij, interface.kecoeff *
+                       nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                          t2.phase(),t2.widths(),t2.x(),t2.p()))
+#                       nuclear.deldx(t1, t2, S=Snuc))
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
             v += centroid.scalar_coup() * Snuc
@@ -93,10 +96,12 @@ def ke_integral(t1, t2, Snuc=None):
     else:
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+                                  t2.phase(),t2.widths(),t2.x(),t2.p())
+#            Snuc = nuclear.overlap(t1,t2)
 
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                  t2.phase(),t2.widths(),t2.x(),t2.p())
+#        ke = nuclear.deld2x(t1, t2, S=Snuc)
         return -sum( ke * interface.kecoeff)
 
 # time derivative of the overlap
@@ -109,12 +114,15 @@ def sdot_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-
+#            Snuc = nuclear.overlap(t1, t2, S=Snuc)
+    
         deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-
-        sdot = (-np.dot(t2.velocity(),deldx) + np.dot(t2.force(), deldp) 
+#        deldx = nuclear.deldx(t1, t2, S=Snuc)
+#        deldp = nuclear.deldp(t1, t2, S=Snuc)
+ 
+        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) 
                 +1j * t2.phase_dot() * Snuc)
         return sdot

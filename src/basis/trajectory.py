@@ -33,7 +33,7 @@ def copy_traj(orig_traj):
     new_traj.pes_geom   = copy.deepcopy(orig_traj.pes_geom)
     new_traj.poten      = copy.deepcopy(orig_traj.poten)
     new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
-    new_traj.pes_data   = orig_traj.interface.copy_data(orig_traj.pes_data)
+    new_traj.pes_data   = orig_traj.interface.copy_surface(orig_traj.pes_data)
     return new_traj
 
 
@@ -142,8 +142,8 @@ class Trajectory:
         if glbl.fms['phase_prop'] != 0:
             self.gamma = phase
 #        self.gamma = 0.5 * np.dot(self.x(), self.p())
-        if abs(self.gamma) > 2*np.pi:
-            self.gamma = self.gamma - int(self.gamma/(2. * np.pi)) * 2. * np.pi
+            if abs(self.gamma) > 2*np.pi:
+                self.gamma = self.gamma - int(self.gamma/(2.*np.pi))*2.*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -151,7 +151,7 @@ class Trajectory:
 
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
-        self.pes_data   = self.interface.copy_data(pes_info)
+        self.pes_data   = self.interface.copy_surface(pes_info)
         self.pes_geom   = self.pes_data.geom
         self.poten      = self.pes_data.energies
         if 'deriv' in self.pes_data.data_keys:
@@ -279,7 +279,7 @@ class Trajectory:
         else:
             return (self.kinetic() - self.potential() -
                     sum(2. * self.widths() * self.interface.kecoeff))
-#            return 0.5*(-np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
+#            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
     def coupling_norm(self, c_state):
         """Returns the norm of the coupling vector."""

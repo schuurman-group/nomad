@@ -69,7 +69,7 @@ class Surface:
         # these are interface-specific quantities
 
 
-def copy_data(orig_info):
+def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
 
     # Perhaps should have more robust checking that "orig_info" is in fact

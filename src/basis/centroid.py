@@ -27,7 +27,7 @@ def copy_cent(orig_cent):
     new_cent.pes_geom   = copy.deepcopy(orig_cent.pes_geom)
     new_cent.poten      = copy.deepcopy(orig_cent.poten)
     new_cent.deriv      = copy.deepcopy(orig_cent.deriv)
-    new_cent.pes_data   = orig_cent.interface.copy_data(orig_cent.pes_data)
+    new_cent.pes_data   = orig_cent.interface.copy_surface(orig_cent.pes_data)
     return new_cent
 
 class Centroid:
@@ -97,7 +97,31 @@ class Centroid:
 
     #----------------------------------------------------------------------
     #
-    # Functions for setting basic pes information from trajectory
+    # Return a new centroid object corresponding to the (j,i) complement to the
+    #  current (i,j) object
+    #  -- Note: this is likely more appropriate as an 'interface' routine,
+    #           as centroid isn't likely to know this info
+    #----------------------------------------------------------------------
+    def hermitian(self):
+        """Return a new centroid object corresponding to the (j,i) complement
+           of the current (i,j) object"""
+        new_cent = copy_cent(self)
+
+        # if we have no data, just return new centroid object
+        if new_cent.pes_data is None:
+            return new_cent
+
+        # change sign of derivative coupling
+        if new_cent.pstates[0] != new_cent.pstates[1]:
+            if 'deriv' in new_cent.pes_data.data_keys:
+                new_cent.pes_data.grads[new_cent.pstates[1]] *= -1.
+                new_cent.deriv *= -1.
+
+        return new_cent
+
+    #----------------------------------------------------------------------
+    #
+    # Functions for setting basic pes information from centroid 
     #
     #----------------------------------------------------------------------
     def update_x(self, pos):
@@ -112,11 +136,11 @@ class Centroid:
 
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
-        self.pes_data   = self.interface.copy_data(pes_info)
+        self.pes_data   = self.interface.copy_surface(pes_info)
         self.pes_geom   = self.pes_data.geom
         self.poten      = self.pes_data.energies
         if 'deriv' in self.pes_data.data_keys:
-            self.deriv  = self.pes_data.grads
+            self.deriv  = self.pes_data.grads[self.pstates[1]]
         
     #-----------------------------------------------------------------------
     #
@@ -158,7 +182,7 @@ class Centroid:
         if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.deriv[self.pstates[1]]
+        return self.deriv
 
     #------------------------------------------------------------------------
     #

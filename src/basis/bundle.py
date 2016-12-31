@@ -44,7 +44,7 @@ def copy_bundle(orig_bundle):
             new_bundle.cent.append([None for j in range(orig_bundle.n_traj())])
             for j in range(i):
                 new_bundle.cent[i][j] = centroid.copy_cent(orig_bundle.cent[i][j])
-                new_bundle.cent[j][i] = new_bundle.cent[i][j]
+                new_bundle.cent[j][i] = centroid.copy_cent(orig_bundle.cent[j][i])
 
     return new_bundle
 
@@ -285,77 +285,47 @@ class Bundle:
 
         Currently only includes energy from alive trajectories
         """
-        nalive = len(self.alive)
-        v_vec = np.array([self.traj[self.alive[i]].potential()
-                          for i in range(nalive)])
-        return sum(v_vec).real / nalive
-#        weight = np.array([self.traj[self.alive[i]].amplitude *
-#                           self.traj[self.alive[i]].amplitude.conjugate() 
-#                           for i in range(len(self.alive))])
-#        v_int  = np.array([self.V[i,i] 
-#                           for i in range(self.nalive)])
-#        return np.dot(weight, v_int).real
+        nalive  = len(self.alive)
+        wgts    = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
+                                   self.traj[self.alive[i]].amplitude  
+                                   for i in range(nalive)])
+        nrm     = np.sqrt(np.dot(wgts,wgts))
+        pot_vec = np.array([self.traj[self.alive[i]].potential()
+                                    for i in range(nalive)])
+        return (np.dot(wgts,pot_vec) / nrm).real
 
     @timings.timed
     def pot_quantum(self):
         """Returns the QM (coupled) potential energy of the bundle.
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
+#        return np.dot(np.dot(
+#               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
+        Sinv = np.linalg.pinv(self.S)
         return np.dot(np.dot(
-               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
-#        energy = 0.
-#        for i in range(len(self.alive)):
-#            ii = self.alive[i]
-#            weight = (self.traj[ii].amplitude *
-#                      self.traj[ii].amplitude.conjugate())
-#            v_int  = self.V[i,i]
-#            energy += (weight * v_int).real
-#            for j in range(len(self.alive)):
-#                jj     = self.alive[j]
-#                weight = (self.traj[jj].amplitude *
-#                          self.traj[ii].amplitude.conjugate())
-#                v_int  = self.V[i,j]
-#                print("pot quan="+str(weight * v_int))
-#                energy += (weight * v_int).real
-#        return energy
+               np.conj(self.amplitudes()),np.dot(Sinv,self.V)),self.amplitudes()).real
 
     @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
-        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()*
-                                  self.traj[self.alive[i]].p(),
-                                  self.traj[self.alive[i]].interface.kecoeff)
+        wgts   = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
+                                   self.traj[self.alive[i]].amplitude  
+                                   for i in range(nalive)])
+        nrm    = np.sqrt(np.dot(wgts,wgts))
+        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2, 
+                                  self.traj[self.alive[i]].interface.kecoeff) 
                                   for i in range(nalive)])
-        return sum(ke_vec).real / nalive
-#        weight = np.array([self.traj[self.alive[i]].amplitude *
-#                           self.traj[self.alive[i]].amplitude.conjugate() 
-#                           for i in range(len(self.alive))])
-#        ke_int  = np.array([self.T[i,i] 
-#                           for i in range(self.nalive)])
-#        return np.dot(weight, ke_int).real
+        return (np.dot(wgts,ke_vec).real / nrm).real
 
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
-        Sinv = np.linalg.pinv(self.traj_ovrlp)
+#         return np.dot(np.dot(
+#               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
+        Sinv = np.linalg.pinv(self.S)
         return np.dot(np.dot(
-               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
-#        energy = 0.
-#        for i in range(len(self.alive)):
-#            ii = self.alive[i]
-#            weight = (self.traj[ii].amplitude *
-#                      self.traj[ii].amplitude.conjugate())
-#            ke_int = self.T[i,i]
-#            energy += (weight * ke_int).real
-#            for j in range(len(self.alive)):
-#                jj     = self.alive[j]
-#                weight = (self.traj[jj].amplitude *
-#                          self.traj[ii].amplitude.conjugate())
-#                ke_int = self.T[i,j]
-#                print("kin quan="+str(weight * ke_int))
-#                energy += (weight * ke_int).real
-#        return energy
+               np.conj(self.amplitudes()),np.dot(Sinv,self.T)),self.amplitudes()).real
 
     def tot_classical(self):
         """Returns the total classical energy of the bundle."""
@@ -427,7 +397,7 @@ class Bundle:
                 if self.cent[i][j] is None:
                     self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
                                                         traj_j=self.traj[j])
-                    self.cent[j][i] = self.cent[i][j]
+                    self.cent[j][i] = self.cent[i][j].hermitian()
 
     @timings.timed
     def update_matrices(self):
@@ -566,8 +536,8 @@ class Bundle:
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp) 
             fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
- #           fileio.print_bund_mat(self.time, 't.dat', self.T)
- #           fileio.print_bund_mat(self.time, 'v.dat', self.V)
+            fileio.print_bund_mat(self.time, 't.dat', self.T)
+            fileio.print_bund_mat(self.time, 'v.dat', self.V)
             fileio.print_bund_mat(self.time, 'heff.dat', self.Heff)
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
 
