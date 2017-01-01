@@ -256,8 +256,8 @@ class Bundle:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-        return np.dot(np.dot(
-               np.conj(self.amplitudes()),self.traj_ovrlp),self.amplitudes()).real
+        return np.dot(np.dot(np.conj(self.amplitudes()),
+                             self.traj_ovrlp),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -287,11 +287,11 @@ class Bundle:
         """
         nalive  = len(self.alive)
         wgts    = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                                   self.traj[self.alive[i]].amplitude  
-                                   for i in range(nalive)])
+                            self.traj[self.alive[i]].amplitude
+                            for i in range(nalive)])
         nrm     = np.sqrt(np.dot(wgts,wgts))
         pot_vec = np.array([self.traj[self.alive[i]].potential()
-                                    for i in range(nalive)])
+                            for i in range(nalive)])
         return (np.dot(wgts,pot_vec) / nrm).real
 
     @timings.timed
@@ -299,8 +299,8 @@ class Bundle:
         """Returns the QM (coupled) potential energy of the bundle.
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
-        return np.dot(np.dot(
-               np.conj(self.amplitudes()),self.V),self.amplitudes()).real
+        return np.dot(np.dot(np.conj(self.amplitudes()),
+                             self.V), self.amplitudes()).real
 #        Sinv = np.linalg.pinv(self.S)
 #        return np.dot(np.dot(
 #               np.conj(self.amplitudes()),np.dot(Sinv,self.V)),self.amplitudes()).real
@@ -310,19 +310,19 @@ class Bundle:
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
         wgts   = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                                   self.traj[self.alive[i]].amplitude  
-                                   for i in range(nalive)])
+                           self.traj[self.alive[i]].amplitude
+                           for i in range(nalive)])
         nrm    = np.sqrt(np.dot(wgts,wgts))
-        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2, 
-                                  self.traj[self.alive[i]].interface.kecoeff) 
-                                  for i in range(nalive)])
+        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
+                           self.traj[self.alive[i]].interface.kecoeff)
+                           for i in range(nalive)])
         return (np.dot(wgts,ke_vec).real / nrm).real
 
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the bundle."""
-         return np.dot(np.dot(
-               np.conj(self.amplitudes()),self.T),self.amplitudes()).real
+        return np.dot(np.dot(np.conj(self.amplitudes()),
+                             self.T), self.amplitudes()).real
 #        Sinv = np.linalg.pinv(self.S)
 #        return np.dot(np.dot(
 #               np.conj(self.amplitudes()),np.dot(Sinv,self.T)),self.amplitudes()).real
@@ -354,7 +354,7 @@ class Bundle:
         ovrlp = 0j
         for i in range(self.nalive+self.ndead):
             ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) *
-                                             self.traj[i].amplitude)
+                      self.traj[i].amplitude)
         return ovrlp
 
     #----------------------------------------------------------------------

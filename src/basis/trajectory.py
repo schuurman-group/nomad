@@ -141,9 +141,9 @@ class Trajectory:
         """Updates the nuclear phase."""
         if glbl.fms['phase_prop'] != 0:
             self.gamma = phase
-#        self.gamma = 0.5 * np.dot(self.x(), self.p())
+            #self.gamma = 0.5 * np.dot(self.x(), self.p())
             if abs(self.gamma) > 2*np.pi:
-                self.gamma = self.gamma - int(self.gamma/(2.*np.pi))*2.*np.pi
+                self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
