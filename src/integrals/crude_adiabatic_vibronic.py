@@ -168,7 +168,7 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only
     # the nuclear contribution to the sdot matrix
 #    sdot = ( np.dot(traj2.velocity(), deldx) + np.dot(traj2.force(), deldp) 
 #            + 1j * traj2.phase_dot() * Snuc) * Selec
-    sdot = (  np.dot(deldx, traj2.velocity()) + np.dot(deldp, traj2.force()) ) * Selec
+    sdot = (np.dot(deldx, traj2.velocity()) + np.dot(deldp, traj2.force()) ) * Selec
     print('vel, for='+str(np.dot(deldx, traj2.velocity()))+' '+str(np.dot(deldp, traj2.force())))
 
     if nuc_only:
