@@ -56,7 +56,7 @@ def deldx(t1, t2, S=None):
     p2 = t2.p()
     dx    = x1 - x2
     psum  = a1*p2 + a2*p1
-    dxval = (2. * a1 * a2 * dx + 1j * psum) / (a1 + a2)
+    dxval = (2. * a1 * a2 * dx - 1j * psum) / (a1 + a2)
     return dxval * S
 
 #@timings.timed

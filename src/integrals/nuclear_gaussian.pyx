@@ -75,7 +75,7 @@ def deldx(double complex S,
     for i in range(n):
         dx       = x1[i] - x2[i]
         psum     = a1[i] * p2[i] + a2[i] * p1[i]
-        delxv[i] = (2. * a1[i] * a2[i] * dx + I * psum) / (a1[i] + a2[i]) * S
+        delxv[i] = (2. * a1[i] * a2[i] * dx - I * psum) / (a1[i] + a2[i]) * S
 
     return delxv
 
