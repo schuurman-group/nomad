@@ -381,8 +381,7 @@ class Bundle:
                                                          dim_cent)])
 
             for i in range(self.n_traj() - dim_cent):
-                self.cent.append([])
-                self.cent[-1].extend([None for j in range(self.n_traj())])
+                self.cent.append([None for j in range(self.n_traj())])
 
         for i in range(self.n_traj()):
             if not self.traj[i].alive:
