@@ -26,7 +26,7 @@ basis = 'gaussian'
 # (i.e. pseudospectral/collocation methods). 
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(t1, t2, nuc_only, Snuc)
+    return s_integral(t1, t2, nuc_only=nuc_only, Snuc=Snuc)
 
 # returns total overlap of trajectory basis function
 def s_integral(t1, t2, nuc_only=False, Snuc=None):
@@ -96,7 +96,7 @@ def ke_integral(t1, t2, Snuc=None):
     else:
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                  t2.phase(),t2.widths(),t2.x(),t2.p())
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
 #            Snuc = nuclear.overlap(t1,t2)
 
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
