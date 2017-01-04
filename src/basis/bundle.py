@@ -289,7 +289,7 @@ class Bundle:
         wgts    = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
                             self.traj[self.alive[i]].amplitude
                             for i in range(nalive)])
-        nrm     = np.sqrt(np.dot(wgts,wgts))
+        nrm     = np.sqrt(sum(wgts))
         pot_vec = np.array([self.traj[self.alive[i]].potential()
                             for i in range(nalive)])
         return (np.dot(wgts,pot_vec) / nrm).real
@@ -312,7 +312,7 @@ class Bundle:
         wgts   = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
                            self.traj[self.alive[i]].amplitude
                            for i in range(nalive)])
-        nrm    = np.sqrt(np.dot(wgts,wgts))
+        nrm    = np.sqrt(sum(wgts))
         ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
                            self.traj[self.alive[i]].interface.kecoeff)
                            for i in range(nalive)])
@@ -397,7 +397,7 @@ class Bundle:
                 if self.cent[i][j] is None:
                     self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
                                                         traj_j=self.traj[j])
-                    self.cent[j][i] = self.cent[i][j].hermitian()
+                    self.cent[j][i] = self.cent[i][j]
 
     @timings.timed
     def update_matrices(self):
@@ -508,7 +508,8 @@ class Bundle:
 
                 # gradients
                 data = [self.time]
-                data.extend(self.traj[i].derivative(self.traj[i].state).tolist())
+                data.extend(self.traj[i].derivative(self.traj[i].state,
+                                                    self.traj[i].state).tolist())
                 fileio.print_traj_row(self.traj[i].tid, 7, data)
 
         # now dump bundle information ####################################

@@ -72,7 +72,7 @@ def update_pes(master):
                 if master.cent[i][j] is None:
                     continue
                 master.cent[i][j].update_pes(pes_cache[master.cent[i][j].cid])
-                master.cent[j][i] = master.cent[i][j].hermitian()
+                master.cent[j][i] = master.cent[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -100,7 +100,7 @@ def update_pes(master):
                                                     master.cent[i][j].x(),
                                                     master.cent[i][j].pstates)
                     master.cent[i][j].update_pes(results)
-                    master.cent[j][i] = master.cent[i][j].hermitian()
+                    master.cent[j][i] = master.cent[i][j]
 
     return success
 

@@ -49,7 +49,7 @@ def deldp(double complex S,
     cdef int i
     cdef int n = a1.shape[0]
     cdef double dx, dp
-    cdef double complex[::1] delpv = np.empty((n),dtype=np.complex)
+    cdef double complex[::1] delpv = np.zeros((n),dtype=np.complex)
 
     for i in range(n):
         dx       = x1[i] - x2[i]
@@ -70,7 +70,7 @@ def deldx(double complex S,
     cdef int i
     cdef int n = a1.shape[0]
     cdef double dx, psum
-    cdef double complex[::1] delxv = np.empty((n),dtype=np.complex)
+    cdef double complex[::1] delxv = np.zeros((n),dtype=np.complex)
 
     for i in range(n):
         dx       = x1[i] - x2[i]
@@ -91,7 +91,7 @@ def deld2x(double complex S,
     cdef int i
     cdef int n = a1.shape[0]
     cdef double dx, psum
-    cdef double complex[::1] delx2v = np.empty((n),dtype=np.complex)
+    cdef double complex[::1] delx2v = np.zeros((n),dtype=np.complex)
 
     for i in range(n):
         dx        = x1[i] - x2[i]
@@ -101,4 +101,34 @@ def deld2x(double complex S,
                           4.* dx**2 * a1[i]**2 * a2[i]**2 +
                           psum**2) / (a1[i] + a2[i])**2
     return delx2v
+
+@cython.boundscheck(False)
+def prim_v_integral(double N, 
+                    double a1, double x1, double p1, 
+                    double a2, double x2, double p2):
+    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+     -- up to an overlap integral -- 
+    """
+    # since range(N) runs up to N-1, add "1" to result of floor
+    cdef int n_2 = int(np.floor(0.5 * N) + 1)
+    cdef double a = a1 + a2
+    cdef double complex b = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
+    cdef double complex v_int = complex(0.,0.)
+    cdef int i
+
+    # avoid weird issues associated with 0^0==1, occurs when N==2*i:
+    if abs(b) < np.finfo(float).eps:
+        n_2 -= 1 # get rid of extra "1" for range value
+        v_int = (a**(-n_2))/np.math.factorial(n_2)
+        return v_int * np.math.factorial(N) / 2.**N
+
+    # generally these should be 1D harmonic oscillators. If
+    # multi-dimensional, the final result is a direct product of
+    # each dimension
+    for i in range(n_2):
+        v_int += ((a**(i-N)) * (b**(N-2*i)) /
+                 (np.math.factorial(i) * np.math.factorial(N-2*i)))
+
+    # refer to appendix for derivation of these relations
+    return v_int * np.math.factorial(N) / (2.**N)
 

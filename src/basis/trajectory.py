@@ -16,23 +16,17 @@ def copy_traj(orig_traj):
                           orig_traj.mass,
                           orig_traj.crd_dim,
                           orig_traj.tid,
-                          orig_traj.parent,
-                          orig_traj.nbf)
+                          orig_traj.parent)
     new_traj.state      = copy.copy(orig_traj.state)
-    new_traj.c_state    = copy.copy(orig_traj.c_state)
     new_traj.alive      = copy.copy(orig_traj.alive)
     new_traj.amplitude  = copy.copy(orig_traj.amplitude)
     new_traj.gamma      = copy.copy(orig_traj.gamma)
     new_traj.deadtime   = copy.copy(orig_traj.deadtime)
-    new_traj.nbf        = copy.copy(orig_traj.nbf)
     new_traj.pos        = copy.deepcopy(orig_traj.pos)
     new_traj.mom        = copy.deepcopy(orig_traj.mom)
     new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
     new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
     new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
-    new_traj.pes_geom   = copy.deepcopy(orig_traj.pes_geom)
-    new_traj.poten      = copy.deepcopy(orig_traj.poten)
-    new_traj.deriv      = copy.deepcopy(orig_traj.deriv)
     new_traj.pes_data   = orig_traj.interface.copy_surface(orig_traj.pes_data)
     return new_traj
 
@@ -46,8 +40,7 @@ class Trajectory:
                  mass=None,
                  crd_dim=3,
                  tid=0,
-                 parent=0,
-                 n_basis=0):
+                 parent=0):
 
         # total number of states
         self.nstates = int(nstates)
@@ -70,9 +63,6 @@ class Trajectory:
         self.tid        = tid
         # trajectory that spawned this one:
         self.parent     = parent
-        # number of mos
-        self.nbf        = n_basis
-
 
         # current position of the trajectory
         self.pos        = np.zeros(self.dim)
@@ -80,8 +70,6 @@ class Trajectory:
         self.mom        = np.zeros(self.dim)
         # state trajectory exists on
         self.state      = 0
-        # if a centroid, state for second trajectory
-        self.c_state    = -1
         # whether the trajectory is alive (i.e. contributes to the wavefunction)
         self.alive      = True
         # whether the trajectory is active (i.e. is being propagated)
@@ -98,19 +86,12 @@ class Trajectory:
         self.exit_time  = np.zeros(self.nstates)
         # if not zero, coupled to traj=array value
         self.spawn_coup = np.zeros(self.nstates)
-        # value of the potential energy
-        self.poten      = np.zeros(self.nstates)
-        # derivatives of the potential -- if off-diagonal, corresponds
-        # to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros((self.nstates,self.dim))
-        # geometry of the current potential information
-        self.pes_geom   = np.zeros(self.dim)
 
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist = ['a'])
 
-        # data structure to hold the data from the interface
+        # data structure to hold the pes data from the interface
         self.pes_data  = None
 
     #-------------------------------------------------------------------
@@ -152,10 +133,6 @@ class Trajectory:
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
         self.pes_data   = self.interface.copy_surface(pes_info)
-        self.pes_geom   = self.pes_data.geom
-        self.poten      = self.pes_data.energies
-        if 'deriv' in self.pes_data.data_keys:
-            self.deriv  = self.pes_data.grads
 
     #-----------------------------------------------------------------------
     #
@@ -193,20 +170,27 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.poten[state] + glbl.fms['pot_shift']
+        return self.pes_data.potential[state] + glbl.fms['pot_shift']
 
-    def derivative(self, state):
+    def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.deriv[state,:]
+        return self.pes_data.deriv[:, state_i, state_j]
+
+    def scalar_coup(self, state_i, state_j):
+        """Returns the scalar coupling for Hamiltonian
+           block (self.state,c_state)."""
+        if 'scalar_coup' not in self.pes_data.data_keys:
+            return 0.
+        return self.pes_data.scalar_coup[state_i, state_j]
 
 #    def dipole(self, state):
 #        """Returns permanent dipoles."""
@@ -236,13 +220,6 @@ class Trajectory:
 #                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
 #        return self.atom_pops[state,:]
 
-#    def scalar_coup(self,state):
-#        """Returns scalar coupling terms"""
-#        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
-#            print("WARNING: trajectory.scalar_coup() called, "+
-#                  "but pes_geom != trajectory.x(). ID="+str(self.tid))
-#        return self.sct[state]
-
     #def orbitals(self):
     #    return self.pes.orbitals(self.tid, self.particles, self.state)
 
@@ -269,7 +246,7 @@ class Trajectory:
 
     def force(self):
         """Returns the gradient of the trajectory state."""
-        return -self.derivative(self.state)
+        return -self.derivative(self.state, self.state)
 
     def phase_dot(self):
         """Returns time derivatives of the phase."""
@@ -281,36 +258,35 @@ class Trajectory:
                     sum(2. * self.widths() * self.interface.kecoeff))
 #            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
-    def coupling_norm(self, c_state):
+    def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""
-        if self.state == c_state:
+        if self.same_state(j_state):
             return 0.
-        return np.linalg.norm(self.derivative(c_state))
+        return np.linalg.norm(self.derivative(self.state, j_state))
 
-    def coup_dot_vel(self, c_state):
+    def coup_dot_vel(self, j_state):
         """Returns the coupling dotted with the velocity."""
-        if self.state == c_state:
+        if self.same_state(j_state):
             return 0.
-        return np.dot( self.velocity(), self.derivative(c_state) )
+        return np.dot( self.velocity(), self.derivative(self.state, j_state) )
 
-    def eff_coup(self,c_state):
+    def eff_coup(self, j_state):
         """Returns the effective coupling."""
-        if self.state == c_state:
+        if self.same_state(j_state):
             return 0.
         # F.p/m
-        coup = np.dot( self.velocity(), self.derivative(c_state) )
+        coup = self.coup_dot_vel(j_state)
         # G
         if glbl.fms['coupling_order'] > 1:
-            coup += self.scalar_coup(c_state)
+            coup += self.scalar_coup(self.state, j_state)
 
         return coup
 
-    def scalar_coup(self, c_state):
-        """Returns the scalar coupling for Hamiltonian
-           block (self.state,c_state)."""
-        if 'scalar_coup' not in self.pes_data.data_keys:
-            return 0.
-        return self.pes_data.scalar_coup[c_state]
+    def same_state(self, j_state):
+        if self.state == j_state:
+            return True
+        else:
+            return False
 
     #--------------------------------------------------------------------------
     #
@@ -325,12 +301,11 @@ class Trajectory:
         chkpt.write('{:10d}            traj ID\n'.format(self.tid))
         chkpt.write('{:10d}            state\n'.format(self.state))
         chkpt.write('{:10d}            parent ID\n'.format(self.parent))
-        chkpt.write('{:10d}            n basis function\n'.format(self.nbf))
         chkpt.write('{:10.2f}            dead time\n'.format(self.deadtime))
         chkpt.write('{:16.12f}      phase\n'.format(self.gamma))
         chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
         chkpt.write('# potential energy -- nstates\n')
-        self.poten.tofile(chkpt, ' ', '%14.10f')
+        self.pes_data.potential.tofile(chkpt, ' ', '%14.10f')
         chkpt.write('\n')
         chkpt.write('# exit coupling region\n')
         self.exit_time.tofile(chkpt, ' ', '%8.2f')
@@ -363,7 +338,7 @@ class Trajectory:
         for i in range(self.nstates):
             chkpt.write('# derivatives state1, state2 = {:4d}, {:4d}'
                         '\n'.format(self.state,i))
-            self.deriv[i,:].tofile(chkpt, ' ', '%16.10e')
+            self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
             chkpt.write('\n')
 
         # write out second moments
@@ -389,14 +364,19 @@ class Trajectory:
         self.tid       = int(chkpt.readline().split()[0])
         self.state     = int(chkpt.readline().split()[0])
         self.parent    = int(chkpt.readline().split()[0])
-        self.nbf       = int(chkpt.readline().split()[0])
         self.deadtime  = float(chkpt.readline().split()[0])
         self.gamma     = float(chkpt.readline().split()[0])
         self.amplitude = complex(chkpt.readline().split()[0])
 
+        # create Surface object, if doesn't already exist
+        if self.pes_data is None:
+            self.pes_data = self.interface.Surface(self.nstates, 
+                                                   self.dim,
+                                                   self.crd_dim)
+ 
         chkpt.readline()
         # potential energy -- nstates
-        self.poten = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
+        self.pes_data.potential = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
         chkpt.readline()
         # exit coupling region
         self.exit_time = np.fromstring(chkpt.readline(), sep=' ', dtype=float)

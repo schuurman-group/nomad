@@ -77,3 +77,23 @@ def deld2x(t1, t2, S=None):
                4. * dx**2 * a1**2 * a2**2 + psum**2) / (a1 + a2)**2
     return d2xval * S
 
+def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
+    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+     -- up to an overlap integral -- 
+    """
+    # since range(N) runs up to N-1, add "1" to result of floor
+    n_2 = int(np.floor(0.5 * N) + 1)
+    a   = a1 + a2
+    b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
+
+    # generally these should be 1D harmonic oscillators. If
+    # multi-dimensional, the final result is a direct product of
+    # each dimension
+    v_int = complex(0.,0.)
+    for i in range(n_2):
+        v_int += (a**(i-N) * b**(N-2*i) /
+                 (np.math.factorial(i) * np.math.factorial(N-2*i)))
+
+    # refer to appendix for derivation of these relations
+    return v_int * np.math.factorial(N) / 2.**N
+

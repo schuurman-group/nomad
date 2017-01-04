@@ -133,7 +133,7 @@ def spawn_forward(parent, child, initial_time, dt):
         child_attempt       = trajectory.copy_traj(parent)
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
-                                                     parent.derivative(child_state))
+                                        parent.derivative(parent.state, child_state))
         sij = abs(integrals.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful

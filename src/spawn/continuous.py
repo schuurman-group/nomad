@@ -49,7 +49,7 @@ def spawn(master, dt):
                 child.parent    = parent.tid
 
                 success = utilities.adjust_child(parent, child,
-                                                 parent.derivative(st))
+                                    parent.derivative(parent.state, child.state))
                 sij = integrals.traj_overlap(parent, child, nuc_only=True)
 
                 # try to set up the child

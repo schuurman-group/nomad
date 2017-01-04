@@ -24,9 +24,6 @@ def copy_cent(orig_cent):
                         cid    =orig_cent.cid)
     new_cent.pos        = copy.deepcopy(orig_cent.pos)
     new_cent.mom        = copy.deepcopy(orig_cent.mom)
-    new_cent.pes_geom   = copy.deepcopy(orig_cent.pes_geom)
-    new_cent.poten      = copy.deepcopy(orig_cent.poten)
-    new_cent.deriv      = copy.deepcopy(orig_cent.deriv)
     new_cent.pes_data   = orig_cent.interface.copy_surface(orig_cent.pes_data)
     return new_cent
 
@@ -81,43 +78,12 @@ class Centroid:
             self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
             self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
-        # value of the potential energy
-        self.poten      = np.zeros(self.nstates)
-        # derivatives of the potential -- if off-diagonal, corresponds
-        # to Fij (not non-adiabatic coupling vector)
-        self.deriv      = np.zeros(self.dim)
-        # geometry of the current potential information
-        self.pes_geom   = np.zeros(self.dim)
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
                                glbl.fms['interface'], fromlist = ['a'])
 
         # data structure to hold the data from the interface
         self.pes_data  = None
-
-    #----------------------------------------------------------------------
-    #
-    # Return a new centroid object corresponding to the (j,i) complement to the
-    #  current (i,j) object
-    #  -- Note: this is likely more appropriate as an 'interface' routine,
-    #           as centroid isn't likely to know this info
-    #----------------------------------------------------------------------
-    def hermitian(self):
-        """Return a new centroid object corresponding to the (j,i) complement
-           of the current (i,j) object"""
-        new_cent = copy_cent(self)
-
-        # if we have no data, just return new centroid object
-        if new_cent.pes_data is None:
-            return new_cent
-
-        # change sign of derivative coupling
-        if new_cent.pstates[0] != new_cent.pstates[1]:
-            if 'deriv' in new_cent.pes_data.data_keys:
-                new_cent.pes_data.grads[new_cent.pstates[1]] *= -1.
-                new_cent.deriv *= -1.
-
-        return new_cent
 
     #----------------------------------------------------------------------
     #
@@ -135,10 +101,6 @@ class Centroid:
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
         self.pes_data   = self.interface.copy_surface(pes_info)
-        self.pes_geom   = self.pes_data.geom
-        self.poten      = self.pes_data.energies
-        if 'deriv' in self.pes_data.data_keys:
-            self.deriv  = self.pes_data.grads[self.pstates[1]]
         
     #-----------------------------------------------------------------------
     #
@@ -168,19 +130,28 @@ class Centroid:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: centroid.energy() called, ' +
                   'but pes_geom != centroid.x(). ID=' + str(self.cid))
-        return self.poten[state] + glbl.fms['pot_shift']
+        return self.pes_data.potential[state] + glbl.fms['pot_shift']
 
-    def derivative(self):
+    def derivative(self, state_i, state_j):
         """Returns either a gradient or derivative coupling depending
            on the states in pstates.
         """
-        if np.linalg.norm(self.pes_geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.tid))
-        return self.deriv
+        return self.pes_data.deriv[:,state_i, state_j]
+
+    def scalar_coup(self, state_i, state_j):
+        """Returns the scalar coupling."""
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+            print('WARNING: trajectory.scalar_coup() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+        if 'scalar_coup' in self.pes_data.data_keys:
+            return self.pes_data.scalar_coup[state_i, state_j]
+        return 0.
 
     #------------------------------------------------------------------------
     #
@@ -205,40 +176,40 @@ class Centroid:
 
     def force(self):
         """Returns the gradient of the centroid state."""
-        if self.pstates[0] != self.pstates[1]:
+        if not same_state():
             return np.zeros(self.dim)
-        return -self.derivative()
+        return -self.derivative(self.pstates[0], self.pstates[1])
 
     def coupling_norm(self):
         """Returns the norm of the coupling vector."""
-        if self.pstates[0] == self.pstates[1]:
+        if self.same_state():
             return 0.
-        return np.linalg.norm(self.derivative())
+        return np.linalg.norm(self.derivative(self.pstates[0], self.pstates[1]))
 
     def coup_dot_vel(self):
         """Returns the coupling dotted with the velocity."""
-        if self.pstates[0] == self.pstates[1]:
+        if self.same_state():
             return 0.
-        return np.dot( self.velocity(), self.derivative() )
+        return np.dot( self.velocity(), 
+                       self.derivative(self.pstates[0], self.pstates[1]) )
 
     def eff_coup(self):
         """Returns the effective coupling."""
-        if self.pstates[0] == self.pstates[1]:
+        if self.same_state():
             return 0.
         # F.p/m
-        coup = np.dot( self.velocity(), self.derivative() )
+        coup = self.coup_dot_vel()
         # G
         if glbl.fms['coupling_order'] > 1:
-            coup += self.scalar_coup()
-
+            coup += self.scalar_coup(pstates[0], pstates[1])
         return coup
 
-    def scalar_coup(self):
-        """Returns the scalar coupling."""
-        if 'scalar_coup' in self.pes_data.data_keys:
-            return self.pes_data.scalar_coup[self.pstates[1]]
+    def same_state(self):
+        if self.pstate[0] == self.pstate[1]:
+            return True
+        else:
+            return False
 
-        return 0.
     #--------------------------------------------------------------------------
     #
     # routines to write/read centroid from a file stream
@@ -251,7 +222,7 @@ class Centroid:
         chkpt.write('{:10d}            cent ID\n'.format(self.cid))
         chkpt.write('{:10d,:10d}            parents \n'.format(self.pstates))
         chkpt.write('# potential energy -- nstates\n')
-        self.poten.tofile(chkpt, ' ', '%14.10f')
+        self.pes_data.potential.tofile(chkpt, ' ', '%14.10f')
         chkpt.write('\n')
         chkpt.write('# position\n')
         self.x().tofile(chkpt, ' ', '%12.8f')
@@ -278,7 +249,7 @@ class Centroid:
 
         chkpt.readline()
         # potential energy -- nstates
-        self.poten = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
+        self.pes_data.potential = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
         chkpt.readline()
         # position
         self.update_x(np.fromstring(chkpt.readline(), sep=' ', dtype=float))

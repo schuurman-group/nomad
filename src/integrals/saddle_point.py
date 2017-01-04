@@ -17,7 +17,7 @@ interface = __import__('src.interfaces.' + glbl.fms['interface'],
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = True
+hermitian = False 
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -51,7 +51,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         v = t1.energy(t1.state)
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += t1.scalar_coup(t1.state)
+            v += t1.scalar_coup(t1.state, t2.state)
         return v
 
     if Snuc is None:
@@ -66,21 +66,21 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         v = centroid.energy(t1.state) * Snuc
         # DBOC
         if glbl.fms['coupling_order'] == 3:
-            v += centroid.scalar_coup() * Snuc
+            v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     elif t1.state != t2.state:
         # Derivative coupling
-        fij = centroid.derivative()
+        fij = centroid.derivative(t1.state, t2.state)
         v = 2.*np.vdot(fij, interface.kecoeff *
                        nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                           t2.phase(),t2.widths(),t2.x(),t2.p()))
 #                       nuclear.deldx(t1, t2, S=Snuc))
         # Scalar coupling
         if glbl.fms['coupling_order'] > 1:
-            v += centroid.scalar_coup() * Snuc
+            v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 
     else:

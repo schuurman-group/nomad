@@ -41,11 +41,11 @@ class Surface:
         # these are the standard quantities ALL interface_data objects return
         self.data_keys = []
         self.geom      = np.zeros(t_dim)
-        self.energies  = np.zeros(n_states)
-        self.grads     = np.zeros((n_states, t_dim))
+        self.potential = np.zeros(n_states)
+        self.deriv     = np.zeros((t_dim, n_states, n_states))
 
         # these are interface-specific quantities
-        self.scalar_coup   = np.zeros(n_states)
+        self.scalar_coup   = np.zeros((n_states, n_states))
         self.adt_mat       = np.zeros((n_states, n_states))
         self.dat_mat       = np.zeros((n_states, n_states))
         self.ddat_mat      = np.zeros((t_dim,n_states, n_states))
@@ -69,8 +69,9 @@ def copy_surface(orig_info):
 
     new_info.data_keys     = copy.copy(orig_info.data_keys)
     new_info.geom          = copy.deepcopy(orig_info.geom)
-    new_info.energies      = copy.deepcopy(orig_info.energies)
-    new_info.grads         = copy.deepcopy(orig_info.grads)
+    new_info.potential     = copy.deepcopy(orig_info.potential)
+    new_info.deriv         = copy.deepcopy(orig_info.deriv)
+
     new_info.scalar_coup   = copy.deepcopy(orig_info.scalar_coup)
     new_info.adt_mat       = copy.deepcopy(orig_info.adt_mat)
     new_info.dat_mat       = copy.deepcopy(orig_info.dat_mat)
@@ -145,19 +146,15 @@ def evaluate_trajectory(tid, geom, stateindx):
     # System dimensions
     ncoo   = len(geom)
     nsta   = glbl.fms['n_states']
-    t_data = Surface(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot = np.zeros((nsta, nsta))
-    ener = np.zeros(nsta)
-    grad = np.zeros((nsta, ncoo))
     diabderiv1 = np.zeros((ncoo, nsta, nsta))
     nactmat = np.zeros((ncoo, nsta, nsta))
     adiabderiv1 = np.zeros((ncoo, nsta))
     diablap = np.zeros((nsta, nsta))
     sctmat = np.zeros((nsta, nsta))
     dbocderiv1 = np.zeros((ncoo, nsta))
-    sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
     qcoo = geom
@@ -188,21 +185,6 @@ def evaluate_trajectory(tid, geom, stateindx):
     # save these as a matter of course.
     calc_scts()
 
-    # Package up the energies, gradients and NACTs
-    ener = adiabpot
-
-    for i in range(nsta):
-        for m in range(ncoo):
-            if i == stateindx:
-                grad[i,m] = adiabderiv1[m,i]
-            else:
-                grad[i,m]=nactmat[m,stateindx,i]
-
-    # Package the SCTs: here we account for the 1/2 prefactor
-    # in the EOMs
-    for i in range(nsta):
-        sct_return[i]=0.5*sctmat[stateindx,i]
-
 #    print("adt="+str(adtmat))
 #    print("dat="+str(np.linalg.inv(adtmat)))
 #    de    = diabpot[1,1]-diabpot[0,0]
@@ -214,10 +196,16 @@ def evaluate_trajectory(tid, geom, stateindx):
 #    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
 #    print("ddat2="+str(ddat2)) 
 
+    t_data = Surface(nsta,ncoo,1)
     t_data.geom          = qcoo
-    t_data.energies      = ener
-    t_data.grads         = grad
-    t_data.scalar_coup   = sct_return
+    t_data.potential     = adiabpot
+    for i in range(nsta):
+        t_data.deriv[:,i,i] = adiabderiv1[:,i]
+        for j in range(i):
+            t_data.deriv[:,i,j] = nactmat[:,i,j]
+            t_data.deriv[:,j,i] = nactmat[:,j,i]
+
+    t_data.scalar_coup  = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.adt_mat       = adtmat
     t_data.dat_mat       = np.linalg.inv(adtmat)
 #    t_data.ddat_mat      = ddat2
@@ -249,29 +237,15 @@ def evaluate_centroid(tid, geom, stateindices):
     stateindx2 = stateindices[1]
     ncoo = len(geom) 
     nsta = glbl.fms['n_states']
-    t_data = Surface(nsta,ncoo,1)
 
     # Initialisation of arrays
     diabpot=np.zeros((nsta,nsta), dtype=np.float)
-    ener=np.zeros((nsta), dtype=np.float)
-    grad=np.zeros((nsta,ncoo), dtype=np.float)
     diabderiv1=np.zeros((ncoo,nsta,nsta), dtype=np.float)
     nactmat=np.zeros((ncoo,nsta,nsta), dtype=np.float)
     adiabderiv1=np.zeros((ncoo,nsta), dtype=np.float)
     diablap=np.zeros((nsta,nsta), dtype=np.float)
     sctmat=np.zeros((nsta,nsta), dtype=np.float)
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
-    sct_return=np.zeros((nsta), dtype=np.float)
-    diabpot = np.zeros((nsta, nsta))
-    ener = np.zeros(nsta)
-    grad = np.zeros((nsta, ncoo))
-    diabderiv1 = np.zeros((ncoo, nsta, nsta))
-    nactmat = np.zeros((ncoo, nsta, nsta))
-    adiabderiv1 = np.zeros((ncoo, nsta))
-    diablap = np.zeros((nsta, nsta))
-    sctmat = np.zeros((nsta, nsta))
-    dbocderiv1 = np.zeros((ncoo, nsta))
-    sct_return = np.zeros((nsta))
 
     # Set the current normal mode coordinates
     qcoo = geom 
@@ -302,27 +276,16 @@ def evaluate_centroid(tid, geom, stateindices):
     # save these as a matter of course.
     calc_scts()
 
-    # Package up the energies, gradients and NACTs
-    # N.B. we need to include here the option to send back either
-    # the adiabatic or diabatic quantities...
-    ener = adiabpot
-
+    t_data = Surface(nsta,ncoo,1)
+    t_data.geom          = qcoo
+    t_data.potential     = adiabpot
     for i in range(nsta):
-        for m in range(ncoo):
-            if i == stateindx:
-                grad[i,m] = adiabderiv1[m,i]
-            else:
-                grad[i,m]=nactmat[m,stateindx,i]
+        t_data.deriv[:,i,i] = adiabderiv1[:,i]
+        for j in range(i):
+            t_data.deriv[:,i,j] = nactmat[:,i,j]
+            t_data.deriv[:,j,i] = nactmat[:,j,i]
 
-    # Package the SCTs: here we account for the 1/2 prefactor
-    # in the EOMs
-    for i in range(nsta):
-        sct_return[i]=0.5*sctmat[stateindx,i]
-
-    t_data.geom         = qcoo
-    t_data.energies     = ener
-    t_data.grads        = grad
-    t_data.scalar_coup  = sct_return
+    t_data.scalar_coup  = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.adt_mat      = adtmat
     t_data.dat_mat      = np.linalg.inv(adtmat)
     t_data.diabat_pot   = diabpot
