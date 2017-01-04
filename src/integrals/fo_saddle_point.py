@@ -8,7 +8,6 @@ import sys
 import math
 import numpy as np
 import src.fmsio.glbl as glbl
-import src.interfaces.vcham.hampar as ham
 import src.integrals.nuclear_guassian as nuc_ints
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
