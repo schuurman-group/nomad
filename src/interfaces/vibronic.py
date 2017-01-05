@@ -7,9 +7,6 @@ Much of this could benefit from changing for loops to numpy array operations.
 import sys
 import copy
 import numpy as np
-import src.interfaces.vcham.hampar as ham
-import src.interfaces.vcham.rdoper as rdoper
-import src.interfaces.vcham.rdfreq as rdfreq
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 
@@ -57,7 +54,6 @@ class Surface:
 
 def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
-    
     # Perhaps should have more robust checking that "orig_info" is in fact
     # a 'Surface' object
     if orig_info is None:
@@ -83,6 +79,184 @@ def copy_surface(orig_info):
     return new_info
 
 
+class VibHam:
+    """Object containing the vibronic Hamiltonian parameters."""
+    def __init__(self):
+        # Number of labels
+        self.npar = 0
+        # Label names
+        self.apar = None
+        # Values associated with labels
+        self.par = None
+        # Number of Hamiltonian terms
+        self.nterms = 0
+        # Coefficient values
+        self.coe = None
+        # Electronic state indices
+        self.stalbl = None
+        # Potential expansion orders
+        self.order = None
+        # Mode corresponding to each term
+        self.mode = None
+        # Temporary: maximum number of modes
+        self.maxdim = 60
+        # Normal mode frequencies
+        self.freq = None
+        # Labels of the modes in the complete set
+        self.mlbl_total = None
+        # Labels of the modes in the active set
+        self.mlbl_active = None
+        # Total no. modes
+        self.nmode_total = 0
+        # No. active modes
+        self.nmode_active = 0
+        # Mode label-to-frequency map
+        self.freqmap = dict()
+        # Parameter label-to-value map
+        self.parmap = dict()
+
+
+ham = VibHam() # Is this needed? Maybe just a dict is fine.
+
+
+def conv(val_list):
+    """Takes a list and converts it into atomic units.
+
+    The input list can either be a single float or a float followed by a
+    comma and the units to convert from."""
+    if len(val_list) == 1:
+        return float(val_list[0])
+    elif len(val_list) > 2 and val_list[1] == ',':
+        if val_list[2] == 'au':
+            return float(val_list[0])
+        elif val_list[2] == 'ev':
+            return float(val_list[0]) / glbl.au2ev
+        elif val_list[2] == 'cm':
+            return float(val_list[0]) / glbl.au2cm
+    else:
+        raise ValueError('Unknown parameter format:', val_list)
+
+
+def get_kwds(infile):
+    """Reads a file and returns keywords."""
+    delim = ['=', ',', '(', ')', '[', ']', '{', '}', '|', '*', '/', '^']
+    rawtxt = infile.readlines()
+    kwds = [[] for i in range(len(rawtxt))]
+
+    for i, line in enumerate(rawtxt):
+        if '#' in line:
+            line = line[:line.find('#')]
+        for d in delim:
+            line = line.replace(d, ' ' + d + ' ')
+        kwds[i] = line.lower().split()
+
+    while [] in kwds:
+        kwds.remove([])
+    return kwds
+
+
+def getcoe(val_list):
+    """Gets a coefficient from a list of factors"""
+    if len(val_list) % 2 != 1:
+        raise ValueError('Coefficient specification must of odd number of '
+                         'terms including arithmetic operators.')
+    val_list.insert(0, '*')
+    coeff = 1
+    for j in range(len(val_list) // 2):
+        try:
+            fac = float(val_list[2*j+1])
+        except ValueError:
+            fac = ham.parmap[val_list[2*j+1]]
+        if val_list[2*j] == '*':
+            coeff *= fac
+        elif val_list[2*j] == '/':
+            coeff /= fac
+        else:
+            raise ValueError('Aritmetic operator must be \'*\' or \'/\'')
+
+    return coeff
+
+
+def rdfreqfile():
+    """Reads and interprets a freq.dat file."""
+    with open(fileio.home_path + '/freq.dat', 'r') as infile:
+        keywords = get_kwds(infile)
+
+    ham.nmode_active = len(keywords)
+    ham.mlbl_active = ['' for i in range(ham.nmode_active)]
+    ham.freq = np.zeros(ham.nmode_active)
+    for i, kwd in enumerate(keywords):
+        ham.mlbl_active[i] = kwd[0]
+        ham.freq[i] = conv(kwd[1:])
+        ham.freqmap[kwd[0]] = ham.freq[i]
+
+
+def rdoperfile():
+    """Reads and interprets an operator file."""
+    with open(fileio.home_path + '/' + glbl.fms['opfile'], 'r') as infile:
+        keywords = get_kwds(infile)
+
+    parstart = keywords.index(['parameter-section'])
+    parend   = keywords.index(['end-parameter-section'])
+    ham.npar = parend - parstart - 1
+    ham.apar = ['' for i in range(ham.npar)]
+    ham.par  = np.zeros(ham.npar)
+    for i in range(ham.npar):
+        kwd = keywords[parstart + i + 1]
+        ham.apar[i] = kwd[0]
+        if kwd[1] != '=':
+            raise NameError('No argument has been given with the keyword: ' +
+                            kwd[0])
+        ham.par[i] = conv(kwd[2:])
+        ham.parmap[kwd[0]] = ham.par[i]
+
+    hamstart = keywords.index(['hamiltonian-section'])
+    hamend   = keywords.index(['end-hamiltonian-section'])
+    i = hamstart + 1
+    while i < hamend:
+        kwd = keywords[i]
+        if kwd[0] != 'modes' and i == hamstart + 1:
+            raise ValueError('The Hamiltonian section must start with the '
+                             'mode specification!')
+        elif kwd[0] != 'modes':
+            break
+        while '|' in kwd:
+            kwd.remove('|')
+        ham.nmode_total += len(kwd) - 1
+        ham.mlbl_total = kwd[1:]
+        i += 1
+
+    nterms = hamend - i
+    coe = np.zeros(nterms)
+    order = np.zeros((nterms, ham.nmode_total), dtype=int)
+    # Should just have a list of modes and a list of orders. There is no need
+    # to loop through lists of mostly unset variables.
+    #mode = ['' for i in range(ham.nterms)]
+    #order = np.zeros(ham.nterms, dtype=int)
+    stalbl = np.zeros((nterms, 2), dtype=int)
+    active = np.ones(nterms, dtype=bool)
+    for i in range(nterms):
+        kwd = keywords[hamend - nterms + i]
+        print(kwd)
+        if '^' in kwd:
+            coeend = len(kwd) - 4
+            modei = int(kwd[coeend]) - 1
+            order[i,modei] = int(kwd[coeend+2])
+            #ham.mode[i] = int(kwd[coeend])
+            #ham.order[i] = int(kwd[coeend+2])
+            active[i] = ham.mlbl_total[modei] in ham.mlbl_active
+        else:
+            coeend = len(kwd) - 1
+        coe[i] = getcoe(kwd[:coeend])
+        states = sorted(kwd[-1][1:].split('&'))
+        stalbl[i] = [int(s) for s in states]
+
+    ham.nterms = sum(active)
+    ham.coe = coe[active]
+    ham.stalbl = stalbl[active]
+    ham.order = order[active]
+
+
 def init_interface():
     """Reads the freq.dat file
 
@@ -94,23 +268,15 @@ def init_interface():
 
     global kecoeff
 
-    rdfreq.rdfreqfile()
-
-    # Open the operator file
-    opfile = open(glbl.fms['opfile'], 'r')
-
-    # Read the operator file
-    rdoper.rdoperfile(opfile)
-
-    # Close the operator file
-    opfile.close()
+    rdfreqfile()
+    rdoperfile()
 
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
     kecoeff = np.zeros((ham.nmode_active))
     kecoeff = 0.5*ham.freq[:ham.nmode_active]
-#    kecoeff = 0.5*np.ones((ham.nmode_active)) 
-   
+#    kecoeff = 0.5*np.ones((ham.nmode_active))
+
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
@@ -194,7 +360,7 @@ def evaluate_trajectory(tid, geom, stateindx):
 #    print("dat2="+str([[np.cos(theta),np.sin(theta)],[-np.sin(theta),np.cos(theta)]]))
 #    dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
 #    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
-#    print("ddat2="+str(ddat2)) 
+#    print("ddat2="+str(ddat2))
 
     t_data = Surface(nsta,ncoo,1)
     t_data.geom          = qcoo
@@ -218,7 +384,7 @@ def evaluate_trajectory(tid, geom, stateindx):
                            'diabat_pot','diabat_deriv',
                            'adiabat_pot','adiabat_deriv']
 
-    data_cache[tid] = t_data    
+    data_cache[tid] = t_data
     return t_data
 
 def evaluate_centroid(tid, geom, stateindices):
@@ -235,7 +401,7 @@ def evaluate_centroid(tid, geom, stateindices):
     # System dimensions
     stateindx  = stateindices[0]
     stateindx2 = stateindices[1]
-    ncoo = len(geom) 
+    ncoo = len(geom)
     nsta = glbl.fms['n_states']
 
     # Initialisation of arrays
@@ -248,7 +414,7 @@ def evaluate_centroid(tid, geom, stateindices):
     dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
 
     # Set the current normal mode coordinates
-    qcoo = geom 
+    qcoo = geom
 
     # Calculation of the diabatic potential matrix
     calc_diabpot(qcoo)
@@ -336,13 +502,13 @@ def calc_adt(tid):
     global adiabpot, adtmat, data_cache
 
     adiabpot, adtmat = np.linalg.eigh(diabpot)
-    
+
     # ensure phase continuity from geometry to another
     if tid in data_cache:
         for i in range(nsta):
             adtmat[:,i] *= np.sign(np.dot(adtmat[:,i],
                                           data_cache[tid].adt_mat[:,i]))
-    # else, set  phase convention that largest element in adt column vector is 
+    # else, set  phase convention that largest element in adt column vector is
     # positive
     else:
         mxvals = np.argmax(np.abs(adtmat),axis=0)

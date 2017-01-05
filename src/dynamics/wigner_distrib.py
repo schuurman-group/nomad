@@ -8,7 +8,6 @@ import scipy.linalg as linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-import src.interfaces.vcham.hampar as ham
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 def sample_distribution(master):
@@ -20,13 +19,15 @@ def sample_distribution(master):
 
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.fms['interface'] == 'vibronic':
+        import src.interfaces.vibronic as interface
         coordtype = 'normal'
+        ham = interface.ham
     else:
         coordtype = 'cart'
 
     # Read the geometry.dat file
-    (ncrd, crd_dim, amps, lbls, 
-            geoms, moms, width, mass) = fileio.read_geometry()
+    (ncrd, crd_dim, amps, lbls,
+     geoms, moms, width, mass) = fileio.read_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
     ndim = int(len(geoms)/len(amps))
@@ -77,14 +78,14 @@ def sample_distribution(master):
     if coordtype == 'normal':
         n_modes = ham.nmode_active
         freqs = ham.freq
-    
+
     # loop over the number of initial trajectories
     max_try = 1000
     ntraj  = glbl.fms['n_init_traj']
     for i in range(ntraj):
         delta_x   = np.zeros(n_modes)
         delta_p   = np.zeros(n_modes)
-        x_sample  = np.zeros(n_modes) 
+        x_sample  = np.zeros(n_modes)
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
