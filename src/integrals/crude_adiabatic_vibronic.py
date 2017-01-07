@@ -7,7 +7,8 @@ This currently uses first-order saddle point.
 import numpy as np
 import src.integrals.nuclear_gaussian as nuclear
 import src.interfaces.vibronic as vibronic 
-import src.interfaces.vcham.hampar as ham
+
+ham = vibronic.ham
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False 

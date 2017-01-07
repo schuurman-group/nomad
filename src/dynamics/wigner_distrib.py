@@ -4,7 +4,7 @@ Routines for generating and sampling a Wigner vibrational distribution.
 import sys
 import random
 import numpy as np
-import scipy.linalg as linalg
+import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
@@ -55,7 +55,7 @@ def sample_distribution(master):
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
                               else 0 for i in range(len(masses))], dtype=float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]
-        evals, evecs = np.linalg.eigh(mw_hess)
+        evals, evecs = sp_linalg.eigh(mw_hess)
         f_cutoff = 0.0001
         freq_list = []
         mode_list = []
@@ -141,7 +141,7 @@ def sample_distribution(master):
             smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
-    sinv = linalg.pinvh(smat)
+    sinv = sp_linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):
         master.traj[i].update_amplitude(cvec[i])
