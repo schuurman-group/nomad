@@ -171,8 +171,7 @@ class VibHam:
         self.stalbl = stalbl[active]
         #self.mode  = mode[active] # new ham.order
         self.order  = order[active]
-        self.mrange = [i for i in range(self.nmode_total) if
-                       self.mlbl_total[i] in self.mlbl_active]
+        self.mrange = [self.mlbl_total.index(i) for i in self.mlbl_active]
 
 
 def init_interface():
