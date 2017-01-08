@@ -72,12 +72,20 @@ def sample_distribution(master):
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
 
+    ## If normal modes are being used, set the no. modes
+    ## equal to the number of active modes of the model
+    ## Hamiltonian and load the associated frequencies
+    #if coordtype == 'normal':
+    #    n_modes = ham.nmode_active
+    #    freqs = ham.freq
+
     # If normal modes are being used, set the no. modes
-    # equal to the number of active modes of the model
-    # Hamiltonian and load the associated frequencies
+    # equal to the total number of modes of the model
+    # Hamiltonian and load only the active frequencies
     if coordtype == 'normal':
-        n_modes = ham.nmode_active
-        freqs = ham.freq
+        n_modes = ham.nmode_total
+        freqs = np.zeros(n_modes)
+        freqs[ham.mrange] = ham.freq
 
     # loop over the number of initial trajectories
     max_try = 1000
@@ -89,21 +97,22 @@ def sample_distribution(master):
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            sigma_x = beta*np.sqrt(0.25 / alpha)
-            sigma_p = beta*np.sqrt(alpha)
-            itry = 0
-            while itry <= max_try:
-                dx = random.gauss(0., sigma_x)
-                dp = random.gauss(0., sigma_p)
-                itry += 1
-                if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
-                    break
-            if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
-                print('Cannot get mode overlap > ' +
+            if alpha > glbl.fpzero:
+                sigma_x = beta*np.sqrt(0.25 / alpha)
+                sigma_p = beta*np.sqrt(alpha)
+                itry = 0
+                while itry <= max_try:
+                    dx = random.gauss(0., sigma_x)
+                    dp = random.gauss(0., sigma_p)
+                    itry += 1
+                    if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
+                        break
+                if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
+                    print('Cannot get mode overlap > ' +
                       str(glbl.fms['init_mode_min_olap']) +
                       ' within ' + str(max_try) + ' attempts. Exiting...')
-            delta_x[j] = dx
-            delta_p[j] = dp
+                delta_x[j] = dx
+                delta_p[j] = dp
 
         # If Cartesian coordinates are being used, displace along each
         # normal mode to generate the final geometry...
@@ -116,8 +125,8 @@ def sample_distribution(master):
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x * np.sqrt(freqs[0:n_modes])
-            disp_p = delta_p * np.sqrt(freqs[0:n_modes])
+            disp_x = delta_x * np.sqrt(freqs)
+            disp_p = delta_p * np.sqrt(freqs)
 
         x_sample = geom_ref + disp_x
         p_sample = mom_ref  + disp_p
@@ -132,15 +141,16 @@ def sample_distribution(master):
 
     # Calculate the initial expansion coefficients via projection onto
     # the initial wavefunction that we are sampling
-    ovec = np.zeros(ntraj, dtype=np.complex)
+    ovec = np.zeros(ntraj, dtype=complex)
     for i in range(ntraj):
         ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
-    smat = np.zeros((ntraj, ntraj), dtype=np.complex)
+    smat = np.zeros((ntraj, ntraj), dtype=complex)
     for i in range(ntraj):
         for j in range(i+1):
             smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
+    print(smat)
     sinv = sp_linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):
