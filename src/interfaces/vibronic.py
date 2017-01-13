@@ -33,19 +33,20 @@ class Surface:
         self.scalar_coup   = np.zeros((n_states, n_states))
         self.adt_mat       = np.zeros((n_states, n_states))
         self.dat_mat       = np.zeros((n_states, n_states))
-        self.ddat_mat      = np.zeros((t_dim,n_states, n_states))
+        self.ddat_mat      = np.zeros((t_dim, n_states, n_states))
         self.diabat_pot    = np.zeros((n_states, n_states))
         self.diabat_deriv  = np.zeros((t_dim, n_states, n_states))
-        self.adiabat_pot   = np.zeros((n_states, n_states))
-        self.adiabat_deriv = np.zeros((t_dim, n_states, n_states))
+        self.adiabat_pot   = np.zeros(n_states)
+        self.adiabat_deriv = np.zeros((t_dim, n_states))
 
 
 def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
-    # Perhaps should have more robust checking that "orig_info" is in fact
-    # a 'Surface' object
     if orig_info is None:
         return None
+    elif not isinstance(orig_info, Surface):
+        raise TypeError('copy_surface can only be used to copy objects of '
+                        '\'Surface\' type')
 
     new_info = Surface(orig_info.n_states,
                        orig_info.t_dim,
@@ -81,7 +82,7 @@ class VibHam:
         self.coe          = None
         self.stalbl       = None
         self.order        = None
-        self.mode         = None # new ham.order
+        self.mode         = None
         self.freq         = None
         self.mlbl_total   = []
         self.mlbl_active  = []
@@ -149,9 +150,8 @@ class VibHam:
 
         nterms = hamend - i
         coe    = np.zeros(nterms)
-        #order  = np.zeros((nterms, self.nmode_total), dtype=int) # old ham.order
-        mode   = [[] for i in range(nterms)] # new ham.order
-        order  = [[] for i in range(nterms)] # new ham.order
+        mode   = [[] for i in range(nterms)]
+        order  = [[] for i in range(nterms)]
         stalbl = np.zeros((nterms, 2), dtype=int)
         active = np.zeros(nterms, dtype=bool)
         for i in range(nterms):
@@ -159,12 +159,9 @@ class VibHam:
             if '^' in kwd:
                 powind = [j for j in range(len(kwd)) if kwd[j] == '^']
                 for j in powind:
-                    modei = int(kwd[j-1]) - 1
-                    #order[i,modei] = int(kwd[j+1]) # old ham.order
-                    #active[i] = (self.mlbl_total[modei] in self.mlbl_active
-                    #             or active[i]) # old ham.order
-                    if self.mlbl_total[modei] in self.mlbl_active: # new ham.order
-                        mode[i].append(opind[modei])
+                    modei = opind[int(kwd[j-1]) - 1]
+                    if self.mlbl_total[modei] in self.mlbl_active:
+                        mode[i].append(modei)
                         order[i].append(int(kwd[j+1]))
                         active[i] = True
             else:
@@ -180,9 +177,8 @@ class VibHam:
         self.nterms = sum(active)
         self.coe    = coe[active]
         self.stalbl = stalbl[active]
-        self.mode   = np.array(mode)[active] # new ham.order
-        self.order  = np.array(order)[active] # new ham.order
-        #self.order  = order[active] # old ham.order
+        self.mode   = np.array(mode)[active]
+        self.order  = np.array(order)[active]
         self.mrange = [self.mlbl_total.index(i) for i in self.mlbl_active]
 
 
@@ -196,7 +192,7 @@ def init_interface():
     """
     global kecoeff, ham
 
-    # Read in frequency and operator files
+    # Read in geometry labels, frequency and operator files
     ham = VibHam()
     ham.rdgeomfile(fileio.home_path + '/geometry.dat')
     ham.rdfreqfile(fileio.home_path + '/freq.dat')
@@ -303,7 +299,8 @@ def conv(val_list):
     """Takes a list and converts it into atomic units.
 
     The input list can either be a single float or a float followed by a
-    comma and the units to convert from.
+    comma and the units to convert from. Currently supported units are
+    Hartrees (au), electron volts (ev) and wavenumbers (cm).
     """
     if len(val_list) == 1:
         return float(val_list[0])
@@ -370,13 +367,11 @@ def calc_diabpot(q):
     to the lower-triangle of the diabatic potential matrix.
     """
     diabpot = np.zeros((nsta, nsta))
-    #active_ord = ham.order[:,ham.mrange] # old ham.order
 
     # Fill in the lower-triangle
     for i in range(ham.nterms):
         s1, s2 = ham.stalbl[i] - 1
-        #diabpot[s1,s2] += (ham.coe[i] * np.prod(q[ham.mrange]**active_ord[i])) # old ham.order
-        if ham.mode[i] == []: # new ham.order
+        if ham.mode[i] == []:
             diabpot[s1,s2] += ham.coe[i]
         else:
             diabpot[s1,s2] += ham.coe[i] * np.prod(q[ham.mode[i]]**ham.order[i])
@@ -407,7 +402,7 @@ def calc_diabderiv1(q):
     potential matrix wrt the nuclear DOFs."""
     diabderiv1 = np.zeros((ham.nmode_total, nsta, nsta))
 
-    # Fill in the lower-triangle (new ham.order)
+    # Fill in the lower-triangle
     for i in range(ham.nterms):
         nmodes = len(ham.mode[i])
         s1, s2 = ham.stalbl[i] - 1
@@ -422,34 +417,6 @@ def calc_diabderiv1(q):
             fac = np.prod((qcol - np.diag(q[m]) + np.diag(o)) *
                           (q[m]**(o - 1))[:,np.newaxis], axis=0)
             diabderiv1[m,s1,s2] += ham.coe[i] * fac
-
-    ## Fill in the lower-triangle (old ham.order)
-    ## This is actually significantly slower for 5 modes. It may only be
-    ## efficient for large numbers of modes.
-    #if not np.any(abs(q) < glbl.fpzero):
-    #    n = ham.nmode_active
-    #    qcol = np.repeat(q[ham.mrange], n).reshape(n, n)
-    #    for i in range(ham.nterms):
-    #        s1, s2 = ham.stalbl[i] - 1
-    #        o = ham.order[i,ham.mrange]
-    #        fac = np.prod((qcol - np.diag(q) + np.diag(o)) *
-    #                      (q ** (o - 1))[:,np.newaxis], axis=0)
-    #        diabderiv1[ham.mrange,s1,s2] += ham.coe[i] * fac
-
-    ## Fill in the lower-triangle (old ham.order)
-    #for i in range(ham.nterms):
-    #    s1, s2 = ham.stalbl[i] - 1
-    #    for m in ham.mrange:
-    #        if ham.order[i,m] != 0:
-    #            fac = ham.coe[i]
-    #            for n in ham.mrange:
-    #                p = ham.order[i,n]
-    #                if p != 0:
-    #                    if n == m:
-    #                        fac *= p * q[n]**(p-1)
-    #                    else:
-    #                        fac *= q[n]**p
-    #            diabderiv1[m,s1,s2] += fac
 
     # Fill in the upper-triangle
     diabderiv1[ham.mrange] += (np.transpose(diabderiv1[ham.mrange], axes=(0,2,1)) -
@@ -499,7 +466,7 @@ def calc_diablap(q):
     the nuclear DOFs at the point q."""
     diablap = np.zeros((nsta, nsta))
 
-    # Fill in the lower-triangle (new ham.order)
+    # Fill in the lower-triangle
     for i in range(ham.nterms):
         nmodes = len(ham.mode[i])
         s1, s2 = ham.stalbl[i] - 1
@@ -515,33 +482,6 @@ def calc_diablap(q):
             fac = np.prod((q2col - np.diag(q[m]**2) + np.diag(o * (o - 1))) *
                           (q[m]**(o - 2))[:,np.newaxis], axis=0)
             diablap[s1,s2] += ham.coe[i] * np.sum(fac)
-
-    ## Fill in the lower-triangle (old ham.order)
-    ## This is actually significantly slower for 5 modes. It may only be
-    ## efficient for large numbers of modes.
-    #if not np.any(abs(q) < glbl.fpzero):
-    #    n = ham.nmode_active
-    #    qcol = np.repeat(q[ham.mrange], n).reshape(n, n)
-    #    for i in range(ham.nterms):
-    #        s1, s2 = ham.stalbl[i] - 1
-    #        o = ham.order[i,ham.mrange]
-    #        fac = np.prod((qcol**2 - np.diag(q**2) + np.diag(o * (o - 1))) *
-    #                      (q ** (o - 2))[:,np.newaxis], axis=0)
-    #        diablap[s1,s2] += np.sum(ham.coe[i] * fac)
-
-    ## Fill in the lower-triangle (old ham.order)
-    #for i in range(ham.nterms):
-    #    s1, s2 = ham.stalbl[i] - 1
-    #    for m in ham.mrange:
-    #        if ham.order[i,m] > 1:
-    #            fac = ham.coe[i]
-    #            for n in ham.mrange:
-    #                p = ham.order[i,n]
-    #                if p > 1 and n == m:
-    #                    fac *= p * (p-1) * q[n]**(p-2)
-    #                elif p != 0:
-    #                    fac *= q[n]**p
-    #            diablap[s1,s2] += fac
 
     # Fill in the upper-triangle
     diablap += diablap.T - np.diag(diablap.diagonal())
@@ -636,8 +576,6 @@ def calc_scts(adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1, diablap):
 
     #-------------------------------------------------------------------
     # (4) Calculation of the 1st derivatives of the DBOCs
-    #
-    # CHECK THIS CAREFULLY!
     #-------------------------------------------------------------------
     dbocderiv1 = np.zeros((ham.nmode_total, nsta))
     for m in ham.mrange:
