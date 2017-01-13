@@ -16,10 +16,10 @@ def pseudo_inverse(mat):
     dim1, dim2 = mat.shape
     
     invmat = np.zeros((dim1, dim2), dtype=complex)
-    mat=np.conjugate(mat)
+    cmat=np.conjugate(mat)
     
     # SVD of the overlap matrix
-    u, s, vt = np.linalg.svd(mat, full_matrices=True)
+    u, s, vt = np.linalg.svd(cmat, full_matrices=True)
 
     #print("\n",s,"\n")
 
@@ -32,7 +32,8 @@ def pseudo_inverse(mat):
 
     # Moore-Penrose pseudo-inverse
     if glbl.fms['sinv_thrsh'] == -1.0:
-        cutoff = glbl.fms['sinv_thrsh']*np.maximum.reduce(s)
+        # set cutoff to machine epsilon * sigma_max
+        cutoff = np.finfo(float).eps * np.maximum.reduce(s)
     else:
         cutoff = glbl.fms['sinv_thrsh']
     for i in range(min(dim1, dim2)):

@@ -5,6 +5,7 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 
 def fms_step_trajectory(traj, init_time, dt):
@@ -145,7 +146,10 @@ def overlap_with_bundle(traj, bundle):
     for i in range(bundle.n_traj()):
         if bundle.traj[i].alive:
 
-            sij = traj.overlap(bundle.traj[i], st_orthog=True)
+            if traj.state != bundle.traj[i].state:
+                sij = 0j
+            else:
+                sij = integrals.traj_overlap(traj, bundle.traj[i])
             if abs(sij) > glbl.fms['sij_thresh']:
                 t_overlap_bundle = True
                 break

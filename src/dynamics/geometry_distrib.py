@@ -2,30 +2,33 @@
 Sample a distribution of geometries.
 """
 import src.fmsio.glbl as glbl
-import src.dynamics.utilities as utils
+import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-
 
 def sample_distribution(master):
     """Takes initial position and momentum from geometry.dat file."""
-    amps, geoms = utils.load_geometry()
-    ngeoms = len(amps)
-    natms  = int(len(geoms)/ngeoms)
+    (ncrd, crd_dim, amps, label, 
+                 geoms, moms, width, mass) = fileio.read_geometry()
+    ngeoms  = len(amps)
+    ndim    = int(len(geoms) / ngeoms)
 
     for i in range(ngeoms):
-        amp  = amps[i]
-        geom = []
-
-        # load particles in geometry array
-        for j in range(natms):
-            geom.append(geoms[i*natms + j])
-
+        
         # add a single trajectory specified by geometry.dat
-        master.add_trajectory(trajectory.Trajectory(glbl.fms['n_states'],
-                                                    particles=geom,
-                                                    parent=0))
-        # ...with unit amplitude
-        master.traj[i].amplitude = amp
+        master.add_trajectory(trajectory.Trajectory(
+                                     glbl.fms['n_states'],
+                                     ndim,
+                                     width=width[i*ndim:(i+1)*ndim],
+                                     mass=mass[i*ndim:(i+1)*ndim],
+                                     crd_dim=crd_dim,
+                                     parent=0))
+
+        # set position and momentum
+        master.traj[i].update_x(geoms[i*ndim:(i+1)*ndim])
+        master.traj[i].update_p(moms[i*ndim:(i+1)*ndim])    
+
+        # and initial amplitude
+        master.traj[i].amplitude = amps[i]
 
     # state of trajectory not set, return false
     return False

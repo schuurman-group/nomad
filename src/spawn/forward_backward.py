@@ -19,10 +19,9 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-
+integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 coup_hist = []
-
 
 def spawn(master, dt):
     """Propagates to the point of maximum coupling, spawns a new
@@ -54,7 +53,9 @@ def spawn(master, dt):
             max_sij = 0.
             for j in range(master.n_traj()):
                 if master.traj[j].alive and master.traj[j].state == st:
-                    sij = abs(master.traj[i].overlap(master.traj[j]))
+                    sij = abs(integrals.traj_overlap(master.traj[i],
+                                                     master.traj[j],
+                                                     nuc_only=True))
                     if sij > max_sij:
                         max_sij = sij
                         if max_sij > glbl.fms['sij_thresh']:
@@ -74,7 +75,7 @@ def spawn(master, dt):
                                 current_time):
                 parent = trajectory.copy_traj(master.traj[i])
                 child  = trajectory.copy_traj(parent)
-                child.amplitude = complex(0.,0.)
+                child.amplitude = 0j
                 child.state     = st
                 child.parent    = parent.tid
                 # the child and parent share an id before the child is added
@@ -84,8 +85,10 @@ def spawn(master, dt):
                 child.tid       = parent.tid
 
                 # propagate the parent forward in time until coupling maximized
-                spawn_time, exit_time, success = spawn_forward(parent, child,
-                                                               current_time, dt)
+                spawn_time, exit_time, success = spawn_forward(parent, 
+                                                               child,
+                                                               current_time,
+                                                               dt)
                 master.traj[i].last_spawn[st] = spawn_time
                 master.traj[i].exit_time[st]  = exit_time
 
@@ -97,7 +100,7 @@ def spawn(master, dt):
                     if not bundle_overlap:
                         basis_grown = True
                         master.add_trajectory(child)
-                        if master.ints.require_centroids:
+                        if integrals.require_centroids:
                             master.update_centroids()
                     else:
                         fileio.print_fms_logfile('spawn_bad_step',
@@ -130,8 +133,8 @@ def spawn_forward(parent, child, initial_time, dt):
         child_attempt       = trajectory.copy_traj(parent)
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
-                                                     parent.derivative(child_state))
-        sij = abs(parent.overlap(child_attempt))
+                                        parent.derivative(parent.state, child_state))
+        sij = abs(integrals.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail

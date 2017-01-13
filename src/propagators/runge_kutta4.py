@@ -17,11 +17,10 @@ import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
-
 @timings.timed
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with RK4."""
-    ncrd = glbl.fms['num_particles'] * glbl.fms['dim_particles']
+    ncrd = master.traj[0].dim
     mass = master.traj[0].masses()
 
     x0   = np.zeros((master.nactive, ncrd))
@@ -51,7 +50,8 @@ def propagate_bundle(master, dt):
     # Do 4th order RK
     H_list = []
     for rk in range(rk_ordr):
-        # determine x, p, phase at f(t,x)
+
+        # determine x,p,phase,at f(t,x)
         H_list.append(master.Heff)
         for i in range(master.nactive):
             ii = master.active[i]
@@ -78,7 +78,7 @@ def propagate_bundle(master, dt):
 
     amp_sum = 0
     for H_elem, mult in zip(H_list, k_mult):
-        master.update_amplitudes(dt, 10, H_elem, amp0)
+        master.update_amplitudes(dt, H_elem, amp0)
         amp_sum += mult * master.amplitudes()
     master.set_amplitudes(amp_sum / sum(k_mult))
 

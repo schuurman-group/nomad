@@ -24,7 +24,7 @@ def time_step(master):
        - two or more trajectories strongly coupled and/or spawning:
                 coupled_time_step
 
-    coupled time step is currently 0.25 * default_time_step
+    coupled time step is currently 0.5 * default_time_step
     """
     dt = glbl.fms['default_time_step']
     if master.in_coupled_regime():

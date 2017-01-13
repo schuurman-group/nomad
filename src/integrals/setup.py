@@ -6,8 +6,8 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 
 ext_modules=[
-    Extension('gaussian', sources=['gaussian.pyx'], libraries=['m']),
-    Extension('dirac_delta', sources=['dirac_delta.pyx'], libraries=['m'])
+    Extension('nuclear_gaussian', sources=['nuclear_gaussian.pyx'], libraries=['m']),
+    Extension('nuclear_dirac', sources=['nuclear_dirac.pyx'], libraries=['m'])
 ]
 
 setup(

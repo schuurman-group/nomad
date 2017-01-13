@@ -8,7 +8,6 @@ from functools import partial
 import numpy as np
 import src.fmsio.glbl as glbl
 
-
 pes        = None
 pes_cache  = dict()
 
@@ -35,20 +34,23 @@ def update_pes(master):
         # update electronic structure
         run_list = []
         for i in range(master.n_traj()):
-            if not master.traj[i].active or cached(i, master.traj[i].x()):
+            if not master.traj[i].active or cached(master.traj[i].tid, 
+                                                   master.traj[i].x()):
                 continue
-            run_list.append([i, master.traj[i].particles,
+            run_list.append([master.traj[i].tid, master.traj[i].x(),
                              master.traj[i].state])
-        if master.ints.require_centroids:
+        if master.integrals.require_centroids:
             # update the geometries
             master.update_centroids()
             # now update electronic structure in a controled way to allow for
             # parallelization
-            for i in range(master.n_cent()):
-                if not master.cent[i] or cached(-i, master.cent[i].x()):
-                    continue
-                run_list.append([-i, master.cent[i].particles,
-                                 master.cent[i].state, master.cent[i].c_state])
+            for i in range(master.n_traj()):
+                for j in range(i):
+                    if master.cent[i][j] is None or cached(master.cent[i][j].cid, 
+                                                           master.cent[i][j].x()):
+                        continue
+                    run_list.append([master.cent[i][j].cid, master.cent[i][j].x(),
+                                     master.cent[i][j].pstates])
         jobs = glbl.sc.parallelize(run_list)
         rdd = jobs.map(partial(pes.evaluate_worker, global_var=gvars))
         res = rdd.collect()
@@ -65,10 +67,12 @@ def update_pes(master):
             master.traj[i].update_pes(pes_cache[i])
 
         # and centroids
-        for i in range(master.n_cent()):
-            if not master.cent[i]:
-                continue
-            master.cent[i].update_pes(pes_cache[-i])
+        for i in range(master.n_traj()):
+            for j in range(i):
+                if master.cent[i][j] is None:
+                    continue
+                master.cent[i][j].update_pes(pes_cache[master.cent[i][j].cid])
+                master.cent[j][i] = master.cent[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -78,22 +82,25 @@ def update_pes(master):
         for i in range(master.n_traj()):
             if not master.traj[i].active:
                 continue
-            results = pes.evaluate_trajectory(i, master.traj[i].particles,
+            results = pes.evaluate_trajectory(master.traj[i].tid, 
+                                              master.traj[i].x(),
                                               master.traj[i].state)
             master.traj[i].update_pes(results)
 
         # ...and centroids if need be
-        if master.ints.require_centroids:
+        if master.integrals.require_centroids:
             # update the geometries
             master.update_centroids()
-            for i in range(master.n_cent()):
+            for i in range(master.n_traj()):
+                for j in range(i):
                 # if centroid not initialized, skip it
-                if not master.cent[i]:
-                    continue
-                results = pes.evaluate_centroid(i, master.cent[i].particles,
-                                                master.cent[i].state,
-                                                master.cent[i].c_state)
-                master.cent[i].update_pes(results)
+                    if master.cent[i][j] is None:
+                        continue
+                    results = pes.evaluate_centroid(master.cent[i][j].cid, 
+                                                    master.cent[i][j].x(),
+                                                    master.cent[i][j].pstates)
+                    master.cent[i][j].update_pes(results)
+                    master.cent[j][i] = master.cent[i][j]
 
     return success
 
@@ -105,7 +112,7 @@ def update_pes_traj(traj):
     """
     global pes
 
-    results = pes.evaluate_trajectory(traj.tid, traj.particles, traj.state)
+    results = pes.evaluate_trajectory(traj.tid, traj.x(), traj.state)
     traj.update_pes(results)
 
 

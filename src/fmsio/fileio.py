@@ -8,6 +8,7 @@ import shutil
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
+import src.basis.atom_lib as atom_lib
 
 # Make sure that we print entire arrays
 np.set_printoptions(threshold = np.inf)
@@ -17,7 +18,7 @@ scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump', 'coup_dump', 'dipole_dump',
                'secm_dump', 'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'spawn_dump',
-               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','auto.dat']
+               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','t_ovrlp','auto.dat']
 dump_header = dict()
 dump_format = dict()
 log_format  = dict()
@@ -25,6 +26,7 @@ tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
 
+interface_dict = dict()
 
 def read_input_files():
     """Reads the fms.input files.
@@ -32,7 +34,7 @@ def read_input_files():
     This file contains variables related to the running of the
     dynamics simulation.
     """
-    global scr_path, home_path
+    global scr_path, home_path, interface_dict
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
@@ -55,29 +57,15 @@ def read_input_files():
     # Read pes.input. This contains interface-specific user options. Get what
     #  interface we're using via glbl.fms['interface'], and populate the
     #  corresponding dictionary of keywords from glbl module
-    # Clumsy. Not even sure this is the best way to do this (need to segregate
-    # variables in different dictionaries. fix this later
+    # Still need to add a new dict to glbl for each new interface.
+    interface_dict = getattr(glbl, glbl.fms['interface'])
     kwords = read_namelist('pes.input')
-    if glbl.fms['interface'] == 'columbus':
-        for k, v in kwords.items():
-            if k in glbl.columbus:
-                glbl.columbus[k] = v
-            else:
-                print('Variable '  + str(k) +
-                      ' in fms.input unrecognized. Ignoring...')
-    elif glbl.fms['interface'] == 'vibronic':
-        for k, v in kwords.items():
-            if k in glbl.vibronic:
-                glbl.vibronic[k] = v
-            else:
-                print('Variable ' + str(k) +
-                      ' in fms.input unrecognized. Ignoring...')
-    elif glbl.fms['interface'] == 'boson_model_diabatic':
-        for k, v in kwords.items():
-            if k in glbl.boson:
-                glbl.boson[k] = v
-    else:
-        print('Interface: ' + str(glbl.fms['interface']) + ' not recognized.')
+    for k, v in kwords.items():
+        if k in interface_dict:
+            interface_dict[k] = v
+        else:
+            print('Variable ' + str(k) +
+                  ' in fms.input unrecognized. Ignoring...')
 
 
 def read_namelist(filename):
@@ -110,8 +98,9 @@ def init_fms_output():
     global home_path, scr_path, log_format, tkeys, bkeys
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    nump = int(glbl.fms['num_particles'])
-    numd = int(glbl.fms['dim_particles'])
+    (ncrd, crd_dim, amp_data, label_data,
+            geom_data, mom_data, width_data, mass_data) = read_geometry()
+
     nums = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
     acc1 = 12
@@ -120,9 +109,9 @@ def init_fms_output():
     # ----------------- dump formats (trajectory files) -----------------
     # trajectory output
     arr1 = ['{:>12s}'.format('pos' + str(i+1) + '.' + dstr[x])
-            for i in range(nump) for x in range(numd)]
+            for i in range(ncrd) for x in range(crd_dim)]
     arr2 = ['{:>12s}'.format('mom' + str(i+1) + '.' + dstr[x])
-            for i in range(nump) for x in range(numd)]
+            for i in range(ncrd) for x in range(crd_dim)]
     tfile_names[tkeys[0]] = 'trajectory'
     dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + 'Phase'.rjust(acc1) +
@@ -130,7 +119,7 @@ def init_fms_output():
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
     dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(3*nump*numd)) +
+                             ''.join('{:12.6f}' for i in range(2*ncrd*crd_dim+5))+
                              '\n')
 
     # potential energy
@@ -151,17 +140,17 @@ def init_fms_output():
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nums) for j in range(numd)]
+            for i in range(nums) for j in range(crd_dim)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*numd)) + '\n')
+                                     for i in range(nums*crd_dim)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nums) for j in range(i) for k in range(numd)]
-    ncol = int(nums*(nums-1)*numd/2+1)
+            for i in range(nums) for j in range(i) for k in range(crd_dim)]
+    ncol = int(nums*(nums-1)*crd_dim/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{:12.4f}' +
@@ -170,30 +159,30 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nums) for j in range(numd)]
+            for i in range(nums) for j in range(crd_dim)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*numd)) + '\n')
+                                     for i in range(nums*crd_dim)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_p' + str(j+1)
-            for i in range(nums) for j in range(nump)]
+            for i in range(nums) for j in range(ncrd)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{:12.4f}' +
                              ''.join('{:10.5f}'
-                                     for i in range(nums*nump)) + '\n')
+                                     for i in range(nums*ncrd)) + '\n')
 
     # gradients
     arr1 = ['  grad_part' + str(i+1) + '.' + dstr[j]
-            for i in range(nump) for j in range(numd)]
+            for i in range(ncrd) for j in range(crd_dim)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, nump*numd+1)) + '\n')
+                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
@@ -232,12 +221,13 @@ def init_fms_output():
     bfile_names[bkeys[4]] = 'sdot.dat'
     bfile_names[bkeys[5]] = 'h.dat'
     bfile_names[bkeys[6]] = 'heff.dat'
+    bfile_names[bkeys[7]] = 't_ovrlp.dat'
 
     # autocorrelation function
     arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
-    bfile_names[bkeys[7]] = 'auto.dat'
-    dump_header[bkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[bkeys[7]] = ('{:12.4f}' +
+    bfile_names[bkeys[8]] = 'auto.dat'
+    dump_header[bkeys[8]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[bkeys[8]] = ('{:12.4f}' +
                              ''.join('{:16.10f}' for i in range(3)) + '\n')
 
     # ------------------------- log file formats --------------------------
@@ -262,18 +252,9 @@ def init_fms_output():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
-        if glbl.fms['interface'] == 'columbus':
-            out_key = glbl.columbus
-        elif glbl.fms['interface'] == 'vibronic':
-            out_key = glbl.vibronic
-        elif glbl.fms['interface'] == 'boson_model_diabatic':
-            out_key = glbl.boson
-        else:
-            out_key = dict()
-
         log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
         log_str += ' ----------------------------------------\n'
-        for k, v in out_key.items():
+        for k, v in interface_dict.items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
@@ -338,7 +319,8 @@ def update_logs(bundle):
     dt    = glbl.fms['default_time_step']
     mod_t = bundle.time % dt
 
-    return mod_t < 0.1*dt or mod_t > 0.9*dt
+    # this. is. ugly.
+    return (mod_t < 0.0001*dt or mod_t > 0.999*dt)
 
 
 def print_bund_row(fkey, data):
@@ -390,6 +372,8 @@ def read_geometry():
     geom_data  = []
     mom_data   = []
     width_data = []
+    label_data = []
+    mass_data  = []
 
     with open(home_path + '/geometry.dat', 'r', encoding='utf-8') as gfile:
         gm_file = gfile.readlines()
@@ -404,34 +388,65 @@ def read_geometry():
             ind = line.index('amplitude')
             amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
         else:
-            amp_data.append(complex(1.,0.))
+            amp_data.append(1 + 0j)
 
-        # number of atoms
+        print("amp_data=",amp_data)
+
+        # number of atoms/coordinates
         lcnt += 1
-        natm = int(gm_file[lcnt])
+        nq = int(gm_file[lcnt])
 
         # read in geometry
-        for i in range(natm):
+        for i in range(nq):
             lcnt += 1
-            geom_data.append(gm_file[lcnt].rstrip().split())
+            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                      for j in range(1,len(gm_file[lcnt].rstrip().split()))])
+            crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
+            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0]
+                       for i in range(crd_dim)])
 
         # read in momenta
-        for i in range(natm):
+        for i in range(nq):
             lcnt += 1
-            mom_data.append(gm_file[lcnt].rstrip().split())
+            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                       for j in range(len(gm_file[lcnt].rstrip().split()))])
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
-            for i in range(natm):
+            for i in range(nq):
                 lcnt += 1
-                width_data.append(float(gm_file[lcnt].rstrip().split()[1]))
+                width_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                               for j in range(1,len(gm_file[lcnt].split()))])
+        else:
+            labels = label_data[-nq * crd_dim]
+            for lbl in labels:
+                if atom_lib.valid_atom(lbl):
+                    adata = atom_data(lbl)
+                    width_data.extend([float(adata[0])])
+                else:
+                    width_data.extend([0.])
+
+        # read in masses, if present
+        if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
+            for i in range(nq):
+                lcnt += 1
+                mass_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                               for j in range(1,len(gm_file[lcnt].split()))])
+        else:
+            labels = label_data[-nq * crd_dim]
+            for lbl in labels:
+                if atom_lib.valid_atom(lbl):
+                    adata = atom_data(lbl)
+                    mass_data.extend([float(adata[1])])
+                else:
+                    mass_data.extend([1.])
 
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return amp_data, geom_data, mom_data, width_data
-
+    return (nq, crd_dim, amp_data, label_data,
+            geom_data, mom_data, width_data, mass_data)
 
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""

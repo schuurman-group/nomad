@@ -30,8 +30,6 @@ fms = dict(
     n_init_traj            = 1,
     seed                   = 0,
     restart                = False,
-    num_particles          = 1,
-    dim_particles          = 3,
     n_states               = 1,
     init_state             = 1,
     init_brightest         = False,
@@ -60,7 +58,9 @@ fms = dict(
     renorm                 = 0,
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
-    matching_pursuit       = 0
+    matching_pursuit       = 0,
+# MSS -- can be 'adiabatic','diabatic','crude_adiabatic'
+    representation         = 'adiabatic'
     )
 
 # Electronic structure information read from interface-specific

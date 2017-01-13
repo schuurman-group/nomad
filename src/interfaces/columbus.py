@@ -9,7 +9,7 @@ import subprocess
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-import src.dynamics.utilities as utils
+import src.basis.atom_lib as atom_lib
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -24,7 +24,13 @@ input_path = ''
 work_path = ''
 # path to the location of restart files (i.e. mocoef files and civfl)
 restart_path = ''
-# by default, since this is the columbus module, assume "particles" are
+# atom labels
+a_sym        = []
+# atomic number
+a_num        = []
+# atomic masses (amu)
+a_mass       = []
+# by default, since this is the columbus module, assume atoms are
 # 3-dimensional (i.e. Cartesian)
 p_dim        = 3
 # number of atoms
@@ -46,6 +52,42 @@ mrci_lvl     = 0
 # amount of memory per process, in MB
 mem_str      = ''
 
+class Surface:
+    """Object containing potential energy surface data."""
+    def __init__(self, n_states, t_dim, crd_dim):
+        # necessary for array allocation
+        self.n_states = n_states
+        self.t_dim    = t_dim
+        self.crd_dim  = crd_dim
+
+        # these are the standard quantities ALL interface_data objects return
+        self.data_keys = []
+        self.geom      = np.zeros(t_dim)
+        self.energies  = np.zeros(n_states)
+        self.grads     = np.zeros((n_states, t_dim))
+
+        # these are interface-specific quantities
+
+
+def copy_surface(orig_info):
+    """Creates a copy of a Surface object."""
+    if orig_info is None:
+        return None
+    elif not isinstance(orig_info, Surface):
+        raise TypeError('copy_surface can only be used to copy objects of '
+                        '\'Surface\' type')
+
+    new_info = Surface(orig_info.n_states,
+                            orig_info.t_dim,
+                            orig_info.crd_dim)
+
+    new_info.data_keys = copy.copy(orig_info.data_keys)
+    new_info.geom      = copy.deepcopy(orig_info.geom)
+    new_info.energies  = copy.deepcopy(orig_info.energies)
+    new_info.grads     = copy.deepcopy(orig_info.grads)
+
+    return new_info
+
 
 #----------------------------------------------------------------
 #
@@ -55,22 +97,28 @@ mem_str      = ''
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path
-    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
-    global max_l, mrci_lvl, mem_str
+    global a_sym, a_num, a_mass, n_atoms, n_cart
+    global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     global kecoeff
 
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
-    npart = glbl.fms['num_particles']
-    ndim = glbl.fms['dim_particles']
-    kecoeff = np.zeros((npart*ndim))
-    amps, phase_gm = utils.load_geometry()
-    for i in range(npart):
-        mass = phase_gm[i].mass        
-        for j in range(i*3,i*3+3):
-            kecoeff[j]=0.5/mass
-        
+    (natm, crd_dim, amp_data, label_data, geom_data, 
+          mom_data, width_data, mass_data) = fileio.read_geometry()
+
+    # set atomic symbol, number, mass, 
+    a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
+    a_mass  = [mass_data[i]  for i in range(0,natm*crd_dim,crd_dim)]
+    for i in range(len(a_sym)):
+        if atom_lib.valid_atom(a_sym[i]):
+            a_num.append(atom_data(a_sym[i])[2])
+        else:
+            raise ValueError('Atom: '+str(atom_sym)+' not found in library'))
+
+    # set coefficient for kinetic energy determination            
+    kecoeff = 0.5/mass_data[0:natm*crd_dim]
+
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
     columbus_path = os.environ['COLUMBUS']
@@ -105,8 +153,8 @@ def init_interface():
         shutil.copy2(local_file, work_file)
 
     # now -- pull information from columbus input
-    n_atoms    = file_len('input/geom')
-    n_cart     = p_dim * n_atoms
+    n_atoms    = natm
+    n_cart     = natm * crd_dim
     n_orbs     = int(read_pipe_keyword('input/cidrtmsin',
                                        'orbitals per irrep'))
     n_mcstates = int(read_nlist_keyword('input/mcscfin',
@@ -137,17 +185,18 @@ def evalutate_trajectory(tid, geom, state):
     return surf_info
 
 
-def evalutate_centroid(tid, geom, state_i, state_j):
+def evalutate_centroid(tid, geom, states):
     """Evaluates  all requested electronic structure information at a
     centroid."""
     if tid >= 0:
         print('evaluate_centroid called with ' +
               'id associated with trajectory, tid=' + str(tid))
     # run_centroid returns None...
+    state_i = states[0]
+    state_j = states[1]
     surf_info = run_centroid(tid, geom, state_i, state_j)
 
     return surf_info
-
 
 def evaluate_worker(args, global_vars):
     """Evaluates worker on a slave mode."""
@@ -178,9 +227,7 @@ def in_cache(tid, geom):
 
     if tid not in current_geom:
         return False
-    g = np.fromiter((geom[i].x[j] for i in range(n_atoms)
-                     for j in range(p_dim)), dtype=float)
-    difg = np.linalg.norm(g - current_geom[tid])
+    difg = np.linalg.norm(geom - current_geom[tid])
     if difg <= glbl.fpzero:
         return True
     return False
@@ -229,9 +276,7 @@ def run_trajectory(tid, geom, tstate):
     make_col_restart(tid)
 
     # update the geometry in the cache
-    current_geom[tid] = np.fromiter((geom[i].x[j] for i in range(n_atoms)
-                                     for j in range(p_dim)), dtype=float)
-
+    current_geom[tid] = geom
 
 def run_centroid(tid, geom, state_i, state_j):
     """Returns an energy (same state) or coupling (different states)
@@ -264,9 +309,7 @@ def run_centroid(tid, geom, state_i, state_j):
     make_col_restart(tid)
 
     # update the geometry in the cache
-    current_geom[tid] = np.fromiter((geom[i].x[j] for i in range(n_atoms)
-                                     for j in range(p_dim)), dtype=float)
-
+    current_geom[tid] = geom
 
 #----------------------------------------------------------------
 #
@@ -774,11 +817,12 @@ def get_adiabatic_phase(new_coup, old_coup):
 #---------------------------------------------------------------
 def get_global_vars():
     """Gets the list of global variables."""
-    global input_path, work_path, restart_path, p_dim
-    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
-    global max_l, mrci_lvl, mem_str
+    global input_path, work_path, restart_path
+    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart
+    global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
-    gvars = [input_path, work_path, restart_path, p_dim, n_atoms, n_cart,
+    gvars = [input_path, work_path, restart_path, 
+             a_sym, a_num, a_mass, p_dim, n_atoms, n_cart,
              n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str]
 
     return gvars
@@ -786,24 +830,26 @@ def get_global_vars():
 
 def set_global_vars(gvars):
     """Sets the global variables."""
-    global input_path, work_path, restart_path, p_dim
-    global n_atoms, n_cart, n_orbs, n_mcstates, n_cistates
-    global max_l, mrci_lvl, mem_str
+    global input_path, work_path, restart_path
+    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart, 
+    global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     input_path   = gvars[0]
     work_path    = gvars[1]
     restart_path = gvars[2]
-    p_dim        = gvars[3]
-    n_atoms      = gvars[4]
-    n_cart       = gvars[5]
-    n_drt        = gvars[6]
-    n_orbs       = gvars[7]
-    n_mcstates   = gvars[8]
-    n_cistates   = gvars[9]
-    max_l        = gvars[10]
-    mrci_lvl     = gvars[11]
-    mem_str      = gvars[12]
-
+    a_sym        = gvals[3]
+    a_num        = gvals[4]
+    a_mass       = gvals[5]
+    p_dim        = gvars[6]
+    n_atoms      = gvars[7]
+    n_cart       = gvars[8]
+    n_drt        = gvars[9]
+    n_orbs       = gvars[10]
+    n_mcstates   = gvars[11]
+    n_cistates   = gvars[12]
+    max_l        = gvars[13]
+    mrci_lvl     = gvars[14]
+    mem_str      = gvars[15]
 
 #-----------------------------------------------------------------
 #
@@ -902,17 +948,17 @@ def set_mrci_restart(tid):
         return False
 
 def write_col_geom(geom):
-    """Writes a particle array to a COLUMBUS style geom file."""
-    global n_atoms, work_path
+    """Writes a array of atoms to a COLUMBUS style geom file."""
+    global n_atoms, a_sym, a_num, a_mass, work_path
 
     os.chdir(work_path)
 
     f = open('geom', 'w', encoding='utf-8')
     for i in range(n_atoms):
         f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
-                '\n'.format(geom[i].name, geom[i].anum, geom[i].x[0],
-                            geom[i].x[1], geom[i].x[2],
-                            geom[i].mass/glbl.mass2au))
+                '\n'.format(a_sym[i], a_num[i], 
+                            geom[p_dim*i],geom[p_dim*i+1],geom[p_dim*i+2],
+                            a_mass[i]/glbl.mass2au))
     f.close()
 
 

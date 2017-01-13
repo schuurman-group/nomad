@@ -9,7 +9,7 @@ import copy
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.bundle as bundle
-import src.utils.linear as linear
+import src.utils.linalg as linalg
 
 
 selected = []
@@ -28,7 +28,7 @@ def reexpress_basis(master):
     # If the condition number of the overlap matrix is below
     # threshold, then return, else re-exress the basis using the
     # matching pursuit algorithm
-    Sinv, cond = linear.pseudo_inverse(master.S)
+    Sinv, cond = linalg.pseudo_inverse(master.S)
     if cond <= epsilon:
         return
     else:
@@ -69,7 +69,7 @@ def mp_1iter(residual, master):
     nbas += 1
 
     # (2) Coefficients for the selected basis functions
-    coeff.append(complex(0., 0.))
+    coeff.append(0j)
     coeff_basfunc(residual,master)
 
     # Exit if we have reached the
@@ -112,15 +112,15 @@ def coeff_basfunc(residual,master):
         iindx = selected[i]
         for j in range(i+1):
             jindx = selected[j]
-            smat[i,j] = residual.traj[iindx].overlap(residual.traj[jindx],
-                                                     st_orthog=True)
+            smat[i,j] = residual.ints.traj_overlap(residual.traj[iindx], 
+                                                   residual.traj[jindx])
             smat[j,i] = smat[i,j].conjugate()
-    sinv, cond = linear.pseudo_inverse(smat)
+    sinv, cond = linalg.pseudo_inverse(smat)
 
     # Project the selected basis functions onto the target
     for i in range(nbas):
         iindx = selected[i]
-        coe = complex(0., 0.)
+        coe = 0j
         for j in range(nbas):
             jindx = selected[j]
             coe += (sinv[i,j] *
@@ -135,7 +135,7 @@ def check_conv(residual,master):
     # Create a bundle corresponding to the selected basis functions
     new = bundle.copy_bundle(residual)
     for i in range(new.nalive+new.ndead):
-        new.traj[i].amplitude = np.copy(complex(0., 0.))
+        new.traj[i].amplitude = np.copy(0j)
     for i in range(nbas):
         indx = selected[i]
         new.traj[indx].amplitude = np.copy(coeff[i])
@@ -186,7 +186,7 @@ def reset_wavefunction(master):
 
     # Set the new coefficients
     for i in range(master.nalive+master.ndead):
-        master.traj[i].amplitude = np.copy(complex(0., 0.))
+        master.traj[i].amplitude = np.copy(0j)
     for i in range(nbas):
         indx = selected[i]
         master.traj[indx].amplitude = np.copy(coeff[i])
@@ -215,6 +215,5 @@ def recalc_overlap(master):
         iindx = master.alive[i]
         for j in range(i+1):
             jindx = master.alive[j]
-            master.S[i,j] = (master.traj[iindx].overlap(master.traj[jindx],
-                                                        st_orthog=False))
+            master.S[i,j] = master.traj[iindx].nuc_overlap(master.traj[jindx])
             master.S[j,i] = master.S[i,j].conjugate()
