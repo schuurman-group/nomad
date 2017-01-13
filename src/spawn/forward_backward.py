@@ -73,8 +73,8 @@ def spawn(master, dt):
             # if we satisfy spawning conditions, begin spawn process
             if spawn_trajectory(master.traj[i], st, coup_hist[i][st,:],
                                 current_time):
-                parent = trajectory.copy_traj(master.traj[i])
-                child  = trajectory.copy_traj(parent)
+                parent = master.traj[i].copy()
+                child  = parent.copy()
                 child.amplitude = 0j
                 child.state     = st
                 child.parent    = parent.tid
@@ -85,7 +85,7 @@ def spawn(master, dt):
                 child.tid       = parent.tid
 
                 # propagate the parent forward in time until coupling maximized
-                spawn_time, exit_time, success = spawn_forward(parent, 
+                spawn_time, exit_time, success = spawn_forward(parent,
                                                                child,
                                                                current_time,
                                                                dt)
@@ -130,7 +130,7 @@ def spawn_forward(parent, child, initial_time, dt):
     while True:
         coup = np.roll(coup,1)
         coup[0] = abs(parent.eff_coup(child_state))
-        child_attempt       = trajectory.copy_traj(parent)
+        child_attempt       = parent.copy()
         child_attempt.state = child_state
         adjust_success      = utilities.adjust_child(parent, child_attempt,
                                         parent.derivative(parent.state, child_state))
@@ -163,7 +163,7 @@ def spawn_forward(parent, child, initial_time, dt):
             elif not np.all(coup[0] > coup[1:]):
                 sp_str = 'no [decreasing coupling]'
             else:
-                child = trajectory.copy_traj(child_attempt)
+                child = child_attempt.copy()
                 child_created                  = True
                 spawn_time                     = current_time
                 parent.last_spawn[child_state] = spawn_time

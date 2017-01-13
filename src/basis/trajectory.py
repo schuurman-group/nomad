@@ -7,29 +7,6 @@ import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
-@timings.timed
-def copy_traj(orig_traj):
-    """Copys a Trajectory object with new references."""
-    new_traj = Trajectory(orig_traj.nstates,
-                          orig_traj.dim,
-                          orig_traj.width,
-                          orig_traj.mass,
-                          orig_traj.crd_dim,
-                          orig_traj.tid,
-                          orig_traj.parent)
-    new_traj.state      = copy.copy(orig_traj.state)
-    new_traj.alive      = copy.copy(orig_traj.alive)
-    new_traj.amplitude  = copy.copy(orig_traj.amplitude)
-    new_traj.gamma      = copy.copy(orig_traj.gamma)
-    new_traj.deadtime   = copy.copy(orig_traj.deadtime)
-    new_traj.pos        = copy.deepcopy(orig_traj.pos)
-    new_traj.mom        = copy.deepcopy(orig_traj.mom)
-    new_traj.last_spawn = copy.deepcopy(orig_traj.last_spawn)
-    new_traj.exit_time  = copy.deepcopy(orig_traj.exit_time)
-    new_traj.spawn_coup = copy.deepcopy(orig_traj.spawn_coup)
-    new_traj.pes_data   = orig_traj.interface.copy_surface(orig_traj.pes_data)
-    return new_traj
-
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
@@ -94,6 +71,25 @@ class Trajectory:
         # data structure to hold the pes data from the interface
         self.pes_data  = None
 
+    @timings.timed
+    def copy(self):
+        """Copys a Trajectory object with new references."""
+        new_traj = Trajectory(self.nstates, self.dim, self.width, self.mass,
+                              self.crd_dim, self.tid, self.parent)
+        new_traj.state      = copy.copy(self.state)
+        new_traj.alive      = copy.copy(self.alive)
+        new_traj.amplitude  = copy.copy(self.amplitude)
+        new_traj.gamma      = copy.copy(self.gamma)
+        new_traj.deadtime   = copy.copy(self.deadtime)
+        new_traj.pos        = copy.deepcopy(self.pos)
+        new_traj.mom        = copy.deepcopy(self.mom)
+        new_traj.last_spawn = copy.deepcopy(self.last_spawn)
+        new_traj.exit_time  = copy.deepcopy(self.exit_time)
+        new_traj.spawn_coup = copy.deepcopy(self.spawn_coup)
+        if self.pes_data is not None:
+            new_traj.pes_data = self.pes_data.copy()
+        return new_traj
+
     #-------------------------------------------------------------------
     #
     # Trajectory status functions
@@ -132,7 +128,7 @@ class Trajectory:
 
     def update_pes(self, pes_info):
         """Updates information about the potential energy surface."""
-        self.pes_data   = self.interface.copy_surface(pes_info)
+        self.pes_data = pes_info.copy()
 
     #-----------------------------------------------------------------------
     #
@@ -368,10 +364,10 @@ class Trajectory:
 
         # create Surface object, if doesn't already exist
         if self.pes_data is None:
-            self.pes_data = self.interface.Surface(self.nstates, 
+            self.pes_data = self.interface.Surface(self.nstates,
                                                    self.dim,
                                                    self.crd_dim)
- 
+
         chkpt.readline()
         # potential energy -- nstates
         self.pes_data.potential = np.fromstring(chkpt.readline(), sep=' ', dtype=float)

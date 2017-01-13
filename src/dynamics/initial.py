@@ -59,7 +59,7 @@ def init_bundle(master):
 
     # this is the bundle at time t=0.  Save in order to compute auto
     # correlation function
-    glbl.bundle0 = bundle.copy_bundle(master)
+    glbl.bundle0 = master.copy()
 
     # write to the log files
     master.update_logs()
@@ -119,7 +119,7 @@ def virtual_basis(master):
             if j == master.traj[i].state:
                 continue
 
-            new_traj = trajectory.copy_traj(master.traj[i])
+            new_traj = master.traj[i].copy()
             new_traj.amplitude = 0j
             new_traj.state = j
             master.add_trajectory(new_traj)

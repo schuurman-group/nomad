@@ -39,10 +39,10 @@ def propagate_bundle(master, dt):
         h=dt
     else:
         h=hlast
-    
+
     # propagate amplitudes for 1/2 time step using x0
     #master.update_amplitudes(0.5*dt)
-    
+
     # Propagate the bundle of trajectories
     t=0.
     while t < dt:
@@ -78,7 +78,7 @@ def propagate_bundle(master, dt):
             master.traj[ii].update_p(pnew4[i,:])
             master.traj[ii].update_phase(gnew4[i])
         surface.update_pes(master)
-        
+
         # propagate amplitudes for 1/2 time step using x1
         master.update_amplitudes(0.5*hsucc)
 
@@ -86,7 +86,7 @@ def propagate_bundle(master, dt):
     #master.update_amplitudes(0.5*dt)
 
 ########################################################################
-        
+
 def rkf45_bundle(master, dt):
 
     global err
@@ -95,7 +95,7 @@ def rkf45_bundle(master, dt):
     global xnew4
     global pnew4
     global gnew4
-    
+
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
@@ -138,7 +138,7 @@ def rkf45_bundle(master, dt):
     # k1
     #-------------------------------------------------------------------
     # Temporary bundle copy
-    tmpbundle = bundle.copy_bundle(master)
+    tmpbundle = master.copy()
 
     # Initial phase space centres
     for i in range(master.nactive):
@@ -166,10 +166,10 @@ def rkf45_bundle(master, dt):
         tmpbundle.traj[ii].update_x(x0[i,:]   + 0.25*k1_x[i,:])
         tmpbundle.traj[ii].update_p(p0[i,:]   + 0.25*k1_p[i,:])
         tmpbundle.traj[ii].update_phase(g0[i] + 0.25*k1_g[i])
-    
+
     # Calculate the potentials at the new phase space centres
     surface.update_pes(tmpbundle)
-    
+
     # Calculate the time-derivatives at the new phase space centres
     for i in range(master.nactive):
         ii = master.active[i]
@@ -179,21 +179,21 @@ def rkf45_bundle(master, dt):
         k2_x[i,:] = dt*xdot
         k2_p[i,:] = dt*pdot
         k2_g[i]   = dt*gdot
-    
+
     #-------------------------------------------------------------------
     # k3
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmpbundle = bundle.copy_bundle(master)
+    tmpbundle = master.copy()
     for i in range(master.nactive):
         ii = master.active[i]
         tmpbundle.traj[ii].update_x(x0[i,:]   + (3./32.)*k1_x[i,:] +
-                                    (9./32.)*k2_x[i,:]) 
+                                    (9./32.)*k2_x[i,:])
         tmpbundle.traj[ii].update_p(p0[i,:]   + (3./32.)*k1_p[i,:] +
-                                    (9./32.)*k2_p[i,:]) 
+                                    (9./32.)*k2_p[i,:])
         tmpbundle.traj[ii].update_phase(g0[i] + (3./32.)*k1_g[i]   +
-                                        (9./32.)*k2_g[i]) 
-        
+                                        (9./32.)*k2_g[i])
+
     # Calculate the potentials at the new phase space centres
     surface.update_pes(tmpbundle)
 
@@ -211,20 +211,20 @@ def rkf45_bundle(master, dt):
     # k4
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmpbundle = bundle.copy_bundle(master)
+    tmpbundle = master.copy()
     for i in range(master.nactive):
         ii = master.active[i]
         tmpbundle.traj[ii].update_x(x0[i,:]   +
                                     (1932./2197.)*k1_x[i,:]-
                                     (7200./2197.)*k2_x[i,:]+
-                                    (7296./2197.)*k3_x[i,:]) 
+                                    (7296./2197.)*k3_x[i,:])
         tmpbundle.traj[ii].update_p(p0[i,:]   +
                                     (1932./2197.)*k1_p[i,:]-
                                     (7200./2197.)*k2_p[i,:]+
-                                    (7296./2197.)*k3_p[i,:]) 
+                                    (7296./2197.)*k3_p[i,:])
         tmpbundle.traj[ii].update_phase(g0[i] + (1932./2197.)*k1_g[i]-
                                         (7200./2197.)*k2_g[i]+
-                                        (7296./2197.)*k3_g[i]) 
+                                        (7296./2197.)*k3_g[i])
 
     # Calculate the potentials at the new phase space centres
     surface.update_pes(tmpbundle)
@@ -243,21 +243,21 @@ def rkf45_bundle(master, dt):
     # k5
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmpbundle = bundle.copy_bundle(master)
+    tmpbundle = master.copy()
     for i in range(master.nactive):
         ii = master.active[i]
         tmpbundle.traj[ii].update_x(x0[i,:] + (439./216.)*k1_x[i,:]
                                     -8.*k2_x[i,:]
                                     +(3680./513.)*k3_x[i,:] -
-                                    (845./4104.)*k4_x[i,:]) 
+                                    (845./4104.)*k4_x[i,:])
         tmpbundle.traj[ii].update_p(p0[i,:] + (439./216.)*k1_p[i,:]
                                     -8.*k2_p[i,:]
                                     +(3680./513.)*k3_p[i,:] -
-                                    (845./4104.)*k4_p[i,:]) 
+                                    (845./4104.)*k4_p[i,:])
         tmpbundle.traj[ii].update_phase(g0[i] + (439./216.)*k1_g[i]
                                     -8.*k2_g[i]
                                     +(3680./513.)*k3_g[i] -
-                                    (845./4104.)*k4_g[i]) 
+                                    (845./4104.)*k4_g[i])
 
     # Calculate the potentials at the new phase space centres
     surface.update_pes(tmpbundle)
@@ -271,12 +271,12 @@ def rkf45_bundle(master, dt):
         k5_x[i,:] = dt*xdot
         k5_p[i,:] = dt*pdot
         k5_g[i]   = dt*gdot
-    
+
     #-------------------------------------------------------------------
     # k6
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmpbundle = bundle.copy_bundle(master)
+    tmpbundle = master.copy()
     for i in range(master.nactive):
         ii = master.active[i]
         tmpbundle.traj[ii].update_x(x0[i,:] - (8./27.)*k1_x[i,:] +
@@ -354,7 +354,7 @@ def rkf45_bundle(master, dt):
             if tmp > err:
                 err = tmp
             tmp = abs(pnew5[i,j]-pnew4[i,j])
-            if tmp > err:       
+            if tmp > err:
                 err = tmp
         tmp=abs(gnew5[i]-gnew4[i])
         if tmp > err:
@@ -365,8 +365,8 @@ def rkf45_bundle(master, dt):
     else:
         sfac = 0.9*(tol/err)**0.2
 
-    
-        
+
+
 ########################################################################
 
 def propagate_trajectory(traj, dt):
@@ -395,7 +395,7 @@ def propagate_trajectory(traj, dt):
 
         # Propagate forwards one step, adapting the timestep
         # to keep the error estimate below tolerance
-        success=False        
+        success=False
         while not success:
             rkf45_trajectory(traj, h)
             if err > tol:
@@ -411,7 +411,7 @@ def propagate_trajectory(traj, dt):
         surface.update_pes_traj(traj)
 
 ########################################################################
-           
+
 def rkf45_trajectory(traj,dt):
 
     global err
@@ -420,7 +420,7 @@ def rkf45_trajectory(traj,dt):
     global xnew4_traj
     global pnew4_traj
     global gnew4_traj
-    
+
     #-------------------------------------------------------------------
     # Initialisation
     #-------------------------------------------------------------------
@@ -455,12 +455,12 @@ def rkf45_trajectory(traj,dt):
     k6_x = np.zeros((ncrd))
     k6_p = np.zeros((ncrd))
     k6_g = 0.0
-    
+
     #-------------------------------------------------------------------
     # k1
     #-------------------------------------------------------------------
     # Temporary trajectory copy
-    tmptraj = trajectory.copy_traj(traj)
+    tmptraj = traj.copy()
 
     # Initial phase space centres
     x0[:] = tmptraj.x()
@@ -498,11 +498,11 @@ def rkf45_trajectory(traj,dt):
     # k3
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmptraj = trajectory.copy_traj(traj)
-    tmptraj.update_x(x0[:]   + (3./32.)*k1_x[:] + (9./32.)*k2_x[:]) 
-    tmptraj.update_p(p0[:]   + (3./32.)*k1_p[:] + (9./32.)*k2_p[:]) 
-    tmptraj.update_phase(g0  + (3./32.)*k1_g    + (9./32.)*k2_g) 
-    
+    tmptraj = traj.copy()
+    tmptraj.update_x(x0[:]   + (3./32.)*k1_x[:] + (9./32.)*k2_x[:])
+    tmptraj.update_p(p0[:]   + (3./32.)*k1_p[:] + (9./32.)*k2_p[:])
+    tmptraj.update_phase(g0  + (3./32.)*k1_g    + (9./32.)*k2_g)
+
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
 
@@ -518,7 +518,7 @@ def rkf45_trajectory(traj,dt):
     # k4
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmptraj = trajectory.copy_traj(traj)
+    tmptraj = traj.copy()
     tmptraj.update_x(x0[:] + (1932./2197.)*k1_x[:] - (7200./2197.)*k2_x[:]
                      + (7296./2197.)*k3_x[:])
     tmptraj.update_p(p0[:] + (1932./2197.)*k1_p[:] - (7200./2197.)*k2_p[:]
@@ -542,17 +542,17 @@ def rkf45_trajectory(traj,dt):
     # k5
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmptraj = trajectory.copy_traj(traj)
+    tmptraj = traj.copy()
     tmptraj.update_x(x0[:] + (439./216.)*k1_x[:] -8.*k2_x[:]
                      + (3680./513.)*k3_x[:]
-                     - (845./4104.)*k4_x[:]) 
+                     - (845./4104.)*k4_x[:])
     tmptraj.update_p(p0[:] + (439./216.)*k1_p[:] -8.*k2_p[:]
                      + (3680./513.)*k3_p[:]
-                     - (845./4104.)*k4_p[:]) 
+                     - (845./4104.)*k4_p[:])
     tmptraj.update_phase(g0 + (439./216.)*k1_g -8.*k2_g
                      + (3680./513.)*k3_g
-                     - (845./4104.)*k4_g) 
-    
+                     - (845./4104.)*k4_g)
+
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
 
@@ -568,7 +568,7 @@ def rkf45_trajectory(traj,dt):
     # k6
     #-------------------------------------------------------------------
     # Update the phase space centres
-    tmptraj = trajectory.copy_traj(traj)
+    tmptraj = traj.copy()
     tmptraj.update_x(x0[:] - (8./27.)*k1_x[:] + 2.*k2_x[:]
                      - (3544./2565.)*k3_x[:]
                      + (1859./4104.)*k4_x[:]
@@ -581,7 +581,7 @@ def rkf45_trajectory(traj,dt):
                      - (3544./2565.)*k3_g
                      + (1859./4104.)*k4_g
                      - (11./40.)*k5_g)
-    
+
     # Calculate the potentials at the new phase space centres
     surface.update_pes_traj(tmptraj)
 
@@ -592,7 +592,7 @@ def rkf45_trajectory(traj,dt):
     k6_x[:] = dt*xdot
     k6_p[:] = dt*pdot
     k6_g    = dt*gdot
-    
+
     #-------------------------------------------------------------------
     # Calculate the RK4 solutions at time t+dt
     #-------------------------------------------------------------------
@@ -601,7 +601,7 @@ def rkf45_trajectory(traj,dt):
 
     pnew4_traj[:] = p0[:] + ((25./216.)*k1_p[:] + (1408./2565.)*k3_p[:]
                         + (2197./4101.)*k4_p[:] - (1./5.)*k5_p[:])
-    
+
     gnew4_traj = g0 + ((25./216.)*k1_g + (1408./2565.)*k3_g
                         + (2197./4101.)*k4_g - (1./5.)*k5_g)
 
@@ -642,4 +642,4 @@ def rkf45_trajectory(traj,dt):
         err = tmp
 
     sfac = 0.9*(tol/err)**0.2
-    
+

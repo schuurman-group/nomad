@@ -39,33 +39,24 @@ class Surface:
         self.adiabat_pot   = np.zeros(n_states)
         self.adiabat_deriv = np.zeros((t_dim, n_states))
 
+    def copy(self):
+        """Creates a copy of a Surface object."""
+        new_info = Surface(self.n_states, self.t_dim, self.crd_dim)
 
-def copy_surface(orig_info):
-    """Creates a copy of a Surface object."""
-    if orig_info is None:
-        return None
-    elif not isinstance(orig_info, Surface):
-        raise TypeError('copy_surface can only be used to copy objects of '
-                        '\'Surface\' type')
+        new_info.data_keys     = copy.copy(self.data_keys)
+        new_info.geom          = copy.deepcopy(self.geom)
+        new_info.potential     = copy.deepcopy(self.potential)
+        new_info.deriv         = copy.deepcopy(self.deriv)
 
-    new_info = Surface(orig_info.n_states,
-                       orig_info.t_dim,
-                       orig_info.crd_dim)
-
-    new_info.data_keys     = copy.copy(orig_info.data_keys)
-    new_info.geom          = copy.deepcopy(orig_info.geom)
-    new_info.potential     = copy.deepcopy(orig_info.potential)
-    new_info.deriv         = copy.deepcopy(orig_info.deriv)
-
-    new_info.scalar_coup   = copy.deepcopy(orig_info.scalar_coup)
-    new_info.adt_mat       = copy.deepcopy(orig_info.adt_mat)
-    new_info.dat_mat       = copy.deepcopy(orig_info.dat_mat)
-    new_info.ddat_mat      = copy.deepcopy(orig_info.ddat_mat)
-    new_info.diabat_pot    = copy.deepcopy(orig_info.diabat_pot)
-    new_info.diabat_deriv  = copy.deepcopy(orig_info.diabat_deriv)
-    new_info.adiabat_pot   = copy.deepcopy(orig_info.adiabat_pot)
-    new_info.adiabat_deriv = copy.deepcopy(orig_info.adiabat_deriv)
-    return new_info
+        new_info.scalar_coup   = copy.deepcopy(self.scalar_coup)
+        new_info.adt_mat       = copy.deepcopy(self.adt_mat)
+        new_info.dat_mat       = copy.deepcopy(self.dat_mat)
+        new_info.ddat_mat      = copy.deepcopy(self.ddat_mat)
+        new_info.diabat_pot    = copy.deepcopy(self.diabat_pot)
+        new_info.diabat_deriv  = copy.deepcopy(self.diabat_deriv)
+        new_info.adiabat_pot   = copy.deepcopy(self.adiabat_pot)
+        new_info.adiabat_deriv = copy.deepcopy(self.adiabat_deriv)
+        return new_info
 
 
 class VibHam:

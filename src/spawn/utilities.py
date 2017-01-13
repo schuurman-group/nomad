@@ -25,7 +25,7 @@ def fms_step_trajectory(traj, init_time, dt):
 
     while current_time < end_time:
         # save the bundle from previous step in case step rejected
-        traj0 = trajectory.copy_traj(traj)
+        traj0 = traj.copy()
 
         # propagate single trajectory
         integrator.propagate_trajectory(traj, time_step)
@@ -51,7 +51,7 @@ def fms_step_trajectory(traj, init_time, dt):
                 raise ValueError('fms_step_trajectory')
 
             # reset the beginning of the time step
-            traj = trajectory.copy_traj(traj0)
+            traj = traj0.copy()
             # go back to the beginning of the while loop
             continue
 

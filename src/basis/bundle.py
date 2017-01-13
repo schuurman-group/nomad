@@ -12,41 +12,6 @@ from src.basis import trajectory as trajectory
 from src.basis import centroid as centroid
 from src.basis import hamiltonian as fms_ham
 
-@timings.timed
-def copy_bundle(orig_bundle):
-    """Copys a Bundle object with new references.
-
-    This method is the simplest way i can see to make a copy
-    of a bundle with new references. Overriding deepcopy for
-    significantly more work.
-    """
-    new_bundle = Bundle(orig_bundle.nstates,
-                        orig_bundle.integral_type)
-    new_bundle.time   = copy.copy(orig_bundle.time)
-    new_bundle.nalive = copy.copy(orig_bundle.nalive)
-    new_bundle.ndead  = copy.copy(orig_bundle.ndead)
-    new_bundle.alive  = copy.deepcopy(orig_bundle.alive)
-    new_bundle.T      = copy.deepcopy(orig_bundle.T)
-    new_bundle.V      = copy.deepcopy(orig_bundle.V)
-    new_bundle.S      = copy.deepcopy(orig_bundle.S)
-    new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
-    new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
-    new_bundle.traj_ovrlp = copy.deepcopy(orig_bundle.traj_ovrlp)
-
-    # copy the trajectory array
-    for i in range(orig_bundle.n_traj()):
-        traj_i = trajectory.copy_traj(orig_bundle.traj[i])
-        new_bundle.traj.append(traj_i)
-
-    # copy the centroid matrix
-    if new_bundle.integrals.require_centroids:
-        for i in range(len(orig_bundle.cent)):
-            new_bundle.cent.append([None for j in range(orig_bundle.n_traj())])
-            for j in range(i):
-                new_bundle.cent[i][j] = centroid.copy_cent(orig_bundle.cent[i][j])
-                new_bundle.cent[j][i] = centroid.copy_cent(orig_bundle.cent[j][i])
-
-    return new_bundle
 
 class Bundle:
     """Class constructor for the Bundle object."""
@@ -72,6 +37,41 @@ class Bundle:
                                        self.integral_type,fromlist=['a'])
         except ImportError:
             print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
+
+    @timings.timed
+    def copy(self):
+        """Copys a Bundle object with new references.
+
+        This method is the simplest way i can see to make a copy
+        of a bundle with new references. Overriding deepcopy for
+        significantly more work.
+        """
+        new_bundle = Bundle(self.nstates, self.integral_type)
+        new_bundle.time   = copy.copy(self.time)
+        new_bundle.nalive = copy.copy(self.nalive)
+        new_bundle.ndead  = copy.copy(self.ndead)
+        new_bundle.alive  = copy.deepcopy(self.alive)
+        new_bundle.T      = copy.deepcopy(self.T)
+        new_bundle.V      = copy.deepcopy(self.V)
+        new_bundle.S      = copy.deepcopy(self.S)
+        new_bundle.Sdot   = copy.deepcopy(self.Sdot)
+        new_bundle.Heff   = copy.deepcopy(self.Heff)
+        new_bundle.traj_ovrlp = copy.deepcopy(self.traj_ovrlp)
+
+        # copy the trajectory array
+        for i in range(self.n_traj()):
+            traj_i = self.traj[i].copy()
+            new_bundle.traj.append(traj_i)
+
+        # copy the centroid matrix
+        if new_bundle.integrals.require_centroids:
+            for i in range(len(self.cent)):
+                new_bundle.cent.append([None for j in range(self.n_traj())])
+                for j in range(i):
+                    new_bundle.cent[i][j] = self.cent[i][j].copy()
+                    new_bundle.cent[j][i] = self.cent[j][i].copy()
+
+        return new_bundle
 
     def n_traj(self):
         """Returns total number of trajectories."""

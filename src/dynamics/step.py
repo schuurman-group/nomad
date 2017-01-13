@@ -51,7 +51,7 @@ def fms_step_bundle(master, dt):
             del master0
         except NameError:
             pass
-        master0 = bundle.copy_bundle(master)
+        master0 = master.copy()
 
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
@@ -102,7 +102,7 @@ def fms_step_bundle(master, dt):
 
             # reset the beginning of the time step
             del master
-            master = bundle.copy_bundle(master0)
+            master = master0.copy()
             # go back to the beginning of the while loop
             continue
 

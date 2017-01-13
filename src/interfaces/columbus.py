@@ -68,25 +68,15 @@ class Surface:
 
         # these are interface-specific quantities
 
+    def copy(self):
+        """Creates a copy of a Surface object."""
+        new_info = Surface(self.n_states, self.t_dim, self.crd_dim)
 
-def copy_surface(orig_info):
-    """Creates a copy of a Surface object."""
-    if orig_info is None:
-        return None
-    elif not isinstance(orig_info, Surface):
-        raise TypeError('copy_surface can only be used to copy objects of '
-                        '\'Surface\' type')
-
-    new_info = Surface(orig_info.n_states,
-                            orig_info.t_dim,
-                            orig_info.crd_dim)
-
-    new_info.data_keys = copy.copy(orig_info.data_keys)
-    new_info.geom      = copy.deepcopy(orig_info.geom)
-    new_info.energies  = copy.deepcopy(orig_info.energies)
-    new_info.grads     = copy.deepcopy(orig_info.grads)
-
-    return new_info
+        new_info.data_keys = copy.copy(self.data_keys)
+        new_info.geom      = copy.deepcopy(self.geom)
+        new_info.energies  = copy.deepcopy(self.energies)
+        new_info.grads     = copy.deepcopy(self.grads)
+        return new_info
 
 
 #----------------------------------------------------------------
@@ -104,10 +94,10 @@ def init_interface():
 
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
-    (natm, crd_dim, amp_data, label_data, geom_data, 
+    (natm, crd_dim, amp_data, label_data, geom_data,
           mom_data, width_data, mass_data) = fileio.read_geometry()
 
-    # set atomic symbol, number, mass, 
+    # set atomic symbol, number, mass,
     a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
     a_mass  = [mass_data[i]  for i in range(0,natm*crd_dim,crd_dim)]
     for i in range(len(a_sym)):
@@ -116,7 +106,7 @@ def init_interface():
         else:
             raise ValueError('Atom: '+str(atom_sym)+' not found in library'))
 
-    # set coefficient for kinetic energy determination            
+    # set coefficient for kinetic energy determination
     kecoeff = 0.5/mass_data[0:natm*crd_dim]
 
     # confirm that we can see the COLUMBUS installation (pull the value
@@ -821,7 +811,7 @@ def get_global_vars():
     global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart
     global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
-    gvars = [input_path, work_path, restart_path, 
+    gvars = [input_path, work_path, restart_path,
              a_sym, a_num, a_mass, p_dim, n_atoms, n_cart,
              n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str]
 
@@ -831,7 +821,7 @@ def get_global_vars():
 def set_global_vars(gvars):
     """Sets the global variables."""
     global input_path, work_path, restart_path
-    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart, 
+    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart,
     global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     input_path   = gvars[0]
@@ -956,7 +946,7 @@ def write_col_geom(geom):
     f = open('geom', 'w', encoding='utf-8')
     for i in range(n_atoms):
         f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
-                '\n'.format(a_sym[i], a_num[i], 
+                '\n'.format(a_sym[i], a_num[i],
                             geom[p_dim*i],geom[p_dim*i+1],geom[p_dim*i+2],
                             a_mass[i]/glbl.mass2au))
     f.close()
