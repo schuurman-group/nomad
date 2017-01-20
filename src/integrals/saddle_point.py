@@ -16,7 +16,7 @@ interface = __import__('src.interfaces.' + glbl.fms['interface'],
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = False 
+hermitian = True
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
