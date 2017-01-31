@@ -38,7 +38,6 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
         if Snuc is None:
             return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            return nuclear.overlap(t1,t2) 
         else:
             return Snuc
 
@@ -97,11 +96,10 @@ def ke_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            Snuc = nuclear.overlap(t1,t2)
 
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                  t2.phase(),t2.widths(),t2.x(),t2.p())
-#        ke = nuclear.deld2x(t1, t2, S=Snuc)
+
         return -sum( ke * interface.kecoeff)
 
 # time derivative of the overlap
@@ -114,15 +112,13 @@ def sdot_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            Snuc = nuclear.overlap(t1, t2, S=Snuc)
     
         deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#        deldx = nuclear.deldx(t1, t2, S=Snuc)
-#        deldp = nuclear.deldp(t1, t2, S=Snuc)
  
         sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) 
                 +1j * t2.phase_dot() * Snuc)
+
         return sdot

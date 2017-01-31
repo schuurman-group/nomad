@@ -262,7 +262,7 @@ class Bundle:
     @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
-        pop    = np.zeros(self.nstates)
+        pop    = np.zeros(self.nstates, dtype=complex)
         nalive = len(self.alive)
 
         # live contribution
@@ -274,10 +274,10 @@ class Bundle:
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
-                pop[state] += popij.real
+                pop[state] += popij
 
         # dead contribution?
-        return pop
+        return pop.real
 
     @timings.timed
     def pot_classical(self):
@@ -286,13 +286,9 @@ class Bundle:
         Currently only includes energy from alive trajectories
         """
         nalive  = len(self.alive)
-        wgts    = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                            self.traj[self.alive[i]].amplitude
-                            for i in range(nalive)])
-        nrm     = np.sqrt(sum(wgts))
         pot_vec = np.array([self.traj[self.alive[i]].potential()
                             for i in range(nalive)])
-        return (np.dot(wgts,pot_vec) / nrm).real
+        return sum(pot_vec)/nalive
 
     @timings.timed
     def pot_quantum(self):
@@ -309,14 +305,10 @@ class Bundle:
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
-        wgts   = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                           self.traj[self.alive[i]].amplitude
-                           for i in range(nalive)])
-        nrm    = np.sqrt(sum(wgts))
         ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
                            self.traj[self.alive[i]].interface.kecoeff)
                            for i in range(nalive)])
-        return (np.dot(wgts,ke_vec).real / nrm).real
+        return sum(ke_vec)/nalive
 
     @timings.timed
     def kin_quantum(self):
@@ -437,6 +429,7 @@ class Bundle:
 #        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
 
+        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
 
         for i in range(self.n_traj()):
 
