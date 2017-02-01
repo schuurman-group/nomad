@@ -40,7 +40,7 @@ def read_input_files():
 
     # set a sensible default for scr_path
     scr_path = os.environ['TMPDIR']
-    if os.path.exists(scr_path):
+    if os.path.exists(scr_path) and glbl.mpi_rank==0:
         shutil.rmtree(scr_path)
         os.makedirs(scr_path)
 

@@ -11,7 +11,6 @@ import src.fmsio.glbl as glbl
 pes        = None
 pes_cache  = dict()
 
-
 def init_surface(pes_interface):
     """Initializes the potential energy surface."""
     global pes
@@ -21,24 +20,25 @@ def init_surface(pes_interface):
     except ImportError:
         print('INTERFACE FAIL: ' + pes_interface)
 
-
 def update_pes(master):
     """Updates the potential energy surface."""
     global pes, pes_cache
     success = True
 
-    if glbl.sc:
-        # get the global variables from the pes interface to distribute
-        # to workers
-        gvars = pes.get_global_vars()
+    if glbl.mpi_parallel:
         # update electronic structure
-        run_list = []
+        exec_list = []
+        running_total = 0
         for i in range(master.n_traj()):
             if not master.traj[i].active or cached(master.traj[i].tid, 
                                                    master.traj[i].x()):
                 continue
-            run_list.append([master.traj[i].tid, master.traj[i].x(),
-                             master.traj[i].state])
+            running_total += 1
+            if running_total % (glbl.mpi_rank+1) == 0:
+                exec_list.append(['traj', master.traj[i].tid, 
+                                          master.traj[i].x(),
+                                          master.traj[i].state])
+
         if master.integrals.require_centroids:
             # update the geometries
             master.update_centroids()
@@ -49,15 +49,30 @@ def update_pes(master):
                     if master.cent[i][j] is None or cached(master.cent[i][j].cid, 
                                                            master.cent[i][j].x()):
                         continue
-                    run_list.append([master.cent[i][j].cid, master.cent[i][j].x(),
-                                     master.cent[i][j].pstates])
-        jobs = glbl.sc.parallelize(run_list)
-        rdd = jobs.map(partial(pes.evaluate_worker, global_var=gvars))
-        res = rdd.collect()
+                    running_total += 1
+                    if running_total % (glbl.mpi_rank+1) == 0:
+                        exec_list.append(['cent',master.cent[i][j].cid, 
+                                                 master.cent[i][j].x(),
+                                                 master.cent[i][j].pstates])
+
+        local_results = [None for i in range(len(exec_list))]
+        for i in len(exec_list):
+            if exec_list[i][0] == 'traj':
+                pes_calc = pes.evaluate_trajectory(exec_list[i][1],
+                                                   exec_list[i][2],
+                                                   exec_list[i][3])      
+            else:
+                pes_calc = pes.evaluate_centroid(exec_list[i][1],
+                                                 exec_list[i][2],
+                                                 exec_list[i][3])
+            local_results[i] = [exec_list[i][0], pes_calc]
+
+        global_results = [None for i in range(running_total)]
+        glbl.mpi_comm.allgatherv(local_results, global_results)
 
         # update the cache
-        for i, run in enumerate(run_list):
-            pes_cache[run[0]] = res[i]
+        for i in range(running_total):
+            pes_cache[global_results[i][0]] = global_results[i][1]
 
         # update the bundle:
         # live trajectories

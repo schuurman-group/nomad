@@ -13,10 +13,15 @@ au2ev    = 27.21138505
 au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
-# spark context
-sc       = None
+
+
 # t=0 bundle
 bundle0  = None
+
+# MPI variables
+mpi_parallel = False
+mpi_comm     = None
+mpi_rank     = None
 
 # Simulation parameters read from the fms.input file
 fms = dict(
