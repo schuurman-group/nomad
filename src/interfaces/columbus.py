@@ -3,6 +3,7 @@ Routines for running a Columbus computation.
 """
 import sys
 import os
+import copy
 import shutil
 import pathlib
 import subprocess
@@ -10,12 +11,16 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.atom_lib as atom_lib
+import src.basis.trajectory as trajectory
+import src.basis.centroid as centroid
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
 # where p_i is the momentum operator
 kecoeff = None
 
+# path to columbus executables
+columbus_path = ''
 # set to true if we want to compute electronic structure properties
 comp_properties = True
 # path to columbus input files
@@ -44,7 +49,9 @@ n_orbs       = 0
 # number of states in sate-averaged MCSCF
 n_mcstates   = 0
 # number of CI roots
-n_cistates   = 0
+n_cistates     = 0
+# if DE between two states greater than de_thresh, ignore coupling
+coup_de_thresh = 100.
 # maximum angular momentum in basis set
 max_l        = 1
 # excitation level in CI
@@ -54,8 +61,9 @@ mem_str      = ''
 
 class Surface:
     """Object containing potential energy surface data."""
-    def __init__(self, n_states, t_dim, crd_dim):
+    def __init__(self, tag, n_states, t_dim, crd_dim):
         # necessary for array allocation
+        self.tag      = tag
         self.n_states = n_states
         self.t_dim    = t_dim
         self.crd_dim  = crd_dim
@@ -63,12 +71,20 @@ class Surface:
         # these are the standard quantities ALL interface_data objects return
         self.data_keys = []
         self.geom      = np.zeros(t_dim)
-        self.energies  = np.zeros(n_states)
-        self.grads     = np.zeros((n_states, t_dim))
+        self.potential = np.zeros(n_states)
+        self.deriv     = np.zeros((t_dim, n_states, n_states))
 
         # these are interface-specific quantities
+        # atomic populations
+        self.atom_pop  = np.zeros((int(t_dim/crd_dim),n_states))
+        # includes permanent (diagonal) and transition (off-diagonal) dipoles
+        self.dipoles   = np.zeros((p_dim, n_states, n_states))
+        # second moments of the current states (3x3 tensor)
+        self.sec_moms  = np.zeros((p_dim, p_dim, n_states))
+        # molecular orbitals
+        self.mos       = None
 
-
+#
 def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
 
@@ -77,14 +93,22 @@ def copy_surface(orig_info):
     if orig_info is None:
         return None
 
-    new_info = Surface(orig_info.n_states,
-                            orig_info.t_dim,
-                            orig_info.crd_dim)
+    new_info = Surface(orig_info.tag,
+                       orig_info.n_states,
+                       orig_info.t_dim,
+                       orig_info.crd_dim)
 
-    new_info.data_keys = copy.copy(orig_info.data_keys)
+    # required potential data
+    new_info.data_keys = copy.deepcopy(orig_info.data_keys)
     new_info.geom      = copy.deepcopy(orig_info.geom)
-    new_info.energies  = copy.deepcopy(orig_info.energies)
-    new_info.grads     = copy.deepcopy(orig_info.grads)
+    new_info.potential = copy.deepcopy(orig_info.potential)
+    new_info.deriv     = copy.deepcopy(orig_info.deriv)
+
+    # interface-dependent potential data
+    new_info.atom_pop  = copy.deepcopy(orig_info.atom_pop)
+    new_info.dipoles     = copy.deepcopy(orig_info.dipoles)
+    new_info.sec_moms    = copy.deepcopy(orig_info.sec_moms)
+    new_info.mos         = copy.deepcopy(orig_info.mos)
 
     return new_info
 
@@ -96,8 +120,8 @@ def copy_surface(orig_info):
 #----------------------------------------------------------------
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
-    global columbus_path, input_path, work_path, restart_path
-    global a_sym, a_num, a_mass, n_atoms, n_cart
+    global columbus_path, input_path, work_path, restart_path, log_file
+    global a_sym, a_num, a_mass, n_atoms, n_cart, coup_de_thresh
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     global kecoeff
@@ -109,15 +133,18 @@ def init_interface():
 
     # set atomic symbol, number, mass, 
     a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
-    a_mass  = [mass_data[i]  for i in range(0,natm*crd_dim,crd_dim)]
-    for i in range(len(a_sym)):
+
+    a_data  = []
+    for i in range(natm):
         if atom_lib.valid_atom(a_sym[i]):
-            a_num.append(atom_data(a_sym[i])[2])
+            a_data.append(atom_lib.atom_data(a_sym[i]))
         else:
-            raise ValueError('Atom: '+str(atom_sym)+' not found in library'))
+            raise ValueError('Atom: '+str(a_sym[i])+' not found in library')
+    a_mass  = [a_data[i][1] for i in range(natm)]
+    a_num   = [a_data[i][2] for i in range(natm)]
 
     # set coefficient for kinetic energy determination            
-    kecoeff = 0.5/mass_data[0:natm*crd_dim]
+    kecoeff = 1./(2. * np.array(mass_data, dtype=float))
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
@@ -130,27 +157,38 @@ def init_interface():
         raise FileNotFoundError('Cannot find COLUMBUS input files in: input')
 
     # setup working directories
+    # input and restart are shared
     input_path    = fileio.scr_path + '/input'
-    work_path     = fileio.scr_path + '/work'
     restart_path  = fileio.scr_path + '/restart'
+    # ...but each process has it's own work directory
+    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi_rank)
 
-    if os.path.exists(input_path):
-        shutil.rmtree(input_path)
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
-    if os.path.exists(restart_path):
-        shutil.rmtree(restart_path)
-    os.makedirs(input_path)
     os.makedirs(work_path)
-    os.makedirs(restart_path)
+
+    if glbl.mpi_rank == 0:
+        if os.path.exists(input_path):
+            shutil.rmtree(input_path)
+        if os.path.exists(restart_path):
+            shutil.rmtree(restart_path)
+        os.makedirs(input_path)
+        os.makedirs(restart_path)
 
     # copy input directory to scratch and copy file contents to work directory
     for item in os.listdir('input'):
         local_file = os.path.join('input', item)
-        input_file = os.path.join(input_path, item)
+
         work_file  = os.path.join(work_path, item)
-        shutil.copy2(local_file, input_file)
         shutil.copy2(local_file, work_file)
+
+        if glbl.mpi_rank == 0:
+          input_file = os.path.join(input_path, item)
+          shutil.copy2(local_file, input_file)
+
+    # make sure process 0 is finished populating the input directory
+    if glbl.mpi_parallel:
+        glbl.mpi_comm.barrier()
 
     # now -- pull information from columbus input
     n_atoms    = natm
@@ -165,75 +203,20 @@ def init_interface():
                                        'maximum excitation level'))
     max_l      = ang_mom_dalton('input/daltaoin')
 
-
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(glbl.columbus['mem_per_core'])
+    mem_str = str(int(glbl.columbus['mem_per_core']))
+    coup_de_thresh = float(glbl.columbus['coup_de_thresh'])
 
+    # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
+    if n_cistates < int(glbl.fms['n_states']):
+        sys.exit("ERROR n_cistates < n_states: "+str(n_cistates)+" < "+str(glbl.fms['n_states']))
+ 
     # generate one time input files for columbus calculations
     make_one_time_input()
 
-
-def evalutate_trajectory(tid, geom, state):
-    """Evaluates all requested electronic structure information for a
-    single trajectory."""
-    if tid < 0:
-        print('evaluate_trajectory called with ' +
-              'id associated with centroid, tid=' + str(tid))
-    # run_trajectory returns None...
-    surf_info = run_trajectory(tid, geom, state)
-
-    return surf_info
-
-
-def evalutate_centroid(tid, geom, states):
-    """Evaluates  all requested electronic structure information at a
-    centroid."""
-    if tid >= 0:
-        print('evaluate_centroid called with ' +
-              'id associated with trajectory, tid=' + str(tid))
-    # run_centroid returns None...
-    state_i = states[0]
-    state_j = states[1]
-    surf_info = run_centroid(tid, geom, state_i, state_j)
-
-    return surf_info
-
-def evaluate_worker(args, global_vars):
-    """Evaluates worker on a slave mode."""
-    tid    = args[0]
-    geom   = args[1]
-    tstate = args[2]
-    cstate = args[3]
-
-    set_global_vars(global_vars)
-
-    # run_trajectory and run_centroid both return None...
-    if tid >= 0:
-        surf_info = run_trajectory(tid, geom, tstate)
-    else:
-        surf_info = run_centroid(tid, geom, tstate, cstate)
-
-    return surf_info
-
-
-#----------------------------------------------------------------
 #
-#  "Private" functions
 #
-#----------------------------------------------------------------
-def in_cache(tid, geom):
-    """Determines if electronic structure calculation is in the cache."""
-    global current_geom, n_atoms, p_dim
-
-    if tid not in current_geom:
-        return False
-    difg = np.linalg.norm(geom - current_geom[tid])
-    if difg <= glbl.fpzero:
-        return True
-    return False
-
-
-def run_trajectory(tid, geom, tstate):
+def evaluate_trajectory(Traj):
     """Computes MCSCF/MRCI energy and computes all couplings.
 
     For the columbus module, since gradients are not particularly
@@ -242,74 +225,133 @@ def run_trajectory(tid, geom, tstate):
     Thus, if electronic structure information is not up2date, all methods
     call the same routine: run_single_point.
     """
-    global p_dim, n_cistates, n_atoms, current_geom
+    global p_dim, n_atoms, n_cart
+
+    label   = Traj.label
+    state   = Traj.state
+    nstates = Traj.nstates
+
+    if label < 0:
+        print('evaluate_trajectory called with ' +
+              'id associated with centroid, label=' + str(label))
+
+    # create surface object to hold potential information
+    col_surf      = Surface(label, nstates, n_cart, p_dim)
+    col_surf.geom = Traj.x()
+    col_surf.data_keys.append('geom')
 
     # write geometry to file
-    write_col_geom(geom)
+    write_col_geom(Traj.x())
+
+    [mo_restart, ci_restart] = get_col_restart(Traj)
+    if not mo_restart:
+        sys.exit('ERROR: cannot find starting orbitals for mcscf')
 
     # generate integrals
-    generate_integrals(tid)
+    generate_integrals(label)
 
     # run mcscf
-    run_col_mcscf(tid, tstate)
+    run_col_mcscf(Traj)
+    col_surf.mos = pack_mocoef()
+    col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    run_col_mrci(tid, tstate)
+    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(Traj, ci_restart)
+    col_surf.data_keys.append('poten')
+    col_surf.data_keys.append('atom_pop')
 
     # run properties, dipoles, etc.
-    run_col_multipole(tid, tstate)
+    [perm_dipoles, sec_moms] = run_col_multipole(Traj)
+    for i in range(nstates):
+        col_surf.dipoles[:,i,i] = perm_dipoles[:,i]
+    col_surf.sec_moms = sec_moms
+    col_surf.data_keys.append('dipole')
+    col_surf.data_keys.append('sec_mom')
 
     # run transition dipoles
-    init_states = [0, tstate]
+    init_states = [0, state]
     for i in init_states:
-        for j in range(n_cistates):
+        for j in range(nstates):
             if i != j or (j in init_states and j < i):
-                run_col_tdipole(tid, i, j)
+                tr_dip = run_col_tdipole(label, i, j)
+                col_surf.dipoles[:,i,j] = tr_dip
+                col_surf.dipoles[:,j,i] = tr_dip
+    col_surf.data_keys.append('tr_dipole')
 
     # compute gradient on current state
-    run_col_gradient(tid, tstate)
+    grads = run_col_gradient(Traj)
+    col_surf.deriv[:, state, state] = grads
 
     # run coupling to other states
-    run_col_coupling(tid, tstate)
+    nad_coup = run_col_coupling(Traj, col_surf.potential)
+    for i in range(nstates):
+        if i == state:
+            continue
+        state_i = min(i,state)
+        state_j = max(i,state)
+        col_surf.deriv[:, state_i, state_j] =  nad_coup[:, i]
+        col_surf.deriv[:, state_j, state_i] = -nad_coup[:, i]
+    col_surf.data_keys.append('deriv')
 
     # save restart files
-    make_col_restart(tid)
+    make_col_restart(Traj)
 
-    # update the geometry in the cache
-    current_geom[tid] = geom
+    return col_surf
 
-def run_centroid(tid, geom, state_i, state_j):
-    """Returns an energy (same state) or coupling (different states)
-    of a centroid."""
-    global p_dim, n_atoms, current_geom
-    s1 = min(state_i, state_j)
-    s2 = max(state_i, state_j)
+#
+#
+def evaluate_centroid(Cent):
+    global p_dim, n_atoms, n_cart
+
+    """Evaluates  all requested electronic structure information at a
+    centroid."""
+
+    label   = Cent.label 
+    nstates = Cent.nstates
+
+    if label >= 0:
+        print('evaluate_centroid called with ' +
+              'id associated with trajectory, label=' + str(label))
+
+    state_i = min(Cent.pstates)
+    state_j = max(Cent.pstates)
+
+    # create surface object to hold potential information
+    col_surf      = Surface(label, nstates, n_cart, p_dim)
+    col_surf.geom = Cent.x()
+    col_surf.data_keys.append('geom')
 
     # write geometry to file
-    write_col_geom(geom)
+    write_col_geom(Cent.x())
+
+    [mo_restart, ci_restart] = get_col_restart(Cent)
+    if not mo_restart:
+        sys.exit('ERROR: cannot find starting orbitals for mcscf')
 
     # generate integrals
-    generate_integrals(tid)
+    generate_integrals(label)
 
     # run mcscf
-    run_col_mcscf(tid, state_i)
+    run_col_mcscf(Cent)
+    col_surf.mos = pack_mocoef()
+    col_surf.data_keys.append('mos')
 
-    # run mrci, if necessary. We also need transition densities if we need gradients
-    if state_i != state_j:
-        t_den = [[s1, s2]]
-    else:
-        t_den = []
-    run_col_mrci(tid, state_i, density=t_den, int_trans=False, apop=False)
+    # run mrci, if necessary
+    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(Cent, ci_restart) 
+    col_surf.data_keys.append('poten')
+    col_surf.data_keys.append('atom_pop')
 
     if state_i != state_j:
         # run coupling to other states
-        run_col_coupling(tid, state_i, state_j)
+        nad_coup = run_col_coupling(Cent, col_surf.potential)
+        col_surf.deriv[:,state_i, state_j] =  nad_coup[:,state_j]
+        col_surf.deriv[:,state_j, state_i] = -nad_coup[:,state_j]
+        col_surf.data_keys.append('deriv')
 
     # save restart files
-    make_col_restart(tid)
+    make_col_restart(Cent)
 
-    # update the geometry in the cache
-    current_geom[tid] = geom
+    return col_surf
 
 #----------------------------------------------------------------
 #
@@ -318,9 +360,8 @@ def run_centroid(tid, geom, state_i, state_j):
 #---------------------------------------------------------------
 def make_one_time_input():
     """Creates a Columbus input for MRCI calculations."""
-    global work_path
+    global columbus_path, work_path, mem_str
 
-    sys.stdout.flush()
     # all calculations take place in work_dir
     os.chdir(work_path)
 
@@ -330,12 +371,14 @@ def make_one_time_input():
 
     # cidrtfil files
     with open('cidrtmsls', 'w') as cidrtmsls, open('cidrtmsin', 'r') as cidrtmsin:
-        subprocess.run(['cidrtms.x', '-m', mem_str], stdin=cidrtmsin,
-                       stdout=cidrtmsls)
+        subprocess.run([columbus_path+'/cidrtms.x', '-m', mem_str], 
+                        stdin=cidrtmsin,stdout=cidrtmsls)
     shutil.move('cidrtfl.1', 'cidrtfl.ci')
-    with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
-        subprocess.run(['cidrtms.x', '-m', mem_str], stdin=cidrtmsin_grd,
-                       stdout=cidrtmsls_grd)
+
+    with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, \
+         open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
+        subprocess.run([columbus_path+'/cidrtms.x', '-m', mem_str], 
+                        stdin=cidrtmsin_grd,stdout=cidrtmsls_grd)
     shutil.move('cidrtfl.1', 'cidrtfl.cigrd')
 
     # check if hermitin exists, if not, copy daltcomm
@@ -346,9 +389,9 @@ def make_one_time_input():
     shutil.copy('ciudgin.drt1', 'ciudgin')
 
 
-def generate_integrals(tid):
+def generate_integrals(label):
     """Runs Dalton to generate AO integrals."""
-    global work_path
+    global work_path, mem_str
 
     os.chdir(work_path)
 
@@ -367,17 +410,21 @@ def generate_integrals(tid):
         subprocess.run(['dalton.x', '-m', mem_str], stdout=hermitls,
                        universal_newlines=True, shell=True)
 
-    #append_log(tid,'integral')
+    append_log(label,'integral')
 
 
-def run_col_mcscf(tid, t_state):
+def run_col_mcscf(Traj):
     """Runs MCSCF program."""
-    global work_path, n_mcstates, mrci_lvl
+    global work_path, n_mcstates, mrci_lvl, mem_str
+
+    label = Traj.label
+
+    if type(Traj) is trajectory.Trajectory:
+        state = Traj.state
+    else:
+        state = min(Traj.pstates)
 
     os.chdir(work_path)
-
-    # get an initial starting set of orbitals
-    set_mcscf_restart(tid)
 
     # allow for multiple DRTs in the mcscf part. For example, We may
     # want to average over a' and a" in a tri-atomic case
@@ -405,8 +452,8 @@ def run_col_mcscf(tid, t_state):
                 mcden.write('1  {:2d}  1  {:2d}').format(i, i)
             # off-diagonal densities (for couplings)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(min(i, t_state),
-                                                         max(i, t_state))
+                mcden.write('1  {:2d}  1  {:2d}').format(min(i, state),
+                                                         max(i, state))
 
     # try running mcscf a couple times this can be tweaked if one
     # develops other strategies to deal with convergence problems
@@ -436,35 +483,45 @@ def run_col_mcscf(tid, t_state):
     shutil.copy('mocoef_mc', 'mocoef')
 
     # grab mcscfls output
-    #append_log(tid,'mcscf')
+    append_log(label,'mcscf')
 
 
-def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
+def run_col_mrci(Traj, ci_restart):
     """Runs MRCI if running at that level of theory."""
-    global energies, atom_pops, input_path, work_path, n_atoms, n_cistates
+    global input_path, work_path, n_atoms, n_cistates, mem_str
 
     os.chdir(work_path)
-
-    # if restart file exists, create symbolic link to it
-    set_mrci_restart(tid)
 
     # get a fresh ciudgin file
     shutil.copy(input_path + '/ciudgin.drt1', 'ciudgin')
 
-    # update the transition section in ciudgin
-    if density:
-        tran_den = density
+    # if old ci vectors are present, set NOLDV=n_cistatese
+    if ci_restart:
+        set_nlist_keyword('ciudgin','NOLDV', n_cistates) 
+        set_nlist_keyword('ciudgin','NBKITR', 0)
 
-    # otherwise, assume we need transition densities to evaluate
-    # transition dipoles and derivative couplings
-    else:
+    # determine if trajectory or centroid, and compute densities 
+    # accordingly
+    if type(Traj) is trajectory.Trajectory:
+
+        # perform density transformation for gradient computations
+        int_trans = True
+        # compute densities between all states and trajectory state
         tran_den = []
-        init_states = [0, t_state]
+        init_states = [0, Traj.state]
         for i in init_states:
-            for j in range(n_cistates):
+            for j in range(Traj.nstates):
                 if i == j or (j in init_states and j < i):
                     continue
                 tran_den.append([min(i,j)+1, max(i,j)+1])
+
+    # else, this is a centroid
+    else:
+        # only need gradient if statei != statej
+        state_i = min(Traj.pstates)
+        state_j = max(Traj.pstates)
+        int_trans = (Traj.pstates[0] != Traj.pstates[1])
+        tran_den  = [[state_i+1, state_j+1]]
 
     # append entries in tran_den to ciudgin file
     with open('ciudgin', 'r') as ciudgin:
@@ -475,9 +532,9 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
             if '&end' in line:
                 break
         ciudgin.write('transition\n')
-        for i in len(tran_den):
-            ciudgin.write('  1 {:2d}  1 {:2d}\n'.format(tran_den[i,1],
-                                                        tran_den[i,2]))
+        for i in range(len(tran_den)):
+            ciudgin.write('  1 {:2d}  1 {:2d}\n'.format(tran_den[i][0],
+                                                        tran_den[i][1]))
 
     # make sure we point to the correct formula tape file
     link_force('cidrtfl.ci', 'cidrtfl')
@@ -490,6 +547,7 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
 
     # run mrci
     subprocess.run(['ciudg.x', '-m', mem_str])
+
     ci_ener = []
     ci_res  = []
     ci_tol  = []
@@ -510,31 +568,32 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
 
     # determine convergence...
     if not converged:
-        raise TimeoutError('MRCI did not converge for trajectory ' + str(tid))
+        raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
 
     # if we're good, update energy array
-    energies[tid] = np.fromiter((ci_ener[i] for i in range(n_cistates)),
-                                dtype=float)
+    energies = np.fromiter((ci_ener[i] for i in range(Traj.nstates)),dtype=float)
 
     # now update atom_pops
-    if apop:
-        ist = -1
-        atom_pops[tid] = np.zeros((n_cistates, n_atoms))
-        with open('ciudgls', 'r') as ciudgls:
-            for line in ciudgls:
-                if '   gross atomic populations' in line:
-                    ist += 1
-                    pops = []
-                    for i in range(np.ceil(n_atoms/6.)):
-                        for j in range(max_l+3):
-                            line = ciudgls.readline()
-                        l_arr = line.rstrip().split()
-                        pops.extend(l_arr[1:])
+    ist = -1
+    atom_pops = np.zeros((n_atoms, Traj.nstates))
+    with open('ciudgls', 'r') as ciudgls:
+        for line in ciudgls:
+            if '   gross atomic populations' in line:
+                ist += 1
+                # only get populations for lowest Traj.nstates states
+                if ist == Traj.nstates:
+                    break
+                pops = []
+                for i in range(int(np.ceil(n_atoms/6.))):
+                    for j in range(max_l+3):
                         line = ciudgls.readline()
-                    atom_pops[tid][ist,:] = np.array([float(x) for x in pops])
+                    l_arr = line.rstrip().split()
+                    pops.extend(l_arr[1:])
+                    line = ciudgls.readline()
+                atom_pops[:, ist] = np.array([float(x) for x in pops])
 
     # grab mrci output
-    #append_log(tid,'mrci')
+    append_log(Traj.label,'mrci')
 
     # transform integrals using cidrtfl.cigrd
     if int_trans:
@@ -548,16 +607,18 @@ def run_col_mrci(tid, t_state, density=None, int_trans=True, apop=True):
             shutil.copy(input_path + '/tranin', 'tranin')
             subprocess.run(['tran.x', '-m', mem_str])
 
+    return [energies, atom_pops]
 
-def run_col_multipole(tid,t_state):
+#
+def run_col_multipole(Traj):
     """Runs dipoles / second moments."""
-    global p_dim, dip_moms, sec_moms, work_path, n_cistates, mrci_lvl
+    global p_dim, work_path, mrci_lvl, mem_str
 
     os.chdir(work_path)
 
-    nst            = n_cistates
-    dip_moms[tid]  = np.zeros((n_cistates, n_cistates, p_dim))
-    sec_moms[tid]  = np.zeros((n_cistates, p_dim))
+    nst       = Traj.nstates
+    dip_moms  = np.zeros((p_dim, Traj.nstates))
+    sec_moms  = np.zeros(( p_dim, p_dim, Traj.nstates))
 
     if mrci_lvl == 0:
         type_str   = 'mc'
@@ -575,9 +636,9 @@ def run_col_multipole(tid,t_state):
                     for j in range(5):
                         line = prop_file.readline()
                     l_arr = line.rstrip().split()
-                    dip_moms[tid][istate,istate,:] = np.array([float(l_arr[1]),
-                                                               float(l_arr[2]),
-                                                               float(l_arr[3])])
+                    dip_moms[:,istate] = np.array([float(l_arr[1]),
+                                                   float(l_arr[2]),
+                                                   float(l_arr[3])])
                 if 'Second moments' in line:
                     for j in range(5):
                         line = prop_file.readline()
@@ -586,16 +647,23 @@ def run_col_multipole(tid,t_state):
                         line = prop_file.readline()
                     l_arr.extend(line.rstrip().split())
                     # NOTE: we're only taking the diagonal elements
-                    sec_moms[tid][istate,:] = np.array([float(l_arr[1]),
-                                                        float(l_arr[4]),
-                                                        float(l_arr[7])])
+                    inds = [1,2,3,4,6,7]
+                    raw_dat = np.array([float(l_arr[j]) for j in inds])
+                    map_arr = [[0,1,2],[1,3,4],[2,4,5]]
+                    for i in range(p_dim):
+                        for j in range(i+1):
+                            sec_moms[i,j,istate] = raw_dat[map_arr[i][j]]
+                            sec_moms[j,i,istate] = raw_dat[map_arr[j][i]]
+
         os.remove('mocoef_prop')
 
+    return [dip_moms, sec_moms]
 
-def run_col_tdipole(tid, state_i, state_j):
+#
+def run_col_tdipole(label, state_i, state_j):
     """Computes transition dipoles between ground and excited state,
     and between trajectory states and other state."""
-    global p_dim, dip_moms, n_cistates, work_path, mrci_lvl
+    global p_dim, work_path, mrci_lvl, mem_str
 
     os.chdir(work_path)
 
@@ -630,32 +698,36 @@ def run_col_tdipole(tid, state_i, state_j):
         subprocess.run(['transci.x', '-m', mem_str])
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
 
+    tran_dip = np.zeros(p_dim)
+
     with open('trncils', 'r') as trncils:
         for line in trncils:
             if 'total (elec)' in line:
                 line_arr = line.rstrip().split()
                 for dim in range(p_dim):
-                    dip_moms[tid][state_i,state_j,dim] = float(line_arr[dim+2])
-                    dip_moms[tid][state_j,state_i,dim] = float(line_arr[dim+2])
+                    tran_dip[dim] = float(line_arr[dim+2])
+                    tran_dip[dim] = float(line_arr[dim+2])
 
+    return tran_dip
 
-def run_col_gradient(tid, t_state):
+#
+def run_col_gradient(Traj):
     """Performs integral transformation and determine gradient on
     trajectory state."""
-    global p_dim, gradients, input_path, work_path, mrci_lvl, n_cistates, n_cart
+    global input_path, work_path, mem_str
+    global p_dim, mrci_lvl, n_cart
 
     os.chdir(work_path)
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
-    gradients[tid] = np.zeros((n_cistates, n_cart))
-    tindex = t_state + 1
+    tstate = Traj.state + 1
 
     if mrci_lvl > 0:
-        link_force('cid1fl.drt1.state' + str(tindex), 'cid1fl')
-        link_force('cid2fl.drt1.state' + str(tindex), 'cid2fl')
+        link_force('cid1fl.drt1.state' + str(tstate), 'cid1fl')
+        link_force('cid2fl.drt1.state' + str(tstate), 'cid2fl')
         shutil.copy(input_path + '/trancidenin', 'tranin')
     else:
-        link_force('mcsd1fl.' + str(tindex), 'cid1fl')
-        link_force('mcsd2fl.' + str(tindex), 'cid2fl')
+        link_force('mcsd1fl.' + str(tstate), 'cid1fl')
+        link_force('mcsd2fl.' + str(tstate), 'cid2fl')
         set_nlist_keyword('cigrdin', 'samcflag', 1)
         shutil.copy(input_path + '/tranmcdenin', 'tranin')
 
@@ -678,48 +750,62 @@ def run_col_gradient(tid, t_state):
         subprocess.run(['dalton.x', '-m', mem_str], stdout=abacusls)
     shutil.move('abacusls', 'abacusls.grad')
 
-    # read in cartesian gradient and save to array
+    # 
     with open('cartgrd', 'r') as cartgrd:
-        i = 0
-        for line in cartgrd:
-            l_arr = line.rstrip().split()
-            for j in range(p_dim):
-                gradients[tid][t_state,p_dim*i+j] = float(l_arr[j].replace('D', 'e'))
-            i = i + 1
+        lines = cartgrd.readlines()
+    grad     = [lines[i].split() for i in range(len(lines))]
+    gradient = np.array([item.replace('D', 'e') for row in grad
+                             for item in row], dtype=float)
+
+    shutil.move('cartgrd', 'cartgrd.s'+str(Traj.state)+'.'+str(Traj.label))
 
     # grab cigrdls output
-    #append_log(tid,'cigrd')
+    append_log(Traj.label,'cigrd')
 
+    return gradient
 
-def run_col_coupling(tid, t_state, coup_state=None):
+#
+def run_col_coupling(Traj, ci_ener):
     """Computes couplings to states within prescribed DE window."""
-    global p_dim, couplings, input_path, work_path, n_cistates, mrci_lvl, n_cart
+    global input_path, work_path, mem_str
+    global p_dim, mrci_lvl, n_cart, coup_de_thresh
 
-    if coup_state is None:
-        c_states = range(n_cistates)
-    else:
-        c_states = [coup_state]
+    if type(Traj) is trajectory.Trajectory:
+        t_state    = Traj.state
+        c_states   = range(Traj.nstates)
+        delta_e_max = coup_de_thresh 
+    elif type(Traj) is centroid.Centroid: 
+        t_state    = min(Traj.pstates) 
+        c_states   = [max(Traj.pstates)]
+        # if computing coupling regardless of delta e,
+        # set threshold to something we know won't trigger
+        # the ignoring of the coupling
+        delta_e_max = 2.*(ci_ener[-1] - ci_ener[0])
+
+    nad_coupl = np.zeros((n_cart, Traj.nstates))
 
     os.chdir(work_path)
 
+    # copy some clean files to the work directory
+    shutil.copy(input_path + '/cigrdin', 'cigrdin')
+    set_nlist_keyword('cigrdin', 'nadcalc', 1)
+    if mrci_lvl == 0:
+        set_nlist_keyword('cigrdin', 'samcflag', 1)
+        shutil.copy(input_path + '/tranmcdenin', 'tranin')
+    else:
+        shutil.copy(input_path + '/trancidenin', 'tranin')
+
+    shutil.copy(input_path + '/abacusin', 'daltcomm')
+    insert_dalton_key('daltcomm', 'COLBUS', '.NONUCG')
+
+    # loop over states to compute coupling to
     for c_state in c_states:
-        if c_state == t_state:
+        if c_state == t_state or abs(ci_ener[c_state] - 
+                                     ci_ener[t_state]) > delta_e_max:
             continue
 
         s1 = str(min(t_state, c_state) + 1).strip()
         s2 = str(max(t_state, c_state) + 1).strip()
-
-        # copy some clean files to the work directory
-        shutil.copy(input_path + '/cigrdin', 'cigrdin')
-        set_nlist_keyword('cigrdin', 'nadcalc', 1)
-        if mrci_lvl == 0:
-            set_nlist_keyword('cigrdin', 'samcflag', 1)
-            shutil.copy(input_path + '/tranmcdenin', 'tranin')
-        else:
-            shutil.copy(input_path + '/trancidenin', 'tranin')
-
-        shutil.copy(input_path + '/abacusin', 'daltcomm')
-        insert_dalton_key('daltcomm', 'COLBUS', '.NONUCG')
 
         if mrci_lvl == 0:
             link_force('mcsd1fl.trd' + s1 + 'to' + s2, 'cid1fl.tr')
@@ -748,125 +834,225 @@ def run_col_coupling(tid, t_state, coup_state=None):
         with open('cartgrd', 'r') as cartgrd:
             lines = cartgrd.read().splitlines()
         grad = [lines[i].split() for i in range(len(lines))]
-        new_coup = np.array([item.replace('D', 'e') for row in grad
+        coup_vec = np.array([item.replace('D', 'e') for row in grad
                              for item in row], dtype=float)
-        print('new_coup=' + str(new_coup))
 
-        delta_e = energies[tid][t_state] - energies[tid][c_state]
-        new_coup /= delta_e
-
-        c_phase = get_adiabatic_phase(new_coup,
-                                      gradients[tid][t_state,c_state,:])
-        gradients[tid][c_state,:] =  c_phase * new_coup
+        delta_e = ci_ener[c_state] - ci_ener[t_state]
+        nad_coupl[:,c_state] = coup_vec / delta_e
         shutil.move('cartgrd', 'cartgrd.nad.' + str(s1) + '.' + str(s2))
 
-    # grab mcscfls output
-    #append_log(tid,'nad')
+        # grab mcscfls output
+        append_log(Traj.label,'nad')
 
+    # set the phase of the new coupling vectors using the cached data
+    nad_coupl_phased = get_adiabatic_phase(Traj, nad_coupl)
 
-def make_col_restart(tid):
+    return nad_coupl_phased
+
+#
+def make_col_restart(Traj):
     """Saves mocoef and ci files to restart directory."""
-    global work_path
+    global work_path, restart_path
 
     os.chdir(work_path)
+    label = Traj.label
 
     # move orbitals
-    shutil.move('mocoef', restart_path + '/mocoef.' + str(tid))
+    shutil.move(work_path+'/mocoef', restart_path+'/mocoef.'+str(label))
 
     # move all ci vector, ci info files
-    shutil.move('civfl', restart_path + '/civfl.' + str(tid))
-    shutil.move('civout', restart_path + '/civout.' + str(tid))
-    shutil.move('cirefv', restart_path + '/cirefv.' + str(tid))
+    # need to investigate behavior of ciudg with respect restarts and IO
+    # in  fortran, symlink to ci vector file is destroyed, replaced with
+    # new file. Here, the ci vector is seemingly edited, meaning that when
+    # ciudg finishes, and symlink remains and points to an edited file.
+    # In this case, one simply removes the symlink, no need to edit file
+    # in restart directory.
+    if os.path.islink(work_path+'/civfl'): 
+        os.unlink(work_path+'/civfl')
+    else: 
+        shutil.move(work_path+'/civfl',  restart_path+'/civfl.'+str(label))
+
+    if os.path.islink(work_path+'/civout'): 
+        os.unlink(work_path+'/civout')
+    else: 
+        shutil.move(work_path+'/civout', restart_path+'/civout.'+str(label))
+
+    if os.path.islink(work_path+'/cirefv'): 
+        os.unlink(work_path+'/cirefv')
+    else: 
+        shutil.move(work_path+'/cirefv', restart_path+'/cirefv.'+str(label))
 
     # do some cleanup
-    if os.path.isfile('cirdrtfl'):   os.remove('cidrtfl')
-    if os.path.isfile('aoints'):     os.remove('aoints')
-    if os.path.isfile('aoints2'):    os.remove('aoints2')
-    if os.path.isfile('modens'):     os.remove('modens')
-    if os.path.isfile('modens2'):    os.remove('modens2')
-    if os.path.isfile('cid1fl.tr'):  os.remove('cid1fl.tr')
-    if os.path.isfile('cid2fl.tr'):  os.remove('cid2fl.tr')
-    if os.path.isfile('cid1trfl'):   os.remove('cid1trfl')
-    if os.path.isfile('civfl.drt1'): os.remove('civfl.drt1')
-    if os.path.isfile('civout.drt1'):os.remove('civout.drt1')
-    if os.path.isfile('cirefv.drt1'):os.remove('cirefv.drt1')
+    if os.path.isfile('cirdrtfl'):   os.unlink('cidrtfl')
+    if os.path.isfile('cirdrtfl.1'): os.unlink('cidrtfl.1')
+    if os.path.isfile('aoints'):     os.unlink('aoints')
+    if os.path.isfile('aoints2'):    os.unlink('aoints2')
+    if os.path.isfile('modens'):     os.unlink('modens')
+    if os.path.isfile('modens2'):    os.unlink('modens2')
+    if os.path.isfile('cid1fl.tr'):  os.unlink('cid1fl.tr')
+    if os.path.isfile('cid2fl.tr'):  os.unlink('cid2fl.tr')
+    if os.path.isfile('cid1trfl'):   os.unlink('cid1trfl')
+    if os.path.isfile('civfl.drt1'): os.unlink('civfl.drt1')
+    if os.path.isfile('civout.drt1'):os.unlink('civout.drt1')
+    if os.path.isfile('cirefv.drt1'):os.unlink('cirefv.drt1')
+
+# set restart files
+def get_col_restart(Traj):
+    global work_path, restart_path
+
+    """Get restart mocoef file and ci vectors for columbus calculation.
+       1. failure to find mocoef file is fatal.
+       2. failure to find ci files is OK
+
+    MOCOEF
+    1. If first step and parent-less trajectory, take what's in input.
+    2. If first step of spawned trajectory, take parents restart info.
+    3. If first step of centroid, take one of parent's restart info.
+
+    CIUDG
+    1. Copys/links CI restart files to working directory.
+    2. If no ci vectors, simply start CI process from scratch
+    """
+
+    os.chdir(work_path)
+    mocoef_file = restart_path + '/mocoef.'
+    lbl_str = str(Traj.label) # string for trajectory label
+    par_str = ''              # string for parent trajectory label
+ 
+    if type(Traj) is centroid.Centroid:
+        # centroids have two parents
+        par_arr = [str(Traj.parent[i]) for i in range(len(Traj.parent))]
+    else:
+        # if trajectory, there is a single parent
+        par_arr = [str(Traj.parent)]
 
 
-def get_adiabatic_phase(new_coup, old_coup):
+    mo_restart = False
+    ci_restart = False
+
+    # MOCOEF RESTART FILES
+    # if we have some orbitals in memory, write those out
+    if Traj.pes_data is not None and 'mos' in Traj.pes_data.data_keys:
+        write_mocoef('mocoef', Traj.pes_data.mos)
+        mo_restart = True
+    # if restart file exists, create symbolic link to it
+    elif os.path.exists(mocoef_file+lbl_str):
+        shutil.copy(mocoef_file+lbl_str, 'mocoef')
+        mo_restart = True
+
+    # if we still haven't found an mocoef file, check restart files
+    # of parents [relevant if we've just spawned and this is first 
+    # pes evaluation for the child
+    if not mo_restart:
+        print("looking for parent restart...")
+        for i in range(len(par_arr)):
+            print("checking: "+mocoef_file+par_arr[i])
+            if os.path.exists(mocoef_file+par_arr[i]):
+                shutil.copy(mocoef_file+par_arr[i], 'mocoef')
+                mo_restart = True
+                print("found: "+mocoef_file+par_arr[i])
+                par_str = par_arr[i]
+                break
+        sys.stdout.flush()
+
+    if not mo_restart:
+        # else, just take the mocoef file we have lying around
+        if os.path.exists(work_path+'/mocoef'):
+            mo_restart = True
+        # else, we're out of luck
+        else:
+            mo_restart = False
+
+    # CI RESTART FILES
+    # if restart file exists, create symbolic link to it
+    civfl  = restart_path + '/civfl.' + lbl_str 
+    civout = restart_path + '/civout.' + lbl_str
+    cirefv = restart_path + '/cirefv.' + lbl_str
+
+    civfl_p  = restart_path + '/civfl.' + par_str
+    civout_p = restart_path + '/civout.' + par_str
+    cirefv_p = restart_path + '/cirefv.' + par_str
+
+    # if restart file exists, create symbolic link to it
+    if (os.path.isfile(civfl) and os.path.isfile(civout)
+            and os.path.isfile(cirefv)):
+        ci_restart = True
+    # if parent restart files exists, create symbolic link to it
+    elif (os.path.isfile(civfl_p) and os.path.isfile(civout_p)
+            and os.path.isfile(cirefv_p)):
+        shutil.copy(civfl_p, civfl)
+        shutil.copy(civout_p, civout)
+        shutil.copy(cirefv_p, cirefv)
+        ci_restart = True
+    # else no ci restart
+    else:
+        ci_restart = False
+
+    if ci_restart:
+        link_force(civfl, work_path+'/civfl')
+        link_force(civout, work_path+'/civout')
+        link_force(cirefv, work_path+'/cirefv')
+
+    return [mo_restart, ci_restart] 
+
+#
+def get_adiabatic_phase(Traj, new_coup):
     """Determines the phase of the computed coupling that yields smallest
     change from previous coupling."""
-    # if the previous coupling is vanishing, phase of new coupling is arbitrary
-    if np.linalg.norm(old_coup) <= glbl.fpzero:
-        return 1.
+    global n_cart
 
-    # check the difference between the vectors assuming phases of +1/-1
-    norm_pos = np.linalg.norm(new_coup - old_coup)
-    norm_neg = np.ligalg.norm(-new_coup - old_coup)
-
-    if norm_pos < norm_neg:
-        return 1.
+    label = Traj.label 
+    if type(Traj) is trajectory.Trajectory:
+        state = Traj.state
     else:
-        return -1.
+        state = min(Traj.pstates)
 
+    # pull data to make consistent
+    if Traj.pes_data is not None:
+        old_coup = np.transpose(
+                   np.array([Traj.pes_data.deriv[:,min(state,i),max(state,i)] for i in range(Traj.nstates)]))
+    else:
+        old_coup = np.zeros((n_cart, Traj.nstates))
 
-#----------------------------------------------------------------
-#
-# Methods for setting and passing global variables (necessary for
-# parallel runs
-#
-#---------------------------------------------------------------
-def get_global_vars():
-    """Gets the list of global variables."""
-    global input_path, work_path, restart_path
-    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart
-    global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
+    for i in range(Traj.nstates):
 
-    gvars = [input_path, work_path, restart_path, 
-             a_sym, a_num, a_mass, p_dim, n_atoms, n_cart,
-             n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str]
+        # if the previous coupling is vanishing, phase of new coupling is arbitrary
+        if np.linalg.norm(old_coup[:,i]) <= glbl.fpzero:
+            continue
 
-    return gvars
+        # check the difference between the vectors assuming phases of +1/-1
+        norm_pos = np.linalg.norm( new_coup[:,i] - old_coup[:,i])
+        norm_neg = np.linalg.norm(-new_coup[:,i] - old_coup[:,i])
 
+        if norm_pos > norm_neg:
+            new_coup[:,i] *= -1.
 
-def set_global_vars(gvars):
-    """Sets the global variables."""
-    global input_path, work_path, restart_path
-    global a_sym, a_num, a_mass, p_dim, n_atoms, n_cart, 
-    global n_drt, n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
+    return new_coup 
 
-    input_path   = gvars[0]
-    work_path    = gvars[1]
-    restart_path = gvars[2]
-    a_sym        = gvals[3]
-    a_num        = gvals[4]
-    a_mass       = gvals[5]
-    p_dim        = gvars[6]
-    n_atoms      = gvars[7]
-    n_cart       = gvars[8]
-    n_drt        = gvars[9]
-    n_orbs       = gvars[10]
-    n_mcstates   = gvars[11]
-    n_cistates   = gvars[12]
-    max_l        = gvars[13]
-    mrci_lvl     = gvars[14]
-    mem_str      = gvars[15]
 
 #-----------------------------------------------------------------
 #
 # File parsing
 #
 #-----------------------------------------------------------------
-def append_log(tid, listing_file):
+def append_log(label, listing_file):
     """Grabs key output from columbus listing files.
 
     Useful for diagnosing electronic structure problems.
     """
+
+    # open the running log for this process
+    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi_rank), 'a')
+
+    log_file.write(" ---------- trajectory "+str(label)+
+                   ": "+str(listing_file)+" summary --------\n")
+
     if listing_file == 'integral':
         with open('hermitls', 'r') as hermitls:
             for line in hermitls:
                 if 'Bond distances' in line:
                     while 'Nuclear repulsion energy' not in line:
-                        print(line)
+                        log_file.write(line)
                         line = hermitls.readline()
                     break
     elif listing_file == 'mcscf':
@@ -874,15 +1060,18 @@ def append_log(tid, listing_file):
             for line in mcscfls:
                 if 'final mcscf' in line:
                     while len(line.rstrip()) != 0:
-                        print(line)
+                        log_file.write(line)
                         line = mcscfls.readline()
                     break
     elif listing_file == 'mrci':
         with open('ciudgsm', 'r') as ciudgls:
+            ci_iter = False
             for line in ciudgls:
-                if 'final mr-sdci  convergence information' in line:
+                if 'beginning the ci iterative':
+                    ci_iter = True
+                if 'final mr-sdci  convergence information' in line and ci_iter:
                     while len(line.rstrip()) != 0:
-                        print(line)
+                        log_file.write(line)
                         line = ciudgls.readline()
                     break
     elif listing_file == 'cigrd':
@@ -890,7 +1079,7 @@ def append_log(tid, listing_file):
             for line in cigrdls:
                 if 'RESULTS' in line:
                     while 'effective' not in line:
-                        print(line)
+                        log_file.write(line)
                         line = cigrdls.readline()
                     break
     elif listing_file == 'nad':
@@ -898,55 +1087,15 @@ def append_log(tid, listing_file):
             for line in cigrdls_nad:
                 if 'RESULTS' in line:
                     while 'effective' not in line:
-                        print(line)
+                        log_file.write(line)
                         line = cigrdls_nad.readline()
                     break
     else:
         print('listing file: ' + str(listing_file) + ' not recognized.')
 
+    log_file.close()
 
-def set_mcscf_restart(tid):
-    """Copys mocoef file to working directory.
-
-    1. If first step and parent-less trajectory, take what's in input.
-    2. If first step of spawned trajectory, take parents restart info.
-    3. If first step of centroid, take one of parent's restart info.
-    """
-    global work_path
-
-    os.chdir(work_path)
-
-    # if restart file exists, create symbolic link to it
-    mocoef_file = restart_path + '/mocoef.' + str(tid)
-    if os.path.exists(mocoef_file):
-        shutil.copy(mocoef_file, 'mocoef')
-        return True
-    else:
-        return False
-
-
-def set_mrci_restart(tid):
-    """Copys/links CI restart files to working directory.
-
-    Restart logic is the same as set_mcscf_restart.
-    """
-    global work_path
-
-    os.chdir(work_path)
-
-    # if restart file exists, create symbolic link to it
-    civfl  = restart_path + '/civfl.' + str(tid)
-    civout = restart_path + '/civout.' + str(tid)
-    cirefv = restart_path + '/cirefv.' + str(tid)
-    if (os.path.exists(civfl) and os.path.exists(civout)
-            and os.path.exists(cirefv)):
-        link_force(civfl, 'civfl')
-        link_force(civout, 'civout')
-        link_force(cirefv, 'cirefv')
-        return True
-    else:
-        return False
-
+#
 def write_col_geom(geom):
     """Writes a array of atoms to a COLUMBUS style geom file."""
     global n_atoms, a_sym, a_num, a_mass, work_path
@@ -958,10 +1107,10 @@ def write_col_geom(geom):
         f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
                 '\n'.format(a_sym[i], a_num[i], 
                             geom[p_dim*i],geom[p_dim*i+1],geom[p_dim*i+2],
-                            a_mass[i]/glbl.mass2au))
+                            a_mass[i]))
     f.close()
 
-
+#
 def read_pipe_keyword(infile, keyword):
     """Reads from a direct input file via keyword search."""
     f = open(infile, 'r', encoding='utf-8')
@@ -1056,11 +1205,17 @@ def link_force(target, link_name):
         os.symlink(target, link_name)
 
 
-def load_orbitals(tid):
-    """Loads orbitals into a mocoef file."""
-    pass
-
-
-def write_orbitals(fname, orb_array):
+def pack_mocoef():
+    """Loads orbitals from a mocoef file."""
+    f = open('mocoef', 'r')
+    mos = f.readlines()
+    f.close()
+    return mos
+     
+def write_mocoef(fname, mo_list):
     """Writes orbitals to mocoef file."""
-    pass
+    f = open(str(fname),'w')
+    for i in range(len(mo_list)):
+        f.write(str(mo_list[i]))
+    f.close()
+

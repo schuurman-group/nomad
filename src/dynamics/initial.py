@@ -62,8 +62,9 @@ def init_bundle(master):
     glbl.bundle0 = bundle.copy_bundle(master)
 
     # write to the log files
-    master.update_logs()
-
+    if glbl.mpi_rank == 0:
+        master.update_logs()
+  
     fileio.print_fms_logfile('t_step', [master.time, glbl.fms['default_time_step'],
                                         master.nalive])
 
@@ -87,21 +88,34 @@ def init_restart(master):
 
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
+
+    # use "init_state" to set the initial state
     if glbl.fms['init_state'] != -1:
         for i in range(master.n_traj()):
             master.traj[i].state = glbl.fms['init_state']
+
+    # initialize to the state with largest transition dipole moment
     elif glbl.fms['init_brightest']:
+
         # set all states to the ground state
         for i in range(master.n_traj()):
             master.traj[i].state = 0
-
-        # compute transition dipoles
-        surface.update_pes(master)
+            # compute transition dipoles
+            surface.update_pes_traj(master.traj[i])
 
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
-            tdip = (np.linalg.norm(master.traj[i].dipole(j))
-                    for j in range(1, glbl.fms['n_states']+1))
+            if 'tr_dipole' not in master.traj[i].pes_data.data_keys:
+                sys.exit("ERROR, trajectory "+str(i)+
+                         ": Cannot set state by transition moments - "+ 
+                         "tr_dipole not in pes_data.data_keys")
+            tdip = np.array([np.linalg.norm(master.traj[i].pes_data.dipoles[:,0,j])
+                             for j in range(1, glbl.fms['n_states'])])
+            fileio.print_fms_logfile('general',
+                                    ['Initializing trajectory '+str(i)+
+                                     ' to state '+str(np.argmax(tdip)+1)+
+                                     ' | tr. dipople array='+np.array2string(tdip, \
+                                       formatter={'float_kind':lambda x: "%.4f" % x})])
             master.traj[i].state = np.argmax(tdip)+1
     else:
         raise ValueError('Ambiguous initial state assignment.')

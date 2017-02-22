@@ -22,6 +22,11 @@ hermitian = False
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+def nuc_overlap(t1, t2):
+    """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
+    return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                           t2.phase(),t2.widths(),t2.x(),t2.p())
+
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
@@ -45,7 +50,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
-    if t1.tid == t2.tid:
+    if t1.label == t2.label:
         # Adiabatic energy
         v = t1.energy(t1.state)
         # DBOC
@@ -100,7 +105,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                  t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        return -sum( ke * interface.kecoeff)
+        return -np.dot(ke, interface.kecoeff)
 
 # time derivative of the overlap
 def sdot_integral(t1, t2, Snuc=None):

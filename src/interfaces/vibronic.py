@@ -32,8 +32,9 @@ data_cache = dict()
 
 class Surface:
     """Object containing potential energy surface data."""
-    def __init__(self, n_states, t_dim, crd_dim):
+    def __init__(self, tag, n_states, t_dim, crd_dim):
         # necessary for array allocation
+        self.tag      = tag
         self.n_states = n_states
         self.t_dim    = t_dim
         self.crd_dim  = crd_dim
@@ -63,7 +64,8 @@ def copy_surface(orig_info):
     if orig_info is None:
         return None
 
-    new_info = Surface(orig_info.n_states,
+    new_info = Surface(orig_info.tag,
+                       orig_info.n_states,
                        orig_info.t_dim,
                        orig_info.crd_dim)
 
@@ -137,7 +139,7 @@ def init_interface():
         fileio.print_fms_logfile('string', [string])
 
 
-def evaluate_trajectory(tid, geom, stateindx):
+def evaluate_trajectory(label, geom, stateindx):
     """Evaluates the trajectory."""
     global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
     global diablap, sctmat, dbocderiv1, nsta
@@ -163,7 +165,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     calc_diabpot(qcoo)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt(tid)
+    calc_adt(label)
 
     # Calculation of the nuclear derivatives of the diabatic potential
     calc_diabderiv1(qcoo)
@@ -196,7 +198,7 @@ def evaluate_trajectory(tid, geom, stateindx):
 #    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
 #    print("ddat2="+str(ddat2)) 
 
-    t_data = Surface(nsta,ncoo,1)
+    t_data = Surface(label,nsta,ncoo,1)
     t_data.geom          = qcoo
     t_data.potential     = adiabpot
     for i in range(nsta):
@@ -218,10 +220,10 @@ def evaluate_trajectory(tid, geom, stateindx):
                            'diabat_pot','diabat_deriv',
                            'adiabat_pot','adiabat_deriv']
 
-    data_cache[tid] = t_data    
+    data_cache[label] = t_data    
     return t_data
 
-def evaluate_centroid(tid, geom, stateindices):
+def evaluate_centroid(label, geom, stateindices):
     """Evaluates the centroid.
 
     Note that because energies, gradients and couplings are so cheap
@@ -254,7 +256,7 @@ def evaluate_centroid(tid, geom, stateindices):
     calc_diabpot(qcoo)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt(tid)
+    calc_adt(label)
 
     # Calculation of the nuclear derivatives of the diabatic potential
     calc_diabderiv1(qcoo)
@@ -276,7 +278,7 @@ def evaluate_centroid(tid, geom, stateindices):
     # save these as a matter of course.
     calc_scts()
 
-    t_data = Surface(nsta,ncoo,1)
+    t_data = Surface(label,nsta,ncoo,1)
     t_data.geom          = qcoo
     t_data.potential     = adiabpot
     for i in range(nsta):
@@ -296,7 +298,7 @@ def evaluate_centroid(tid, geom, stateindices):
                            'scalar_coup','adt_mat','dat_mat',
                            'diabat_pot','diabat_deriv',
                            'adiabat_pot','adiabat_deriv']
-    data_cache[tid] = t_data
+    data_cache[label] = t_data
     return t_data
 
 #--------------------------------------------------------------------
@@ -330,7 +332,7 @@ def calc_diabpot(q):
             diabpot[s2,s1] = diabpot[s1,s2]
 
 
-def calc_adt(tid):
+def calc_adt(label):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
     global adiabpot, adtmat, data_cache
@@ -338,10 +340,10 @@ def calc_adt(tid):
     adiabpot, adtmat = np.linalg.eigh(diabpot)
     
     # ensure phase continuity from geometry to another
-    if tid in data_cache:
+    if label in data_cache:
         for i in range(nsta):
             adtmat[:,i] *= np.sign(np.dot(adtmat[:,i],
-                                          data_cache[tid].adt_mat[:,i]))
+                                          data_cache[label].adt_mat[:,i]))
     # else, set  phase convention that largest element in adt column vector is 
     # positive
     else:

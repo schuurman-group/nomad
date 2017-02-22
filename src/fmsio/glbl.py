@@ -22,6 +22,7 @@ bundle0  = None
 mpi_parallel = False
 mpi_comm     = None
 mpi_rank     = None
+mpi_nproc    = 1
 
 # Simulation parameters read from the fms.input file
 fms = dict(
@@ -64,8 +65,6 @@ fms = dict(
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
     matching_pursuit       = 0,
-# MSS -- can be 'adiabatic','diabatic','crude_adiabatic'
-    representation         = 'adiabatic'
     )
 
 # Electronic structure information read from interface-specific
@@ -75,6 +74,7 @@ fms = dict(
 columbus = dict(
     # memory per core in MB
     mem_per_core = 100,
+    coup_de_thresh = 100.
     )
 
 # Vibronic multistate representation, loaded by operator parsing

@@ -7,6 +7,8 @@ execution of potential evaluations which is essential for ab initio PES.
 from functools import partial
 import numpy as np
 import src.fmsio.glbl as glbl
+import src.basis.trajectory as trajectory
+import src.basis.centroid as centroid
 
 pes        = None
 pes_cache  = dict()
@@ -28,16 +30,14 @@ def update_pes(master):
     if glbl.mpi_parallel:
         # update electronic structure
         exec_list = []
-        running_total = 0
+        n_total = 0 # this ensures traj.0 is on proc 0, etc.
         for i in range(master.n_traj()):
-            if not master.traj[i].active or cached(master.traj[i].tid, 
+            if not master.traj[i].active or cached(master.traj[i].label, 
                                                    master.traj[i].x()):
                 continue
-            running_total += 1
-            if running_total % (glbl.mpi_rank+1) == 0:
-                exec_list.append(['traj', master.traj[i].tid, 
-                                          master.traj[i].x(),
-                                          master.traj[i].state])
+            n_total += 1
+            if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                exec_list.append(master.traj[i]) 
 
         if master.integrals.require_centroids:
             # update the geometries
@@ -46,48 +46,46 @@ def update_pes(master):
             # parallelization
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if master.cent[i][j] is None or cached(master.cent[i][j].cid, 
-                                                           master.cent[i][j].x()):
+                    if not master.centroid_required(master.traj[i],master.traj[j]) or \
+                                   cached(master.cent[i][j].label,master.cent[i][j].x()):
                         continue
-                    running_total += 1
-                    if running_total % (glbl.mpi_rank+1) == 0:
-                        exec_list.append(['cent',master.cent[i][j].cid, 
-                                                 master.cent[i][j].x(),
-                                                 master.cent[i][j].pstates])
+                    n_total += 1
+                    if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                        exec_list.append(master.cent[i][j])
 
-        local_results = [None for i in range(len(exec_list))]
-        for i in len(exec_list):
-            if exec_list[i][0] == 'traj':
-                pes_calc = pes.evaluate_trajectory(exec_list[i][1],
-                                                   exec_list[i][2],
-                                                   exec_list[i][3])      
+        local_results = []
+        for i in range(len(exec_list)):
+            if type(exec_list[i]) is trajectory.Trajectory:
+                pes_calc = pes.evaluate_trajectory(exec_list[i])
+            elif type(exec_list[i]) is centroid.Centroid:
+                pes_calc = pes.evaluate_centroid(exec_list[i])
             else:
-                pes_calc = pes.evaluate_centroid(exec_list[i][1],
-                                                 exec_list[i][2],
-                                                 exec_list[i][3])
-            local_results[i] = [exec_list[i][0], pes_calc]
+                sys.exit("ERROR in surface.update_pes: type="+
+                         str(type(exec_list[i]))+" not recognized")
+            local_results.append(pes_calc)
 
-        global_results = [None for i in range(running_total)]
-        glbl.mpi_comm.allgatherv(local_results, global_results)
+        global_results = glbl.mpi_comm.allgather(local_results)
 
         # update the cache
-        for i in range(running_total):
-            pes_cache[global_results[i][0]] = global_results[i][1]
+        for i in range(glbl.mpi_nproc):
+            for j in range(len(global_results[i])):
+                pes_cache[global_results[i][j].tag] = global_results[i][j]
 
         # update the bundle:
         # live trajectories
         for i in range(master.n_traj()):
             if not master.traj[i].alive:
                 continue
-            master.traj[i].update_pes(pes_cache[i])
+            master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
 
         # and centroids
-        for i in range(master.n_traj()):
-            for j in range(i):
-                if master.cent[i][j] is None:
-                    continue
-                master.cent[i][j].update_pes(pes_cache[master.cent[i][j].cid])
-                master.cent[j][i] = master.cent[i][j]
+        if master.integrals.require_centroids:
+            for i in range(master.n_traj()):
+                for j in range(i):
+                    if master.cent[i][j].label not in pes_cache:
+                        continue
+                    master.cent[i][j].update_pes_info(pes_cache[master.cent[i][j].label])
+                    master.cent[j][i] = master.cent[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -97,10 +95,7 @@ def update_pes(master):
         for i in range(master.n_traj()):
             if not master.traj[i].active:
                 continue
-            results = pes.evaluate_trajectory(master.traj[i].tid, 
-                                              master.traj[i].x(),
-                                              master.traj[i].state)
-            master.traj[i].update_pes(results)
+            master.traj[i].update_pes_info(pes.evaluate_trajectory(master.traj[i]))
 
         # ...and centroids if need be
         if master.integrals.require_centroids:
@@ -111,10 +106,8 @@ def update_pes(master):
                 # if centroid not initialized, skip it
                     if master.cent[i][j] is None:
                         continue
-                    results = pes.evaluate_centroid(master.cent[i][j].cid, 
-                                                    master.cent[i][j].x(),
-                                                    master.cent[i][j].pstates)
-                    master.cent[i][j].update_pes(results)
+                    master.cent[i][j].update_pes_info(
+                                      pes.evaluate_centroid(master.cent[i][j]))
                     master.cent[j][i] = master.cent[i][j]
 
     return success
@@ -127,21 +120,26 @@ def update_pes_traj(traj):
     """
     global pes
 
-    results = pes.evaluate_trajectory(traj.tid, traj.x(), traj.state)
-    traj.update_pes(results)
+    results = None
 
+    if glbl.mpi_rank == 0:
+        results = pes.evaluate_trajectory(traj)
 
-def cached(tid, geom):
+    if glbl.mpi_parallel:
+        results = glbl.mpi_comm.bcast(results, root=0)
+        glbl.mpi_comm.barrier()
+    
+    traj.update_pes_info(results)
+
+def cached(label, geom):
     """Returns True if the surface in the cache corresponds to the current
     trajectory (don't recompute the surface)."""
     global pes_cache
 
-    if tid not in pes_cache:
+    if label not in pes_cache:
         return False
 
-    g  = np.array([pes_cache[tid][0][i]
-                   for i in range(len(pes_cache[tid][0]))])
-    dg = np.linalg.norm(geom - g)
+    dg = np.linalg.norm(geom - pes_cache[label].geom)
     if dg <= glbl.fpzero:
         return True
 

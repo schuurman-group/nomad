@@ -80,14 +80,14 @@ class Bundle:
     @timings.timed
     def add_trajectory(self, new_traj):
         """Adds a trajectory to the bundle."""
-        self.traj.append(new_traj)
         self.nalive         += 1
         self.nactive        += 1
-        self.traj[-1].alive  = True
-        self.traj[-1].active = True
-        self.traj[-1].tid    = self.n_traj() - 1
-        self.alive.append(self.traj[-1].tid)
-        self.active.append(self.traj[-1].tid)
+        new_traj.alive       = True
+        new_traj.active      = True
+        new_traj.label       = self.n_traj() - 1
+        self.alive.append(new_traj.label)
+        self.active.append(new_traj.label)
+        self.traj.append(new_traj)
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -97,15 +97,16 @@ class Bundle:
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
-        for traj in traj_list:
-            self.traj.append(traj)
+        for new_traj in traj_list:
             self.nalive         += 1
             self.nactive        += 1
-            self.traj[-1].alive  = True
-            self.traj[-1].active = True
-            self.traj[-1].tid    = self.n_traj() - 1
-            self.alive.append(self.traj[-1].tid)
-            self.active.append(self.traj[-1].tid)
+            new_traj.alive       = True
+            new_traj.active      = True
+            new_traj.label       = self.n_traj() - 1
+            self.alive.append(new_traj.label)
+            self.active.append(new_traj.label)
+            self.traj.append(new_traj)
+
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -114,21 +115,21 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def kill_trajectory(self, tid):
+    def kill_trajectory(self, label):
         """Moves a live trajectory to the list of dead trajecotries.
 
         The trajectory will no longer contribute to H, S, etc.
         """
         # Remove the trajectory from the list of living trajectories
-        self.alive.remove(tid)
-        self.traj[tid].alive = False
+        self.alive.remove(label)
+        self.traj[label].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
         # Remove the trajectory from the list of active trajectories
         # iff matching pursuit is not being used
         if glbl.fms['matching_pursuit'] == 0:
-            self.active.remove(tid)
-            self.traj[tid].active = False
+            self.active.remove(label)
+            self.traj[label].active = False
             self.nactive = self.nactive - 1
         # Reset arrays
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -139,14 +140,14 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def revive_trajectory(self, tid):
+    def revive_trajectory(self, label):
         """
         Moves a dead trajectory to the list of live trajectories.
         """
-        self.traj[tid].alive = True
+        self.traj[label].alive = True
 
         # Add the trajectory to the list of living trajectories
-        self.alive.append(tid)
+        self.alive.insert(label,label)
 
         self.nalive          = self.nalive + 1
         self.ndead           = self.ndead - 1
@@ -196,6 +197,17 @@ class Bundle:
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
     @timings.timed
+    def centroid_required(self, traj_i, traj_j):
+        """Determine if centroid is required for integral. Data at centroid will
+           NOT be computed if:
+           a) the nuclear overlap between trajectories is below threshold
+        """
+        if not self.integrals.require_centroids:
+            return False
+        else:
+            return abs(self.integrals.nuc_overlap(traj_i, traj_j)) > 1.e-6
+
+    @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
         current_pop = self.pop()
@@ -209,26 +221,6 @@ class Bundle:
             continue
         return False
 
-    def in_coupled_regime(self):
-        """Returns true if we are in a regime of coupled trajectories."""
-
-        # check if trajectories are coupled
-        for i in range(self.nalive):
-            for j in range(i):
-                if abs(self.T[i,j]+self.V[i,j]) > glbl.fms['hij_coup_thresh']:
-                    return True
-
-        # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
-        # ELSEWHERE
-        # check if any trajectories exceed NAD threshold
-        #for i in range(self.nalive):
-        #    for j in range(self.nstates):
-        #        if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['spawn_coup_thresh']:
-        #            return True
-
-        # else, return false
-        return False
-
     def amplitudes(self):
         """Returns amplitudes of the trajectories."""
         return np.array([self.traj[self.alive[i]].amplitude
@@ -239,17 +231,17 @@ class Bundle:
         for i in range(self.nalive):
             self.traj[self.alive[i]].amplitude = amps[i]
 
-    def mulliken_pop(self, tid):
+    def mulliken_pop(self, label):
         """Returns the Mulliken-like population."""
         mulliken = 0.
 
-        if not self.traj[tid].alive:
+        if not self.traj[label].alive:
             return mulliken
-        i = self.alive.index(tid)
+        i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
             mulliken += abs(self.traj_ovrlp[i,j] *
-                            self.traj[tid].amplitude.conjugate() *
+                            self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
 
@@ -306,7 +298,7 @@ class Bundle:
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
         ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
-                           self.traj[self.alive[i]].interface.kecoeff)
+                           1./(2.* self.traj[self.alive[i]].masses()))
                            for i in range(nalive)])
         return sum(ke_vec)/nalive
 
@@ -429,7 +421,7 @@ class Bundle:
 #        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
 
-        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
+#        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
 
         for i in range(self.n_traj()):
 
@@ -446,13 +438,19 @@ class Bundle:
                              abs(self.traj[i].amplitude),
                              self.traj[i].state])
 
-                fileio.print_traj_row(self.traj[i].tid, 0, data)
+                fileio.print_traj_row(self.traj[i].label, 0, data)
 
                 # potential energy
                 data = [self.time]
                 data.extend([self.traj[i].energy(j)
                              for j in range(self.nstates)])
-                fileio.print_traj_row(self.traj[i].tid, 1, data)
+                fileio.print_traj_row(self.traj[i].label, 1, data)
+
+                # gradients
+                data = [self.time]
+                data.extend(self.traj[i].derivative(self.traj[i].state,
+                                                    self.traj[i].state).tolist())
+                fileio.print_traj_row(self.traj[i].label, 7, data)
 
                 # coupling
                 data = [self.time]
@@ -460,7 +458,7 @@ class Bundle:
                              for j in range(self.nstates)])
                 data.extend([self.traj[i].coup_dot_vel(j)
                              for j in range(self.nstates)])
-                fileio.print_traj_row(self.traj[i].tid, 2, data)
+                fileio.print_traj_row(self.traj[i].label, 2, data)
 
             # print pes information relevant to the chosen interface
             if glbl.fms['print_es']:
@@ -472,43 +470,39 @@ class Bundle:
                     if key in ['geom','poten','deriv']:
                         continue
 
-                    #
+                    # permanent dipoles
+                    if key == 'dipole':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            data.extend(self.traj[i].pes_data.dipoles[:,j,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 3, data)
 
-                # permanent dipoles
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].dipole(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 3, data)
+                    # transition dipoles
+                    if key == 'tr_dipole':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            for k in range(j):
+                                data.extend(self.traj[i].pes_data.dipoles[:,k,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 4, data)
 
-                # transition dipoles
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    for k in range(j):
-#                        data.extend(self.traj[i].tdipole(k,j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 4, data)
+                    # second moments
+                    if key == 'sec_mom':
+                        crd_dim = self.traj[i].crd_dim
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            diag_mom = [self.traj[i].pes_data.sec_moms[k,k,j] 
+                                        for k in range(crd_dim)]
+                            data.extend(diag_mom)
+                        fileio.print_traj_row(self.traj[i].label, 5, data)
 
-                # second moments
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].sec_mom(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 5, data)
-
-                # atomic populations
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].atom_pop(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 6, data)
-
-                # gradients
-                data = [self.time]
-                data.extend(self.traj[i].derivative(self.traj[i].state,
-                                                    self.traj[i].state).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 7, data)
+                    # atomic populations
+                    if key == 'atom_pop':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            data.extend(self.traj[i].pes_data.atom_pop[:,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 6, data)
 
         # now dump bundle information ####################################
-
-#        print("T="+str(self.T))
-#        print("V="+str(self.V))
 
         # state populations
         data = [self.time]
@@ -631,7 +625,7 @@ class Bundle:
                                            width=widths,
                                            mass=masses,
                                            crd_dim=crd_dim,
-                                           tid=i,
+                                           label=i,
                                            parent=0,
                                            n_basis=0)
             t_read.read_trajectory(chkpt)
