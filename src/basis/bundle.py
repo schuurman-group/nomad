@@ -94,6 +94,8 @@ class Bundle:
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        if self.integrals.require_centroids:
+            self.create_centroids()
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
@@ -113,6 +115,8 @@ class Bundle:
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        if self.integrals.require_centroids:
+            self.create_centroids()
 
     @timings.timed
     def kill_trajectory(self, label):
@@ -205,7 +209,8 @@ class Bundle:
         if not self.integrals.require_centroids:
             return False
         else:
-            return abs(self.integrals.nuc_overlap(traj_i, traj_j)) > 1.e-6
+#            return abs(self.integrals.nuc_overlap(traj_i, traj_j)) > 1.e-6
+            return True
 
     @timings.timed
     def renormalize(self):
@@ -347,18 +352,25 @@ class Bundle:
     #
     #----------------------------------------------------------------------
     @timings.timed
-    def update_centroids(self):
-        """Updates the centroids."""
+    def create_centroids(self):
+        """called by add_trajectory. Increases the centroid 'matrix' to account for
+           new basis functions"""
 
         # make sure centroid array has sufficient space to hold required
         # centroids. Note that n_traj includes alive AND dead trajectories --
         # therefore it can only increase. So, only need to check n_traj > dim_cent
         # condition
         dim_cent = len(self.cent)
+   
+        # number of centroids already correct
+        if self.n_traj() == dim_cent:
+            return
 
+        # n_traj includes living and dead -- this condition should never be satisfied
         if self.n_traj() < dim_cent:
             raise ValueError('n_traj() < dim_cent in bundle. Exiting...')
 
+        # ...else we need to add more centroids
         if self.n_traj() > dim_cent:
             for i in range(dim_cent):
                 self.cent[i].extend([None for j in range(self.n_traj() -
@@ -382,6 +394,24 @@ class Bundle:
                     self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
                                                         traj_j=self.traj[j])
                     self.cent[j][i] = self.cent[i][j]
+
+
+    @timings.timed
+    def update_centroids(self):
+        """Updates the positions of the centroids."""
+
+        for i in range(self.n_traj()):
+            if not self.traj[i].alive:
+                continue
+
+            for j in range(i):
+                if not self.traj[j].alive:
+                    continue
+
+                self.cent[i][j].update_x(self.traj[i],self.traj[j])
+                self.cent[j][i].update_x(self.traj[j],self.traj[i])
+                self.cent[i][j].update_p(self.traj[i],self.traj[j])
+                self.cent[j][i].update_p(self.traj[j],self.traj[i])
 
     @timings.timed
     def update_matrices(self):

@@ -100,13 +100,17 @@ class Centroid:
     # Functions for setting basic pes information from centroid 
     #
     #----------------------------------------------------------------------
-    def update_x(self, pos):
+    def update_x(self, traj_i, traj_j):
         """Updates the position of the centroid."""
-        self.pos = np.array(pos)
+        wid_i    = traj_i.widths()
+        wid_j    = traj_j.widths()
+        self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
 
-    def update_p(self, mom):
+    def update_p(self, traj_i, traj_j):
         """Updates the momentum of the centroid."""
-        self.mom = np.array(mom)
+        wid_i    = traj_i.widths()
+        wid_j    = traj_j.widths()
+        self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
     def update_pes_info(self, pes_info):
         """Updates information about the potential energy surface."""

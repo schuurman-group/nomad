@@ -47,7 +47,8 @@ def update_pes(master):
             for i in range(master.n_traj()):
                 for j in range(i):
                     if not master.centroid_required(master.traj[i],master.traj[j]) or \
-                                   cached(master.cent[i][j].label,master.cent[i][j].x()):
+                                           cached(master.cent[i][j].label,
+                                                  master.cent[i][j].x()):
                         continue
                     n_total += 1
                     if n_total % glbl.mpi_nproc == glbl.mpi_rank:

@@ -72,14 +72,15 @@ def fms_step_bundle(master, dt):
             basis_grown  = spawning.spawn(master, time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
+
             # if a trajectory has been added, then call update_pes
             # to get the electronic structure information at the associated
-            # centroids, update_pes will add centroids as needed by calling
-            # update_centroids
-            if basis_grown:
+            # centroids. This is necessary in order to propagate the amplitudes
+            # at the start of the next time step.
+            if basis_grown and master.integrals.require_centroids:
                 surface.update_pes(master)
-            # update the bundle hamiltonian after adding/subtracting
-            # trajectories
+
+            # update the Hamiltonian and associated matrices 
             if basis_grown or basis_pruned:
                 master.update_matrices()
 
