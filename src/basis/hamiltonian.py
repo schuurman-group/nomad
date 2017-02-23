@@ -63,12 +63,17 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         ii = traj_alive[i]
         jj = traj_alive[j]
 
+#        print("hmat="+str(ii)+' '+str(traj_list[ii].pes_data.diabat_pot))
+#        print("theta="+str(ii)+' '+str(jj)+' '+str(ints.theta(traj_list[ii]))+' '+str(ints.theta(traj_list[jj])))
+#        print("eovr="+str(ii)+' '+str(jj)+' '+str(ints.elec_overlap(traj_list[ii],traj_list[jj])))
+
         # compute overlap of trajectories (different from S, which may or may
         # not involve integration in a gaussian basis
         t_ovrlp[i,j] = ints.traj_overlap(traj_list[ii],traj_list[jj])
 
         # overlap matrix (excluding electronic component)
         Snuc      = ints.s_integral(traj_list[ii],traj_list[jj],nuc_only=True)
+#        print("novr="+str(ii)+' '+str(jj)+' '+str(Snuc))
 
         # overlap matrix (including electronic component)
         S[i,j]    = ints.s_integral(traj_list[ii],traj_list[jj],Snuc=Snuc)
