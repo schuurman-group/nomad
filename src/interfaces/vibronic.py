@@ -1,34 +1,19 @@
 """
 Routines for running a vibronic coupling calculation.
-
-Much of this could benefit from changing for loops to numpy array operations.
-(But this is so computationally cheap that it really doesn't matter...)
 """
 import sys
 import copy
 import numpy as np
-import src.interfaces.vcham.hampar as ham
-import src.interfaces.vcham.rdoper as rdoper
-import src.interfaces.vcham.rdfreq as rdfreq
+import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 
-# KE operator coefficients a_i:
-# T = sum_i a_i p_i^2,
-# where p_i is the momentum operator
-kecoeff = None
 
-diabpot = None
-adiabpot = None
-adtmat = None
-diabderiv1 = None
-nactmat = None
-adiabderiv1 = None
-diablap = None
-sctmat = None
-dbocderiv1 = None
-nsta = 0
+kecoeff = None
+ham = None
+nsta = glbl.fms['n_states']
 data_cache = dict()
+
 
 class Surface:
     """Object containing potential energy surface data."""
@@ -49,20 +34,20 @@ class Surface:
         self.scalar_coup   = np.zeros((n_states, n_states))
         self.adt_mat       = np.zeros((n_states, n_states))
         self.dat_mat       = np.zeros((n_states, n_states))
-        self.ddat_mat      = np.zeros((t_dim,n_states, n_states))
+        self.ddat_mat      = np.zeros((t_dim, n_states, n_states))
         self.diabat_pot    = np.zeros((n_states, n_states))
         self.diabat_deriv  = np.zeros((t_dim, n_states, n_states))
-        self.adiabat_pot   = np.zeros((n_states, n_states))
-        self.adiabat_deriv = np.zeros((t_dim, n_states, n_states))
+        self.adiabat_pot   = np.zeros(n_states)
+        self.adiabat_deriv = np.zeros((t_dim, n_states))
 
 
 def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
-    
-    # Perhaps should have more robust checking that "orig_info" is in fact
-    # a 'Surface' object
     if orig_info is None:
         return None
+    elif not isinstance(orig_info, Surface):
+        raise TypeError('copy_surface can only be used to copy objects of '
+                        '\'Surface\' type')
 
     new_info = Surface(orig_info.tag,
                        orig_info.n_states,
@@ -85,34 +70,141 @@ def copy_surface(orig_info):
     return new_info
 
 
+class VibHam:
+    """Object containing the vibronic Hamiltonian parameters."""
+    def __init__(self):
+        # Parameters
+        self.npar   = 0
+        self.apar   = None
+        self.par    = None
+        self.parmap = dict()
+
+        # Hamiltonian terms
+        self.nterms       = 0
+        self.coe          = None
+        self.stalbl       = None
+        self.order        = None
+        self.mode         = None
+        self.freq         = None
+        self.mlbl_total   = []
+        self.mlbl_active  = []
+        self.nmode_total  = 0
+        self.nmode_active = 0
+        self.freqmap      = dict()
+        self.mrange       = None
+
+    def rdgeomfile(self, fname):
+        """Reads the labels of the geometry.dat file for ordering purposes."""
+        with open(fname, 'r') as infile:
+            infile.readline()
+            self.nmode_total = int(infile.readline().split()[0])
+            for i in range(self.nmode_total):
+                lbl = infile.readline().split()[0]
+                self.mlbl_total.append(lbl.lower())
+
+    def rdfreqfile(self, fname):
+        """Reads and interprets a freq.dat file."""
+        with open(fname, 'r') as infile:
+            keywords = get_kwds(infile)
+
+        self.nmode_active = len(keywords)
+        self.mlbl_active = ['' for i in range(self.nmode_active)]
+        self.freq = np.zeros(self.nmode_active)
+        for i, kwd in enumerate(keywords):
+            self.mlbl_active[i] = kwd[0]
+            self.freq[i] = conv(kwd[1:])
+            self.freqmap[kwd[0]] = self.freq[i]
+
+    def rdoperfile(self, fname):
+        """Reads and interprets an operator file."""
+        with open(fname, 'r') as infile:
+            keywords = get_kwds(infile)
+
+        parstart = keywords.index(['parameter-section'])
+        parend   = keywords.index(['end-parameter-section'])
+        self.npar = parend - parstart - 1
+        self.apar = ['' for i in range(self.npar)]
+        self.par  = np.zeros(self.npar)
+        for i in range(self.npar):
+            kwd = keywords[parstart + i + 1]
+            self.apar[i] = kwd[0]
+            if kwd[1] != '=':
+                raise NameError('No argument has been given with the keyword: ' +
+                                kwd[0])
+            self.par[i] = conv(kwd[2:])
+            self.parmap[kwd[0]] = self.par[i]
+
+        hamstart = keywords.index(['hamiltonian-section'])
+        hamend   = keywords.index(['end-hamiltonian-section'])
+        i = hamstart + 1
+        opind = []
+        while i < hamend:
+            kwd = keywords[i]
+            if kwd[0] != 'modes' and i == hamstart + 1:
+                raise ValueError('The Hamiltonian section must start with the '
+                                 'mode specification')
+            elif kwd[0] != 'modes':
+                break
+            while '|' in kwd:
+                kwd.remove('|')
+            opind += [self.mlbl_total.index(i) for i in kwd[1:]]
+            i += 1
+
+        nterms = hamend - i
+        coe    = np.zeros(nterms)
+        mode   = [[] for i in range(nterms)]
+        order  = [[] for i in range(nterms)]
+        stalbl = np.zeros((nterms, 2), dtype=int)
+        active = np.zeros(nterms, dtype=bool)
+        for i in range(nterms):
+            kwd = keywords[hamend - nterms + i]
+            if '^' in kwd:
+                powind = [j for j in range(len(kwd)) if kwd[j] == '^']
+                for j in powind:
+                    modei = opind[int(kwd[j-1]) - 1]
+                    if self.mlbl_total[modei] in self.mlbl_active:
+                        mode[i].append(modei)
+                        order[i].append(int(kwd[j+1]))
+                        active[i] = True
+            else:
+                powind = [len(kwd)]
+                active[i] = True
+            coe[i] = get_coe(kwd[:powind[0]-1])
+            if '&' not in kwd[-1]:
+                raise ValueError('The Hamiltonian term must end with state '
+                                 'specification')
+            states = sorted(kwd[-1][1:].split('&'))
+            stalbl[i] = [int(s) for s in states]
+
+        self.nterms = sum(active)
+        self.coe    = coe[active]
+        self.stalbl = stalbl[active]
+        self.mode   = np.array(mode)[active]
+        self.order  = np.array(order)[active]
+        self.mrange = [self.mlbl_total.index(i) for i in self.mlbl_active]
+
+
 def init_interface():
-    """Reads the freq.dat file
+    """Reads geometry.dat, freq.dat and the operator file.
 
-    Note that, at least for now, the no. active modes and their
-    labels are determined from the freq.dat file.
-    As such, we must read the freq.dat file BEFORE reading the
-    operator file.
+    Note that the order of modes is determined by geometry.dat and
+    the active modes are determined from the freq.dat file.
+    As such, we must read the labels in geometry.dat followed by
+    freq.dat file BEFORE reading the operator file.
     """
+    global kecoeff, ham
 
-    global kecoeff
-
-    rdfreq.rdfreqfile()
-
-    # Open the operator file
-    opfile = open(glbl.fms['opfile'], 'r')
-
-    # Read the operator file
-    rdoper.rdoperfile(opfile)
-
-    # Close the operator file
-    opfile.close()
+    # Read in geometry labels, frequency and operator files
+    ham = VibHam()
+    ham.rdgeomfile(fileio.home_path + '/geometry.dat')
+    ham.rdfreqfile(fileio.home_path + '/freq.dat')
+    ham.rdoperfile(fileio.home_path + '/' + glbl.fms['opfile'])
 
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
-    kecoeff = np.zeros((ham.nmode_active))
-    kecoeff = 0.5*ham.freq[:ham.nmode_active]
-#    kecoeff = 0.5*np.ones((ham.nmode_active)) 
-   
+    kecoeff = np.zeros(ham.nmode_total)
+    kecoeff[ham.mrange] = 0.5*ham.freq
+
     # Ouput some information about the Hamiltonian
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
@@ -141,250 +233,200 @@ def init_interface():
 
 def evaluate_trajectory(label, geom, stateindx):
     """Evaluates the trajectory."""
-    global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
-    global diablap, sctmat, dbocderiv1, nsta
     global data_cache
 
-    # System dimensions
-    ncoo   = len(geom)
-    nsta   = glbl.fms['n_states']
-
-    # Initialisation of arrays
-    diabpot = np.zeros((nsta, nsta))
-    diabderiv1 = np.zeros((ncoo, nsta, nsta))
-    nactmat = np.zeros((ncoo, nsta, nsta))
-    adiabderiv1 = np.zeros((ncoo, nsta))
-    diablap = np.zeros((nsta, nsta))
-    sctmat = np.zeros((nsta, nsta))
-    dbocderiv1 = np.zeros((ncoo, nsta))
-
-    # Set the current normal mode coordinates
-    qcoo = geom
-
     # Calculation of the diabatic potential matrix
-    calc_diabpot(qcoo)
+    diabpot = calc_diabpot(geom)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt(label)
+    adiabpot, adtmat = calc_adt(label, diabpot)
 
     # Calculation of the nuclear derivatives of the diabatic potential
-    calc_diabderiv1(qcoo)
+    diabderiv1 = calc_diabderiv1(geom)
 
     # Calculation of the NACT matrix
-    calc_nacts()
+    nactmat = calc_nacts(adiabpot, adtmat, diabderiv1)
 
     # Calculation of the gradients of the adiabatic potential
-    calc_adiabderiv1()
+    adiabderiv1 = calc_adiabderiv1(adtmat, diabderiv1)
 
     # Calculation of the Laplacian of the diabatic potential wrt the
     # nuclear DOFs
-    calc_diablap(qcoo)
+    diablap = calc_diablap(geom)
 
     # Calculation of the scalar couplings terms (SCTs)
-    #
-    # Note that in order to calculate the SCTs, the gradients of the
+    # Note that in order to calculate the SCTs, we get the gradients of the
     # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
     # save these as a matter of course.
-    calc_scts()
+    sctmat, dbocderiv1 = calc_scts(adiabpot, adtmat, diabderiv1,
+                                   nactmat, adiabderiv1, diablap)
 
-#    print("adt="+str(adtmat))
-#    print("dat="+str(np.linalg.inv(adtmat)))
-#    de    = diabpot[1,1]-diabpot[0,0]
-#    v12   = diabpot[0,1]
-#    argt  = 2.*v12/de
-#    theta = 0.5*np.arctan(argt)
-#    print("dat2="+str([[np.cos(theta),np.sin(theta)],[-np.sin(theta),np.cos(theta)]]))
-#    dderiv = np.array([(diabderiv1[q,0,1]/de - v12*(diabderiv1[q,1,1]- diabderiv1[q,0,0])/de**2)/(1+argt**2) for q in range(len(qcoo))])
-#    ddat2  = np.array([[[-np.sin(theta)*dderiv[i],np.cos(theta)*dderiv[i]],[-np.cos(theta)*dderiv[i],-np.sin(theta)*dderiv[i]]] for i in range(len(qcoo))])
-#    print("ddat2="+str(ddat2)) 
+    t_data = Surface(label, nsta, ham.nmode_active, 1)
+    t_data.geom      = geom
+    t_data.potential = adiabpot
+    t_data.deriv = [np.diag(adiabderiv1[m]) for m in
+                    range(ham.nmode_total)] + nactmat
 
-    t_data = Surface(label,nsta,ncoo,1)
-    t_data.geom          = qcoo
-    t_data.potential     = adiabpot
-    for i in range(nsta):
-        t_data.deriv[:,i,i] = adiabderiv1[:,i]
-        for j in range(i):
-            t_data.deriv[:,i,j] = nactmat[:,i,j]
-            t_data.deriv[:,j,i] = nactmat[:,j,i]
-
-    t_data.scalar_coup  = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
+    t_data.scalar_coup   = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.adt_mat       = adtmat
-    t_data.dat_mat       = np.linalg.inv(adtmat)
-#    t_data.ddat_mat      = ddat2
+    t_data.dat_mat       = sp_linalg.inv(adtmat)
+    #t_data.ddat_mat      = ddat2
     t_data.diabat_pot    = diabpot
     t_data.diabat_deriv  = diabderiv1
     t_data.adiabat_pot   = adiabpot
     t_data.adiabat_deriv = adiabderiv1
-    t_data.data_keys    = ['geom','poten','deriv',
-                           'scalar_coup','adt_mat','dat_mat','ddat_mat',
-                           'diabat_pot','diabat_deriv',
-                           'adiabat_pot','adiabat_deriv']
+    t_data.data_keys     = ['geom','poten','deriv',
+                            'scalar_coup','adt_mat','dat_mat','ddat_mat',
+                            'diabat_pot','diabat_deriv',
+                            'adiabat_pot','adiabat_deriv']
 
-    data_cache[label] = t_data    
+    data_cache[label] = t_data
     return t_data
 
 def evaluate_centroid(label, geom, stateindices):
     """Evaluates the centroid.
 
-    Note that because energies, gradients and couplings are so cheap
-    to extract from a vibronic coupling Hamiltonian, we return
-    all quantities, even if they are not actually needed.
+    At the moment, this function is just evaluate_trajectory.
     """
-    global diabpot, adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1
-    global diablap, sctmat, dbocderiv1, nsta
-    global data_cache
+    return evaluate_trajectory(label, geom, stateindices[0])
 
-    # System dimensions
-    stateindx  = stateindices[0]
-    stateindx2 = stateindices[1]
-    ncoo = len(geom) 
-    nsta = glbl.fms['n_states']
 
-    # Initialisation of arrays
-    diabpot=np.zeros((nsta,nsta), dtype=np.float)
-    diabderiv1=np.zeros((ncoo,nsta,nsta), dtype=np.float)
-    nactmat=np.zeros((ncoo,nsta,nsta), dtype=np.float)
-    adiabderiv1=np.zeros((ncoo,nsta), dtype=np.float)
-    diablap=np.zeros((nsta,nsta), dtype=np.float)
-    sctmat=np.zeros((nsta,nsta), dtype=np.float)
-    dbocderiv1=np.zeros((ncoo,nsta), dtype=np.float)
+#----------------------------------------------------------------------
+#
+# Private functions (called only within the module)
+#
+#----------------------------------------------------------------------
+def conv(val_list):
+    """Takes a list and converts it into atomic units.
 
-    # Set the current normal mode coordinates
-    qcoo = geom 
+    The input list can either be a single float or a float followed by a
+    comma and the units to convert from. Currently supported units are
+    Hartrees (au), electron volts (ev) and wavenumbers (cm).
+    """
+    if len(val_list) == 1:
+        return float(val_list[0])
+    elif len(val_list) > 2 and val_list[1] == ',':
+        if val_list[2] == 'au':
+            return float(val_list[0])
+        elif val_list[2] == 'ev':
+            return float(val_list[0]) / glbl.au2ev
+        elif val_list[2] == 'cm':
+            return float(val_list[0]) / glbl.au2cm
+        else:
+            raise ValueError('Unknown units:', val_list[2])
+    else:
+        raise ValueError('Unknown parameter format:', val_list)
 
-    # Calculation of the diabatic potential matrix
-    calc_diabpot(qcoo)
 
-    # Calculation of the adiabatic potential vector and ADT matrix
-    calc_adt(label)
+def get_kwds(infile):
+    """Reads a file and returns keywords.
 
-    # Calculation of the nuclear derivatives of the diabatic potential
-    calc_diabderiv1(qcoo)
+    By default, everything is converted to lowercase.
+    """
+    delim = ['=', ',', '(', ')', '[', ']', '{', '}', '|', '*', '/', '^']
+    rawtxt = infile.readlines()
+    kwds = [[] for i in range(len(rawtxt))]
 
-    # Calculation of the NACT matrix
-    calc_nacts()
+    for i, line in enumerate(rawtxt):
+        if '#' in line:
+            line = line[:line.find('#')]
+        for d in delim:
+            line = line.replace(d, ' ' + d + ' ')
+        kwds[i] = line.lower().split()
 
-    # Calculation of the gradients of the adiabatic potential
-    calc_adiabderiv1()
+    while [] in kwds:
+        kwds.remove([])
+    return kwds
 
-    # Calculation of the Laplacian of the diabatic potential wrt the
-    # nuclear DOFs
-    calc_diablap(qcoo)
 
-    # Calculation of the scalar couplings terms (SCTs)
-    #
-    # Note that in order to calculate the SCTs, the gradients of the
-    # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
-    # save these as a matter of course.
-    calc_scts()
+def get_coe(val_list):
+    """Gets a coefficient from a list of factors"""
+    if len(val_list) % 2 != 1:
+        raise ValueError('Coefficient specification must have odd number of '
+                         'terms including arithmetic operators.')
+    val_list.insert(0, '*')
+    coeff = 1
+    for j in range(len(val_list) // 2):
+        try:
+            fac = float(val_list[2*j+1])
+        except ValueError:
+            fac = ham.parmap[val_list[2*j+1]]
+        if val_list[2*j] == '*':
+            coeff *= fac
+        elif val_list[2*j] == '/':
+            coeff /= fac
+        else:
+            raise ValueError('Aritmetic operator must be \'*\' or \'/\'')
+    return coeff
 
-    t_data = Surface(label,nsta,ncoo,1)
-    t_data.geom          = qcoo
-    t_data.potential     = adiabpot
-    for i in range(nsta):
-        t_data.deriv[:,i,i] = adiabderiv1[:,i]
-        for j in range(i):
-            t_data.deriv[:,i,j] = nactmat[:,i,j]
-            t_data.deriv[:,j,i] = nactmat[:,j,i]
-
-    t_data.scalar_coup  = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
-    t_data.adt_mat      = adtmat
-    t_data.dat_mat      = np.linalg.inv(adtmat)
-    t_data.diabat_pot   = diabpot
-    t_data.diabat_deriv = diabderiv1
-    t_data.adiabat_pot   = adiabpot
-    t_data.adiabat_deriv = adiabderiv1
-    t_data.data_keys     = ['geom','poten','deriv',
-                           'scalar_coup','adt_mat','dat_mat',
-                           'diabat_pot','diabat_deriv',
-                           'adiabat_pot','adiabat_deriv']
-    data_cache[label] = t_data
-    return t_data
-
-#--------------------------------------------------------------------
-#*****PRIVATE FUNCTIONS (should not be called outside interface)*****
-#--------------------------------------------------------------------
 
 def calc_diabpot(q):
     """Constructs the diabatic potential matrix for a given nuclear
-    geometry q."""
-    global diabpot, nsta
+    geometry q.
 
-    #-------------------------------------------------------------------
-    # Build the diabatic potential
-    #
-    # N.B. the terms held in the coe, ord and stalbl contribute only
-    # to the lower-triangle of the diabatic potential matrix
-    #-------------------------------------------------------------------
+    N.B. the terms held in the coe, ord and stalbl contribute only
+    to the lower-triangle of the diabatic potential matrix.
+    """
+    diabpot = np.zeros((nsta, nsta))
+
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i,0] - 1
-        s2 = ham.stalbl[i,1] - 1
-        fac = ham.coe[i]
-        for m in range(ham.nmode_active):
-            fac = fac * q[m]**ham.order[i,m]
-
-        diabpot[s1,s2] = diabpot[s1,s2] + fac
+        s1, s2 = ham.stalbl[i] - 1
+        if ham.mode[i] == []:
+            diabpot[s1,s2] += ham.coe[i]
+        else:
+            diabpot[s1,s2] += ham.coe[i] * np.prod(q[ham.mode[i]]**ham.order[i])
 
     # Fill in the upper-triangle
-    for s1 in range(nsta-1):
-        for s2 in range(s1+1, nsta):
-            diabpot[s2,s1] = diabpot[s1,s2]
+    diabpot += diabpot.T - np.diag(diabpot.diagonal())
+    return diabpot
 
 
-def calc_adt(label):
+def calc_adt(label, diabpot):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
-    global adiabpot, adtmat, data_cache
+    adiabpot, adtmat = sp_linalg.eigh(diabpot)
 
-    adiabpot, adtmat = np.linalg.eigh(diabpot)
-    
-    # ensure phase continuity from geometry to another
     if label in data_cache:
-        for i in range(nsta):
-            adtmat[:,i] *= np.sign(np.dot(adtmat[:,i],
-                                          data_cache[label].adt_mat[:,i]))
-    # else, set  phase convention that largest element in adt column vector is 
-    # positive
+        # Ensure phase continuity from geometry to another
+        adtmat *= np.sign(np.dot(adtmat.T, data_cache[label].adt_mat).diagonal())
     else:
-        mxvals = np.argmax(np.abs(adtmat),axis=0)
-        for i in range(len(mxvals)):
-            if adtmat[mxvals[i],i] < 0:
-                adtmat[:,i] *= -1.
+        # Set phase convention that the greatest abs element in adt column
+        # vector is positive
+        adtmat *= np.sign(adtmat[range(len(adiabpot)),
+                                 np.argmax(np.abs(adtmat), axis=0)])
+    return adiabpot, adtmat
+
 
 def calc_diabderiv1(q):
     """Calculates the 1st derivatives of the elements of the diabatic
     potential matrix wrt the nuclear DOFs."""
-    global diabderiv1, nsta
+    diabderiv1 = np.zeros((ham.nmode_total, nsta, nsta))
 
-    #-------------------------------------------------------------------
-    # Build the tensor of nuclear derviatives of the diabatic potential
-    #-------------------------------------------------------------------
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i,0] - 1
-        s2 = ham.stalbl[i,1] - 1
-        for m in range(ham.nmode_active):
-            fac = 0.0
-            if ham.order[i,m] != 0:
-                fac = ham.coe[i]
-                for n in range(ham.nmode_active):
-                    p = ham.order[i,n]
-                    if n == m:
-                        fac *= p * q[n]**(p-1)
-                    else:
-                        fac *= q[n]**p
-
-            diabderiv1[m,s1,s2] += fac
+        nmodes = len(ham.mode[i])
+        s1, s2 = ham.stalbl[i] - 1
+        if nmodes == 1:
+            m = ham.mode[i][0]
+            o = ham.order[i][0]
+            diabderiv1[m,s1,s2] += ham.coe[i] * o * q[m]**(o - 1)
+        elif nmodes > 1:
+            m = ham.mode[i]
+            o = np.array(ham.order[i])
+            qcol = np.repeat(q[m], nmodes).reshape(nmodes, nmodes)
+            fac = np.prod((qcol - np.diag(q[m]) + np.diag(o)) *
+                          (q[m]**(o - 1))[:,np.newaxis], axis=0)
+            diabderiv1[m,s1,s2] += ham.coe[i] * fac
 
     # Fill in the upper-triangle
-    for m in range(ham.nmode_active):
-        for s1 in range(nsta-1):
-            for s2 in range(s1+1, nsta):
-                diabderiv1[m,s2,s1] = diabderiv1[m,s1,s2]
+    diabderiv1[ham.mrange] += (np.transpose(diabderiv1[ham.mrange], axes=(0,2,1)) -
+                               [np.diag(diabderiv1[m].diagonal()) for m in
+                                ham.mrange])
+    return diabderiv1
 
 
-def calc_nacts():
+def calc_nacts(adiabpot, adtmat, diabderiv1):
     """Calculates the matrix of non-adiabatic coupling terms from the
     adiabatic potentials, the ADT matrix and the nuclear derivatives of
     the diabatic potentials.
@@ -395,91 +437,59 @@ def calc_nacts():
     S^T: matrix of eigenvectors of W
     V: vector of adiabatic energies
     """
-    global adtmat, diabderiv1, nactmat, nsta
+    # Fill in the matrix
+    nactmat = np.zeros((ham.nmode_total, nsta, nsta))
+    fac = -np.subtract.outer(adiabpot, adiabpot) + np.eye(nsta)
+    for m in ham.mrange:
+        nactmat[m] = np.dot(np.dot(adtmat.T, diabderiv1[m]), adtmat) / fac
 
-    #-------------------------------------------------------------------
-    # (1) Calculation of S{d/dX W}S^T (tmpmat)
-    #-------------------------------------------------------------------
-    tmpmat = np.zeros((ham.nmode_active, nsta, nsta))
-    for m in range(ham.nmode_active):
-        for i in range(nsta):
-            for j in range(nsta):
-                for k in range(nsta):
-                    for l in range(nsta):
-                        tmpmat[m,i,j] += (adtmat[k,i] *
-                                            diabderiv1[m,k,l] * adtmat[l,j])
-
-    #-------------------------------------------------------------------
-    # (2) Calculation of the non-adiabatic coupling terms
-    #-------------------------------------------------------------------
-    # Fill in the lower-triangle minus the on-diagonal terms (which
-    # are zero by symmetry)
-    for m in range(ham.nmode_active):
-        for i in range(nsta-1):
-            for j in range(i+1, nsta):
-                nactmat[m,i,j] = tmpmat[m,i,j] / (adiabpot[j]-adiabpot[i])
-
-    # Fill in the upper-triangle using the anti-symmetry of the NACTs
-    for m in range(ham.nmode_active):
-        for i in range(nsta-1):
-            for j in range(i+1, nsta):
-                nactmat[m,j,i] = -nactmat[m,i,j]
+    # Subtract the diagonal to make sure it is zero
+    nactmat -= [np.diag(nactmat[m].diagonal()) for m in range(ham.nmode_total)]
+    return nactmat
 
 
-def calc_adiabderiv1():
-    """Calculates the gradients of the adiabatic potentials."""
-    global adiabderiv1, adtmat, nsta
+def calc_adiabderiv1(adtmat, diabderiv1):
+    """Calculates the gradients of the adiabatic potentials.
 
-    #-------------------------------------------------------------------
-    # d/dX V_ii = (S{d/dX W}S^T)_ii
-    #-------------------------------------------------------------------
-    for m in range(ham.nmode_active):
-        for i in range(nsta):
-            for k in range(nsta):
-                for l in range(nsta):
-                    adiabderiv1[m,i] += (adtmat[k,i] *
-                                          diabderiv1[m,k,l] * adtmat[l,i])
+    Equation used: d/dX V_ii = (S{d/dX W}S^T)_ii
+    """
+    # Get the diagonal elements of the matrix
+    adiabderiv1 = np.zeros((ham.nmode_total, nsta))
+    for m in ham.mrange:
+        adiabderiv1[m] = np.dot(np.dot(adtmat.T, diabderiv1[m]),
+                                adtmat).diagonal()
+    return adiabderiv1
+
 
 
 def calc_diablap(q):
     """Calculates the Laplacian of the diabatic potential matrix wrt
     the nuclear DOFs at the point q."""
-    global diablap, nsta
+    diablap = np.zeros((nsta, nsta))
 
-    # Initialise arrays
-    der2 = np.zeros((ham.nmode_active, nsta, nsta))
-
-    #-----------------------------------------------------------------------
-    # Build the Laplacian of the diabatic potential
-    #-----------------------------------------------------------------------
     # Fill in the lower-triangle
     for i in range(ham.nterms):
-        s1 = ham.stalbl[i,0] - 1
-        s2 = ham.stalbl[i,1] - 1
-        for m in range(ham.nmode_active):
-            fac = 0.0
-            if ham.order[i,m] > 1:
-                fac = ham.coe[i]
-                for n in range(ham.nmode_active):
-                    p = ham.order[i,n]
-                    if n == m:
-                        fac *= p * (p-1) * q[n]**(p-2)
-                    else:
-                        fac *= q[n]**p
-            der2[m,s1,s2] += fac
-
-    for i in range(nsta):
-        for j in range(nsta):
-            for m in range(ham.nmode_active):
-                diablap[i,j] += der2[m,i,j]
+        nmodes = len(ham.mode[i])
+        s1, s2 = ham.stalbl[i] - 1
+        if nmodes == 1:
+            m = ham.mode[i][0]
+            o = ham.order[i][0]
+            if o > 1:
+                diablap[s1,s2] += ham.coe[i] * o * (o - 1) * q[m]**(o - 2)
+        elif nmodes > 1:
+            m = ham.mode[i]
+            o = np.array(ham.order[i])
+            q2col = np.repeat(q[m]**2, nmodes).reshape(nmodes, nmodes)
+            fac = np.prod((q2col - np.diag(q[m]**2) + np.diag(o * (o - 1))) *
+                          (q[m]**(o - 2))[:,np.newaxis], axis=0)
+            diablap[s1,s2] += ham.coe[i] * np.sum(fac)
 
     # Fill in the upper-triangle
-    for i in range(nsta-1):
-        for j in range(i+1, nsta):
-            diablap[j,i] = diablap[i,j]
+    diablap += diablap.T - np.diag(diablap.diagonal())
+    return diablap
 
 
-def calc_scts():
+def calc_scts(adiabpot, adtmat, diabderiv1, nactmat, adiabderiv1, diablap):
     """Calculates the scalar coupling terms.
 
     Uses the equation:
@@ -500,129 +510,76 @@ def calc_scts():
     delnactmat <-> d/dX F
     fdotf      <-> F.F
     """
-    global nsta, sctmat, dbocderiv1, adtmat, diablap, nactmat
-
-    #-------------------------------------------------------------------
-    # Initialise arrays
-    #-------------------------------------------------------------------
-    tmp1 = np.zeros((nsta, nsta))
-    tmp2 = np.zeros((nsta, nsta))
-    tmp3 = np.zeros((nsta, nsta))
-    ximat = np.zeros((nsta, nsta))
-    deltmat = np.zeros((nsta, nsta))
-    delnactmat = np.zeros((nsta, nsta))
-    fdotf = np.zeros((nsta, nsta))
-    tmat = np.zeros((ham.nmode_active, nsta, nsta))
-    delximat = np.zeros((ham.nmode_active, nsta, nsta))
-
     #-------------------------------------------------------------------
     # (1) Construct d/dX F (delnactmat)
     #-------------------------------------------------------------------
 
     # (a) deltmat = S {Del^2 W} S^T + -FS{d/dX W}S^T + S{d/dX W}S^TF
-
     # tmp1 <-> S {Del^2 W} S^T
-    for i in range(nsta):
-        for j in range(nsta):
-            for k in range(nsta):
-                for l in range(nsta):
-                    tmp1[i,j] += adtmat[k,i] * diablap[k,l] * adtmat[l,j]
+    tmp1 = np.dot(np.dot(adtmat.T, diablap), adtmat)
 
-    # tmp2 <-> -FS{d/dX W}S^T
-    for i in range(nsta):
-        for j in range(nsta):
-            for k in range(nsta):
-                for l in range(nsta):
-                    for m in range(nsta):
-                        dp = 0.0
-                        for n in range(ham.nmode_active):
-                            dp+=ham.freq[n]*nactmat[n,i,k]*diabderiv1[n,l,m]
-                        tmp2[i,j]-=adtmat[l,k]*adtmat[m,j]*dp
+    # tmp2 <-> -F S{d/dX W}S^T
+    mat2 = [np.dot(np.dot(np.dot(nactmat[m], adtmat.T), diabderiv1[m]), adtmat)
+            for m in ham.mrange]
+    tmp2 = -np.sum(ham.freq[:,np.newaxis,np.newaxis] * mat2, axis=0)
 
-    # tmp3 <-> S{d/dX W}S^TF
-    for i in range(nsta):
-        for j in range(nsta):
-            for k in range(nsta):
-                for l in range(nsta):
-                    for m in range(nsta):
-                        dp = 0.0
-                        for n in range(ham.nmode_active):
-                            dp+=ham.freq[n]*nactmat[n,m,j]*diabderiv1[n,k,l]
-                        tmp3[i,j]+=adtmat[k,i]*adtmat[l,m]*dp
+    # tmp3 <-> S{d/dX W}S^T F
+    mat3 = [np.dot(np.dot(np.dot(adtmat.T, diabderiv1[m]), adtmat), nactmat[m])
+            for m in ham.mrange]
+    tmp3 = np.sum(ham.freq[:,np.newaxis,np.newaxis] * mat3, axis=0)
 
     # deltmat
-    for i in range(nsta):
-        for j in range(nsta):
-            deltmat[i,j] = tmp1[i,j] + tmp2[i,j] + tmp3[i,j]
-
+    deltmat = tmp1 + tmp2 + tmp3
 
     # (b) delximat
-    for m in range(ham.nmode_active):
+    ## This is slightly slower for nsta == 2
+    #delximat = np.zeros((ham.nmode_total, nsta, nsta))
+    #for m in ham.mrange:
+    #    delximat[m] = -(np.subtract.outer(adiabderiv1[m], adiabderiv1[m]) /
+    #                    (np.subtract.outer(adiabpot, adiabpot) ** 2 +
+    #                     np.eye(nsta)))
+    delximat = np.zeros((ham.nmode_total, nsta, nsta))
+    for m in ham.mrange:
         for i in range(nsta):
             for j in range(nsta):
                 if i != j:
-                    delximat[m,i,j] = -(adiabderiv1[m,j] - adiabderiv1[m,i])
-                    delximat[m,i,j] /= (adiabpot[j] - adiabpot[i])**2
+                    delximat[m,i,j] = ((adiabderiv1[m,i] - adiabderiv1[m,j]) /
+                                       (adiabpot[j] - adiabpot[i])**2)
 
     # (c) tmat
-    for m in range(ham.nmode_active):
-        for i in range(nsta):
-            for j in range(nsta):
-                for k in range(nsta):
-                    for l in range(nsta):
-                        tmat[m,i,j] += (adtmat[k,i] *
-                                          diabderiv1[m,k,l] * adtmat[l,j])
+    tmat = np.zeros((ham.nmode_total, nsta, nsta))
+    for m in ham.mrange:
+        tmat[m] = np.dot(np.dot(adtmat.T, diabderiv1[m]), adtmat)
 
     # (d) ximat
+    ## This is slightly slower for nsta == 2
+    #ximat = 1. / (-np.subtract.outer(adiabpot, adiabpot) +
+    #              np.eye(nsta)) - np.eye(nsta)
+    ximat = np.zeros((nsta, nsta))
     for i in range(nsta):
         for j in range(nsta):
             if i != j:
                 ximat[i,j] = 1. / (adiabpot[j] - adiabpot[i])
 
     # (f) delnactmat_ij = delximat_ij*tmat_ij + ximat_ij*deltmat_ij (i.ne.j)
-    # tmp1 = delximat_ij*tmat_ij
-    tmp1 = np.zeros((nsta, nsta))
-    for i in range(nsta):
-        for j in range(nsta):
-            if i != j:
-                for m in range(ham.nmode_active):
-                    tmp1[i,j] += delximat[m,i,j] * tmat[m,i,j]
-
-    # tmp2 = ximat_ij*deltmat_ij
-    tmp2 = np.zeros((nsta, nsta))
-    for i in range(nsta):
-        for j in range(nsta):
-            if i != j:
-                tmp2[i,j] = ximat[i,j] * deltmat[i,j]
-
-    # delnactmat
-    for i in range(nsta):
-        for j in range(nsta):
-            delnactmat[i,j] = tmp1[i,j] + tmp2[i,j]
+    delnactmat = np.sum(delximat * tmat, axis=0) + ximat * deltmat
 
     #-------------------------------------------------------------------
     # (2) Construct F.F (fdotf)
     #-------------------------------------------------------------------
-    for i in range(nsta):
-        for j in range(nsta):
-            for k in range(nsta):
-                for m in range(ham.nmode_active):
-                    fdotf[i,j]+=ham.freq[m]*nactmat[m,i,k]*nactmat[m,k,j]
+    matf = [np.dot(nactmat[m], nactmat[m]) for m in ham.mrange]
+    fdotf = np.sum(ham.freq[:,np.newaxis,np.newaxis] * matf, axis=0)
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F
     #-------------------------------------------------------------------
-    for i in range(nsta):
-        for j in range(nsta):
-            sctmat[i,j] = delnactmat[i,j] - fdotf[i,j]
+    sctmat = delnactmat - fdotf
 
     #-------------------------------------------------------------------
     # (4) Calculation of the 1st derivatives of the DBOCs
-    #
-    # CHECK THIS CAREFULLY!
     #-------------------------------------------------------------------
-    for i in range(nsta):
-        for m in range(ham.nmode_active):
-            for k in range(nsta):
-                dbocderiv1[m,i] -= 2. * delnactmat[i,k] * nactmat[m,i,k]
+    dbocderiv1 = np.zeros((ham.nmode_total, nsta))
+    for m in ham.mrange:
+        dbocderiv1[m] = -2.*np.sum(delnactmat * nactmat[m], axis=0)
 
+    return sctmat, dbocderiv1

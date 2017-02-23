@@ -87,11 +87,11 @@ class Surface:
 #
 def copy_surface(orig_info):
     """Creates a copy of a Surface object."""
-
-    # Perhaps should have more robust checking that "orig_info" is in fact
-    # a 'Surface' object
     if orig_info is None:
         return None
+    elif not isinstance(orig_info, Surface):
+        raise TypeError('copy_surface can only be used to copy objects of '
+                        '\'Surface\' type')
 
     new_info = Surface(orig_info.tag,
                        orig_info.n_states,

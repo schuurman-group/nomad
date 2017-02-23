@@ -4,7 +4,7 @@ The Bundle object and its associated functions.
 import sys
 import copy
 import numpy as np
-from scipy import linalg
+import scipy.linalg as sp_linalg
 from src.dynamics import timings
 from src.fmsio import glbl as glbl
 from src.fmsio import fileio as fileio
@@ -190,10 +190,10 @@ class Bundle:
 
         if self.nalive < 150:
             # Eigen-decomposition
-            umat = linalg.expm2(B)
+            umat = sp_linalg.expm2(B)
         else:
             # Pade approximation
-            umat = linalg.expm(B)
+            umat = sp_linalg.expm(B)
 
         new_amp = np.dot(umat, old_amp)
 
@@ -294,9 +294,9 @@ class Bundle:
         """
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.V), self.amplitudes()).real
-#        Sinv = np.linalg.pinv(self.S)
-#        return np.dot(np.dot(
-#               np.conj(self.amplitudes()),np.dot(Sinv,self.V)),self.amplitudes()).real
+        #Sinv = sp_linalg.pinv(self.S)
+        #return np.dot(np.dot(np.conj(self.amplitudes()),
+        #                     np.dot(Sinv,self.V)),self.amplitudes()).real
 
     @timings.timed
     def kin_classical(self):
@@ -312,9 +312,9 @@ class Bundle:
         """Returns the QM (coupled) kinetic energy of the bundle."""
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.T), self.amplitudes()).real
-#        Sinv = np.linalg.pinv(self.S)
-#        return np.dot(np.dot(
-#               np.conj(self.amplitudes()),np.dot(Sinv,self.T)),self.amplitudes()).real
+        #Sinv = sp_linalg.pinv(self.S)
+        #return np.dot(np.dot(np.conj(self.amplitudes()),
+        #                     np.dot(Sinv,self.T)),self.amplitudes()).real
 
     def tot_classical(self):
         """Returns the total classical energy of the bundle."""

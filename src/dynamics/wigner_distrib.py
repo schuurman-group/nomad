@@ -4,11 +4,10 @@ Routines for generating and sampling a Wigner vibrational distribution.
 import sys
 import random
 import numpy as np
-import scipy.linalg as linalg
+import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
-import src.interfaces.vcham.hampar as ham
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
 def sample_distribution(master):
@@ -20,13 +19,15 @@ def sample_distribution(master):
 
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.fms['interface'] == 'vibronic':
+        import src.interfaces.vibronic as interface
         coordtype = 'normal'
+        ham = interface.ham
     else:
         coordtype = 'cart'
 
     # Read the geometry.dat file
-    (ncrd, crd_dim, amps, lbls, 
-            geoms, moms, width, mass) = fileio.read_geometry()
+    (ncrd, crd_dim, amps, lbls,
+     geoms, moms, width, mass) = fileio.read_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
     ndim = int(len(geoms)/len(amps))
@@ -54,7 +55,7 @@ def sample_distribution(master):
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
                               else 0 for i in range(len(masses))], dtype=float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]
-        evals, evecs = np.linalg.eigh(mw_hess)
+        evals, evecs = sp_linalg.eigh(mw_hess)
         f_cutoff = 0.0001
         freq_list = []
         mode_list = []
@@ -71,38 +72,47 @@ def sample_distribution(master):
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
 
+    ## If normal modes are being used, set the no. modes
+    ## equal to the number of active modes of the model
+    ## Hamiltonian and load the associated frequencies
+    #if coordtype == 'normal':
+    #    n_modes = ham.nmode_active
+    #    freqs = ham.freq
+
     # If normal modes are being used, set the no. modes
-    # equal to the number of active modes of the model
-    # Hamiltonian and load the associated frequencies
+    # equal to the total number of modes of the model
+    # Hamiltonian and load only the active frequencies
     if coordtype == 'normal':
-        n_modes = ham.nmode_active
-        freqs = ham.freq
-    
+        n_modes = ham.nmode_total
+        freqs = np.zeros(n_modes)
+        freqs[ham.mrange] = ham.freq
+
     # loop over the number of initial trajectories
     max_try = 1000
     ntraj  = glbl.fms['n_init_traj']
     for i in range(ntraj):
         delta_x   = np.zeros(n_modes)
         delta_p   = np.zeros(n_modes)
-        x_sample  = np.zeros(n_modes) 
+        x_sample  = np.zeros(n_modes)
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            sigma_x = beta*np.sqrt(0.25 / alpha)
-            sigma_p = beta*np.sqrt(alpha)
-            itry = 0
-            while itry <= max_try:
-                dx = random.gauss(0., sigma_x)
-                dp = random.gauss(0., sigma_p)
-                itry += 1
-                if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
-                    break
-            if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
-                print('Cannot get mode overlap > ' +
+            if alpha > glbl.fpzero:
+                sigma_x = beta*np.sqrt(0.25 / alpha)
+                sigma_p = beta*np.sqrt(alpha)
+                itry = 0
+                while itry <= max_try:
+                    dx = random.gauss(0., sigma_x)
+                    dp = random.gauss(0., sigma_p)
+                    itry += 1
+                    if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
+                        break
+                if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
+                    print('Cannot get mode overlap > ' +
                       str(glbl.fms['init_mode_min_olap']) +
                       ' within ' + str(max_try) + ' attempts. Exiting...')
-            delta_x[j] = dx
-            delta_p[j] = dp
+                delta_x[j] = dx
+                delta_p[j] = dp
 
         # If Cartesian coordinates are being used, displace along each
         # normal mode to generate the final geometry...
@@ -115,8 +125,8 @@ def sample_distribution(master):
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x * np.sqrt(freqs[0:n_modes])
-            disp_p = delta_p * np.sqrt(freqs[0:n_modes])
+            disp_x = delta_x * np.sqrt(freqs)
+            disp_p = delta_p * np.sqrt(freqs)
 
         x_sample = geom_ref + disp_x
         p_sample = mom_ref  + disp_p
@@ -131,16 +141,17 @@ def sample_distribution(master):
 
     # Calculate the initial expansion coefficients via projection onto
     # the initial wavefunction that we are sampling
-    ovec = np.zeros(ntraj, dtype=np.complex)
+    ovec = np.zeros(ntraj, dtype=complex)
     for i in range(ntraj):
         ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
-    smat = np.zeros((ntraj, ntraj), dtype=np.complex)
+    smat = np.zeros((ntraj, ntraj), dtype=complex)
     for i in range(ntraj):
         for j in range(i+1):
             smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
-    sinv = linalg.pinvh(smat)
+    print(smat)
+    sinv = sp_linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):
         master.traj[i].update_amplitude(cvec[i])

@@ -249,10 +249,8 @@ class Trajectory:
         return coup
 
     def same_state(self, j_state):
-        if self.state == j_state:
-            return True
-        else:
-            return False
+        """Determines if a given state is the same as the trajectory state."""
+        return self.state == j_state
 
     #--------------------------------------------------------------------------
     #

@@ -26,6 +26,7 @@ tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
 
+interface_dict = dict()
 
 def read_input_files():
     """Reads the fms.input files.
@@ -33,7 +34,7 @@ def read_input_files():
     This file contains variables related to the running of the
     dynamics simulation.
     """
-    global scr_path, home_path
+    global scr_path, home_path, interface_dict
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
@@ -57,32 +58,15 @@ def read_input_files():
     # Read pes.input. This contains interface-specific user options. Get what
     #  interface we're using via glbl.fms['interface'], and populate the
     #  corresponding dictionary of keywords from glbl module
-    # Clumsy. Not even sure this is the best way to do this (need to segregate
-    # variables in different dictionaries. fix this later
-    if glbl.fms['interface'] == 'columbus':
-        for k, v in kwords.items():
-            if k in glbl.columbus:
-                glbl.columbus[k] = v
-            else:
-                if glbl.mpi_rank == 0:
-                    print('Variable '  + str(k) +
-                          ' in fms.input unrecognized. Ignoring...')
-    elif glbl.fms['interface'] == 'vibronic':
-        for k, v in kwords.items():
-            if k in glbl.vibronic:
-                glbl.vibronic[k] = v
-            else:
-                if glbl.mpi_rank == 0:
-                    print('Variable ' + str(k) +
-                          ' in fms.input unrecognized. Ignoring...')
-    elif glbl.fms['interface'] == 'boson_model_diabatic':
-        for k, v in kwords.items():
-            if k in glbl.boson:
-                glbl.boson[k] = v
-    else:
-        if glbl.mpi_rank == 0:
-            print('Interface: ' + str(glbl.fms['interface']) + 
-                  ' is not recognized.')
+    # Still need to add a new dict to glbl for each new interface.
+    interface_dict = getattr(glbl, glbl.fms['interface'])
+    kwords = read_namelist('pes.input')
+    for k, v in kwords.items():
+        if k in interface_dict:
+            interface_dict[k] = v
+        elif glbl.mpi_rank == 0:
+            print('Variable ' + str(k) +
+                  ' in fms.input unrecognized. Ignoring...')
 
 
 def read_namelist(filename):
@@ -116,7 +100,7 @@ def init_fms_output():
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
     (ncrd, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data) = read_geometry() 
+            geom_data, mom_data, width_data, mass_data) = read_geometry()
 
     nst = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
@@ -269,18 +253,9 @@ def init_fms_output():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
-        if glbl.fms['interface'] == 'columbus':
-            out_key = glbl.columbus
-        elif glbl.fms['interface'] == 'vibronic':
-            out_key = glbl.vibronic
-        elif glbl.fms['interface'] == 'boson_model_diabatic':
-            out_key = glbl.boson
-        else:
-            out_key = dict()
-
         log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
         log_str += ' ----------------------------------------\n'
-        for k, v in out_key.items():
+        for k, v in interface_dict.items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str)
 
@@ -430,10 +405,10 @@ def read_geometry():
         # read in geometry
         for i in range(nq):
             lcnt += 1
-            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
                       for j in range(1,len(gm_file[lcnt].rstrip().split()))])
             crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
-            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0] 
+            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0]
                        for i in range(crd_dim)])
             # if in cartesians, assume mass given in amu, convert to au
             if crd_dim == 3:
@@ -442,14 +417,14 @@ def read_geometry():
         # read in momenta
         for i in range(nq):
             lcnt += 1
-            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
                        for j in range(len(gm_file[lcnt].rstrip().split()))])
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                width_data.extend([float(gm_file[lcnt].rstrip().split()[j]) 
+                width_data.extend([float(gm_file[lcnt].rstrip().split()[j])
                                for j in range(1,len(gm_file[lcnt].split()))])
         else:
             for lbl in label_data:
@@ -478,7 +453,7 @@ def read_geometry():
         if (lcnt+1) == len(gm_file):
             not_done = False
 
-    return (nq, crd_dim, amp_data, label_data, 
+    return (nq, crd_dim, amp_data, label_data,
             geom_data, mom_data, width_data, mass_data)
 
 def read_hessian():

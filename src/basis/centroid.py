@@ -219,10 +219,8 @@ class Centroid:
         return coup
 
     def same_state(self):
-        if self.pstate[0] == self.pstate[1]:
-            return True
-        else:
-            return False
+        """Determines if both trajectories are on the same state."""
+        return self.pstate[0] == self.pstate[1]
 
     #--------------------------------------------------------------------------
     #
