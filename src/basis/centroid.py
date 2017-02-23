@@ -21,11 +21,18 @@ def copy_cent(orig_cent):
                         dim    =orig_cent.dim,
                         width  =orig_cent.width,
                         crd_dim=orig_cent.crd_dim,
-                        cid    =orig_cent.cid)
+                        label    =orig_cent.label)
     new_cent.pos        = copy.deepcopy(orig_cent.pos)
     new_cent.mom        = copy.deepcopy(orig_cent.mom)
+    new_cent.parent     = copy.deepcopy(orig_cent.parent)
     new_cent.pes_data   = orig_cent.interface.copy_surface(orig_cent.pes_data)
     return new_cent
+
+def cent_label(itraj_id, jtraj_id):
+    """return the centroid id for centroid between traj_i, traj_j"""
+    idi          = max(itraj_id, jtraj_id)
+    idj          = min(itraj_id, jtraj_id)
+    return -((idi * (idi - 1) // 2) + idj + 1)
 
 class Centroid:
     """Class constructor for the Centroid object."""
@@ -37,7 +44,7 @@ class Centroid:
                  dim=0,
                  width=None,
                  crd_dim=3,
-                 cid=-1):
+                 label=-1):
 
         if traj_i is None or traj_j is None:
             # total number of states
@@ -55,20 +62,23 @@ class Centroid:
             #(i.e. ==3 for Cartesian, == 3N-6 for internals)
             self.crd_dim = crd_dim
             # unique identifier for centroid
-            self.cid     = cid
+            self.label     = label
             # current position of the centroid
-            self.pos     = np.zeros(self.dim)
+            self.pos     = np.zeros(self.dim, dtype=float)
             # current momentum of the centroid
-            self.mom     = np.zeros(self.dim)
+            self.mom     = np.zeros(self.dim, dtype=float)
+            # labels of parent trajectories
+            self.parent  = np.zeros(2, dtype=int)
 
         else:
-            idi          = max(traj_i.tid, traj_j.tid)
-            idj          = min(traj_i.tid, traj_j.tid)
+            idi          = max(traj_i.label, traj_j.label)
+            idj          = min(traj_i.label, traj_j.label)
+            self.parent  = np.array([idj, idi], dtype=int)
             self.nstates = max(traj_i.nstates,traj_j.nstates)
             self.pstates = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
             self.crd_dim = max(traj_i.crd_dim, traj_j.crd_dim)
-            self.cid     = -((idi * (idi - 1) // 2) + idj + 1)
+            self.label     = -((idi * (idi - 1) // 2) + idj + 1)
             # now update the position in phase space of the centroid
             # if wid_i == wid_j, this is clearly just the simply mean
             # position.
@@ -90,15 +100,19 @@ class Centroid:
     # Functions for setting basic pes information from centroid 
     #
     #----------------------------------------------------------------------
-    def update_x(self, pos):
+    def update_x(self, traj_i, traj_j):
         """Updates the position of the centroid."""
-        self.pos = np.array(pos)
+        wid_i    = traj_i.widths()
+        wid_j    = traj_j.widths()
+        self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
 
-    def update_p(self, mom):
+    def update_p(self, traj_i, traj_j):
         """Updates the momentum of the centroid."""
-        self.mom = np.array(mom)
+        wid_i    = traj_i.widths()
+        wid_j    = traj_j.widths()
+        self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
-    def update_pes(self, pes_info):
+    def update_pes_info(self, pes_info):
         """Updates information about the potential energy surface."""
         self.pes_data   = self.interface.copy_surface(pes_info)
         
@@ -132,7 +146,7 @@ class Centroid:
         """
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: centroid.energy() called, ' +
-                  'but pes_geom != centroid.x(). ID=' + str(self.cid))
+                  'but pes_geom != centroid.x(). ID=' + str(self.label))
         return self.pes_data.potential[state] + glbl.fms['pot_shift']
 
     def derivative(self, state_i, state_j):
@@ -141,14 +155,14 @@ class Centroid:
         """
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
         return self.pes_data.deriv[:,state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling."""
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.scalar_coup() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.tid))
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
         if 'scalar_coup' in self.pes_data.data_keys:
             return self.pes_data.scalar_coup[state_i, state_j]
         return 0.
@@ -164,7 +178,7 @@ class Centroid:
 
     def kinetic(self):
         """Returns classical kinetic energy of the centroid."""
-        return sum( self.p() * self.p() * self.interface.kecoeff)
+        return sum( self.p() * self.p() / (2. * self.masses()))
 
     def classical(self):
         """Returns the classical energy of the centroid."""
@@ -172,7 +186,7 @@ class Centroid:
 
     def velocity(self):
         """Returns the velocity of the centroid."""
-        return self.p() * 2.0 * self.interface.kecoeff
+        return self.p() / self.masses()
 
     def force(self):
         """Returns the gradient of the centroid state."""
@@ -217,7 +231,7 @@ class Centroid:
         """Writes centroid information to a file stream."""
         np.set_printoptions(precision=8, linewidth=80, suppress=False)
         chkpt.write('{:10d}            nstates\n'.format(self.nstates))
-        chkpt.write('{:10d}            cent ID\n'.format(self.cid))
+        chkpt.write('{:10d}            cent ID\n'.format(self.label))
         chkpt.write('{:10d,:10d}            parents \n'.format(self.pstates))
         chkpt.write('# potential energy -- nstates\n')
         self.pes_data.potential.tofile(chkpt, ' ', '%14.10f')
@@ -242,7 +256,7 @@ class Centroid:
         initially correctly and can hold all the information.
         """
         self.nstates   = int(chkpt.readline().split()[0])
-        self.cid       = int(chkpt.readline().split()[0])
+        self.label       = int(chkpt.readline().split()[0])
         self.pstates   = int(chkpt.readline().split()[0])
 
         chkpt.readline()

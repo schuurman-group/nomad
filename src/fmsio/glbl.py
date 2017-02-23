@@ -13,10 +13,16 @@ au2ev    = 27.21138505
 au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
-# spark context
-sc       = None
+
+
 # t=0 bundle
 bundle0  = None
+
+# MPI variables
+mpi_parallel = False
+mpi_comm     = None
+mpi_rank     = None
+mpi_nproc    = 1
 
 # Simulation parameters read from the fms.input file
 fms = dict(
@@ -59,8 +65,6 @@ fms = dict(
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
     matching_pursuit       = 0,
-# MSS -- can be 'adiabatic','diabatic','crude_adiabatic'
-    representation         = 'adiabatic'
     )
 
 # Electronic structure information read from interface-specific
@@ -70,6 +74,7 @@ fms = dict(
 columbus = dict(
     # memory per core in MB
     mem_per_core = 100,
+    coup_de_thresh = 100.
     )
 
 # Vibronic multistate representation, loaded by operator parsing
