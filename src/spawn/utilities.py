@@ -7,6 +7,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
+
 def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same
     energy
@@ -39,8 +40,8 @@ def adjust_child(parent, child, scale_dir):
     p_perp = p_child - p_para
 
     # the kinetic energy is given by:
-    # KE = (P . P) * / (2M) 
-    #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M) 
+    # KE = (P . P) * / (2M)
+    #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M)
     #    = x^2 * (p_para.p_para) / 2M + 2.*x*(p_para.p_perp) / 2M + (p_perp.p_perp) / 2M
     #    = x^2 * KE_para_para + x * KE_para_perp + KE_perp_perp
     inv_mass     = 1. / (2. * child.masses())
@@ -91,13 +92,13 @@ def overlap_with_bundle(traj, bundle):
 
     return t_overlap_bundle
 
-#
+
 def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
-    """return the maximum overlap between the nuclear component of 
+    """return the maximum overlap between the nuclear component of
        traj_i, and other trajectories in the bundle. If overlap_state
        is specified, only consider overlap with trajectories on state
        overlap_state"""
- 
+
     max_sij = 0.
     for j in range(bundle.n_traj()):
         if not bundle.traj[j].alive or j == overlap_traj:
@@ -105,12 +106,12 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
 
         if overlap_state is None or bundle.traj[j].state == overlap_state:
             max_sij = max(max_sij, abs(integrals.traj_overlap(
-                                             bundle.traj[overlap_traj], 
+                                             bundle.traj[overlap_traj],
                                              bundle.traj[j], nuc_only=True)))
-              
-    return max_sij   
 
-#
+    return max_sij
+
+
 def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     """Packages data to print to the spawn log."""
     # add a line entry to the spawn log

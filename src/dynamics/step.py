@@ -29,8 +29,8 @@ def fms_time_step(master):
         # cleanly
         if not fileio.update_logs(master):
             return float(glbl.fms['coupled_time_step'])
-        else: 
-            return float(glbl.fms['default_time_step']) 
+        else:
+            return float(glbl.fms['default_time_step'])
 
 def fms_step_bundle(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
@@ -50,7 +50,7 @@ def fms_step_bundle(master, dt):
             del master0
         except NameError:
             pass
-        master0 = bundle.copy_bundle(master)
+        master0 = master.copy()
 
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
@@ -80,7 +80,7 @@ def fms_step_bundle(master, dt):
             if basis_grown and master.integrals.require_centroids:
                 surface.update_pes(master)
 
-            # update the Hamiltonian and associated matrices 
+            # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
                 master.update_matrices()
 
@@ -104,7 +104,7 @@ def fms_step_bundle(master, dt):
 
             # reset the beginning of the time step
             del master
-            master = bundle.copy_bundle(master0)
+            master = master0.copy()
             # go back to the beginning of the while loop
             continue
 
@@ -128,7 +128,7 @@ def fms_step_trajectory(traj, init_time, dt):
 
     while not step_complete(current_time, end_time, time_step):
         # save the bundle from previous step in case step rejected
-        traj0 = trajectory.copy_traj(traj)
+        traj0 = traj.copy()
 
         # propagate single trajectory
         integrator.propagate_trajectory(traj, time_step)
@@ -154,7 +154,7 @@ def fms_step_trajectory(traj, init_time, dt):
                 raise ValueError('fms_step_trajectory')
 
             # reset the beginning of the time step
-            traj = trajectory.copy_traj(traj0)
+            traj = traj0.copy()
             # go back to the beginning of the while loop
             continue
 

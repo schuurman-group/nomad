@@ -132,7 +132,7 @@ def sample_distribution(master):
         p_sample = mom_ref  + disp_p
 
         # add new trajectory to the bundle
-        new_traj = trajectory.copy_traj(origin_traj)
+        new_traj = origin_traj.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
 

@@ -48,7 +48,7 @@ def matching_pursuit(master):
     coeff = []
 
     # Initialise the residual wavefunction
-    residual = bundle.copy_bundle(master)
+    residual = master.copy()
 
     # Perform the MP iterations
     conv = False
@@ -112,7 +112,7 @@ def coeff_basfunc(residual,master):
         iindx = selected[i]
         for j in range(i+1):
             jindx = selected[j]
-            smat[i,j] = residual.ints.traj_overlap(residual.traj[iindx], 
+            smat[i,j] = residual.ints.traj_overlap(residual.traj[iindx],
                                                    residual.traj[jindx])
             smat[j,i] = smat[i,j].conjugate()
     sinv, cond = linalg.pseudo_inverse(smat)
@@ -133,7 +133,7 @@ def check_conv(residual,master):
     global selected, nbas, coeff, conv, gamma
 
     # Create a bundle corresponding to the selected basis functions
-    new = bundle.copy_bundle(residual)
+    new = residual.copy()
     for i in range(new.nalive+new.ndead):
         new.traj[i].amplitude = np.copy(0j)
     for i in range(nbas):

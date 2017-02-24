@@ -24,7 +24,9 @@ import src.dynamics.step as step
 import src.dynamics.surface as surface
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
+
 coup_hist = []
+
 
 def spawn(master, dt):
     """Propagates to the point of maximum coupling, spawns a new
@@ -63,15 +65,12 @@ def spawn(master, dt):
             # if we satisfy spawning conditions, begin spawn process
             if spawn_trajectory(master, i, st, coup_hist[i][st,:],
                                 current_time):
-
                 # we're going to messing with this trajectory -- mess with a copy
-                parent = trajectory.copy_traj(master.traj[i])
+                parent = master.traj[i].copy()
 
                 # propagate the parent forward in time until coupling maximized
-                success, child, parent_spawn, spawn_time, exit_time = spawn_forward(parent, 
-                                                                                    st,
-                                                                                    current_time,
-                                                                                    dt)
+                [success, child, parent_spawn, spawn_time,
+                 exit_time] = spawn_forward(parent, st, current_time, dt)
 
                 # set the spawn attempt in master, even if spawn failed (avoid repeated fails)
                 master.traj[i].last_spawn[st] = spawn_time
@@ -80,9 +79,9 @@ def spawn(master, dt):
                 if success:
                     # at this point, child is at the spawn point. Propagate
                     # backwards in time until we reach the current time
-                    child_spawn    = trajectory.copy_traj(child)
+                    child_spawn = child.copy()
                     # need electronic structure at current geometry -- on correct state
-                    surface.update_pes_traj(child) 
+                    surface.update_pes_traj(child)
                     spawn_backward(child, spawn_time, current_time, -dt)
                     bundle_overlap = utils.overlap_with_bundle(child, master)
                     if not bundle_overlap:
@@ -117,10 +116,11 @@ def spawn_forward(parent, child_state, initial_time, dt):
     while True:
         coup                = np.roll(coup,1)
         coup[0]             = abs(parent.eff_coup(child_state))
-        child_attempt       = trajectory.copy_traj(parent)
+        child_attempt       = parent.copy()
         child_attempt.state = child_state
         adjust_success      = utils.adjust_child(parent, child_attempt,
-                                        parent.derivative(parent_state, child_state))
+                                                 parent.derivative(parent_state,
+                                                                   child_state))
         sij = abs(integrals.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful
@@ -129,7 +129,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
             sp_str = 'no [decreasing coupling]'
             fileio.print_fms_logfile('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
- 
+
             if child_created:
                 fileio.print_fms_logfile('spawn_success', [spawn_time])
                 child_at_spawn.exit_time[parent_state] = current_time
@@ -152,14 +152,14 @@ def spawn_forward(parent, child_state, initial_time, dt):
             else:
                 spawn_time                              = current_time
                 child_created                           = True
-                parent_at_spawn                         = trajectory.copy_traj(parent)
-                child_at_spawn                          = trajectory.copy_traj(child_attempt)
+                parent_at_spawn                         = parent.copy()
+                child_at_spawn                          = child_attempt.copy()
                 child_at_spawn.last_spawn[parent_state] = spawn_time
                 child_at_spawn.amplitude                = 0j
                 child_at_spawn.parent                   = parent.label
                 child_at_spawn.label                    = parent.label
                 sp_str                                  = 'yes'
- 
+
             fileio.print_fms_logfile('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
 
@@ -168,7 +168,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
 
     return child_created, child_at_spawn, parent_at_spawn, spawn_time, exit_time
 
-#
+
 def spawn_backward(child, current_time, end_time, dt):
     """Propagates the child backwards in time until the current time
     is reached."""
@@ -205,11 +205,12 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
 
     # if we already have sufficient overlap with a function on the
     # spawn_state
-    if utils.max_nuc_overlap(bundle, traj_index, 
+    if utils.max_nuc_overlap(bundle, traj_index,
                              overlap_state=spawn_state) > glbl.fms['sij_thresh']:
-        return False   
- 
+        return False
+
     return True
+
 
 def in_coupled_regime(bundle):
     """Checks if we are in spawning regime."""
@@ -221,5 +222,3 @@ def in_coupled_regime(bundle):
                 return True
 
     return False
-             
-

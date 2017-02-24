@@ -7,26 +7,6 @@ import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 
-@timings.timed
-def copy_cent(orig_cent):
-    """Copys a Centroid object with new references."""
-
-    # should do more rigorous checking that "orig_cent" is actually
-    # a centroid object
-    if orig_cent is None:
-        return None
-
-    new_cent = Centroid(nstates=orig_cent.nstates,
-                        pstates=orig_cent.pstates,
-                        dim    =orig_cent.dim,
-                        width  =orig_cent.width,
-                        crd_dim=orig_cent.crd_dim,
-                        label    =orig_cent.label)
-    new_cent.pos        = copy.deepcopy(orig_cent.pos)
-    new_cent.mom        = copy.deepcopy(orig_cent.mom)
-    new_cent.parent     = copy.deepcopy(orig_cent.parent)
-    new_cent.pes_data   = orig_cent.interface.copy_surface(orig_cent.pes_data)
-    return new_cent
 
 def cent_label(itraj_id, jtraj_id):
     """return the centroid id for centroid between traj_i, traj_j"""
@@ -34,18 +14,11 @@ def cent_label(itraj_id, jtraj_id):
     idj          = min(itraj_id, jtraj_id)
     return -((idi * (idi - 1) // 2) + idj + 1)
 
+
 class Centroid:
     """Class constructor for the Centroid object."""
-    def __init__(self,
-                 traj_i=None,
-                 traj_j=None,
-                 nstates=0,
-                 pstates=[-1,-1],
-                 dim=0,
-                 width=None,
-                 crd_dim=3,
-                 label=-1):
-
+    def __init__(self, traj_i=None, traj_j=None, nstates=0, pstates=[-1,-1],
+                 dim=0, width=None, crd_dim=3, label=-1):
         if traj_i is None or traj_j is None:
             # total number of states
             self.nstates = int(nstates)
@@ -64,12 +37,11 @@ class Centroid:
             # unique identifier for centroid
             self.label     = label
             # current position of the centroid
-            self.pos     = np.zeros(self.dim, dtype=float)
+            self.pos     = np.zeros(self.dim)
             # current momentum of the centroid
-            self.mom     = np.zeros(self.dim, dtype=float)
+            self.mom     = np.zeros(self.dim)
             # labels of parent trajectories
             self.parent  = np.zeros(2, dtype=int)
-
         else:
             idi          = max(traj_i.label, traj_j.label)
             idj          = min(traj_i.label, traj_j.label)
@@ -95,9 +67,21 @@ class Centroid:
         # data structure to hold the data from the interface
         self.pes_data  = None
 
+    @timings.timed
+    def copy(self):
+        """Copys a Centroid object with new references."""
+        new_cent = Centroid(nstates=self.nstates, pstates=self.pstates,
+                            dim=self.dim, width=self.width,
+                            crd_dim=self.crd_dim, label=self.label)
+        new_cent.pos = copy.deepcopy(self.pos)
+        new_cent.mom = copy.deepcopy(self.mom)
+        if self.pes_data is not None:
+            new_cent.pes_data = self.pes_data.copy()
+        return new_cent
+
     #----------------------------------------------------------------------
     #
-    # Functions for setting basic pes information from centroid 
+    # Functions for setting basic pes information from centroid
     #
     #----------------------------------------------------------------------
     def update_x(self, traj_i, traj_j):
@@ -114,8 +98,8 @@ class Centroid:
 
     def update_pes_info(self, pes_info):
         """Updates information about the potential energy surface."""
-        self.pes_data   = self.interface.copy_surface(pes_info)
-        
+        self.pes_data = pes_info.copy()
+
     #-----------------------------------------------------------------------
     #
     # Functions for retrieving basic pes information from centroid
@@ -204,7 +188,7 @@ class Centroid:
         """Returns the coupling dotted with the velocity."""
         if self.same_state():
             return 0.
-        return np.dot( self.velocity(), 
+        return np.dot( self.velocity(),
                        self.derivative(self.pstates[0], self.pstates[1]) )
 
     def eff_coup(self):
@@ -268,4 +252,3 @@ class Centroid:
         chkpt.readline()
         # momentum
         self.update_p(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
-
