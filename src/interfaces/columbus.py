@@ -200,13 +200,12 @@ def init_interface():
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
     if n_cistates < int(glbl.fms['n_states']):
-        sys.exit("ERROR n_cistates < n_states: "+str(n_cistates)+" < "+str(glbl.fms['n_states']))
+        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.fms['n_states']))
 
     # generate one time input files for columbus calculations
     make_one_time_input()
 
-#
-#
+
 def evaluate_trajectory(traj):
     """Computes MCSCF/MRCI energy and computes all couplings.
 
@@ -236,7 +235,7 @@ def evaluate_trajectory(traj):
 
     [mo_restart, ci_restart] = get_col_restart(traj)
     if not mo_restart:
-        sys.exit('ERROR: cannot find starting orbitals for mcscf')
+        raise IOError('cannot find starting orbitals for mcscf')
 
     # generate integrals
     generate_integrals(label)
@@ -289,8 +288,7 @@ def evaluate_trajectory(traj):
 
     return col_surf
 
-#
-#
+
 def evaluate_centroid(Cent):
     global p_dim, n_atoms, n_cart
 
@@ -317,7 +315,7 @@ def evaluate_centroid(Cent):
 
     [mo_restart, ci_restart] = get_col_restart(Cent)
     if not mo_restart:
-        sys.exit('ERROR: cannot find starting orbitals for mcscf')
+        raise IOError('cannot find starting orbitals for mcscf')
 
     # generate integrals
     generate_integrals(label)
@@ -343,6 +341,7 @@ def evaluate_centroid(Cent):
     make_col_restart(Cent)
 
     return col_surf
+
 
 #----------------------------------------------------------------
 #
@@ -600,7 +599,7 @@ def run_col_mrci(traj, ci_restart):
 
     return [energies, atom_pops]
 
-#
+
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
     global p_dim, work_path, mrci_lvl, mem_str
@@ -650,7 +649,7 @@ def run_col_multipole(traj):
 
     return [dip_moms, sec_moms]
 
-#
+
 def run_col_tdipole(label, state_i, state_j):
     """Computes transition dipoles between ground and excited state,
     and between trajectory states and other state."""
@@ -701,7 +700,7 @@ def run_col_tdipole(label, state_i, state_j):
 
     return tran_dip
 
-#
+
 def run_col_gradient(traj):
     """Performs integral transformation and determine gradient on
     trajectory state."""
@@ -741,7 +740,6 @@ def run_col_gradient(traj):
         subprocess.run(['dalton.x', '-m', mem_str], stdout=abacusls)
     shutil.move('abacusls', 'abacusls.grad')
 
-    #
     with open('cartgrd', 'r') as cartgrd:
         lines = cartgrd.readlines()
     grad     = [lines[i].split() for i in range(len(lines))]
@@ -755,7 +753,7 @@ def run_col_gradient(traj):
 
     return gradient
 
-#
+
 def run_col_coupling(traj, ci_ener):
     """Computes couplings to states within prescribed DE window."""
     global input_path, work_path, mem_str
@@ -840,7 +838,7 @@ def run_col_coupling(traj, ci_ener):
 
     return nad_coupl_phased
 
-#
+
 def make_col_restart(traj):
     """Saves mocoef and ci files to restart directory."""
     global work_path, restart_path
@@ -986,7 +984,7 @@ def get_col_restart(traj):
 
     return [mo_restart, ci_restart]
 
-#
+
 def get_adiabatic_phase(traj, new_coup):
     """Determines the phase of the computed coupling that yields smallest
     change from previous coupling."""

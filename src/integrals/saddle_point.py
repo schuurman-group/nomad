@@ -16,7 +16,7 @@ interface = __import__('src.interfaces.' + glbl.fms['interface'],
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = False 
+hermitian = True
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -27,7 +27,7 @@ def nuc_overlap(t1, t2):
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
 # the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods). 
+# (i.e. pseudospectral/collocation methods).
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     return s_integral(t1, t2, nuc_only=nuc_only, Snuc=Snuc)
@@ -116,13 +116,13 @@ def sdot_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-    
+
         deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
- 
-        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) 
+
+        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
                 +1j * t2.phase_dot() * Snuc)
 
         return sdot

@@ -253,8 +253,12 @@ class Bundle:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-        return np.dot(np.dot(np.conj(self.amplitudes()),
+        ntot = np.dot(np.dot(np.conj(self.amplitudes()),
                              self.traj_ovrlp),self.amplitudes()).real
+        if ntot > glbl.fms['norm_thresh']:
+            raise ValueError('Wavefunction norm threshold exceeded')
+        else:
+            return ntot
 
     @timings.timed
     def pop(self):
