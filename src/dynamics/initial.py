@@ -64,7 +64,7 @@ def init_bundle(master):
     # write to the log files
     if glbl.mpi_rank == 0:
         master.update_logs()
-  
+
     fileio.print_fms_logfile('t_step', [master.time, glbl.fms['default_time_step'],
                                         master.nalive])
 
@@ -106,9 +106,9 @@ def set_initial_state(master):
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
             if 'tr_dipole' not in master.traj[i].pes_data.data_keys:
-                sys.exit("ERROR, trajectory "+str(i)+
-                         ": Cannot set state by transition moments - "+ 
-                         "tr_dipole not in pes_data.data_keys")
+                raise KeyError('ERROR, trajectory '+str(i)+
+                               ': Cannot set state by transition moments - '+
+                               'tr_dipole not in pes_data.data_keys')
             tdip = np.array([np.linalg.norm(master.traj[i].pes_data.dipoles[:,0,j])
                              for j in range(1, glbl.fms['n_states'])])
             fileio.print_fms_logfile('general',

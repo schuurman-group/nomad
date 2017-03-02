@@ -51,6 +51,7 @@ fms = dict(
     continuous_min_overlap = 0.5,
     sij_thresh             = 1.e-5,
     hij_coup_thresh        = 0.001,
+    norm_thresh            = 10.,
     print_traj             = 1,
     print_es               = 1,
     print_matrices         = 1,

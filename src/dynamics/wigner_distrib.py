@@ -150,7 +150,7 @@ def sample_distribution(master):
             smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
-    print(smat)
+    #print(smat)
     sinv = sp_linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):

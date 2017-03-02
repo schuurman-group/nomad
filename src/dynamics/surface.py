@@ -10,8 +10,10 @@ import src.fmsio.glbl as glbl
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
 
+
 pes        = None
 pes_cache  = dict()
+
 
 def init_surface(pes_interface):
     """Initializes the potential energy surface."""
@@ -21,6 +23,7 @@ def init_surface(pes_interface):
         pes = __import__('src.interfaces.' + pes_interface, fromlist=['NA'])
     except ImportError:
         print('INTERFACE FAIL: ' + pes_interface)
+
 
 def update_pes(master):
     """Updates the potential energy surface."""
@@ -32,12 +35,12 @@ def update_pes(master):
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
         for i in range(master.n_traj()):
-            if not master.traj[i].active or cached(master.traj[i].label, 
+            if not master.traj[i].active or cached(master.traj[i].label,
                                                    master.traj[i].x()):
                 continue
             n_total += 1
             if n_total % glbl.mpi_nproc == glbl.mpi_rank:
-                exec_list.append(master.traj[i]) 
+                exec_list.append(master.traj[i])
 
         if master.integrals.require_centroids:
             # update the geometries
@@ -61,8 +64,8 @@ def update_pes(master):
             elif type(exec_list[i]) is centroid.Centroid:
                 pes_calc = pes.evaluate_centroid(exec_list[i])
             else:
-                sys.exit("ERROR in surface.update_pes: type="+
-                         str(type(exec_list[i]))+" not recognized")
+                raise TypeError('type='+str(type(exec_list[i]))+
+                                'not recognized')
             local_results.append(pes_calc)
 
         global_results = glbl.mpi_comm.allgather(local_results)
@@ -129,8 +132,9 @@ def update_pes_traj(traj):
     if glbl.mpi_parallel:
         results = glbl.mpi_comm.bcast(results, root=0)
         glbl.mpi_comm.barrier()
-    
+
     traj.update_pes_info(results)
+
 
 def cached(label, geom):
     """Returns True if the surface in the cache corresponds to the current
