@@ -279,6 +279,8 @@ def init_fms_output():
     log_format['spawn_success'] = ' - spawn successful, new trajectory created at {:14.4f}\n'
     log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
     log_format['complete']      = ' ------- simulation completed --------\n'
+    #log_format['error']         = '\nError: {}\n ------- simulation terminated  --------\n'
+    log_format['error']         = '\n{}\n ------- simulation terminated  --------\n'
     log_format['timings' ]      = '{}'
 
     print_level['general']        = 5
@@ -293,6 +295,7 @@ def init_fms_output():
     print_level['spawn_success']  = 1
     print_level['spawn_failure']  = 1
     print_level['complete']       = 0
+    print_level['error']          = 0
     print_level['timings']        = 0
 
 
@@ -381,7 +384,7 @@ def read_geometry():
     width_data = []
     label_data = []
     mass_data  = []
-    mass_conv  = 1.    
+    mass_conv  = 1.
 
     with open(home_path + '/geometry.dat', 'r', encoding='utf-8') as gfile:
         gm_file = gfile.readlines()
@@ -448,7 +451,7 @@ def read_geometry():
                 else:
                     mass_data.extend([1.])
 
-            
+
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
@@ -469,14 +472,18 @@ def read_hessian():
 # FMS summary output file
 #
 #----------------------------------------------------------------------------
-def cleanup():
+def cleanup(exception=None):
     """Cleans up the FMS log file."""
     global home_path, scr_path
 
     if glbl.mpi_rank == 0:
-
-        # simulation complete
-        print_fms_logfile('complete', [])
+        # simulation ended
+        if exception is None:
+            print_fms_logfile('complete', [])
+        else:
+            print_fms_logfile('error', [rm_timer(exception)])
+            for timer in timings.active_stack[:0:-1]:
+                timings.stop(timer.name)
 
         # print timing information
         timings.stop('global', cumulative=True)
@@ -508,3 +515,15 @@ def cleanup():
         except IOError:
             pass
 
+
+def rm_timer(exc):
+    """Removes the timer lines from an Exception traceback."""
+    tb = exc.split('\n')
+    regex = re.compile('.*timings\.py.*in (hooked|_run_func)')
+    i = 0
+    while i < len(tb):
+        if re.match(regex, tb[i]):
+            tb = tb[:i] + tb[i+2:]
+        else:
+            i += 1
+    return '\n'.join(tb)

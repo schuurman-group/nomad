@@ -4,23 +4,24 @@ Main module used to initiate FMSpy.
 """
 import os
 import sys
+import traceback
+import random
+import numpy as np
+import mpi4py.MPI as MPI
 import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
+import src.basis.bundle as bundle
+import src.dynamics.timings as timings
+import src.dynamics.initial as initial
+import src.dynamics.step as step
+
 
 def main():
-    import random
-    import numpy as np
-    import mpi4py.MPI as MPI
-    import src.fmsio.fileio as fileio
-    import src.basis.bundle as bundle
-    import src.dynamics.timings as timings
-    import src.dynamics.initial as initial
-    import src.dynamics.step as step
-
     # initialize MPI communicator
     if glbl.mpi_parallel:
         glbl.mpi_comm  = MPI.COMM_WORLD
         glbl.mpi_rank  = glbl.mpi_comm.Get_rank()
-        glbl.mpi_nproc = glbl.mpi_comm.Get_size() 
+        glbl.mpi_nproc = glbl.mpi_comm.Get_size()
     else:
         glbl.mpi_rank  = 0
         glbl.mpi_nproc = 1
@@ -45,9 +46,9 @@ def main():
     # propagate the trajectories
     while master.time < glbl.fms['simulation_time']:
 
-        # set the time step --> top level time step should always 
+        # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
-        # dt should be shortened for numerics 
+        # dt should be shortened for numerics
         time_step = step.fms_time_step(master)
 
         # take an fms dynamics step
@@ -66,13 +67,17 @@ def main():
     fileio.cleanup()
 
 if __name__ == '__main__':
-#    pypath     = os.environ['PYTHONPATH']
-#    fmspy_path = os.environ['FMSPY_PATH']
-#    os.environ['PYTHONPATH'] = pypath+':'+fmspy_path
+    #pypath     = os.environ['PYTHONPATH']
+    #fmspy_path = os.environ['FMSPY_PATH']
+    #os.environ['PYTHONPATH'] = pypath+':'+fmspy_path
 
     # parse command line arguments
     if '-mpi' in sys.argv:
         glbl.mpi_parallel = True
 
-    main()
-
+    try:
+        main()
+    except:
+        fileio.cleanup(traceback.format_exc())
+    #except Exception as exc:
+    #    fileio.cleanup(exc) # only gives error message
