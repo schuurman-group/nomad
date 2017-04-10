@@ -7,6 +7,7 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
+import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
@@ -27,7 +28,7 @@ def sample_distribution(master):
 
     # Read the geometry.dat file
     (ncrd, crd_dim, amps, lbls,
-     geoms, moms, width, mass) = fileio.read_geometry()
+     geoms, moms, width, mass, states) = fileio.read_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
     ndim = int(len(geoms)/len(amps))
@@ -46,6 +47,9 @@ def sample_distribution(master):
                                         parent=0)
     origin_traj.update_x(geom_ref)
     origin_traj.update_p(mom_ref)
+    # if we need pes data to evaluate overlaps, determine that now
+    if integrals.overlap_requires_pes:
+        surface.update_pes_traj(origin_traj)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
@@ -135,6 +139,10 @@ def sample_distribution(master):
         new_traj = origin_traj.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
+
+        # if we need pes data to evaluate overlaps, determine that now
+        if integrals.overlap_requires_pes:
+            surface.update_pes_traj(new_traj)
 
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)

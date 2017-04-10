@@ -120,7 +120,7 @@ def init_interface():
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
     (natm, crd_dim, amp_data, label_data, geom_data,
-          mom_data, width_data, mass_data) = fileio.read_geometry()
+          mom_data, width_data, mass_data, state_data) = fileio.read_geometry()
 
     # set atomic symbol, number, mass,
     a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]

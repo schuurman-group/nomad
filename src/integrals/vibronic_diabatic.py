@@ -5,6 +5,9 @@ import math
 import numpy as np
 import src.integrals.nuclear_gaussian as nuclear
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = False
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
