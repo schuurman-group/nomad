@@ -93,8 +93,8 @@ class Surface:
         # required potential data
         new_info.data_keys = copy.copy(self.data_keys)
         new_info.geom      = copy.deepcopy(self.geom)
-        new_info.energies  = copy.deepcopy(self.energies)
-        new_info.grads     = copy.deepcopy(self.grads)
+        new_info.potential = copy.deepcopy(self.potential)
+        new_info.deriv     = copy.deepcopy(self.deriv)
 
         # interface-dependent potential data
         new_info.atom_pop  = copy.deepcopy(self.atom_pop)
@@ -549,10 +549,10 @@ def run_col_mrci(traj, ci_restart):
                 mrci_iter = True
             if 'final mr-sdci  convergence information' in line and mrci_iter:
                 for i in range(n_cistates):
-                    ci_info = ofile.readline().rstrip().split()
-                    ci_ener.append(float(ci_info[4]))
-                    ci_res.append(float(ci_info[7]))
-                    ci_tol.append(float(ci_info[8]))
+                    ci_info = ofile.readline().lstrip().rstrip().split()
+                    ci_ener.append(float(ci_info[3]))
+                    ci_res.append(float(ci_info[6]))
+                    ci_tol.append(float(ci_info[7]))
                     converged = converged and ci_res[-1] <= ci_tol[-1]
                 break
 
