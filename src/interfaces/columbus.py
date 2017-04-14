@@ -543,6 +543,8 @@ def run_col_mrci(traj, ci_restart):
     ci_tol  = []
     mrci_iter = False
     converged = True
+    print("parsing ciudgsm...")
+    sys.stdout.flush()
     with open('ciudgsm', 'r') as ofile:
         for line in ofile:
             if 'beginning the ci' in line:
@@ -550,9 +552,11 @@ def run_col_mrci(traj, ci_restart):
             if 'final mr-sdci  convergence information' in line and mrci_iter:
                 for i in range(n_cistates):
                     ci_info = ofile.readline().lstrip().rstrip().split()
-                    ci_ener.append(float(ci_info[3]))
-                    ci_res.append(float(ci_info[6]))
-                    ci_tol.append(float(ci_info[7]))
+                    print("ci_info="+str(ci_info))
+                    sys.stdout.flush()
+                    ci_ener.append(float(ci_info[4]))
+                    ci_res.append(float(ci_info[7]))
+                    ci_tol.append(float(ci_info[8]))
                     converged = converged and ci_res[-1] <= ci_tol[-1]
                 break
 
@@ -561,7 +565,7 @@ def run_col_mrci(traj, ci_restart):
         raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
 
     # if we're good, update energy array
-    energies = np.fromiter((ci_ener[i] for i in range(traj.nstates)),dtype=float)
+    energies = np.array([ci_ener[i] for i in range(traj.nstates)],dtype=float)
 
     # now update atom_pops
     ist = -1
