@@ -543,7 +543,6 @@ def run_col_mrci(traj, ci_restart):
     ci_tol  = []
     mrci_iter = False
     converged = True
-    print("parsing ciudgsm...")
     sys.stdout.flush()
     with open('ciudgsm', 'r') as ofile:
         for line in ofile:
@@ -552,11 +551,13 @@ def run_col_mrci(traj, ci_restart):
             if 'final mr-sdci  convergence information' in line and mrci_iter:
                 for i in range(n_cistates):
                     ci_info = ofile.readline().lstrip().rstrip().split()
-                    print("ci_info="+str(ci_info))
-                    sys.stdout.flush()
-                    ci_ener.append(float(ci_info[4]))
-                    ci_res.append(float(ci_info[7]))
-                    ci_tol.append(float(ci_info[8]))
+                    try:
+                        ci_info.remove('#') # necessary due to unfortunate columbus formatting
+                    except ValueError:
+                        pass
+                    ci_ener.append(float(ci_info[3]))
+                    ci_res.append(float(ci_info[6]))
+                    ci_tol.append(float(ci_info[7]))
                     converged = converged and ci_res[-1] <= ci_tol[-1]
                 break
 
