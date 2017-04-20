@@ -384,38 +384,29 @@ class Bundle:
                 self.cent.append([None for j in range(self.n_traj())])
 
         for i in range(self.n_traj()):
-            if not self.traj[i].alive:
-                continue
-
-            for j in range(i):
-                if not self.traj[j].alive:
-                    continue
-
-                # now check to see if needed index has an existing trajectory
-                # if not, copy trajectory from one of the parents into the
-                # required slots
-                if self.cent[i][j] is None:
-                    self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
-                                                        traj_j=self.traj[j])
-                    self.cent[j][i] = self.cent[i][j]
-
+            if self.traj[i].alive:
+                for j in range(i):
+                    if self.traj[j].alive:
+                        # now check to see if needed index has an existing trajectory
+                        # if not, copy trajectory from one of the parents into the
+                        # required slots
+                        if self.cent[i][j] is None:
+                            self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
+                                                                traj_j=self.traj[j])
+                            self.cent[j][i] = self.cent[i][j]
 
     @timings.timed
     def update_centroids(self):
         """Updates the positions of the centroids."""
 
         for i in range(self.n_traj()):
-            if not self.traj[i].alive:
-                continue
-
-            for j in range(i):
-                if not self.traj[j].alive:
-                    continue
-
-                self.cent[i][j].update_x(self.traj[i],self.traj[j])
-                self.cent[j][i].update_x(self.traj[j],self.traj[i])
-                self.cent[i][j].update_p(self.traj[i],self.traj[j])
-                self.cent[j][i].update_p(self.traj[j],self.traj[i])
+            if self.traj[i].alive:
+                for j in range(i):
+                    if self.traj[j].alive:
+                        self.cent[i][j].update_x(self.traj[i],self.traj[j])
+                        self.cent[j][i].update_x(self.traj[j],self.traj[i])
+                        self.cent[i][j].update_p(self.traj[i],self.traj[j])
+                        self.cent[j][i].update_p(self.traj[j],self.traj[i])
 
     @timings.timed
     def update_matrices(self):
@@ -458,7 +449,6 @@ class Bundle:
 #        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
 
         for i in range(self.n_traj()):
-
             if not self.traj[i].active:
                 continue
 

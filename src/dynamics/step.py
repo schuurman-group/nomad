@@ -46,10 +46,10 @@ def fms_step_bundle(master, dt):
 
     while not step_complete(master.time, end_time, dt):
         # save the bundle from previous step in case step rejected
-        try:
-            del master0
-        except NameError:
-            pass
+        #try:
+        #    del master0
+        #except NameError:
+        #    pass
         master0 = master.copy()
 
         # propagate each trajectory in the bundle
@@ -102,11 +102,9 @@ def fms_step_bundle(master, dt):
                                          ['minimum time step exceeded -- STOPPING.'])
                 raise ValueError('fms_step_bundle')
 
-            # reset the beginning of the time step
-            del master
+            # reset the beginning of the time step and go to beginning of loop
+            #del master
             master = master0.copy()
-            # go back to the beginning of the while loop
-            continue
 
     return master
 
@@ -153,17 +151,15 @@ def fms_step_trajectory(traj, init_time, dt):
                                          ['minimum time step exceeded -- STOPPING.'])
                 raise ValueError('fms_step_trajectory')
 
-            # reset the beginning of the time step
+            # reset the beginning of the time step and go to beginning of loop
             traj = traj0.copy()
-            # go back to the beginning of the while loop
-            continue
+
 
 #-----------------------------------------------------------------------------
 #
 # Private functions
 #
 #-----------------------------------------------------------------------------
-#
 def step_complete(current_time, final_time, dt):
     """checks if the propagation time has reached the end of the time step.
        Need to allow for negative time steps."""
@@ -172,7 +168,7 @@ def step_complete(current_time, final_time, dt):
     else:
         return current_time <= final_time
 
-#
+
 def check_step_bundle(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
@@ -190,20 +186,17 @@ def check_step_bundle(master0, master, time_step):
     #  ... or energy conservation (only need to check traj which exist in
     # master0. If spawned, will be last entry(ies) in master
     for i in range(master0.n_traj()):
-        if not master0.traj[i].alive:
-            continue
-        energy_old = (master0.traj[i].potential() +
-                      master0.traj[i].kinetic())
-        energy_new = (master.traj[i].potential() +
-                      master.traj[i].kinetic())
-        dener = abs(energy_old - energy_new)
-        if dener > glbl.fms['energy_jump_toler']:
-            return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
-    # If we pass all the tests, return 'success'
+        if master0.traj[i].alive:
+            energy_old = (master0.traj[i].potential() +
+                          master0.traj[i].kinetic())
+            energy_new = (master.traj[i].potential() +
+                          master.traj[i].kinetic())
+            dener = abs(energy_old - energy_new)
+            if dener > glbl.fms['energy_jump_toler']:
+                return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
     return True, ' success'
 
-# check if we should reject a macro step because we're in a coupling region
-#
+
 def check_step_trajectory(traj0, traj):
     """Checks if we should reject a macro step because we're in a
     coupling region.
@@ -216,5 +209,4 @@ def check_step_trajectory(traj0, traj):
     energy_new = traj.classical()
 
     # If we pass all the tests, return 'success'
-    return not abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']
-
+    return abs(energy_old - energy_new) <= glbl.fms['energy_jump_toler']

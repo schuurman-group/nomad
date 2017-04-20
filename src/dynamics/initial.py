@@ -130,10 +130,8 @@ def virtual_basis(master):
     """
     for i in range(master.n_traj()):
         for j in range(master.nstates):
-            if j == master.traj[i].state:
-                continue
-
-            new_traj = master.traj[i].copy()
-            new_traj.amplitude = 0j
-            new_traj.state = j
-            master.add_trajectory(new_traj)
+            if j != master.traj[i].state:
+                new_traj = master.traj[i].copy()
+                new_traj.amplitude = 0j
+                new_traj.state = j
+                master.add_trajectory(new_traj)

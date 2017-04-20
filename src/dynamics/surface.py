@@ -35,12 +35,11 @@ def update_pes(master):
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
         for i in range(master.n_traj()):
-            if not master.traj[i].active or cached(master.traj[i].label,
-                                                   master.traj[i].x()):
-                continue
-            n_total += 1
-            if n_total % glbl.mpi_nproc == glbl.mpi_rank:
-                exec_list.append(master.traj[i])
+            if master.traj[i].active and not cached(master.traj[i].label,
+                                                    master.traj[i].x()):
+                n_total += 1
+                if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                    exec_list.append(master.traj[i])
 
         if master.integrals.require_centroids:
             # update the geometries
@@ -49,13 +48,12 @@ def update_pes(master):
             # parallelization
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if not master.centroid_required(master.traj[i],master.traj[j]) or \
+                    if master.centroid_required(master.traj[i],master.traj[j]) and not \
                                            cached(master.cent[i][j].label,
                                                   master.cent[i][j].x()):
-                        continue
-                    n_total += 1
-                    if n_total % glbl.mpi_nproc == glbl.mpi_rank:
-                        exec_list.append(master.cent[i][j])
+                        n_total += 1
+                        if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                            exec_list.append(master.cent[i][j])
 
         local_results = []
         for i in range(len(exec_list)):
@@ -78,18 +76,16 @@ def update_pes(master):
         # update the bundle:
         # live trajectories
         for i in range(master.n_traj()):
-            if not master.traj[i].alive:
-                continue
-            master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
+            if master.traj[i].alive:
+                master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
 
         # and centroids
         if master.integrals.require_centroids:
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if master.cent[i][j].label not in pes_cache:
-                        continue
-                    master.cent[i][j].update_pes_info(pes_cache[master.cent[i][j].label])
-                    master.cent[j][i] = master.cent[i][j]
+                    if master.cent[i][j].label in pes_cache:
+                        master.cent[i][j].update_pes_info(pes_cache[master.cent[i][j].label])
+                        master.cent[j][i] = master.cent[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -97,9 +93,8 @@ def update_pes(master):
     else:
         # iterate over trajectories..
         for i in range(master.n_traj()):
-            if not master.traj[i].active:
-                continue
-            master.traj[i].update_pes_info(pes.evaluate_trajectory(master.traj[i]))
+            if master.traj[i].active:
+                master.traj[i].update_pes_info(pes.evaluate_trajectory(master.traj[i]))
 
         # ...and centroids if need be
         if master.integrals.require_centroids:
@@ -108,11 +103,10 @@ def update_pes(master):
             for i in range(master.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it
-                    if master.cent[i][j] is None:
-                        continue
-                    master.cent[i][j].update_pes_info(
-                                      pes.evaluate_centroid(master.cent[i][j]))
-                    master.cent[j][i] = master.cent[i][j]
+                    if master.cent[i][j] is not None:
+                        master.cent[i][j].update_pes_info(
+                                          pes.evaluate_centroid(master.cent[i][j]))
+                        master.cent[j][i] = master.cent[i][j]
 
     return success
 

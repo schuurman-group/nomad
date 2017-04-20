@@ -10,6 +10,7 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.atom_lib as atom_lib
 
+
 # Make sure that we print entire arrays
 np.set_printoptions(threshold = np.inf)
 
@@ -25,8 +26,8 @@ log_format  = dict()
 tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
-
 interface_dict = dict()
+
 
 def read_input_files():
     """Reads the fms.input files.
@@ -96,11 +97,10 @@ def read_namelist(filename):
 
 def init_fms_output():
     """Initialized all the output format descriptors."""
-    global home_path, scr_path, log_format, tkeys, bkeys
-    global dump_header, dump_format, tfile_names, bfile_names, print_level
+    global log_format, dump_header, dump_format, tfile_names, bfile_names, print_level
 
     (ncrd, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data) = read_geometry()
+     geom_data, mom_data, width_data, mass_data) = read_geometry()
 
     nst = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
@@ -244,7 +244,7 @@ def init_fms_output():
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
                    ' home_path   = ' + str(home_path) + '\n' +
-                   ' scr_path    = ' + str(scr_path) + '\n')
+                   ' scr_path    = ' + os.uname()[1] + ':' + scr_path + '\n')
         logfile.write(log_str)
 
         log_str = ('\n fms simulation keywords\n' +
@@ -264,24 +264,23 @@ def init_fms_output():
                    ' ***********\n\n')
         logfile.write(log_str)
 
-    log_format['general']     = '   ** {:60s} **\n'
-    log_format['string']      = ' {:160s}\n'
-    log_format['t_step']      = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
-    log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
-    log_format['new_step']    = '   -- {:50s} / re-trying with new time step: {:8.4f}\n'
-    log_format['spawn_start'] = ('  -- spawning: trajectory {:4d}, ' +
-                                 'state {:2d} --> state {:2d}\n' +
-                                 'time'.rjust(14) + 'coup'.rjust(10) +
-                                 'overlap'.rjust(10) + '   spawn\n')
-    log_format['spawn_step']  = '{:14.4f}{:10.4f}{:10.4f}   {:40s}\n'
-    log_format['spawn_back']  = '      back propagating:  {:12.2f}\n'
-    log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
-    log_format['spawn_success'] = ' - spawn successful, new trajectory created at {:14.4f}\n'
-    log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
-    log_format['complete']      = ' ------- simulation completed --------\n'
-    #log_format['error']         = '\nError: {}\n ------- simulation terminated  --------\n'
-    log_format['error']         = '\n{}\n ------- simulation terminated  --------\n'
-    log_format['timings' ]      = '{}'
+    log_format['general']        = '   ** {:60s} **\n'
+    log_format['string']         = ' {:160s}\n'
+    log_format['t_step']         = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
+    log_format['coupled']        = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
+    log_format['new_step']       = '   -- {:50s} / re-trying with new time step: {:8.4f}\n'
+    log_format['spawn_start']    = ('  -- spawning: trajectory {:4d}, ' +
+                                    'state {:2d} --> state {:2d}\n' +
+                                    'time'.rjust(14) + 'coup'.rjust(10) +
+                                    'overlap'.rjust(10) + '   spawn\n')
+    log_format['spawn_step']     = '{:14.4f}{:10.4f}{:10.4f}   {:40s}\n'
+    log_format['spawn_back']     = '      back propagating:  {:12.2f}\n'
+    log_format['spawn_bad_step'] = '       --> could not spawn: {:40s}\n'
+    log_format['spawn_success']  = ' - spawn successful, new trajectory created at {:14.4f}\n'
+    log_format['spawn_failure']  = ' - spawn failed, cannot create new trajectory\n'
+    log_format['complete']       = ' ------- simulation completed --------\n'
+    log_format['error']          = '\n{}\n ------- simulation terminated  --------\n'
+    log_format['timings' ]       = '{}'
 
     print_level['general']        = 5
     print_level['string']         = 5
@@ -302,7 +301,6 @@ def init_fms_output():
 def print_traj_row(label, fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
-    global scr_path, tkeys, tfile_names, dump_header, dump_format
     filename = scr_path + '/' + tfile_names[tkeys[fkey]] + '.' + str(label)
 
     if not os.path.isfile(filename):
@@ -324,13 +322,12 @@ def update_logs(bundle):
     mod_t = bundle.time % dt
 
     # this. is. ugly.
-    return (mod_t < 0.0001*dt or mod_t > 0.999*dt)
+    return mod_t < 0.0001*dt or mod_t > 0.999*dt
 
 
 def print_bund_row(fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
-    global scr_path, bkeys, bfile_names, dump_header, dump_format
     filename = scr_path + '/' + bfile_names[bkeys[fkey]]
 
     if glbl.mpi_rank !=0:
@@ -347,7 +344,6 @@ def print_bund_row(fkey, data):
 
 def print_bund_mat(time, fname, mat):
     """Prints a matrix to file with a time label."""
-    global scr_path
     filename = scr_path + '/' + fname
 
     with open(filename, 'a') as outfile:
@@ -357,8 +353,6 @@ def print_bund_mat(time, fname, mat):
 
 def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
-    global log_format, print_level
-
     if glbl.mpi_rank != 0:
         return
 
@@ -377,7 +371,6 @@ def print_fms_logfile(otype, data):
 #----------------------------------------------------------------------------
 def read_geometry():
     """Reads position and momenta from geometry.dat."""
-    global home_path
     amp_data   = []
     geom_data  = []
     mom_data   = []
@@ -459,12 +452,10 @@ def read_geometry():
     return (nq, crd_dim, amp_data, label_data,
             geom_data, mom_data, width_data, mass_data)
 
+
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
-    global home_path
-
-    hessian = np.loadtxt(home_path + '/hessian.dat', dtype=float)
-    return hessian
+    return np.loadtxt(home_path + '/hessian.dat', dtype=float)
 
 
 #----------------------------------------------------------------------------
@@ -474,8 +465,6 @@ def read_hessian():
 #----------------------------------------------------------------------------
 def cleanup(exception=None):
     """Cleans up the FMS log file."""
-    global home_path, scr_path
-
     if glbl.mpi_rank == 0:
         # simulation ended
         if exception is None:
