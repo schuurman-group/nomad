@@ -36,8 +36,7 @@ import src.dynamics.surface as surface
 
 
 rk_ordr = 6
-coeff = np.array([[0., 0., 0., 0., 0., 0.],
-                  [1./4., 0., 0., 0., 0., 0.],
+coeff = np.array([[1./4., 0., 0., 0., 0., 0.],
                   [3./32., 9./32., 0., 0., 0., 0.],
                   [1932./2197., -7200./2197., 7296./2197., 0., 0., 0.],
                   [439./216., -8., 3680./513., -845./4104., 0., 0.],
@@ -76,9 +75,11 @@ def propagate_bundle(master, dt):
                     propagate_rk(tmpbundle.traj[i], hstep, rk,
                                  kx[i], kp[i], kg[i])
 
+            # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
                 surface.update_pes(tmpbundle)
 
+        # calculate the 4th and 5th order changes and the error
         dx_lo = np.zeros((master.nalive, ncrd))
         dx_hi = np.zeros((master.nalive, ncrd))
         dp_lo = np.zeros((master.nalive, ncrd))
@@ -104,12 +105,12 @@ def propagate_bundle(master, dt):
             err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
         if err > tol:
+            # scale the time step and try again
             h = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
+            # update the position and scale the time step
             for i in range(master.n_traj()):
                 if master.traj[i].active:
-                    x0 = master.traj[i].x()
-                    p0 = master.traj[i].p()
                     master.traj[i].update_x(master.traj[i].x() + dx_lo[i])
                     master.traj[i].update_p(master.traj[i].p() + dp_lo[i])
                     if propphase:
@@ -141,9 +142,11 @@ def propagate_trajectory(traj, dt):
             tmptraj = traj.copy()
             propagate_rk(tmptraj, hstep, rk, kx, kp, kg)
 
+            # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
                 surface.update_pes_traj(tmptraj)
 
+        # calculate the 4th and 5th order changes and the error
         dx_lo = np.sum(wgt_lo[:,np.newaxis] * kx, axis=0)
         dx_hi = np.sum(wgt_hi[:,np.newaxis] * kx, axis=0)
         dp_lo = np.sum(wgt_lo[:,np.newaxis] * kp, axis=0)
@@ -158,8 +161,10 @@ def propagate_trajectory(traj, dt):
             err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
         if err > tol:
+            # scale the time step and try again
             h_traj = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
+            # update the position and scale the time step
             traj.update_x(traj.x() + dx_lo)
             traj.update_p(traj.p() + dp_lo)
             if propphase:
@@ -172,15 +177,16 @@ def propagate_trajectory(traj, dt):
 def propagate_rk(traj, dt, rk, kxi, kpi, kgi):
     """Gets k values and updates the position and momentum by
     a single rk step."""
-    x0 = traj.x()
-    p0 = traj.p()
-
+    # calculate the k values at this point
     kxi[rk] = dt * traj.velocity()
     kpi[rk] = dt * traj.force()
-    kgi[rk] = dt * traj.phase_dot()
+    if propphase:
+        kgi[rk] = dt * traj.phase_dot()
 
+    # update the position using previous k values, except for k6
     if rk < rk_ordr - 1:
-        traj.update_x(x0 + np.sum(coeff[rk,:,np.newaxis]*kxi, axis=0))
-        traj.update_p(p0 + np.sum(coeff[rk,:,np.newaxis]*kpi, axis=0))
+        traj.update_x(traj.x() + np.sum(coeff[rk,:,np.newaxis]*kxi, axis=0))
+        traj.update_p(traj.p() + np.sum(coeff[rk,:,np.newaxis]*kpi, axis=0))
         if propphase:
-            traj.update_phase(g0 + np.sum(coeff[rk,:,np.newaxis]*kgi, axis=0))
+            traj.update_phase(traj.phase() +
+                              np.sum(coeff[rk,:,np.newaxis]*kgi, axis=0))

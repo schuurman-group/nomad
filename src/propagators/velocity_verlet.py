@@ -6,6 +6,7 @@ Velocity Verlet:
   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
 """
 import numpy as np
+import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
@@ -90,7 +91,7 @@ def propagate_momentum(traj, dt):
     traj.update_p(p1)
     v1 = traj.velocity()
 
-    if propphase
+    if propphase:
         # update the nuclear phase
         g1_1 = traj.phase_dot()
         g2_1 = 2. * np.dot(f1, v1)
