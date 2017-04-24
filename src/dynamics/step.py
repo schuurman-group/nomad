@@ -10,11 +10,7 @@ import src.basis.trajectory as trajectory
 import src.dynamics.surface as surface
 import src.basis.matching_pursuit as mp
 
-#-----------------------------------------------------------------------------
-#
-# Public functions
-#
-#-----------------------------------------------------------------------------
+
 def fms_time_step(master):
     """ Determine time step based on whether in coupling regime"""
     spawning   = __import__('src.spawn.'+glbl.fms['spawning'],
@@ -31,6 +27,7 @@ def fms_time_step(master):
             return float(glbl.fms['coupled_time_step'])
         else:
             return float(glbl.fms['default_time_step'])
+
 
 def fms_step_bundle(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
@@ -54,8 +51,12 @@ def fms_step_bundle(master, dt):
 
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
+        # propagate amplitudes for 1/2 time step using x0
+        master.update_amplitudes(0.5*dt)
         # the propagators update the potential energy surface as need be.
         integrator.propagate_bundle(master, time_step)
+        # propagate amplitudes for 1/2 time step using x1
+        master.update_amplitudes(0.5*dt)
 
         # Renormalization
         if glbl.fms['renorm'] == 1:
@@ -94,7 +95,7 @@ def fms_step_bundle(master, dt):
                                      [master.time, time_step, master.nalive])
         else:
             # recall -- this time trying to propagate to the failed step
-            time_step  = 0.5 * time_step
+            time_step *= 0.5
             fileio.print_fms_logfile('new_step', [error_msg, time_step])
 
             if  time_step < min_time_step:
@@ -108,7 +109,7 @@ def fms_step_bundle(master, dt):
 
     return master
 
-# steps a single trajectory
+
 def fms_step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.
 
@@ -144,7 +145,7 @@ def fms_step_trajectory(traj, init_time, dt):
             # redo time step
             # recall -- this time trying to propagate
             # to the failed step
-            time_step  = 0.5 * time_step
+            time_step *= 0.5
 
             if  abs(time_step) < min_time_step:
                 fileio.print_fms_logfile('general',

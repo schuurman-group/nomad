@@ -25,10 +25,13 @@ def init_surface(pes_interface):
         print('INTERFACE FAIL: ' + pes_interface)
 
 
-def update_pes(master):
+def update_pes(master, update_centroids=None):
     """Updates the potential energy surface."""
     global pes, pes_cache
     success = True
+
+    if update_centroids is None:
+        update_centroids = master.integrals.require_centroids
 
     if glbl.mpi_parallel:
         # update electronic structure
@@ -41,7 +44,7 @@ def update_pes(master):
                 if n_total % glbl.mpi_nproc == glbl.mpi_rank:
                     exec_list.append(master.traj[i])
 
-        if master.integrals.require_centroids:
+        if update_centroids:
             # update the geometries
             master.update_centroids()
             # now update electronic structure in a controled way to allow for
@@ -80,7 +83,7 @@ def update_pes(master):
                 master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
 
         # and centroids
-        if master.integrals.require_centroids:
+        if update_centroids:
             for i in range(master.n_traj()):
                 for j in range(i):
                     if master.cent[i][j].label in pes_cache:
@@ -97,7 +100,7 @@ def update_pes(master):
                 master.traj[i].update_pes_info(pes.evaluate_trajectory(master.traj[i]))
 
         # ...and centroids if need be
-        if master.integrals.require_centroids:
+        if update_centroids:
             # update the geometries
             master.update_centroids()
             for i in range(master.n_traj()):

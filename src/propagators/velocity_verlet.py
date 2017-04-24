@@ -17,9 +17,6 @@ propphase = glbl.fms['phase_prop'] != 0
 @timings.timed
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with VV."""
-    # propagate amplitudes for 1/2 time step using x0
-    master.update_amplitudes(0.5*dt)
-
     # update position
     for i in range(master.n_traj()):
         if master.traj[i].active:
@@ -33,9 +30,6 @@ def propagate_bundle(master, dt):
     for i in range(master.n_traj()):
         if master.traj[i].active:
             propagate_momentum(master.traj[i], dt)
-
-    # propagate amplitudes for 1/2 time step using x1
-    master.update_amplitudes(0.5*dt)
 
 
 @timings.timed

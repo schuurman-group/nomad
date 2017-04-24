@@ -13,21 +13,21 @@ Adaptive Runge-Kutta-Fehlberg 4-5:
                         (9/50)*kp5 + (2/55)*kp6]
 
   ky1 = f[t, y(t)] = dy(t)/dt
-  ky2 = f[t+(1/4)dt, y(t)+(1/4)ky1*dt]
-  ky3 = f[t+(3/8)dt, y(t)+(3/32)ky2*dt+(9/32)ky3*dt]
-  ky4 = f[t+(12/13)dt, y(t)+(1932/2197)k1*dt-(7200/2197)k2*dt+
-                            (7296/2197)k3*dt]
-  ky5 = f[t+dt, y(t)+(439/216)k1*dt-8*k2*dt+(3680/513)k3*dt-
-                     (845/4104)k4*dt]
-  ky6 = f[t+(1/2)dt, y(t)-(8/27)k1*dt+2*k2*dt-(3544/2565)k3*dt+
-                          (1859/4104)k4*dt-(11/40)k5*dt]
+  ky2 = f[t + (1/4)dt, y(t) + (1/4)ky1*dt]
+  ky3 = f[t + (3/8)dt, y(t) + (3/32)ky1*dt + (9/32)ky2*dt]
+  ky4 = f[t + (12/13)dt, y(t) + (1932/2197)ky1*dt - (7200/2197)ky2*dt +
+                                (7296/2197)ky3*dt]
+  ky5 = f[t + dt, y(t) + (439/216)ky1*dt - 8*ky2*dt + (3680/513)ky3*dt -
+                         (845/4104)ky4*dt]
+  ky6 = f[t + (1/2)dt, y(t) - (8/27)ky1*dt + 2*ky2*dt - (3544/2565)ky3*dt +
+                              (1859/4104)ky4*dt - (11/40)ky5*dt]
 
   error = max(|x5-x4|, |p5-p4|)
   sfac  = S * min((tolerance/error)^(1/5), (tolerance/error)^(1/4))
 
-  S is a safety factor (~0.9). If error > tolerance, repeat with new
-  step size sfac*h. Otherwise, using sfac*h for next step. Update
-  position/momentum using x4, p4.
+S is a safety factor (~0.9). If error > tolerance, repeat with new
+step size sfac*dt. Otherwise, use sfac*dt for next step. Update
+position, momentum using x4, p4.
 """
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -60,9 +60,6 @@ def propagate_bundle(master, dt):
     kp = np.zeros((master.nalive, rk_ordr, ncrd))
     kg = np.zeros((master.nalive, rk_ordr, ncrd))
 
-    # propagate amplitudes for 1/2 time step using x0
-    master.update_amplitudes(0.5*dt)
-
     t = 0.
     if h is None:
         h = dt
@@ -77,7 +74,7 @@ def propagate_bundle(master, dt):
 
             # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
-                surface.update_pes(tmpbundle)
+                surface.update_pes(tmpbundle, update_centroids=False)
 
         # calculate the 4th and 5th order changes and the error
         dx_lo = np.zeros((master.nalive, ncrd))
@@ -119,9 +116,6 @@ def propagate_bundle(master, dt):
             surface.update_pes(master)
             t += h
             h *= min(safety*(tol/err)**0.2, 5.)
-
-    # propagate amplitudes for 1/2 time step using x1
-    master.update_amplitudes(0.5*dt)
 
 
 @timings.timed

@@ -4,10 +4,11 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
 4th order Runge-Kutta:
   x(t+dt) = x(t) + dt*[(1/6)kx1 + (1/3)kx2 + (1/3)kx3 + (1/6)kx4]
   p(t+dt) = p(t) + dt*[(1/6)kp1 + (1/3)kp2 + (1/3)kp3 + (1/6)kp4]
+
   ky1 = f[t, y(t)] = dy(t)/dt
-  ky2 = f[t+(1/2)dt, y(t)+(1/2)ky1]
-  ky3 = f[t+(1/2)dt, y(t)+(1/2)ky2*dt]
-  ky4 = f[t+dt, y(t)+ky3*dt]
+  ky2 = f[t + (1/2)dt, y(t) + (1/2)ky1*dt]
+  ky3 = f[t + (1/2)dt, y(t) + (1/2)ky2*dt]
+  ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
 import src.fmsio.glbl as glbl
@@ -29,9 +30,6 @@ def propagate_bundle(master, dt):
     kp = np.zeros((master.nalive, rk_ordr, ncrd))
     kg = np.zeros((master.nalive, rk_ordr, ncrd))
 
-    # propagate amplitudes for 1/2 time step using x0
-    master.update_amplitudes(0.5*dt)
-
     for rk in range(rk_ordr):
         tmpbundle = master.copy()
         for i in range(tmpbundle.n_traj()):
@@ -40,7 +38,7 @@ def propagate_bundle(master, dt):
 
         # update the PES to evaluate new gradients
         if rk < rk_ordr - 1:
-            surface.update_pes(tmpbundle)
+            surface.update_pes(tmpbundle, update_centroids=False)
 
     # update to the final position
     for i in range(master.n_traj()):
@@ -53,9 +51,6 @@ def propagate_bundle(master, dt):
                 master.traj[i].update_phase(master.traj[i].phase() +
                                             np.sum(wgt[:,np.newaxis]*kg[i], axis=0))
     surface.update_pes(master)
-
-    # propagate amplitudes for 1/2 time step using x1
-    master.update_amplitudes(0.5*dt)
 
 
 @timings.timed
