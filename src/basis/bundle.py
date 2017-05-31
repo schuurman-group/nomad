@@ -164,11 +164,15 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def update_amplitudes(self, dt, H=None, Ct=None):
+    def update_amplitudes(self, dt, update_ham=True, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
-        self.update_matrices()
+
+#        print("time = "+str(self.time)+" dt="+str(dt)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
+
+        if update_ham:
+            self.update_matrices()
 
         # if no Hamiltonian is pased, use the current effective
         # Hamiltonian
@@ -215,10 +219,9 @@ class Bundle:
     @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
-        current_pop = self.pop()
-        norm = 1. / np.sqrt(sum(current_pop))
+        norm_factor = 1. / np.sqrt(self.norm())  
         for i in range(self.n_traj()):
-            self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
+            self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
 
     def prune(self):
         """Kills trajectories that are dead."""
@@ -272,12 +275,15 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
+                if self.traj[jj].state != state:
+                    continue
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
 
-        # dead contribution?
+        pop /= sum(pop)
+
         return pop.real
 
     @timings.timed
@@ -422,6 +428,7 @@ class Bundle:
         """Updates T, V, S, Sdot and Heff matrices."""
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
+
         if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
@@ -456,6 +463,8 @@ class Bundle:
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
 
 #        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
+
+#        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
 
         for i in range(self.n_traj()):
 

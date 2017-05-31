@@ -12,6 +12,9 @@ import src.integrals.nuclear_gaussian as nuclear
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = False
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
 
@@ -107,7 +110,7 @@ def ke_integral(t1, t2, Snuc=None):
         return -np.dot(ke, interface.kecoeff)
 
 # time derivative of the overlap
-def sdot_integral(t1, t2, Snuc=None):
+def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if t1.state != t2.state:
         return 0j

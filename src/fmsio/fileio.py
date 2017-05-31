@@ -100,7 +100,7 @@ def init_fms_output():
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
     (ncrd, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data) = read_geometry()
+     geom_data, mom_data, width_data, mass_data, state_data) = read_geometry()
 
     nst = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
@@ -378,6 +378,7 @@ def print_fms_logfile(otype, data):
 def read_geometry():
     """Reads position and momenta from geometry.dat."""
     global home_path
+    state_data = []
     amp_data   = []
     geom_data  = []
     mom_data   = []
@@ -386,7 +387,7 @@ def read_geometry():
     mass_data  = []
     mass_conv  = 1.
 
-    with open(home_path + '/geometry.dat', 'r', encoding='utf-8') as gfile:
+    with open(home_path + '/geometry.dat', 'r') as gfile:
         gm_file = gfile.readlines()
 
     not_done = True
@@ -394,7 +395,7 @@ def read_geometry():
     while not_done:
         # comment line -- if keyword "amplitude" is present, set amplitude
         lcnt += 1
-        line = [x.strip().lower() for x in re.split('\W+', gm_file[lcnt])]
+        line = [x.strip().lower() for x in gm_file[lcnt].split()]
         if 'amplitude' in line:
             ind = line.index('amplitude')
             amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
@@ -451,14 +452,21 @@ def read_geometry():
                 else:
                     mass_data.extend([1.])
 
+        # read in state, if present
+        if (lcnt+1) < len(gm_file) and 'state' in gm_file[lcnt+1]:
+            lcnt += 1
+            state_data.append(int(gm_file[lcnt].rstrip().split()[1]))
+        else:
+            state_data.append(int(-1))
 
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
 
     return (nq, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data)
+            geom_data, mom_data, width_data, mass_data, state_data)
 
+#
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
     global home_path

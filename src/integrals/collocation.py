@@ -11,6 +11,9 @@ import src.integrals.nuclear_gaussian as gauss
 interface  = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = False
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
