@@ -45,6 +45,13 @@ def read_input_files():
         shutil.rmtree(scr_path)
         os.makedirs(scr_path)
 
+    # Read fms.input. Valid sections are:
+    #   initial_conditions
+    #   propagation
+    #   spawning
+    #   interface
+    #   geometry
+   
     # Read fms.input. This contains general simulation variables
     kwords = read_namelist('fms.input')
     for k, v in kwords.items():
