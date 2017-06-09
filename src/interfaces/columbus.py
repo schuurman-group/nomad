@@ -550,7 +550,7 @@ def run_col_mrci(traj, ci_restart):
                 mrci_iter = True
             if 'final mr-sdci  convergence information' in line and mrci_iter:
                 for i in range(n_cistates):
-                    ci_info = ofile.readline().lstrip().rstrip().split()
+                    ci_info = ofile.readline().split()
                     try:
                         ci_info.remove('#') # necessary due to unfortunate columbus formatting
                     except ValueError:
@@ -581,11 +581,12 @@ def run_col_mrci(traj, ci_restart):
                 pops = []
                 for i in range(int(np.ceil(n_atoms/6.))):
                     for j in range(max_l+3):
-                        line = ciudgls.readline()
-                    l_arr = line.rstrip().split()
+                        nxtline = ciudgls.readline()
+                        if 'total' in line:
+                            break
+                    l_arr = nxtline.split()
                     pops.extend(l_arr[1:])
-                    line = ciudgls.readline()
-                atom_pops[:, ist] = np.array([float(x) for x in pops])
+                atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
     append_log(traj.label,'mrci')
@@ -602,7 +603,7 @@ def run_col_mrci(traj, ci_restart):
             shutil.copy(input_path + '/tranin', 'tranin')
             subprocess.run(['tran.x', '-m', mem_str])
 
-    return [energies, atom_pops]
+    return energies, atom_pops
 
 
 def run_col_multipole(traj):
@@ -630,17 +631,17 @@ def run_col_multipole(traj):
                 if 'Dipole moments' in line:
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr = line.rstrip().split()
+                    l_arr = line.split()
                     dip_moms[:,istate] = np.array([float(l_arr[1]),
                                                    float(l_arr[2]),
                                                    float(l_arr[3])])
                 if 'Second moments' in line:
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr = line.rstrip().split()
+                    l_arr = line.split()
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr.extend(line.rstrip().split())
+                    l_arr.extend(line.split())
                     # NOTE: we're only taking the diagonal elements
                     inds = [1,2,3,4,6,7]
                     raw_dat = np.array([float(l_arr[j]) for j in inds])
@@ -698,7 +699,7 @@ def run_col_tdipole(label, state_i, state_j):
     with open('trncils', 'r') as trncils:
         for line in trncils:
             if 'total (elec)' in line:
-                line_arr = line.rstrip().split()
+                line_arr = line.split()
                 for dim in range(p_dim):
                     tran_dip[dim] = float(line_arr[dim+2])
                     tran_dip[dim] = float(line_arr[dim+2])
@@ -1161,11 +1162,11 @@ def ang_mom_dalton(infile):
     with open(infile, 'r') as daltaoin:
         for i in range(4):
             line = daltaoin.readline()
-        l_arr = line.rstrip().split()
+        l_arr = line.split()
         n_grps = int(l_arr[1])
         for i in range(n_grps):
             line = daltaoin.readline()
-            l_arr = line.rstrip().split()
+            l_arr = line.split()
             n_atm = int(l_arr[1])
             n_ang = int(l_arr[2]) - 1
             # max_l on first line
@@ -1176,7 +1177,7 @@ def ang_mom_dalton(infile):
             for j in range(len(n_con)):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
-                    nprim = int(line.rstrip().split()[1])
+                    nprim = int(line.split()[1])
                     for l in range(nprim):
                         line = daltaoin.readline()
     return max_l

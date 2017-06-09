@@ -409,10 +409,10 @@ def read_geometry():
         # read in geometry
         for i in range(nq):
             lcnt += 1
-            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                      for j in range(1,len(gm_file[lcnt].rstrip().split()))])
-            crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
-            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0]
+            geom_data.extend([float(gm_file[lcnt].split()[j])
+                      for j in range(1,len(gm_file[lcnt].split()))])
+            crd_dim = len(gm_file[lcnt].split()[1:])
+            label_data.extend([gm_file[lcnt].split()[0]
                        for i in range(crd_dim)])
             # if in cartesians, assume mass given in amu, convert to au
             if crd_dim == 3:
@@ -421,14 +421,14 @@ def read_geometry():
         # read in momenta
         for i in range(nq):
             lcnt += 1
-            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                       for j in range(len(gm_file[lcnt].rstrip().split()))])
+            mom_data.extend([float(gm_file[lcnt].split()[j])
+                       for j in range(len(gm_file[lcnt].split()))])
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                width_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                width_data.extend([float(gm_file[lcnt].split()[j])
                                for j in range(1,len(gm_file[lcnt].split()))])
         else:
             for lbl in label_data:
@@ -442,7 +442,7 @@ def read_geometry():
         if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                mass_data.extend([float(gm_file[lcnt].rstrip().split()[j]) * mass_conv
+                mass_data.extend([float(gm_file[lcnt].split()[j]) * mass_conv
                                for j in range(1,len(gm_file[lcnt].split()))])
         else:
             for lbl in label_data:
@@ -455,7 +455,7 @@ def read_geometry():
         # read in state, if present
         if (lcnt+1) < len(gm_file) and 'state' in gm_file[lcnt+1]:
             lcnt += 1
-            state_data.append(int(gm_file[lcnt].rstrip().split()[1]))
+            state_data.append(int(gm_file[lcnt].split()[1]))
         else:
             state_data.append(int(-1))
 
