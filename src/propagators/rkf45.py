@@ -56,18 +56,19 @@ def propagate_bundle(master, dt):
     """Propagates the Bundle object with RKF45."""
     global h
     ncrd = master.traj[0].dim
-    kx = np.zeros((master.nalive, rk_ordr, ncrd)) # should use nactive, but it is set to 0 when entering coupling regions
-    kp = np.zeros((master.nalive, rk_ordr, ncrd))
-    kg = np.zeros((master.nalive, rk_ordr, ncrd))
+    ntraj = master.n_traj()
+    kx = np.zeros((ntraj, rk_ordr, ncrd))
+    kp = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr, ncrd))
 
     t = 0.
     if h is None:
         h = dt
-    while t < dt:
-        hstep = min(h, dt - t)
+    while abs(t) < abs(dt):
+        hstep = np.sign(dt) * min(abs(h), abs(dt - t))
         for rk in range(rk_ordr):
             tmpbundle = master.copy()
-            for i in range(tmpbundle.n_traj()):
+            for i in range(ntraj):
                 if tmpbundle.traj[i].active:
                     propagate_rk(tmpbundle.traj[i], hstep, rk,
                                  kx[i], kp[i], kg[i])
@@ -83,7 +84,7 @@ def propagate_bundle(master, dt):
         dp_hi = np.zeros((master.nalive, ncrd))
         dg_lo = np.zeros((master.nalive, ncrd))
         dg_hi = np.zeros((master.nalive, ncrd))
-        for i in range(master.n_traj()):
+        for i in range(ntraj):
             if master.traj[i].active:
                 dx_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kx[i], axis=0)
                 dx_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kx[i], axis=0)
@@ -91,7 +92,7 @@ def propagate_bundle(master, dt):
                 dp_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kp[i], axis=0)
 
         if propphase:
-            for i in range(master.n_traj()):
+            for i in range(ntraj):
                 if master.traj[i].active:
                     dg_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kg[i], axis=0)
                     dg_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kg[i], axis=0)
@@ -105,17 +106,18 @@ def propagate_bundle(master, dt):
             # scale the time step and try again
             h = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
-            # update the position and scale the time step
-            for i in range(master.n_traj()):
+            # scale the time step and update the position
+            t += h
+            err = max(err, tol*1e-5)
+            h *= min(safety*(tol/err)**0.2, 5.)
+            for i in range(ntraj):
                 if master.traj[i].active:
                     master.traj[i].update_x(master.traj[i].x() + dx_lo[i])
                     master.traj[i].update_p(master.traj[i].p() + dp_lo[i])
                     if propphase:
                         master.traj[i].update_phase(master.traj[i].phase() +
                                                     dg_lo[i])
-            surface.update_pes(master)
-            t += h
-            h *= min(safety*(tol/err)**0.2, 5.)
+            surface.update_pes(master, update_centroids=(abs(t)>=abs(dt)))
 
 
 @timings.timed
@@ -130,8 +132,8 @@ def propagate_trajectory(traj, dt):
     t = 0.
     if h_traj is None:
         h_traj = dt
-    while t < dt:
-        hstep = min(h_traj, dt - t)
+    while abs(t) < abs(dt):
+        hstep = np.sign(dt) * min(abs(h_traj), abs(dt - t))
         for rk in range(rk_ordr):
             tmptraj = traj.copy()
             propagate_rk(tmptraj, hstep, rk, kx, kp, kg)
@@ -158,14 +160,15 @@ def propagate_trajectory(traj, dt):
             # scale the time step and try again
             h_traj = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
-            # update the position and scale the time step
+            # scale the time step and update the position
+            t += h_traj
+            err = max(err, tol*1e-5)
+            h_traj *= min(safety*(tol/err)**0.2, 5.)
             traj.update_x(traj.x() + dx_lo)
             traj.update_p(traj.p() + dp_lo)
             if propphase:
                 traj.update_phase(traj.phase() + dg_lo)
             surface.update_pes_traj(traj)
-            t += h_traj
-            h_traj *= min(safety*(tol/err)**0.2, 5.)
 
 
 def propagate_rk(traj, dt, rk, kxi, kpi, kgi):

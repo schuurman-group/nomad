@@ -26,13 +26,14 @@ propphase = glbl.fms['phase_prop'] != 0
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with RK4."""
     ncrd = master.traj[0].dim
-    kx = np.zeros((master.nalive, rk_ordr, ncrd)) # should use nactive, but it is set to 0 when entering coupling regions
-    kp = np.zeros((master.nalive, rk_ordr, ncrd))
-    kg = np.zeros((master.nalive, rk_ordr, ncrd))
+    ntraj = master.n_traj()
+    kx = np.zeros((ntraj, rk_ordr, ncrd))
+    kp = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr, ncrd))
 
     for rk in range(rk_ordr):
         tmpbundle = master.copy()
-        for i in range(tmpbundle.n_traj()):
+        for i in range(ntraj):
             if tmpbundle.traj[i].active:
                 propagate_rk(tmpbundle.traj[i], dt, rk, kx[i], kp[i], kg[i])
 
@@ -41,7 +42,7 @@ def propagate_bundle(master, dt):
             surface.update_pes(tmpbundle, update_centroids=False)
 
     # update to the final position
-    for i in range(master.n_traj()):
+    for i in range(ntraj):
         if master.traj[i].active:
             master.traj[i].update_x(master.traj[i].x() +
                                     np.sum(wgt[:,np.newaxis]*kx[i], axis=0))
