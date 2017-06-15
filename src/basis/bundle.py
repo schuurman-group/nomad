@@ -363,15 +363,15 @@ class Bundle:
     #----------------------------------------------------------------------
     @timings.timed
     def create_centroids(self):
-        """called by add_trajectory. Increases the centroid 'matrix' to account for
-           new basis functions"""
+        """Increases the centroid 'matrix' to account for new basis functions.
 
-        # make sure centroid array has sufficient space to hold required
-        # centroids. Note that n_traj includes alive AND dead trajectories --
-        # therefore it can only increase. So, only need to check n_traj > dim_cent
-        # condition
+        Called by add_trajectory. Make sure centroid array has sufficient
+        space to hold required centroids. Note that n_traj includes alive
+        AND dead trajectories -- therefore it can only increase. So, only
+        need to check n_traj > dim_cent condition.
+        """
         dim_cent = len(self.cent)
-   
+
         # number of centroids already correct
         if self.n_traj() == dim_cent:
             return
@@ -603,16 +603,14 @@ class Bundle:
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
             chkpt.write('coordinate widths --\n')
-            chkpt.write(str(np.array2string(self.traj[0].widths(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
-            chkpt.write('coordinate masses --\n')
-            chkpt.write(str(np.array2string(self.traj[0].masses(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
+            self.traj[0].widths().tofile(chkpt, ' ', '%.4f')
+            chkpt.write('\ncoordinate masses --\n')
+            self.traj[0].masses().tofile(chkpt, ' ', '%.4f')
 
             # first write out the live trajectories. The function
             # write_trajectory can only write to a pre-existing file stream
             for i in range(len(self.traj)):
-                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))
+                chkpt.write('\n-------- trajectory {:4d} --------\n'.format(i))
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
 
@@ -645,8 +643,8 @@ class Bundle:
 
         # read common bundle information
         self.time    = float(chkpt.readline().split()[0])
-        self.nalive  = int(chkpt.readline().split()[0])
-        self.ndead   = int(chkpt.readline().split()[0])
+        nalive  = int(chkpt.readline().split()[0])
+        ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
         crd_dim      = int(chkpt.readline().split()[0])
@@ -661,18 +659,17 @@ class Bundle:
         masses = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
 
         # read-in trajectories
-        for i in range(self.nalive + self.ndead):
+        for i in range(nalive + ndead):
             chkpt.readline()
             t_read = trajectory.Trajectory(self.nstates,
-                                           dim,
+                                           ndim,
                                            width=widths,
                                            mass=masses,
                                            crd_dim=crd_dim,
                                            label=i,
-                                           parent=0,
-                                           n_basis=0)
+                                           parent=0)
             t_read.read_trajectory(chkpt)
-            self.traj.append(t_read)
+            self.add_trajectory(t_read)
 
         # create the bundle matrices
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
