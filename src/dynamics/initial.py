@@ -47,7 +47,7 @@ def init_bundle(master):
             set_initial_state(master)
 
     # add virtual basis functions, if desired (i.e. virtual basis = true)
-    if glbl.fms['virtual_basis']:
+    if glbl.fms['virtual_basis'] and not glbl.fms['restart']:
         virtual_basis(master)
 
     # update all pes info for all trajectories and centroids (where necessary)

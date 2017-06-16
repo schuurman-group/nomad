@@ -120,7 +120,7 @@ def init_interface():
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
     (natm, crd_dim, amp_data, label_data, geom_data,
-          mom_data, width_data, mass_data, state_data) = fileio.read_geometry()
+     mom_data, width_data, mass_data, state_data) = fileio.read_geometry()
 
     # set atomic symbol, number, mass,
     a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
@@ -233,7 +233,7 @@ def evaluate_trajectory(traj):
     # write geometry to file
     write_col_geom(traj.x())
 
-    [mo_restart, ci_restart] = get_col_restart(traj)
+    mo_restart, ci_restart = get_col_restart(traj)
     if not mo_restart:
         raise IOError('cannot find starting orbitals for mcscf')
 
@@ -246,7 +246,7 @@ def evaluate_trajectory(traj):
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(traj, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(traj, ci_restart)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
@@ -313,7 +313,7 @@ def evaluate_centroid(Cent):
     # write geometry to file
     write_col_geom(Cent.x())
 
-    [mo_restart, ci_restart] = get_col_restart(Cent)
+    mo_restart, ci_restart = get_col_restart(Cent)
     if not mo_restart:
         raise IOError('cannot find starting orbitals for mcscf')
 
@@ -326,7 +326,7 @@ def evaluate_centroid(Cent):
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(Cent, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(Cent, ci_restart)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
@@ -653,7 +653,7 @@ def run_col_multipole(traj):
 
         os.remove('mocoef_prop')
 
-    return [dip_moms, sec_moms]
+    return dip_moms, sec_moms
 
 
 def run_col_tdipole(label, state_i, state_j):
@@ -891,13 +891,12 @@ def make_col_restart(traj):
     if os.path.isfile('civout.drt1'):os.unlink('civout.drt1')
     if os.path.isfile('cirefv.drt1'):os.unlink('cirefv.drt1')
 
-# set restart files
-def get_col_restart(traj):
-    global work_path, restart_path
 
+def get_col_restart(traj):
     """Get restart mocoef file and ci vectors for columbus calculation.
-       1. failure to find mocoef file is fatal.
-       2. failure to find ci files is OK
+
+    1. failure to find mocoef file is fatal.
+    2. failure to find ci files is OK
 
     MOCOEF
     1. If first step and parent-less trajectory, take what's in input.
@@ -908,6 +907,7 @@ def get_col_restart(traj):
     1. Copys/links CI restart files to working directory.
     2. If no ci vectors, simply start CI process from scratch
     """
+    global work_path, restart_path
 
     os.chdir(work_path)
     mocoef_file = restart_path + '/mocoef.'
@@ -988,7 +988,7 @@ def get_col_restart(traj):
         link_force(civout, work_path+'/civout')
         link_force(cirefv, work_path+'/cirefv')
 
-    return [mo_restart, ci_restart]
+    return mo_restart, ci_restart
 
 
 def get_adiabatic_phase(traj, new_coup):

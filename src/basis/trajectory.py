@@ -159,7 +159,7 @@ class Trajectory:
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label))
-        return (self.pes_data.potential[state] + float(glbl.fms['pot_shift']))
+        return self.pes_data.potential[state] + float(glbl.fms['pot_shift'])
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
@@ -211,7 +211,7 @@ class Trajectory:
         else:
             return (self.kinetic() - self.potential() -
                     sum(self.widths() / (2. * self.masses())))
-#            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
+            #return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""
@@ -258,38 +258,28 @@ class Trajectory:
         chkpt.write('{:16.12f}      phase\n'.format(self.gamma))
         chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
         chkpt.write('# potential energy -- nstates\n')
-        chkpt.write(np.array2string(
-           np.array([self.energy(i) for i in range(self.nstates)]), 
-             formatter={'float_kind':lambda x: "%14.10f" % x}))
-        chkpt.write('\n')
-        chkpt.write('# exit coupling region\n')
+        energies = np.array([self.energy(i) for i in range(self.nstates)])
+        energies.tofile(chkpt, ' ', '%14.10f')
+        chkpt.write('\n# exit coupling region\n')
         self.exit_time.tofile(chkpt, ' ', '%8.2f')
-        chkpt.write('\n')
-        chkpt.write('# last spawn\n')
+        chkpt.write('\n# last spawn\n')
         self.last_spawn.tofile(chkpt, ' ', '%8.2f')
-        chkpt.write('\n')
-        chkpt.write('# position\n')
+        chkpt.write('\n# position\n')
         self.x().tofile(chkpt, ' ', '%12.8f')
-        chkpt.write('\n')
-        chkpt.write('# momentum\n')
+        chkpt.write('\n# momentum\n')
         self.p().tofile(chkpt, ' ', '%12.8f')
-        chkpt.write('\n')
 
         # Writes out gradient
-        chkpt.write('# gradient state = {:4d}\n'.format(self.state))
+        chkpt.write('\n# gradient state = {:4d}\n'.format(self.state))
         self.derivative(self.state,self.state).tofile(chkpt, ' ', '%16.10e')
-        chkpt.write('\n')
 
         # write out the coupling
         for i in range(self.nstates):
-            if i == self.state:
-                continue
-            chkpt.write('# coupling state = {:4d}\n'.format(i))
-            self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
-            chkpt.write('\n')
+            if i != self.state:
+                chkpt.write('\n# coupling state = {:4d}\n'.format(i))
+                self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
 
-
-    def read_trajectory(self,chkpt):
+    def read_trajectory(self, chkpt):
         """Reads the trajectory information from a file.
 
         This assumes the trajectory invoking this function has been
@@ -297,7 +287,7 @@ class Trajectory:
         """
         self.alive     = bool(chkpt.readline().split()[0])
         self.nstates   = int(chkpt.readline().split()[0])
-        self.label       = int(chkpt.readline().split()[0])
+        self.label     = int(chkpt.readline().split()[0])
         self.state     = int(chkpt.readline().split()[0])
         self.parent    = int(chkpt.readline().split()[0])
         self.deadtime  = float(chkpt.readline().split()[0])
@@ -306,35 +296,35 @@ class Trajectory:
 
         # create Surface object, if doesn't already exist
         if self.pes_data is None:
-            self.pes_data = self.interface.Surface(self.nstates,
-                                                   self.dim,
-                                                   self.crd_dim)
+            self.pes_data = self.interface.Surface(self.label, self.nstates,
+                                                   self.dim, self.crd_dim)
 
-        chkpt.readline()
         # potential energy -- nstates
+        chkpt.readline()
         self.pes_data.potential = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        chkpt.readline()
         # exit coupling region
+        chkpt.readline()
         self.exit_time = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        chkpt.readline()
         # last spawn
+        chkpt.readline()
         self.last_spawn = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        chkpt.readline()
         # position
-        self.update_x(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
         chkpt.readline()
+        self.update_x(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
         # momentum
+        chkpt.readline()
         self.update_p(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
 
         # read gradients
         chkpt.readline()
         self.pes_data.deriv[:,self.state,self.state] = np.fromstring(chkpt.readline(),
-                                                              sep=' ', dtype=float)
+                                                                     sep=' ', dtype=float)
 
         # read couplings
         for i in range(self.nstates):
-            chkpt.readline()
-            self.pes_data.deriv[:,self.state,i] = np.fromstring(chkpt.readline(),
-                                                              sep=' ', dtype=float)
-            self.pes_data.deriv[:,i,self.state] = -self.pes_data.deriv[:,self.state,i]
+            if i != self.state:
+                chkpt.readline()
+                self.pes_data.deriv[:,self.state,i] = np.fromstring(chkpt.readline(),
+                                                                    sep=' ', dtype=float)
+                self.pes_data.deriv[:,i,self.state] = -self.pes_data.deriv[:,self.state,i]
 
