@@ -275,10 +275,9 @@ class Trajectory:
 
         # write out the coupling
         for i in range(self.nstates):
-            if i == self.state:
-                continue
-            chkpt.write('\n# coupling state = {:4d}\n'.format(i))
-            self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
+            if i != self.state:
+                chkpt.write('\n# coupling state = {:4d}\n'.format(i))
+                self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
 
     def read_trajectory(self, chkpt):
         """Reads the trajectory information from a file.
@@ -322,9 +321,10 @@ class Trajectory:
                                                                      sep=' ', dtype=float)
 
         # read couplings
-        for i in range(self.nstates-1):
-            chkpt.readline()
-            self.pes_data.deriv[:,self.state,i] = np.fromstring(chkpt.readline(),
-                                                                sep=' ', dtype=float)
-            self.pes_data.deriv[:,i,self.state] = -self.pes_data.deriv[:,self.state,i]
+        for i in range(self.nstates):
+            if i != self.state:
+                chkpt.readline()
+                self.pes_data.deriv[:,self.state,i] = np.fromstring(chkpt.readline(),
+                                                                    sep=' ', dtype=float)
+                self.pes_data.deriv[:,i,self.state] = -self.pes_data.deriv[:,self.state,i]
 
