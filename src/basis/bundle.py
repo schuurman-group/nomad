@@ -168,21 +168,18 @@ class Bundle:
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
-
-#        print("time = "+str(self.time)+" dt="+str(dt)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
-
         if update_ham:
             self.update_matrices()
 
-        # if no Hamiltonian is pased, use the current effective
+        # if no Hamiltonian is passed, use the current effective
         # Hamiltonian
         if H is None:
             Hmat = self.Heff
         else:
             Hmat = H
 
-        # if no vector of amplitdues are supplied (to propagate),
-        # propogate the current amplitudes
+        # if no vector of amplitudes are supplied (to propagate),
+        # propagate the current amplitudes
         if Ct is None:
             old_amp = self.amplitudes()
         else:
@@ -213,13 +210,12 @@ class Bundle:
         if not self.integrals.require_centroids:
             return False
         else:
-#            return abs(self.integrals.nuc_overlap(traj_i, traj_j)) > 1.e-6
             return True
 
     @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
-        norm_factor = 1. / np.sqrt(self.norm())  
+        norm_factor = 1. / np.sqrt(self.norm())
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
 

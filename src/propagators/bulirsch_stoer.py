@@ -99,7 +99,6 @@ def propagate_bundle(master, dt):
             poly_extrapolate(k, (hstep/nstep[k])**2, tsav, x1, p1, g1, Tx, Tp, Tg)
             if k > 0:
                 errmax = np.amax((abs(Tx[k]), abs(Tp[k]), abs(Tg[k]))) / tol
-                print(errmax)
                 err[k-1] = (errmax / 0.25) ** (1. / (2.*k + 1.))
                 if k >= kopt - 2:
                     if errmax > 1:

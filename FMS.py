@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Main module used to initiate FMSpy.
+Main module used to initiate and run FMSpy.
 """
 import os
 import sys
@@ -16,7 +16,12 @@ import src.dynamics.initial as initial
 import src.dynamics.step as step
 
 
-def main():
+def init():
+    """Initializes the FMSpy inputs.
+
+    This must be seperate from main so that an error which occurs
+    before the input file is created will be written to stdout.
+    """
     # initialize MPI communicator
     if glbl.mpi_parallel:
         glbl.mpi_comm  = MPI.COMM_WORLD
@@ -43,9 +48,13 @@ def main():
     # set the initial conditions for trajectories
     initial.init_bundle(master)
 
+    return master
+
+
+def main(master):
+    """Runs the main FMSpy routine."""
     # propagate the trajectories
     while master.time < glbl.fms['simulation_time']:
-
         # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
         # dt should be shortened for numerics
@@ -66,18 +75,16 @@ def main():
     # clean up, stop the global timer and write logs
     fileio.cleanup()
 
+
 if __name__ == '__main__':
-    #pypath     = os.environ['PYTHONPATH']
-    #fmspy_path = os.environ['FMSPY_PATH']
-    #os.environ['PYTHONPATH'] = pypath+':'+fmspy_path
-
     # parse command line arguments
-    if '-mpi' in sys.argv:
-        glbl.mpi_parallel = True
+    glbl.mpi_parallel = '-mpi' in sys.argv
 
+    # initialize
+    master = init()
     try:
-        main()
+        # run the main routine
+        main(master)
     except:
+        # if an error occurs, cleanup and report the error
         fileio.cleanup(traceback.format_exc())
-    #except Exception as exc:
-    #    fileio.cleanup(exc) # only gives error message

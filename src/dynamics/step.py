@@ -52,7 +52,7 @@ def fms_step_bundle(master, dt):
         # propagate each trajectory in the bundle
         time_step = min(time_step, end_time-master.time)
         # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*dt)
+        master.update_amplitudes(0.5*dt, update_ham=False)
         # the propagators update the potential energy surface as need be.
         integrator.propagate_bundle(master, time_step)
         # propagate amplitudes for 1/2 time step using x1
