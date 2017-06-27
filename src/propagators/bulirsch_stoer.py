@@ -98,14 +98,15 @@ def propagate_bundle(master, dt):
             # extrapolate from modified midpoint results
             poly_extrapolate(k, (hstep/nstep[k])**2, tsav, x1, p1, g1, Tx, Tp, Tg)
             if k > 0:
-                errmax = np.amax((Tx[k], Tp[k], Tg[k])) / tol
-                err[k-1] = (errmax / 0.25) ** (1. / (2.*k - 1.))
+                errmax = np.amax((abs(Tx[k]), abs(Tp[k]), abs(Tg[k]))) / tol
+                print(errmax)
+                err[k-1] = (errmax / 0.25) ** (1. / (2.*k + 1.))
                 if k >= kopt - 2:
                     if errmax > 1:
                         # scale the time step and try again
                         sfac, reduced = reduce_tstep(k, err)
                         if reduced:
-                            red = max(1e-5, min(red, 0.7))
+                            red = max(1e-5, min(reduced, 0.7))
                             h = sfac * hstep
                             break
                     else:
@@ -170,8 +171,8 @@ def propagate_trajectory(traj, dt):
             # extrapolate from modified midpoint results
             poly_extrapolate(k, (hstep/nstep[k])**2, tsav, x1, p1, g1, Tx, Tp, Tg)
             if k > 0:
-                errmax = np.amax((Tx[k], Tp[k], Tg[k])) / tol
-                err[k-1] = (errmax / 0.25) ** (1. / (2*k - 1))
+                errmax = np.amax((abs(Tx[k]), abs(Tp[k]), abs(Tg[k]))) / tol
+                err[k-1] = (errmax / 0.25) ** (1. / (2*k + 1))
                 if k >= kopt - 2:
                     if errmax > 1:
                         # scale the time step and try again
@@ -227,28 +228,28 @@ def mm_step(traj, dt, x0, x1, p0, p1, g0, g1, n):
 
 
 def poly_extrapolate(ki, t0, tsav, x0, p0, g0, Tx, Tp, Tg):
-    """Extrapolate a set of modified midpoint estimates using
+    """Extrapolates a set of modified midpoint estimates using
     polynomial extrapolation."""
     tsav[ki] = t0
-    dx = np.copy(x0)
-    dp = np.copy(p0)
-    dg = np.copy(g0)
+    dx = x0
+    dp = p0
+    dg = g0
     if ki > 0:
-        dx1 = np.copy(x0)
-        dp1 = np.copy(p0)
-        dg1 = np.copy(g0)
-        for i in range(ki):
-            fac1 = t0 / (tsav[ki-i-1] - t0)
-            fac2 = tsav[ki-i-1] / (tsav[ki-i-1] - t0)
-            qx = Tx[i]
-            qp = Tp[i]
-            qg = Tg[i]
-            Tx[i] = dx
-            Tp[i] = dp
-            Tg[i] = dg
+        dx1 = x0
+        dp1 = p0
+        dg1 = g0
+        for k in range(ki):
+            qx = np.copy(Tx[k])
+            qp = np.copy(Tp[k])
+            qg = np.copy(Tg[k])
+            Tx[k] = dx
+            Tp[k] = dp
+            Tg[k] = dg
+            fac1 = t0 / (tsav[ki-k-1] - t0)
             dx = fac1 * (dx1 - qx)
             dp = fac1 * (dp1 - qp)
             dg = fac1 * (dg1 - qg)
+            fac2 = tsav[ki-k-1] / (tsav[ki-k-1] - t0)
             dx1 = fac2 * (dx1 - qx)
             dp1 = fac2 * (dp1 - qp)
             dg1 = fac2 * (dg1 - qg)
@@ -258,8 +259,56 @@ def poly_extrapolate(ki, t0, tsav, x0, p0, g0, Tx, Tp, Tg):
     Tg[ki] = dg
 
 
+def rati_extrapolate(ki, t0, tsav, x0, p0, g0, Tx, Tp, Tg):
+    """Extrapolates a set of modified midpoint estimates using
+    rational function extrapolation."""
+    tsav[ki] = t0
+    if ki > 0:
+        vx = np.copy(Tx[0])
+        vp = np.copy(Tp[0])
+        vg = np.copy(Tg[0])
+
+    Tx[0] = np.copy(x0)
+    Tp[0] = np.copy(p0)
+    Tg[0] = np.copy(g0)
+    if ki > 0:
+        cx = Tx[0]
+        cp = Tp[0]
+        cg = Tg[0]
+        for k in range(1, ki+1):
+            fac = tsav[ki-k] / t0
+            b1x = fac*vx
+            b1p = fac*vp
+            b1g = fac*vg
+            bx = b1x - cx
+            bp = b1p - cp
+            bg = b1g - cg
+            bx[bx != 0] = (cx[bx != 0] - vx[bx != 0]) / bx[bx != 0]
+            bp[bp != 0] = (cp[bp != 0] - vp[bp != 0]) / bp[bp != 0]
+            bg[bg != 0] = (cg[bg != 0] - vg[bg != 0]) / bg[bg != 0]
+            ddx = cx*bx
+            ddp = cp*bp
+            ddg = cg*bg
+            ddx[bx == 0] = vx[bx == 0]
+            ddp[bp == 0] = vp[bp == 0]
+            ddg[bg == 0] = vg[bg == 0]
+            cx = b1x*bx
+            cp = b1p*bp
+            cg = b1g*bg
+
+            if k != ki:
+                vx = Tx[k]
+                vp = Tp[k]
+                vg = Tg[k]
+
+            Tx[k] = ddx
+            Tp[k] = ddp
+            Tg[k] = ddg
+
+
 def reduce_tstep(ki, error):
-    """Calculate the timestep scale factor based on the error."""
+    """Calculates the timestep scale factor based on the error."""
+    redfac = 1.
     reduced = False
 
     if ki == kmax - 1 or ki == kopt:
@@ -267,7 +316,7 @@ def reduce_tstep(ki, error):
         reduced = True
     elif ki == kopt - 1:
         if alpha[kopt-2, kopt-1] < error[ki-1]:
-            redfac = 1 / error[ki-1]
+            redfac = 1. / error[ki-1]
             reduced = True
     elif kopt == kmax:
         if alpha[ki-1, kmax-2] < error[ki-1]:
@@ -281,7 +330,7 @@ def reduce_tstep(ki, error):
 
 
 def increase_tstep(ki, error, reduced):
-    """Calculated the timestep scale factor and determine the optimal
+    """Calculates the timestep scale factor and determine the optimal
     row number for extrapolation."""
     global kopt
 

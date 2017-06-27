@@ -181,7 +181,7 @@ def check_step_bundle(master0, master, time_step):
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
-    dpop = abs(sum(master.pop()) - sum(master.pop()))
+    dpop = abs(sum(master0.pop()) - sum(master.pop()))
     if dpop > glbl.fms['pop_jump_toler']:
         return False, ' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
     #  ... or energy conservation (only need to check traj which exist in
