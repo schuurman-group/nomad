@@ -114,7 +114,6 @@ def init_interface():
     global columbus_path, input_path, work_path, restart_path, log_file
     global a_sym, a_num, a_mass, n_atoms, n_cart, coup_de_thresh
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
-
     global kecoeff
 
     # KE operator coefficients: Unscaled Cartesian coordinates,
@@ -215,8 +214,6 @@ def evaluate_trajectory(traj):
     Thus, if electronic structure information is not up2date, all methods
     call the same routine: run_single_point.
     """
-    global p_dim, n_atoms, n_cart
-
     label   = traj.label
     state   = traj.state
     nstates = traj.nstates
@@ -275,12 +272,11 @@ def evaluate_trajectory(traj):
     # run coupling to other states
     nad_coup = run_col_coupling(traj, col_surf.potential)
     for i in range(nstates):
-        if i == state:
-            continue
-        state_i = min(i,state)
-        state_j = max(i,state)
-        col_surf.deriv[:, state_i, state_j] =  nad_coup[:, i]
-        col_surf.deriv[:, state_j, state_i] = -nad_coup[:, i]
+        if i != state:
+            state_i = min(i,state)
+            state_j = max(i,state)
+            col_surf.deriv[:, state_i, state_j] =  nad_coup[:, i]
+            col_surf.deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.data_keys.append('deriv')
 
     # save restart files
@@ -290,8 +286,6 @@ def evaluate_trajectory(traj):
 
 
 def evaluate_centroid(Cent):
-    global p_dim, n_atoms, n_cart
-
     """Evaluates  all requested electronic structure information at a
     centroid."""
 
@@ -350,8 +344,6 @@ def evaluate_centroid(Cent):
 #---------------------------------------------------------------
 def make_one_time_input():
     """Creates a Columbus input for MRCI calculations."""
-    global columbus_path, work_path, mem_str
-
     # all calculations take place in work_dir
     os.chdir(work_path)
 
@@ -381,8 +373,6 @@ def make_one_time_input():
 
 def generate_integrals(label):
     """Runs Dalton to generate AO integrals."""
-    global work_path, mem_str
-
     os.chdir(work_path)
 
     # run unik.gets.x script
@@ -405,8 +395,6 @@ def generate_integrals(label):
 
 def run_col_mcscf(traj):
     """Runs MCSCF program."""
-    global work_path, n_mcstates, mrci_lvl, mem_str
-
     label = traj.label
 
     if type(traj) is trajectory.Trajectory:
@@ -478,8 +466,6 @@ def run_col_mcscf(traj):
 
 def run_col_mrci(traj, ci_restart):
     """Runs MRCI if running at that level of theory."""
-    global input_path, work_path, n_atoms, n_cistates, mem_str
-
     os.chdir(work_path)
 
     # get a fresh ciudgin file
@@ -501,9 +487,8 @@ def run_col_mrci(traj, ci_restart):
         init_states = [0, traj.state]
         for i in init_states:
             for j in range(traj.nstates):
-                if i == j or (j in init_states and j < i):
-                    continue
-                tran_den.append([min(i,j)+1, max(i,j)+1])
+                if i != j and not (j in init_states and j < i):
+                    tran_den.append([min(i,j)+1, max(i,j)+1])
 
     # else, this is a centroid
     else:
@@ -608,13 +593,11 @@ def run_col_mrci(traj, ci_restart):
 
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
-    global p_dim, work_path, mrci_lvl, mem_str
-
     os.chdir(work_path)
 
     nst       = traj.nstates
     dip_moms  = np.zeros((p_dim, traj.nstates))
-    sec_moms  = np.zeros(( p_dim, p_dim, traj.nstates))
+    sec_moms  = np.zeros((p_dim, p_dim, traj.nstates))
 
     if mrci_lvl == 0:
         type_str   = 'mc'
@@ -659,8 +642,6 @@ def run_col_multipole(traj):
 def run_col_tdipole(label, state_i, state_j):
     """Computes transition dipoles between ground and excited state,
     and between trajectory states and other state."""
-    global p_dim, work_path, mrci_lvl, mem_str
-
     os.chdir(work_path)
 
     # make sure we point to the correct formula tape file
@@ -710,9 +691,6 @@ def run_col_tdipole(label, state_i, state_j):
 def run_col_gradient(traj):
     """Performs integral transformation and determine gradient on
     trajectory state."""
-    global input_path, work_path, mem_str
-    global p_dim, mrci_lvl, n_cart
-
     os.chdir(work_path)
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     tstate = traj.state + 1
@@ -762,9 +740,6 @@ def run_col_gradient(traj):
 
 def run_col_coupling(traj, ci_ener):
     """Computes couplings to states within prescribed DE window."""
-    global input_path, work_path, mem_str
-    global p_dim, mrci_lvl, n_cart, coup_de_thresh
-
     if type(traj) is trajectory.Trajectory:
         t_state    = traj.state
         c_states   = range(traj.nstates)
@@ -847,8 +822,6 @@ def run_col_coupling(traj, ci_ener):
 
 def make_col_restart(traj):
     """Saves mocoef and ci files to restart directory."""
-    global work_path, restart_path
-
     os.chdir(work_path)
     label = traj.label
 
@@ -994,8 +967,6 @@ def get_col_restart(traj):
 def get_adiabatic_phase(traj, new_coup):
     """Determines the phase of the computed coupling that yields smallest
     change from previous coupling."""
-    global n_cart
-
     label = traj.label
     if type(traj) is trajectory.Trajectory:
         state = traj.state
@@ -1010,17 +981,14 @@ def get_adiabatic_phase(traj, new_coup):
         old_coup = np.zeros((n_cart, traj.nstates))
 
     for i in range(traj.nstates):
-
         # if the previous coupling is vanishing, phase of new coupling is arbitrary
-        if np.linalg.norm(old_coup[:,i]) <= glbl.fpzero:
-            continue
+        if np.linalg.norm(old_coup[:,i]) > glbl.fpzero:
+            # check the difference between the vectors assuming phases of +1/-1
+            norm_pos = np.linalg.norm( new_coup[:,i] - old_coup[:,i])
+            norm_neg = np.linalg.norm(-new_coup[:,i] - old_coup[:,i])
 
-        # check the difference between the vectors assuming phases of +1/-1
-        norm_pos = np.linalg.norm( new_coup[:,i] - old_coup[:,i])
-        norm_neg = np.linalg.norm(-new_coup[:,i] - old_coup[:,i])
-
-        if norm_pos > norm_neg:
-            new_coup[:,i] *= -1.
+            if norm_pos > norm_neg:
+                new_coup[:,i] *= -1.
 
     return new_coup
 
@@ -1035,7 +1003,6 @@ def append_log(label, listing_file):
 
     Useful for diagnosing electronic structure problems.
     """
-
     # open the running log for this process
     log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi_rank), 'a')
 
@@ -1093,8 +1060,6 @@ def append_log(label, listing_file):
 
 def write_col_geom(geom):
     """Writes a array of atoms to a COLUMBUS style geom file."""
-    global n_atoms, a_sym, a_num, a_mass, work_path
-
     os.chdir(work_path)
 
     f = open('geom', 'w', encoding='utf-8')

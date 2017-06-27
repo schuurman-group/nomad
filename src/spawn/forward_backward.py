@@ -47,7 +47,6 @@ def spawn(master, dt):
 
     #--------------- iterate over all trajectories in bundle ---------------------
     for i in range(master.n_traj()):
-
         # only live trajectories can spawn
         if not master.traj[i].alive:
             continue
@@ -216,9 +215,8 @@ def in_coupled_regime(bundle):
     """Checks if we are in spawning regime."""
     for i in range(bundle.n_traj()):
         for st in range(bundle.nstates):
-            if st == bundle.traj[i].state:
-                continue
-            if abs(bundle.traj[i].eff_coup(st)) > glbl.fms['spawn_coup_thresh']:
-                return True
+            if st != bundle.traj[i].state:
+                if abs(bundle.traj[i].eff_coup(st)) > glbl.fms['spawn_coup_thresh']:
+                    return True
 
     return False

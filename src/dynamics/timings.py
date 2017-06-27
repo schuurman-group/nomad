@@ -155,15 +155,14 @@ def print_timings():
     frac_cpu  = 0.
     for sort in sort_list:
         rout = str(sort[0])
-        if rout == 'global':
-            continue
-        ncall = sort[1].calls
-        wtim  = sort[1].wall_time
-        ctim  = sort[1].cpu_time
-        ostr += ofrm.format(rout, ncall, wtim, wtim/tot_wall, ctim,
-                            ctim/tot_cpu)
-        frac_wall += wtim/tot_wall
-        frac_cpu  += ctim/tot_cpu
+        if rout != 'global':
+            ncall = sort[1].calls
+            wtim  = sort[1].wall_time
+            ctim  = sort[1].cpu_time
+            ostr += ofrm.format(rout, ncall, wtim, wtim/tot_wall, ctim,
+                                ctim/tot_cpu)
+            frac_wall += wtim/tot_wall
+            frac_cpu  += ctim/tot_cpu
 
     ostr += '-'*95 + '\n'
     ostr += ('**total**'.ljust(47) +

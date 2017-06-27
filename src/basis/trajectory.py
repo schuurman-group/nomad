@@ -106,11 +106,10 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-        if glbl.fms['phase_prop'] != 0:
-            self.gamma = phase
-            #self.gamma = 0.5 * np.dot(self.x(), self.p())
-            if abs(self.gamma) > 2*np.pi:
-                self.gamma = self.gamma % 2*np.pi
+        self.gamma = phase
+        #self.gamma = 0.5 * np.dot(self.x(), self.p())
+        if abs(self.gamma) > 2*np.pi:
+            self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -276,8 +275,10 @@ class Trajectory:
         # write out the coupling
         for i in range(self.nstates):
             if i != self.state:
-                chkpt.write('\n# coupling state = {:4d}\n'.format(i))
+                chkpt.write('# coupling state = {:4d}\n'.format(i))
                 self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
+                chkpt.write('\n')
+
 
     def read_trajectory(self, chkpt):
         """Reads the trajectory information from a file.

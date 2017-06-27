@@ -1,120 +1,95 @@
 """
 Routines for propagation with the 4th order Runge-Kutta algorithm.
 
-All propagators have to define a function "propagate_bundle" that
-takes a trajectory argument and a time step argument.
-
 4th order Runge-Kutta:
-  x(t+dt) = x(t) + dt/6 * (kv1 + 2*kv2 + 2*kv3 + kv4)
-  p(t+dt) = p(t) + dt/6 * (ka1 + 2*ka2 + 2*ka3 + ka4)
-  ky1 = f(t, y(t)) = dy(t)/dt
-  ky2 = f(t+dt/2, y(t)+ky1*dt/2)
-  ky3 = f(t+dt/2, y(t)+ky2*dt/2)
-  ky4 = f(t+dt, y(t)+ky3*dt)
+  x(t+dt) = x(t) + dt*[(1/6)kx1 + (1/3)kx2 + (1/3)kx3 + (1/6)kx4]
+  p(t+dt) = p(t) + dt*[(1/6)kp1 + (1/3)kp2 + (1/3)kp3 + (1/6)kp4]
+
+  ky1 = f[t, y(t)] = dy(t)/dt
+  ky2 = f[t + (1/2)dt, y(t) + (1/2)ky1*dt]
+  ky3 = f[t + (1/2)dt, y(t) + (1/2)ky2*dt]
+  ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
+
+rk_ordr = 4
+coeff = np.array([0.5, 0.5, 1.])
+wgt = np.array([1./6., 1./3., 1./3., 1./6.])
+propphase = glbl.fms['phase_prop'] != 0
+
+
 @timings.timed
 def propagate_bundle(master, dt):
     """Propagates the Bundle object with RK4."""
     ncrd = master.traj[0].dim
-    mass = master.traj[0].masses()
+    ntraj = master.n_traj()
+    kx = np.zeros((ntraj, rk_ordr, ncrd))
+    kp = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr, ncrd))
 
-    x0   = np.zeros((master.nactive, ncrd))
-    p0   = np.zeros((master.nactive, ncrd))
-    g0   = np.zeros(master.nactive)
-    xnew = np.zeros((master.nactive, ncrd))
-    pnew = np.zeros((master.nactive, ncrd))
-    gnew = np.zeros(master.nactive)
-
-    # initialize position,momentum,phase
-    amp0 = master.amplitudes()
-    for i in range(master.nactive):
-        ii = master.active[i]
-        x0[i,:]   = master.traj[ii].x()
-        p0[i,:]   = master.traj[ii].p()
-        g0[i]     = master.traj[ii].phase()
-        xnew[i,:] = master.traj[ii].x()
-        pnew[i,:] = master.traj[ii].p()
-        gnew[i]   = master.traj[ii].phase()
-
-    # determine k1, k2, k3, k4
-    rk_ordr = 4
-    k_mult  = np.array([1., 2., 2., 1.])
-    t_step  = dt / k_mult
-    dt_seg = dt / sum(k_mult)
-
-    # Do 4th order RK
-    H_list = []
     for rk in range(rk_ordr):
+        tmpbundle = master.copy()
+        for i in range(ntraj):
+            if tmpbundle.traj[i].active:
+                propagate_rk(tmpbundle.traj[i], dt, rk, kx[i], kp[i], kg[i])
 
-        # determine x,p,phase,at f(t,x)
-        H_list.append(master.Heff)
-        for i in range(master.nactive):
-            ii = master.active[i]
+        # update the PES to evaluate new gradients
+        if rk < rk_ordr - 1:
+            surface.update_pes(tmpbundle, update_centroids=False)
 
-            xdot = master.traj[ii].velocity()
-            pdot = master.traj[ii].force()
-            gdot = master.traj[ii].phase_dot()
-
-            xnew[i,:] += dt_seg * k_mult[rk] * xdot
-            pnew[i,:] += dt_seg * k_mult[rk] * pdot
-            gnew[i]   += dt_seg * k_mult[rk] * gdot
-
-            if rk != (rk_ordr-1):
-                master.traj[ii].update_x(x0[i,:] + t_step[rk] * xdot)
-                master.traj[ii].update_p(p0[i,:] + t_step[rk] * pdot)
-                master.traj[ii].update_phase(g0[i] + t_step[rk] * gdot)
-            else:
-                master.traj[ii].update_x( xnew[i,:] )
-                master.traj[ii].update_p( pnew[i,:] )
-                master.traj[ii].update_phase( gnew[i] )
-
-        # update potential energy surfaces and Heff
-        surface.update_pes(master)
-
-    amp_sum = 0
-    for H_elem, mult in zip(H_list, k_mult):
-        master.update_amplitudes(dt, H_elem, amp0)
-        amp_sum += mult * master.amplitudes()
-    master.set_amplitudes(amp_sum / sum(k_mult))
+    # update to the final position
+    for i in range(ntraj):
+        if master.traj[i].active:
+            master.traj[i].update_x(master.traj[i].x() +
+                                    np.sum(wgt[:,np.newaxis]*kx[i], axis=0))
+            master.traj[i].update_p(master.traj[i].p() +
+                                    np.sum(wgt[:,np.newaxis]*kp[i], axis=0))
+            if propphase:
+                master.traj[i].update_phase(master.traj[i].phase() +
+                                            np.sum(wgt[:,np.newaxis]*kg[i], axis=0))
+    surface.update_pes(master)
 
 
 @timings.timed
 def propagate_trajectory(traj, dt):
     """Propagates a single trajectory with RK4."""
-    mass = traj.masses()
+    ncrd = traj.dim
+    kx = np.zeros((rk_ordr, ncrd))
+    kp = np.zeros((rk_ordr, ncrd))
+    kg = np.zeros((rk_ordr, ncrd))
 
-    # determine k1, k2, k3, k4
-    rk_ordr = 4
-    k_mult  = np.array([1., 2., 2., 1.])
-    t_step  = dt / k_mult
-    dt_seg  = dt / sum(k_mult)
-
-    # initialize values
-    x0   = traj.x()
-    xnew = traj.x()
-    pnew = traj.p()
-    gnew = traj.phase()
-
-    # Do 4th order RK
     for rk in range(rk_ordr):
-        xdot = traj.velocity()
-        pdot = traj.force()
-        gdot = traj.phase_dot()
+        tmptraj = traj.copy()
+        propagate_rk(tmptraj, dt, rk, kx, kp, kg)
 
-        xnew += dt_seg * k_mult[rk] * xdot
-        pnew += dt_seg * k_mult[rk] * pdot
-        gnew += dt_seg * k_mult[rk] * gdot
-        if rk != (rk_ordr-1):
-            traj.update_x( x0 + t_step[rk]*xdot )
-        else:
-            traj.update_x( xnew )
-            traj.update_p( pnew )
-            traj.update_phase( gnew )
+        # update the PES to evaluate new gradients
+        if rk < rk_ordr - 1:
+            surface.update_pes_traj(tmptraj)
 
-        # update potential energy surface only for traj
-        surface.update_pes_traj(traj)
+    # update to the final position
+    traj.update_x(traj.x() + np.sum(wgt[:,np.newaxis]*kx, axis=0))
+    traj.update_p(traj.p() + np.sum(wgt[:,np.newaxis]*kp, axis=0))
+    if propphase:
+        traj.update_phase(traj.phase() + np.sum(wgt[:,np.newaxis]*kg, axis=0))
+    surface.update_pes_traj(traj)
+
+
+def propagate_rk(traj, dt, rk, kxi, kpi, kgi):
+    """Gets k values and updates the position and momentum by
+    a single rk step."""
+    # calculate the k values at this point
+    kxi[rk] = dt * traj.velocity()
+    kpi[rk] = dt * traj.force()
+    if propphase:
+        kgi[rk] = dt * traj.phase_dot()
+
+    # update the position using the last k value, except for k4
+    if rk < rk_ordr - 1:
+        traj.update_x(traj.x() + coeff[rk]*kxi[rk])
+        traj.update_p(traj.p() + coeff[rk]*kpi[rk])
+        if propphase:
+            traj.update_phase(traj.phase() + coeff[rk]*kgi[rk])

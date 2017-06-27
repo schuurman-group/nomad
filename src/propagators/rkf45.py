@@ -1,645 +1,189 @@
-import sys
+"""
+Routines for propagation with the 4th order Runge-Kutta-Fehlberg algorithm
+with 5th order error estimator.
+
+Adaptive Runge-Kutta-Fehlberg 4-5:
+  x4(t+dt) = x(t) + dt*[(25/216)*kx1 + (1405/2565)*kx3 + (2197/4104)*kx4 -
+                        (1/5)*kx5]
+  p4(t+dt) = p(t) + dt*[(25/216)*kp1 + (1405/2565)*kp3 + (2197/4104)*kp4 -
+                        (1/5)*kp5]
+  x5(t+dt) = x(t) + dt*[(16/135)*kx1 + (6656/12825)*kx3 + (28561/56430)*kx4 -
+                        (9/50)*kx5 + (2/55)*kx6]
+  p5(t+dt) = p(t) + dt*[(16/135)*kp1 + (6656/12825)*kp3 + (28561/56430)*kp4 -
+                        (9/50)*kp5 + (2/55)*kp6]
+
+  ky1 = f[t, y(t)] = dy(t)/dt
+  ky2 = f[t + (1/4)dt, y(t) + (1/4)ky1*dt]
+  ky3 = f[t + (3/8)dt, y(t) + (3/32)ky1*dt + (9/32)ky2*dt]
+  ky4 = f[t + (12/13)dt, y(t) + (1932/2197)ky1*dt - (7200/2197)ky2*dt +
+                                (7296/2197)ky3*dt]
+  ky5 = f[t + dt, y(t) + (439/216)ky1*dt - 8*ky2*dt + (3680/513)ky3*dt -
+                         (845/4104)ky4*dt]
+  ky6 = f[t + (1/2)dt, y(t) - (8/27)ky1*dt + 2*ky2*dt - (3544/2565)ky3*dt +
+                              (1859/4104)ky4*dt - (11/40)ky5*dt]
+
+  error = max(|x5-x4|, |p5-p4|)
+  sfac  = S * min((tolerance/error)^(1/5), (tolerance/error)^(1/4))
+
+S is a safety factor (~0.9). If error > tolerance, repeat with new
+step size sfac*dt. Otherwise, use sfac*dt for next step. Update
+position, momentum using x4, p4.
+"""
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
-import src.basis.bundle as bundle
-import src.basis.trajectory as trajectory
 
-tol=1e+6
 
-err=0.
-sfac=0.
-xnew4=None
-pnew4=None
-gnew4=None
-hlast=None
+rk_ordr = 6
+coeff = np.array([[1./4., 0., 0., 0., 0., 0.],
+                  [3./32., 9./32., 0., 0., 0., 0.],
+                  [1932./2197., -7200./2197., 7296./2197., 0., 0., 0.],
+                  [439./216., -8., 3680./513., -845./4104., 0., 0.],
+                  [-8./27., 2., -3544./2565., 1859./4104., -11./40., 0.]])
+wgt_lo = np.array([25./216., 0., 1408./2565., 2197./4104., -1./5., 0.])
+wgt_hi = np.array([16./135., 0., 6656./12825., 28561./56430., -9./50., 2./55.])
 
-xnew4_traj=None
-pnew4_traj=None
-gnew4_traj=None
-hlast_traj=None
+propphase = glbl.fms['phase_prop'] != 0
+safety = 0.9
+tol = 1e-6
+h = None
+h_traj = None
 
-########################################################################
-# RKF45 code
-########################################################################
 
+@timings.timed
 def propagate_bundle(master, dt):
-
-    global err
-    global sfac
-    global tol
-    global xnew4
-    global pnew4
-    global gnew4
-    global hlast
-
-    # Set the initial step size
-    if hlast is None:
-        h=dt
-    else:
-        h=hlast
-
-    # propagate amplitudes for 1/2 time step using x0
-    #master.update_amplitudes(0.5*dt)
-
-    # Propagate the bundle of trajectories
-    t=0.
-    while t < dt:
-
-        # Save the last time step value
-        hlast=h
-
-        # Make sure that we hit time dt
-        if t+h > dt:
-            h=dt-t
-
-        # Propagate forwards one step, adapting the timestep
-        # to keep the error estimate below tolerance
-        success=False
-        while not success:
-            rkf45_bundle(master, h)
-            if err > tol:
-                h = h/2.
-            else:
-                hsucc=h
-                t+=h
-                success = True
-                if t < dt and sfac >2.0:
-                    h=h*2.
-
-        # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*hsucc)
-
-        # Update the Gaussian parameters and PESs
-        for i in range(master.nactive):
-            ii = master.active[i]
-            master.traj[ii].update_x(xnew4[i,:])
-            master.traj[ii].update_p(pnew4[i,:])
-            master.traj[ii].update_phase(gnew4[i])
-        surface.update_pes(master)
-
-        # propagate amplitudes for 1/2 time step using x1
-        master.update_amplitudes(0.5*hsucc)
-
-    # propagate amplitudes for 1/2 time step using x1
-    #master.update_amplitudes(0.5*dt)
-
-########################################################################
-
-def rkf45_bundle(master, dt):
-
-    global err
-    global sfac
-    global tol
-    global xnew4
-    global pnew4
-    global gnew4
-
-    #-------------------------------------------------------------------
-    # Initialisation
-    #-------------------------------------------------------------------
-    # No. coordinates
+    """Propagates the Bundle object with RKF45."""
+    global h
     ncrd = master.traj[0].dim
+    ntraj = master.n_traj()
+    kx = np.zeros((ntraj, rk_ordr, ncrd))
+    kp = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr, ncrd))
 
-    # Work arrays
-    x0   = np.zeros((master.nactive, ncrd))
-    p0   = np.zeros((master.nactive, ncrd))
-    g0   = np.zeros(master.nactive)
-    xnew = np.zeros((master.nactive, ncrd))
-    pnew = np.zeros((master.nactive, ncrd))
-    gnew = np.zeros(master.nactive)
-    xnew4 = np.zeros((master.nactive, ncrd))
-    pnew4 = np.zeros((master.nactive, ncrd))
-    gnew4 = np.zeros(master.nactive)
-    xnew5 = np.zeros((master.nactive, ncrd))
-    pnew5 = np.zeros((master.nactive, ncrd))
-    gnew5 = np.zeros(master.nactive)
-    k1_x = np.zeros((master.nactive, ncrd))
-    k1_p = np.zeros((master.nactive, ncrd))
-    k1_g = np.zeros(master.nactive)
-    k2_x = np.zeros((master.nactive, ncrd))
-    k2_p = np.zeros((master.nactive, ncrd))
-    k2_g = np.zeros(master.nactive)
-    k3_x = np.zeros((master.nactive, ncrd))
-    k3_p = np.zeros((master.nactive, ncrd))
-    k3_g = np.zeros(master.nactive)
-    k4_x = np.zeros((master.nactive, ncrd))
-    k4_p = np.zeros((master.nactive, ncrd))
-    k4_g = np.zeros(master.nactive)
-    k5_x = np.zeros((master.nactive, ncrd))
-    k5_p = np.zeros((master.nactive, ncrd))
-    k5_g = np.zeros(master.nactive)
-    k6_x = np.zeros((master.nactive, ncrd))
-    k6_p = np.zeros((master.nactive, ncrd))
-    k6_g = np.zeros(master.nactive)
+    t = 0.
+    if h is None:
+        h = dt
+    while abs(t) < abs(dt):
+        hstep = np.sign(dt) * min(abs(h), abs(dt - t))
+        for rk in range(rk_ordr):
+            tmpbundle = master.copy()
+            for i in range(ntraj):
+                if tmpbundle.traj[i].active:
+                    propagate_rk(tmpbundle.traj[i], hstep, rk,
+                                 kx[i], kp[i], kg[i])
 
-    #-------------------------------------------------------------------
-    # k1
-    #-------------------------------------------------------------------
-    # Temporary bundle copy
-    tmpbundle = master.copy()
+            # update the PES to evaluate new gradients
+            if rk < rk_ordr - 1:
+                surface.update_pes(tmpbundle, update_centroids=False)
 
-    # Initial phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        x0[i,:] = tmpbundle.traj[ii].x()
-        p0[i,:] = tmpbundle.traj[ii].p()
-        g0[i]   = tmpbundle.traj[ii].phase()
+        # calculate the 4th and 5th order changes and the error
+        dx_lo = np.zeros((master.nalive, ncrd))
+        dx_hi = np.zeros((master.nalive, ncrd))
+        dp_lo = np.zeros((master.nalive, ncrd))
+        dp_hi = np.zeros((master.nalive, ncrd))
+        dg_lo = np.zeros((master.nalive, ncrd))
+        dg_hi = np.zeros((master.nalive, ncrd))
+        for i in range(ntraj):
+            if master.traj[i].active:
+                dx_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kx[i], axis=0)
+                dx_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kx[i], axis=0)
+                dp_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kp[i], axis=0)
+                dp_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kp[i], axis=0)
 
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k1_x[i,:] = dt*xdot
-        k1_p[i,:] = dt*pdot
-        k1_g[i]   = dt*gdot
+        if propphase:
+            for i in range(ntraj):
+                if master.traj[i].active:
+                    dg_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kg[i], axis=0)
+                    dg_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kg[i], axis=0)
 
-    #-------------------------------------------------------------------
-    # k2
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        tmpbundle.traj[ii].update_x(x0[i,:]   + 0.25*k1_x[i,:])
-        tmpbundle.traj[ii].update_p(p0[i,:]   + 0.25*k1_p[i,:])
-        tmpbundle.traj[ii].update_phase(g0[i] + 0.25*k1_g[i])
+            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
+                          np.abs(dg_hi-dg_lo)))
+        else:
+            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes(tmpbundle)
-
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k2_x[i,:] = dt*xdot
-        k2_p[i,:] = dt*pdot
-        k2_g[i]   = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k3
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmpbundle = master.copy()
-    for i in range(master.nactive):
-        ii = master.active[i]
-        tmpbundle.traj[ii].update_x(x0[i,:]   + (3./32.)*k1_x[i,:] +
-                                    (9./32.)*k2_x[i,:])
-        tmpbundle.traj[ii].update_p(p0[i,:]   + (3./32.)*k1_p[i,:] +
-                                    (9./32.)*k2_p[i,:])
-        tmpbundle.traj[ii].update_phase(g0[i] + (3./32.)*k1_g[i]   +
-                                        (9./32.)*k2_g[i])
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes(tmpbundle)
-
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k3_x[i,:] = dt*xdot
-        k3_p[i,:] = dt*pdot
-        k3_g[i]   = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k4
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmpbundle = master.copy()
-    for i in range(master.nactive):
-        ii = master.active[i]
-        tmpbundle.traj[ii].update_x(x0[i,:]   +
-                                    (1932./2197.)*k1_x[i,:]-
-                                    (7200./2197.)*k2_x[i,:]+
-                                    (7296./2197.)*k3_x[i,:])
-        tmpbundle.traj[ii].update_p(p0[i,:]   +
-                                    (1932./2197.)*k1_p[i,:]-
-                                    (7200./2197.)*k2_p[i,:]+
-                                    (7296./2197.)*k3_p[i,:])
-        tmpbundle.traj[ii].update_phase(g0[i] + (1932./2197.)*k1_g[i]-
-                                        (7200./2197.)*k2_g[i]+
-                                        (7296./2197.)*k3_g[i])
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes(tmpbundle)
-
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k4_x[i,:] = dt*xdot
-        k4_p[i,:] = dt*pdot
-        k4_g[i]   = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k5
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmpbundle = master.copy()
-    for i in range(master.nactive):
-        ii = master.active[i]
-        tmpbundle.traj[ii].update_x(x0[i,:] + (439./216.)*k1_x[i,:]
-                                    -8.*k2_x[i,:]
-                                    +(3680./513.)*k3_x[i,:] -
-                                    (845./4104.)*k4_x[i,:])
-        tmpbundle.traj[ii].update_p(p0[i,:] + (439./216.)*k1_p[i,:]
-                                    -8.*k2_p[i,:]
-                                    +(3680./513.)*k3_p[i,:] -
-                                    (845./4104.)*k4_p[i,:])
-        tmpbundle.traj[ii].update_phase(g0[i] + (439./216.)*k1_g[i]
-                                    -8.*k2_g[i]
-                                    +(3680./513.)*k3_g[i] -
-                                    (845./4104.)*k4_g[i])
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes(tmpbundle)
-
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k5_x[i,:] = dt*xdot
-        k5_p[i,:] = dt*pdot
-        k5_g[i]   = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k6
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmpbundle = master.copy()
-    for i in range(master.nactive):
-        ii = master.active[i]
-        tmpbundle.traj[ii].update_x(x0[i,:] - (8./27.)*k1_x[i,:] +
-                                    2.*k2_x[i,:] -
-                                    (3544./2565.)*k3_x[i,:] +
-                                    (1859./4104.)*k4_x[i,:] -
-                                    (11./40.)*k5_x[i,:])
-        tmpbundle.traj[ii].update_p(p0[i,:] - (8./27.)*k1_p[i,:] +
-                                    2.*k2_p[i,:] -
-                                    (3544./2565.)*k3_p[i,:] +
-                                    (1859./4104.)*k4_p[i,:] -
-                                    (11./40.)*k5_p[i,:])
-        tmpbundle.traj[ii].update_phase(g0[i] - (8./27.)*k1_g[i] +
-                                        2.*k2_g[i] -
-                                        (3544./2565.)*k3_g[i] +
-                                        (1859./4104.)*k4_g[i] -
-                                        (11./40.)*k5_g[i])
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes(tmpbundle)
-
-    # Calculate the time-derivatives at the new phase space centres
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xdot = tmpbundle.traj[ii].velocity()
-        pdot = tmpbundle.traj[ii].force()
-        gdot = tmpbundle.traj[ii].phase_dot()
-        k6_x[i,:] = dt*xdot
-        k6_p[i,:] = dt*pdot
-        k6_g[i]   = dt*gdot
-
-    #-------------------------------------------------------------------
-    # Calculate the RK4 solutions at time t+dt
-    #-------------------------------------------------------------------
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xnew4[i,:] = x0[i,:] + ((25./216.)*k1_x[i,:] +
-                               (1408./2565.)*k3_x[i,:] +
-                               (2197./4101.)*k4_x[i,:] -
-                               (1./5.)*k5_x[i,:])
-        pnew4[i,:] = p0[i,:] + ((25./216.)*k1_p[i,:] +
-                               (1408./2565.)*k3_p[i,:] +
-                               (2197./4101.)*k4_p[i,:] -
-                               (1./5.)*k5_p[i,:])
-        gnew4[i] = g0[i] + ((25./216.)*k1_g[i] + (1408./2565.)*k3_g[i]
-                            + (2197./4101.)*k4_g[i] - (1./5.)*k5_g[i])
-
-    #-------------------------------------------------------------------
-    # Calculate the RK5 solutions at time t+dt
-    #-------------------------------------------------------------------
-    for i in range(master.nactive):
-        ii = master.active[i]
-        xnew5[i,:] = x0[i,:] + ( (16./135.)*k1_x[i,:] +
-                                 (6656./12825.)*k3_x[i,:] +
-                                 (28561./56430.)*k4_x[i,:] -
-                                 (9./50.)*k5_x[i,:] +
-                                 (2./55.)*k6_x[i,:])
-        pnew5[i,:] = p0[i,:] + ( (16./135.)*k1_p[i,:] +
-                                 (6656./12825.)*k3_p[i,:] +
-                                 (28561./56430.)*k4_p[i,:] -
-                                 (9./50.)*k5_p[i,:] +
-                                 (2./55.)*k6_p[i,:])
-        gnew5[i] = g0[i] + ( (16./135.)*k1_g[i] +
-                             (6656./12825.)*k3_g[i] +
-                             (28561./56430.)*k4_g[i] -
-                             (9./50.)*k5_g[i] + (2./55.)*k6_g[i])
-
-    #-------------------------------------------------------------------
-    # Calculate the error estimates
-    #-------------------------------------------------------------------
-    err=0.
-    for i in range(master.nactive):
-        for j in range(ncrd):
-            tmp = abs(xnew5[i,j]-xnew4[i,j])
-            if tmp > err:
-                err = tmp
-            tmp = abs(pnew5[i,j]-pnew4[i,j])
-            if tmp > err:
-                err = tmp
-        tmp=abs(gnew5[i]-gnew4[i])
-        if tmp > err:
-            err = tmp
-
-    if err == 0.0:
-        sfac = 1.0
-    else:
-        sfac = 0.9*(tol/err)**0.2
+        if err > tol:
+            # scale the time step and try again
+            h = hstep * max(safety*(tol/err)**0.25, 0.1)
+        else:
+            # scale the time step and update the position
+            t += h
+            err = max(err, tol*1e-5)
+            h *= min(safety*(tol/err)**0.2, 5.)
+            for i in range(ntraj):
+                if master.traj[i].active:
+                    master.traj[i].update_x(master.traj[i].x() + dx_lo[i])
+                    master.traj[i].update_p(master.traj[i].p() + dp_lo[i])
+                    if propphase:
+                        master.traj[i].update_phase(master.traj[i].phase() +
+                                                    dg_lo[i])
+            surface.update_pes(master, update_centroids=(abs(t)>=abs(dt)))
 
 
-
-########################################################################
-
+@timings.timed
 def propagate_trajectory(traj, dt):
-
-    global err
-    global sfac
-    global tol
-    global xnew4_traj
-    global pnew4_traj
-    global gnew4_traj
-    global hlast_traj
-
-    # Set the initial step size
-    if hlast_traj is None:
-        h=dt
-    else:
-        h=hlast
-
-    # Propagate the trajectory
-    t=0.
-    while t < dt:
-
-        # Make sure that we hit time dt
-        if t+h > dt:
-            h=dt-t
-
-        # Propagate forwards one step, adapting the timestep
-        # to keep the error estimate below tolerance
-        success=False
-        while not success:
-            rkf45_trajectory(traj, h)
-            if err > tol:
-                h = h/2.
-            else:
-                t+=h
-                success = True
-                if t < dt and sfac >2.0:
-                    h=h*2.
-        traj.update_x(xnew4_traj[:])
-        traj.update_p(pnew4_traj[:])
-        traj.update_phase(gnew4_traj)
-        surface.update_pes_traj(traj)
-
-########################################################################
-
-def rkf45_trajectory(traj,dt):
-
-    global err
-    global sfac
-    global tol
-    global xnew4_traj
-    global pnew4_traj
-    global gnew4_traj
-
-    #-------------------------------------------------------------------
-    # Initialisation
-    #-------------------------------------------------------------------
-    # No. coordinates
+    """Propagates a single trajectory with RKF45."""
+    global h_traj
     ncrd = traj.dim
+    kx = np.zeros((rk_ordr, ncrd))
+    kp = np.zeros((rk_ordr, ncrd))
+    kg = np.zeros((rk_ordr, ncrd))
 
-    # Work arrays
-    x0   = np.zeros((ncrd))
-    p0   = np.zeros((ncrd))
-    g0   = 0.0
-    xnew4_traj = np.zeros((ncrd))
-    pnew4_traj = np.zeros((ncrd))
-    gnew4_traj = 0.0
-    xnew5_traj = np.zeros((ncrd))
-    pnew5_traj = np.zeros((ncrd))
-    gnew5_traj = 0.0
-    k1_x = np.zeros((ncrd))
-    k1_p = np.zeros((ncrd))
-    k1_g = 0.0
-    k2_x = np.zeros((ncrd))
-    k2_p = np.zeros((ncrd))
-    k2_g = 0.0
-    k3_x = np.zeros((ncrd))
-    k3_p = np.zeros((ncrd))
-    k3_g = 0.0
-    k4_x = np.zeros((ncrd))
-    k4_p = np.zeros((ncrd))
-    k4_g = 0.0
-    k5_x = np.zeros((ncrd))
-    k5_p = np.zeros((ncrd))
-    k5_g = 0.0
-    k6_x = np.zeros((ncrd))
-    k6_p = np.zeros((ncrd))
-    k6_g = 0.0
+    t = 0.
+    if h_traj is None:
+        h_traj = dt
+    while abs(t) < abs(dt):
+        hstep = np.sign(dt) * min(abs(h_traj), abs(dt - t))
+        for rk in range(rk_ordr):
+            tmptraj = traj.copy()
+            propagate_rk(tmptraj, hstep, rk, kx, kp, kg)
 
-    #-------------------------------------------------------------------
-    # k1
-    #-------------------------------------------------------------------
-    # Temporary trajectory copy
-    tmptraj = traj.copy()
+            # update the PES to evaluate new gradients
+            if rk < rk_ordr - 1:
+                surface.update_pes_traj(tmptraj)
 
-    # Initial phase space centres
-    x0[:] = tmptraj.x()
-    p0[:] = tmptraj.p()
-    g0    = tmptraj.phase()
+        # calculate the 4th and 5th order changes and the error
+        dx_lo = np.sum(wgt_lo[:,np.newaxis] * kx, axis=0)
+        dx_hi = np.sum(wgt_hi[:,np.newaxis] * kx, axis=0)
+        dp_lo = np.sum(wgt_lo[:,np.newaxis] * kp, axis=0)
+        dp_hi = np.sum(wgt_hi[:,np.newaxis] * kp, axis=0)
 
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k1_x[:] = dt*xdot
-    k1_p[:] = dt*pdot
-    k1_g    = dt*gdot
+        if propphase:
+            dg_lo = np.sum(wgt_lo[:,np.newaxis] * kg, axis=0)
+            dg_hi = np.sum(wgt_hi[:,np.newaxis] * kg, axis=0)
+            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
+                          np.abs(dg_hi-dg_lo)))
+        else:
+            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
-    #-------------------------------------------------------------------
-    # k2
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmptraj.update_x(x0[:]  + 0.25*k1_x[:])
-    tmptraj.update_p(p0[:]  + 0.25*k1_p[:])
-    tmptraj.update_phase(g0 + 0.25*k1_g)
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes_traj(tmptraj)
-
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k2_x[:] = dt*xdot
-    k2_p[:] = dt*pdot
-    k2_g    = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k3
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmptraj = traj.copy()
-    tmptraj.update_x(x0[:]   + (3./32.)*k1_x[:] + (9./32.)*k2_x[:])
-    tmptraj.update_p(p0[:]   + (3./32.)*k1_p[:] + (9./32.)*k2_p[:])
-    tmptraj.update_phase(g0  + (3./32.)*k1_g    + (9./32.)*k2_g)
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes_traj(tmptraj)
-
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k3_x[:] = dt*xdot
-    k3_p[:] = dt*pdot
-    k3_g    = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k4
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmptraj = traj.copy()
-    tmptraj.update_x(x0[:] + (1932./2197.)*k1_x[:] - (7200./2197.)*k2_x[:]
-                     + (7296./2197.)*k3_x[:])
-    tmptraj.update_p(p0[:] + (1932./2197.)*k1_p[:] - (7200./2197.)*k2_p[:]
-                     + (7296./2197.)*k3_p[:])
-    tmptraj.update_phase(g0 + (1932./2197.)*k1_g - (7200./2197.)*k2_g
-                     + (7296./2197.)*k3_g)
+        if err > tol:
+            # scale the time step and try again
+            h_traj = hstep * max(safety*(tol/err)**0.25, 0.1)
+        else:
+            # scale the time step and update the position
+            t += h_traj
+            err = max(err, tol*1e-5)
+            h_traj *= min(safety*(tol/err)**0.2, 5.)
+            traj.update_x(traj.x() + dx_lo)
+            traj.update_p(traj.p() + dp_lo)
+            if propphase:
+                traj.update_phase(traj.phase() + dg_lo)
+            surface.update_pes_traj(traj)
 
 
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes_traj(tmptraj)
+def propagate_rk(traj, dt, rk, kxi, kpi, kgi):
+    """Gets k values and updates the position and momentum by
+    a single rk step."""
+    # calculate the k values at this point
+    kxi[rk] = dt * traj.velocity()
+    kpi[rk] = dt * traj.force()
+    if propphase:
+        kgi[rk] = dt * traj.phase_dot()
 
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k4_x[:] = dt*xdot
-    k4_p[:] = dt*pdot
-    k4_g    = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k5
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmptraj = traj.copy()
-    tmptraj.update_x(x0[:] + (439./216.)*k1_x[:] -8.*k2_x[:]
-                     + (3680./513.)*k3_x[:]
-                     - (845./4104.)*k4_x[:])
-    tmptraj.update_p(p0[:] + (439./216.)*k1_p[:] -8.*k2_p[:]
-                     + (3680./513.)*k3_p[:]
-                     - (845./4104.)*k4_p[:])
-    tmptraj.update_phase(g0 + (439./216.)*k1_g -8.*k2_g
-                     + (3680./513.)*k3_g
-                     - (845./4104.)*k4_g)
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes_traj(tmptraj)
-
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k5_x[:] = dt*xdot
-    k5_p[:] = dt*pdot
-    k5_g    = dt*gdot
-
-    #-------------------------------------------------------------------
-    # k6
-    #-------------------------------------------------------------------
-    # Update the phase space centres
-    tmptraj = traj.copy()
-    tmptraj.update_x(x0[:] - (8./27.)*k1_x[:] + 2.*k2_x[:]
-                     - (3544./2565.)*k3_x[:]
-                     + (1859./4104.)*k4_x[:]
-                     - (11./40.)*k5_x[:])
-    tmptraj.update_p(p0[:] - (8./27.)*k1_p[:] + 2.*k2_p[:]
-                     - (3544./2565.)*k3_p[:]
-                     + (1859./4104.)*k4_p[:]
-                     - (11./40.)*k5_p[:])
-    tmptraj.update_phase(g0 - (8./27.)*k1_g + 2.*k2_g
-                     - (3544./2565.)*k3_g
-                     + (1859./4104.)*k4_g
-                     - (11./40.)*k5_g)
-
-    # Calculate the potentials at the new phase space centres
-    surface.update_pes_traj(tmptraj)
-
-    # Calculate the time-derivatives at the new phase space centres
-    xdot = tmptraj.velocity()
-    pdot = tmptraj.force()
-    gdot = tmptraj.phase_dot()
-    k6_x[:] = dt*xdot
-    k6_p[:] = dt*pdot
-    k6_g    = dt*gdot
-
-    #-------------------------------------------------------------------
-    # Calculate the RK4 solutions at time t+dt
-    #-------------------------------------------------------------------
-    xnew4_traj[:] = x0[:] + ((25./216.)*k1_x[:] + (1408./2565.)*k3_x[:]
-                        + (2197./4101.)*k4_x[:] - (1./5.)*k5_x[:])
-
-    pnew4_traj[:] = p0[:] + ((25./216.)*k1_p[:] + (1408./2565.)*k3_p[:]
-                        + (2197./4101.)*k4_p[:] - (1./5.)*k5_p[:])
-
-    gnew4_traj = g0 + ((25./216.)*k1_g + (1408./2565.)*k3_g
-                        + (2197./4101.)*k4_g - (1./5.)*k5_g)
-
-    #-------------------------------------------------------------------
-    # Calculate the RK5 solutions at time t+dt
-    #-------------------------------------------------------------------
-    xnew5_traj[:] = x0[:] + ( (16./135.)*k1_x[:]
-                              + (6656./12825.)*k3_x[:]
-                              + (28561./56430.)*k4_x[:]
-                              - (9./50.)*k5_x[:]
-                              + (2./55.)*k6_x[:])
-
-    pnew5_traj[:] = p0[:] + ( (16./135.)*k1_p[:]
-                              + (6656./12825.)*k3_p[:]
-                              + (28561./56430.)*k4_p[:]
-                              - (9./50.)*k5_p[:]
-                              + (2./55.)*k6_p[:])
-
-    gnew5_traj = g0 + ( (16./135.)*k1_g
-                              + (6656./12825.)*k3_g
-                              + (28561./56430.)*k4_g
-                              - (9./50.)*k5_g
-                              + (2./55.)*k6_g)
-
-    #-------------------------------------------------------------------
-    # Calculate the error estimates
-    #-------------------------------------------------------------------
-    err=0.
-    for j in range(ncrd):
-        tmp = abs(xnew5_traj[j]-xnew4_traj[j])
-        if tmp > err:
-            err = tmp
-        tmp = abs(pnew5_traj[j]-pnew4_traj[j])
-        if tmp > err:
-            err = tmp
-    tmp=abs(gnew5_traj-gnew4_traj)
-    if tmp > err:
-        err = tmp
-
-    sfac = 0.9*(tol/err)**0.2
-
+    # update the position using previous k values, except for k6
+    if rk < rk_ordr - 1:
+        traj.update_x(traj.x() + np.sum(coeff[rk,:,np.newaxis]*kxi, axis=0))
+        traj.update_p(traj.p() + np.sum(coeff[rk,:,np.newaxis]*kpi, axis=0))
+        if propphase:
+            traj.update_phase(traj.phase() +
+                              np.sum(coeff[rk,:,np.newaxis]*kgi, axis=0))

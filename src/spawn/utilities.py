@@ -101,13 +101,11 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
 
     max_sij = 0.
     for j in range(bundle.n_traj()):
-        if not bundle.traj[j].alive or j == overlap_traj:
-            continue
-
-        if overlap_state is None or bundle.traj[j].state == overlap_state:
-            max_sij = max(max_sij, abs(integrals.traj_overlap(
-                                             bundle.traj[overlap_traj],
-                                             bundle.traj[j], nuc_only=True)))
+        if bundle.traj[j].alive and j != overlap_traj:
+            if overlap_state is None or bundle.traj[j].state == overlap_state:
+                max_sij = max(max_sij, abs(integrals.traj_overlap(
+                                                 bundle.traj[overlap_traj],
+                                                 bundle.traj[j], nuc_only=True)))
 
     return max_sij
 

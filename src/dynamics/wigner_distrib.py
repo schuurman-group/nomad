@@ -64,12 +64,9 @@ def sample_distribution(master):
         freq_list = []
         mode_list = []
         for i in range(len(evals)):
-            if evals[i] < 0:
-                continue
-            if np.sqrt(evals[i]) < f_cutoff:
-                continue
-            freq_list.append(np.sqrt(evals[i]))
-            mode_list.append(evecs[:,i].tolist())
+            if evals[i] >= 0 and np.sqrt(evals[i]) >= f_cutoff:
+                freq_list.append(np.sqrt(evals[i]))
+                mode_list.append(evecs[:,i].tolist())
         n_modes = len(freq_list)
         freqs = np.asarray(freq_list)
         modes = np.asarray(mode_list).transpose()
