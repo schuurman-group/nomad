@@ -8,7 +8,9 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.integrals.nuclear_gaussian as nuclear
 import src.interfaces.vibronic as vibronic 
-import src.interfaces.vcham.hampar as ham
+
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = True
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False 
@@ -51,6 +53,13 @@ def theta(traj):
     dat_mat = traj.pes_data.dat_mat
     h12     = hmat[0,1]
     de      = hmat[1,1]-hmat[0,0]
+
+    if abs(de) < glbl.fpzero:
+        sgn = np.sign(de)
+        if sgn == 0.:
+            sgn = 1
+        de = sgn * glbl.fpzero
+
     ang     = 0.5*np.arctan(2.*h12/de)
     adia_st = rot_mat(ang)
 
@@ -86,10 +95,20 @@ def dtheta(traj):
     dhmat     = traj.pes_data.diabat_deriv 
     h12       = hmat[0,1]
     de        = hmat[1,1] - hmat[0,0]
-    arg       = 2. * h12 / de
+    if abs(de) < glbl.fpzero:
+        sgn = np.sign(de)
+        if sgn == 0.:
+            sgn = 1
+        de = sgn * glbl.fpzero
 
-    dtheta_dq = np.array([(dhmat[q,0,1] / de - 
-                        h12*(dhmat[q,1,1]-dhmat[q,0,0])/de**2)/(1+arg**2)
+    arg       = 2. * h12 / de
+    if abs(arg) < glbl.fpzero:
+        sgn = np.sign(arg)
+        if sgn == 0.:
+            sgn = 1
+        arg = sgn * glbl.fpzero
+
+    dtheta_dq = np.array([((dhmat[q,0,1]*de - h12*(dhmat[q,1,1]-dhmat[q,0,0]))/de**2)/(1+arg**2)
                         for q in range(traj.dim)])
 
     return dtheta_dq
@@ -110,8 +129,7 @@ def phi(traj):
 
 # return the derivatie of the diabatic-adiabatic transformation matrix
 def dphi(traj):
-    """Returns the derivative transformation matrix using the rotation angle. 
-       Should be indentical to the dat_mat in the vibronic interface"""
+    """Returns the derivative transformation matrix using the rotation angle."""
 
     # can also run the trivial case of a single state
     if traj.nstates == 1:
@@ -121,7 +139,7 @@ def dphi(traj):
     dangle   = dtheta(traj)
     dphi_mat = drot_mat(angle)
  
-    dphi_dq = np.array([dphi_mat[i,traj.state]*dangle for i in range(traj.dim)])
+    dphi_dq = np.array([dphi_mat[i,traj.state]*dangle for i in range(traj.nstates)])
 
     return dphi_dq
 
@@ -168,23 +186,31 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     h_mat = np.zeros((nst,nst),dtype=complex)
 
     # roll through terms in the hamiltonian
-    for i in range(ham.nterms):
-        s1    = ham.stalbl[i,0] - 1
-        s2    = ham.stalbl[i,1] - 1
+    for i in range(vibronic.ham.nterms):
+        s1    = vibronic.ham.stalbl[i,0] - 1
+        s2    = vibronic.ham.stalbl[i,1] - 1
       
         # adiabatic states in diabatic basis -- cross terms between orthogonal
         # diabatic states are zero
-        v_term = complex(1.,0.) * ham.coe[i]
-        for q in range(ham.nmode_active):
-            if ham.order[i,q] > 0:
-                v_term *=  nuclear.prim_v_integral(ham.order[i,q],
-                           traj1.widths()[q],traj1.x()[q],traj1.p()[q],
-                           traj2.widths()[q],traj2.x()[q],traj2.p()[q])            
+        v_term = complex(1.,0.) * vibronic.ham.coe[i]
+        for q in range(len(vibronic.ham.order[i])):
+            qi      =  vibronic.ham.mode[i][q]
+            v_term *=  nuclear.prim_v_integral(vibronic.ham.order[i][q],
+                       traj1.widths()[qi],traj1.x()[qi],traj1.p()[qi],
+                       traj2.widths()[qi],traj2.x()[qi],traj2.p()[qi])            
         h_mat[s1,s2] += v_term
         if s1 != s2:
-            h_mat[s2,s1] += v_term 
-      
-    return np.dot(np.dot(phi(traj1), h_mat*Snuc), phi(traj2))
+            h_mat[s2,s1] += v_term
+
+#    if traj1.label == traj2.label and traj1.label == 0:
+#        print("he_mat1 = ",str(traj1.pes_data.diabat_pot))
+#        print("he_mat2 = ",str(traj2.pes_data.diabat_pot))
+#        print("he mat= "+str(h_mat))
+#        print("phi1  = "+str(phi(traj1)))
+#        print("phi2  = "+str(phi(traj2)))
+#        print("Snuc  = "+str(Snuc))      
+
+    return np.dot(np.dot(phi(traj1), h_mat), phi(traj2)) * Snuc
 
 # kinetic energy integral
 def ke_integral(traj1, traj2, centroid=None, Snuc=None):
@@ -201,7 +227,7 @@ def ke_integral(traj1, traj2, centroid=None, Snuc=None):
     ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                              traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
    
-    return -sum( ke * vibronic.kecoeff ) * Selec
+    return -np.dot( ke, vibronic.kecoeff ) * Selec
 
     
 # time derivative of the overlap
@@ -222,10 +248,10 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
-    sdot = Selec * (np.dot(deldx, traj2.velocity()) 
-                  + np.dot(deldp, traj2.force()) 
-                  + 1j * traj2.phase_dot() * Snuc)
-
+    sdot = ( np.dot(deldx, traj2.velocity()) 
+           + np.dot(deldp, traj2.force()) 
+           + 1j * traj2.phase_dot() * Snuc) * Selec
+								
     if nuc_only:
         return sdot
 

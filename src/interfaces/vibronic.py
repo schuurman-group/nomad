@@ -262,7 +262,7 @@ def evaluate_trajectory(traj):
 
     t_data.scalar_coup   = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.adt_mat       = adtmat
-    t_data.dat_mat       = sp_linalg.inv(adtmat)
+    t_data.dat_mat       = sp_linalg.pinv(adtmat)
     #t_data.ddat_mat      = ddat2
     t_data.diabat_pot    = diabpot
     t_data.diabat_deriv  = diabderiv1

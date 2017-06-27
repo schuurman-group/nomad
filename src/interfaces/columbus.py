@@ -119,7 +119,7 @@ def init_interface():
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
     (natm, crd_dim, amp_data, label_data, geom_data,
-          mom_data, width_data, mass_data) = fileio.read_geometry()
+     mom_data, width_data, mass_data, state_data) = fileio.read_geometry()
 
     # set atomic symbol, number, mass,
     a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
@@ -230,7 +230,7 @@ def evaluate_trajectory(traj):
     # write geometry to file
     write_col_geom(traj.x())
 
-    [mo_restart, ci_restart] = get_col_restart(traj)
+    mo_restart, ci_restart = get_col_restart(traj)
     if not mo_restart:
         raise IOError('cannot find starting orbitals for mcscf')
 
@@ -243,7 +243,7 @@ def evaluate_trajectory(traj):
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(traj, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(traj, ci_restart)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
@@ -307,7 +307,7 @@ def evaluate_centroid(Cent):
     # write geometry to file
     write_col_geom(Cent.x())
 
-    [mo_restart, ci_restart] = get_col_restart(Cent)
+    mo_restart, ci_restart = get_col_restart(Cent)
     if not mo_restart:
         raise IOError('cannot find starting orbitals for mcscf')
 
@@ -320,7 +320,7 @@ def evaluate_centroid(Cent):
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    [col_surf.potential, col_surf.atom_pop] = run_col_mrci(Cent, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(Cent, ci_restart)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
@@ -535,7 +535,7 @@ def run_col_mrci(traj, ci_restart):
                 mrci_iter = True
             if 'final mr-sdci  convergence information' in line and mrci_iter:
                 for i in range(n_cistates):
-                    ci_info = ofile.readline().lstrip().rstrip().split()
+                    ci_info = ofile.readline().split()
                     try:
                         ci_info.remove('#') # necessary due to unfortunate columbus formatting
                     except ValueError:
@@ -566,11 +566,12 @@ def run_col_mrci(traj, ci_restart):
                 pops = []
                 for i in range(int(np.ceil(n_atoms/6.))):
                     for j in range(max_l+3):
-                        line = ciudgls.readline()
-                    l_arr = line.rstrip().split()
+                        nxtline = ciudgls.readline()
+                        if 'total' in line:
+                            break
+                    l_arr = nxtline.split()
                     pops.extend(l_arr[1:])
-                    line = ciudgls.readline()
-                atom_pops[:, ist] = np.array([float(x) for x in pops])
+                atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
     append_log(traj.label,'mrci')
@@ -587,7 +588,7 @@ def run_col_mrci(traj, ci_restart):
             shutil.copy(input_path + '/tranin', 'tranin')
             subprocess.run(['tran.x', '-m', mem_str])
 
-    return [energies, atom_pops]
+    return energies, atom_pops
 
 
 def run_col_multipole(traj):
@@ -613,17 +614,17 @@ def run_col_multipole(traj):
                 if 'Dipole moments' in line:
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr = line.rstrip().split()
+                    l_arr = line.split()
                     dip_moms[:,istate] = np.array([float(l_arr[1]),
                                                    float(l_arr[2]),
                                                    float(l_arr[3])])
                 if 'Second moments' in line:
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr = line.rstrip().split()
+                    l_arr = line.split()
                     for j in range(5):
                         line = prop_file.readline()
-                    l_arr.extend(line.rstrip().split())
+                    l_arr.extend(line.split())
                     # NOTE: we're only taking the diagonal elements
                     inds = [1,2,3,4,6,7]
                     raw_dat = np.array([float(l_arr[j]) for j in inds])
@@ -679,7 +680,7 @@ def run_col_tdipole(label, state_i, state_j):
     with open('trncils', 'r') as trncils:
         for line in trncils:
             if 'total (elec)' in line:
-                line_arr = line.rstrip().split()
+                line_arr = line.split()
                 for dim in range(p_dim):
                     tran_dip[dim] = float(line_arr[dim+2])
                     tran_dip[dim] = float(line_arr[dim+2])
@@ -879,6 +880,7 @@ def get_col_restart(traj):
     1. Copys/links CI restart files to working directory.
     2. If no ci vectors, simply start CI process from scratch
     """
+    global work_path, restart_path
 
     os.chdir(work_path)
     mocoef_file = restart_path + '/mocoef.'
@@ -959,7 +961,7 @@ def get_col_restart(traj):
         link_force(civout, work_path+'/civout')
         link_force(cirefv, work_path+'/cirefv')
 
-    return [mo_restart, ci_restart]
+    return mo_restart, ci_restart
 
 
 def get_adiabatic_phase(traj, new_coup):
@@ -1125,11 +1127,11 @@ def ang_mom_dalton(infile):
     with open(infile, 'r') as daltaoin:
         for i in range(4):
             line = daltaoin.readline()
-        l_arr = line.rstrip().split()
+        l_arr = line.split()
         n_grps = int(l_arr[1])
         for i in range(n_grps):
             line = daltaoin.readline()
-            l_arr = line.rstrip().split()
+            l_arr = line.split()
             n_atm = int(l_arr[1])
             n_ang = int(l_arr[2]) - 1
             # max_l on first line
@@ -1140,7 +1142,7 @@ def ang_mom_dalton(infile):
             for j in range(len(n_con)):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
-                    nprim = int(line.rstrip().split()[1])
+                    nprim = int(line.split()[1])
                     for l in range(nprim):
                         line = daltaoin.readline()
     return max_l

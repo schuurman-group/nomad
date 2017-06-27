@@ -9,6 +9,9 @@ import src.integrals.nuclear_gaussian as nuclear
 import src.interfaces.vibronic as vibronic 
 import src.interfaces.vcham.hampar as ham
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = True
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True 
 

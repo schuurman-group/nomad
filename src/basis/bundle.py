@@ -164,11 +164,15 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def update_amplitudes(self, dt, H=None, Ct=None):
+    def update_amplitudes(self, dt, update_ham=True, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
-        self.update_matrices()
+
+#        print("time = "+str(self.time)+" dt="+str(dt)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
+
+        if update_ham:
+            self.update_matrices()
 
         # if no Hamiltonian is pased, use the current effective
         # Hamiltonian
@@ -215,10 +219,9 @@ class Bundle:
     @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
-        current_pop = self.pop()
-        norm = 1. / np.sqrt(sum(current_pop))
+        norm_factor = 1. / np.sqrt(self.norm())  
         for i in range(self.n_traj()):
-            self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
+            self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
 
     def prune(self):
         """Kills trajectories that are dead."""
@@ -272,12 +275,15 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
+                if self.traj[jj].state != state:
+                    continue
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
 
-        # dead contribution?
+        pop /= sum(pop)
+
         return pop.real
 
     @timings.timed
@@ -357,15 +363,15 @@ class Bundle:
     #----------------------------------------------------------------------
     @timings.timed
     def create_centroids(self):
-        """called by add_trajectory. Increases the centroid 'matrix' to account for
-           new basis functions"""
+        """Increases the centroid 'matrix' to account for new basis functions.
 
-        # make sure centroid array has sufficient space to hold required
-        # centroids. Note that n_traj includes alive AND dead trajectories --
-        # therefore it can only increase. So, only need to check n_traj > dim_cent
-        # condition
+        Called by add_trajectory. Make sure centroid array has sufficient
+        space to hold required centroids. Note that n_traj includes alive
+        AND dead trajectories -- therefore it can only increase. So, only
+        need to check n_traj > dim_cent condition.
+        """
         dim_cent = len(self.cent)
-   
+
         # number of centroids already correct
         if self.n_traj() == dim_cent:
             return
@@ -413,6 +419,7 @@ class Bundle:
         """Updates T, V, S, Sdot and Heff matrices."""
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
+
         if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
@@ -447,6 +454,8 @@ class Bundle:
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
 
 #        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
+
+#        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
@@ -584,16 +593,14 @@ class Bundle:
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
             chkpt.write('coordinate widths --\n')
-            chkpt.write(str(np.array2string(self.traj[0].widths(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
-            chkpt.write('coordinate masses --\n')
-            chkpt.write(str(np.array2string(self.traj[0].masses(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
+            self.traj[0].widths().tofile(chkpt, ' ', '%.4f')
+            chkpt.write('\ncoordinate masses --\n')
+            self.traj[0].masses().tofile(chkpt, ' ', '%.4f')
 
             # first write out the live trajectories. The function
             # write_trajectory can only write to a pre-existing file stream
             for i in range(len(self.traj)):
-                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))
+                chkpt.write('\n-------- trajectory {:4d} --------\n'.format(i))
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
 
@@ -626,8 +633,8 @@ class Bundle:
 
         # read common bundle information
         self.time    = float(chkpt.readline().split()[0])
-        self.nalive  = int(chkpt.readline().split()[0])
-        self.ndead   = int(chkpt.readline().split()[0])
+        nalive  = int(chkpt.readline().split()[0])
+        ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
         crd_dim      = int(chkpt.readline().split()[0])
@@ -642,18 +649,17 @@ class Bundle:
         masses = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
 
         # read-in trajectories
-        for i in range(self.nalive + self.ndead):
+        for i in range(nalive + ndead):
             chkpt.readline()
             t_read = trajectory.Trajectory(self.nstates,
-                                           dim,
+                                           ndim,
                                            width=widths,
                                            mass=masses,
                                            crd_dim=crd_dim,
                                            label=i,
-                                           parent=0,
-                                           n_basis=0)
+                                           parent=0)
             t_read.read_trajectory(chkpt)
-            self.traj.append(t_read)
+            self.add_trajectory(t_read)
 
         # create the bundle matrices
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
