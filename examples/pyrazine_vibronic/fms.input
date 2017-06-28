@@ -1,33 +1,32 @@
 # FMS input
 # interface
 interface            = vibronic
-opfile               = henon-heiles.op
+opfile               = pyrazine4d.op
 coupling_order       = 1
 
 # initialization
-init_state           = 0
+init_state           = 1
 init_sampling        = wigner_distrib
 sampling_compression = 0.6
 n_init_traj          = 10
-virtual_basis        = False
+virtual_basis        = True
 seed                 = 0
 n_states             = 2
 init_mode_min_olap   = 0.
 
 # propagation
-simulation_time      = 25.
-default_time_step    = 0.05
-coupled_time_step    = 0.05
+simulation_time      = 2000.
+default_time_step    = 1.0
+coupled_time_step    = 0.5
 phase_prop           = False
-auto                 = True
 
 # integration
-integrals            = collocation
+integrals            = saddle_point
 renorm               = False
 propagator           = velocity_verlet
 energy_jump_toler    = 0.001
 pop_jump_toler       = 0.0001
-sij_thresh           = 1e-4
+sij_thresh           = 0.7
 
 # spawning
 spawning             = forward_backward
@@ -37,7 +36,7 @@ spawn_olap_thresh    = 0.8
 
 # printing
 print_traj           = True
-print_es             = False
+print_es             = True
 print_matrices       = True
-print_chkpt          = False
+print_chkpt          = True
 print_level          = 5

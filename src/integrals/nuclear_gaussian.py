@@ -27,6 +27,8 @@ def overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2):
 def deldp(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
     """Returns the del/dp matrix element between the nuclear component
        of two trajectories for each componet of 'p' (does not sum over terms)"""
+    if S is None:
+        S = overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2)
     dx    = x1 - x2
     dp    = p1 - p2
     dpval = (dp + 2. * 1j * a1 * dx) / (2. * (a1 + a2))
@@ -36,6 +38,8 @@ def deldp(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
 def deldx(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
     """Returns the del/dx matrix element between the nuclear component
        of two trajectories for each componet of 'x' (does not sum over terms)"""
+    if S is None:
+        S = overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2)
     dx    = x1 - x2
     psum  = a1*p2 + a2*p1
     dxval = (2. * a1 * a2 * dx - 1j * psum) / (a1 + a2)
@@ -45,6 +49,8 @@ def deldx(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
 def deld2x(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
     """Returns the del^2/d^2x matrix element between the nuclear component
        of two trajectories for each componet of 'x' (does not sum over terms)"""
+    if S is None:
+        S  = overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2)
     dx     = x1 - x2
     psum   = a1*p2 + a2*p1
     d2xval = -(1j * 4. * a1 * a2 * dx * psum + 2. * a1 * a2 * (a1 + a2) -

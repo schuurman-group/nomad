@@ -59,7 +59,7 @@ def fms_step_bundle(master, dt):
         master.update_amplitudes(0.5*dt)
 
         # Renormalization
-        if glbl.fms['renorm'] == 1:
+        if glbl.fms['renorm']:
             master.renormalize()
 
         # check time_step is fine, energy/amplitude conserved
@@ -87,7 +87,7 @@ def fms_step_bundle(master, dt):
 
             # re-expression of the basis using the matching pursuit
             # algorithm
-            if glbl.fms['matching_pursuit'] == 1:
+            if glbl.fms['matching_pursuit']:
                 mp.reexpress_basis(master)
 
             # update the running log

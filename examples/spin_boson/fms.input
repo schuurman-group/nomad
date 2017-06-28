@@ -1,40 +1,40 @@
-#
-# General variables
-#
-interface = boson_model_diabatic
+# FMS input
+# interface
+interface              = boson_model_diabatic
 
-#
-# Initial Conditions
-#
-spawning = continuous
-n_init_traj = 50
-seed = 1
-init_sampling = wigner_distrib
-integrals = boson_model
-# states run from 0 -> nstates-1
-n_states = 2
-init_state = 0
-num_particles = 4
-dim_particles = 1
-pot_shift = 0
-init_mode_min_olap = 0.1
-propagator = rkf45
-energy_jump_toler = 0.05
+# initialization
+init_state             = 0
+init_sampling          = wigner_distrib
+sampling_compression   = 0.6
+n_init_traj            = 50
+virtual_basis          = True
+seed                   = 0
+n_states               = 2
+init_mode_min_olap     = 0.1
+
+# propagation
+simulation_time        = 30.
+default_time_step      = 0.02
+coupled_time_step      = 0.02
+phase_prop             = False
+
+# integration
+integrals              = boson_model
+renorm                 = False
+propagator             = velocity_verlet
+energy_jump_toler      = 0.001
+pop_jump_toler         = 0.0001
+sij_thresh             = 0.5
+
+# spawning
+spawning               = continuous
+spawn_pop_thresh       = 0.025
+spawn_olap_thresh      = 0.8
 continuous_min_overlap = 0.1
-sij_thresh = 0.5
-hij_coup_thresh = 100
-virtual_basis = 1
 
-#
-# Timing Variables
-#
-simulation_time   = 30.00
-default_time_step = 0.02
-
-#
-# I/O variables
-#
-print_traj = 1
-print_es = 0
-print_matrices = 1
-print_chkpt = 0
+# printing
+print_traj             = True
+print_es               = True
+print_matrices         = True
+print_chkpt            = True
+print_level            = 5

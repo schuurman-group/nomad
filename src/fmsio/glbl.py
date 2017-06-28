@@ -1,4 +1,4 @@
-"""
+""":
 Conversion factors and constants for FMSpy.
 """
 # convert fs to au
@@ -52,21 +52,22 @@ fms = dict(
     sij_thresh             = 1.e-5,
     hij_coup_thresh        = 0.001,
     norm_thresh            = 10.,
-    print_traj             = 1,
-    print_es               = 1,
-    print_matrices         = 1,
-    print_chkpt            = 1,
-    virtual_basis          = 0,
+    print_traj             = True,
+    print_es               = True,
+    print_matrices         = True,
+    print_chkpt            = True,
+    virtual_basis          = False,
     print_level            = 1,
     opfile                 = 'fms.op',
     coupling_order         = 1,
-    auto                   = 0,
-    phase_prop             = 1,
-    renorm                 = 0,
+    auto                   = False,
+    phase_prop             = True,
+    renorm                 = False,
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
-    matching_pursuit       = 0,
-    )
+    matching_pursuit       = False,
+    representation         = 'adiabatic'
+           )
 
 # Electronic structure information read from interface-specific
 # routines
@@ -76,15 +77,15 @@ columbus = dict(
     # memory per core in MB
     mem_per_core = 100,
     coup_de_thresh = 100.
-    )
+                )
 
 # Vibronic multistate representation, loaded by operator parsing
 # function
 vibronic = dict(
     # highest polynomial order in vibronic expansion
     ordr_max = 1,
-    )
+                )
 
 boson = dict(
     coupling = 0.09
-    )
+             )

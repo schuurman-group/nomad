@@ -131,9 +131,9 @@ class Bundle:
         self.ndead           = self.ndead + 1
         # Remove the trajectory from the list of active trajectories
         # iff matching pursuit is not being used
-        if glbl.fms['matching_pursuit'] == 0:
-            self.active.remove(label)
-            self.traj[label].active = False
+        if not glbl.fms['matching_pursuit']:
+            self.active.remove(tid)
+            self.traj[tid].active = False
             self.nactive = self.nactive - 1
         # Reset arrays
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -561,7 +561,7 @@ class Bundle:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
         # wavepacket autocorrelation function
-        if glbl.fms['auto'] == 1 and glbl.bundle0 is not None:
+        if glbl.fms['auto'] and glbl.bundle0 is not None:
             auto = self.overlap(glbl.bundle0)
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(8, data)
