@@ -195,12 +195,12 @@ def init_interface():
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(int(glbl.columbus['mem_per_core']))
-    coup_de_thresh = float(glbl.columbus['coup_de_thresh'])
+    mem_str = str(int(glbl.interface['mem_per_core']))
+    coup_de_thresh = float(glbl.interface['coup_de_thresh'])
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
-    if n_cistates < int(glbl.fms['n_states']):
-        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.fms['n_states']))
+    if n_cistates < int(glbl.propagate['n_states']):
+        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.propagate['n_states']))
 
     # generate one time input files for columbus calculations
     make_one_time_input()

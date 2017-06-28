@@ -131,7 +131,7 @@ class Bundle:
         self.ndead           = self.ndead + 1
         # Remove the trajectory from the list of active trajectories
         # iff matching pursuit is not being used
-        if glbl.fms['matching_pursuit'] == 0:
+        if glbl.propagate['matching_pursuit'] == 0:
             self.active.remove(label)
             self.traj[label].active = False
             self.nactive = self.nactive - 1
@@ -258,7 +258,7 @@ class Bundle:
         """Returns the norm of the wavefunction """
         ntot = np.dot(np.dot(np.conj(self.amplitudes()),
                              self.traj_ovrlp),self.amplitudes()).real
-        if ntot > glbl.fms['norm_thresh']:
+        if ntot > glbl.propagate['norm_thresh']:
             raise ValueError('Wavefunction norm threshold exceeded')
         else:
             return ntot
@@ -472,7 +472,7 @@ class Bundle:
                 continue
 
             # trajectory files
-            if glbl.fms['print_traj']:
+            if glbl.printing['print_traj']:
                 data = [self.time]
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
@@ -504,7 +504,7 @@ class Bundle:
                 fileio.print_traj_row(self.traj[i].label, 2, data)
 
             # print pes information relevant to the chosen interface
-            if glbl.fms['print_es']:
+            if glbl.printing['print_es']:
 
                 # print the interface-specific data
                 for key in self.traj[i].pes_data.data_keys:
@@ -560,7 +560,7 @@ class Bundle:
         fileio.print_bund_row(1, data)
 
         # bundle matrices
-        if glbl.fms['print_matrices']:
+        if glbl.printing['print_matrices']:
             if self.integrals.basis != 'gaussian':
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp)
             fileio.print_bund_mat(self.time, 's.dat', self.S)
@@ -571,11 +571,11 @@ class Bundle:
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
 
         # dump full bundle to an checkpoint file
-        if glbl.fms['print_chkpt']:
+        if glbl.printing['print_chkpt']:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
         # wavepacket autocorrelation function
-        if glbl.fms['auto'] == 1 and glbl.bundle0 is not None:
+        if glbl.propagate['auto'] == 1 and glbl.bundle0 is not None:
             auto = self.overlap(glbl.bundle0)
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(8, data)

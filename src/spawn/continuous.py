@@ -18,7 +18,7 @@ import src.fmsio.fileio as fileio
 import src.dynamics.timings as timings
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.interface['integrals'],fromlist=['a'])
 
 @timings.timed
 def spawn(master, dt):
@@ -42,7 +42,7 @@ def spawn(master, dt):
                        if master.traj[j].state == st
                        and master.traj[j].alive else 0.
                        for j in range(master.n_traj())]
-            if max(s_array) < glbl.fms['continuous_min_overlap']:
+            if max(s_array) < glbl.spawning['continuous_min_overlap']:
                 child           = parent.copy()
                 child.amplitude = 0j
                 child.state     = st
@@ -56,7 +56,7 @@ def spawn(master, dt):
                 if not success:
                     fileio.print_fms_logfile('spawn_bad_step',
                                              ['cannot adjust kinetic energy of child'])
-                elif abs(sij) < glbl.fms['spawn_olap_thresh']:
+                elif abs(sij) < glbl.spawning['spawn_olap_thresh']:
                     fileio.print_fms_logfile('spawn_bad_step',
                                              ['child-parent overlap too small'])
                 else:
@@ -78,6 +78,6 @@ def spawn(master, dt):
                         err_msg = ('Traj ' + str(parent.tid) + ' from state ' +
                                    str(parent.state) + ' to state ' + str(st) +
                                    ': ' + 'overlap with bundle too large,' +
-                                   ' s_max=' + str(glbl.fms['sij_thresh']))
+                                   ' s_max=' + str(glbl.propagate['sij_thresh']))
                         fileio.print_fms_logfile('spawn_bad_step', [err_msg])
     return basis_grown

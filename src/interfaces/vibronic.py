@@ -11,7 +11,7 @@ import src.fmsio.fileio as fileio
 
 kecoeff = None
 ham = None
-nsta = glbl.fms['n_states']
+nsta = glbl.propagate['n_states']
 data_cache = dict()
 
 
@@ -188,7 +188,7 @@ def init_interface():
     ham = VibHam()
     ham.rdgeomfile(fileio.home_path + '/geometry.dat')
     ham.rdfreqfile(fileio.home_path + '/freq.dat')
-    ham.rdoperfile(fileio.home_path + '/' + glbl.fms['opfile'])
+    ham.rdoperfile(fileio.home_path + '/' + glbl.interface['opfile'])
 
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
@@ -201,7 +201,7 @@ def init_interface():
                              ['* Vibronic Coupling Hamiltonian Information'])
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
-                             ['Operator file: ' + glbl.fms['opfile']])
+                             ['Operator file: ' + glbl.interface['opfile']])
     fileio.print_fms_logfile('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
     string = 'Total no. modes: ' + str(ham.nmode_total)

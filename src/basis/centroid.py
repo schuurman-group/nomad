@@ -62,7 +62,7 @@ class Centroid:
 
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
-                               glbl.fms['interface'], fromlist = ['a'])
+                               glbl.interface['interface'], fromlist = ['a'])
 
         # data structure to hold the data from the interface
         self.pes_data  = None
@@ -131,7 +131,7 @@ class Centroid:
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: centroid.energy() called, ' +
                   'but pes_geom != centroid.x(). ID=' + str(self.label))
-        return self.pes_data.potential[state] + glbl.fms['pot_shift']
+        return self.pes_data.potential[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
         """Returns either a gradient or derivative coupling depending
@@ -198,7 +198,7 @@ class Centroid:
         # F.p/m
         coup = self.coup_dot_vel()
         # G
-        if glbl.fms['coupling_order'] > 1:
+        if glbl.interface['coupling_order'] > 1:
             coup += self.scalar_coup(pstates[0], pstates[1])
         return coup
 

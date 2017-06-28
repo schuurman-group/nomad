@@ -17,26 +17,26 @@ import src.basis.matching_pursuit as mp
 #-----------------------------------------------------------------------------
 def fms_time_step(master):
     """ Determine time step based on whether in coupling regime"""
-    spawning   = __import__('src.spawn.'+glbl.fms['spawning'],
+    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
                             fromlist=['a'])
 
     if spawning.in_coupled_regime(master):
-        return float(glbl.fms['coupled_time_step'])
+        return float(glbl.propagate['coupled_time_step'])
     else:
         # don't change back to default time step unless we're
         # back on a multiple of the default time step, otherwise
         # the log updates get out of sync. This should be fixed more
         # cleanly
         if not fileio.update_logs(master):
-            return float(glbl.fms['coupled_time_step'])
+            return float(glbl.propagate['coupled_time_step'])
         else:
-            return float(glbl.fms['default_time_step'])
+            return float(glbl.propagate['default_time_step'])
 
 def fms_step_bundle(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
-    integrator = __import__('src.propagators.'+glbl.fms['propagator'],
+    integrator = __import__('src.propagators.'+glbl.propagate['propagator'],
                             fromlist=['a'])
-    spawning   = __import__('src.spawn.'+glbl.fms['spawning'],
+    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
                             fromlist=['a'])
 
     # save the bundle from previous step in case step rejected
@@ -58,7 +58,7 @@ def fms_step_bundle(master, dt):
         integrator.propagate_bundle(master, time_step)
 
         # Renormalization
-        if glbl.fms['renorm'] == 1:
+        if glbl.propagate['renorm'] == 1:
             master.renormalize()
 
         # check time_step is fine, energy/amplitude conserved
@@ -86,7 +86,7 @@ def fms_step_bundle(master, dt):
 
             # re-expression of the basis using the matching pursuit
             # algorithm
-            if glbl.fms['matching_pursuit'] == 1:
+            if glbl.propagate['matching_pursuit'] == 1:
                 mp.reexpress_basis(master)
 
             # update the running log
@@ -118,7 +118,7 @@ def fms_step_trajectory(traj, init_time, dt):
     NOTE: fms_step_bundle and fms_step_trajectory could/should probably
     be integrated somehow...
     """
-    integrator = __import__('src.propagators.' + glbl.fms['propagator'],
+    integrator = __import__('src.propagators.' + glbl.propagate['propagator'],
                             fromlist=['a'])
 
     current_time = init_time
@@ -176,16 +176,16 @@ def step_complete(current_time, final_time, dt):
 def check_step_bundle(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
-    spawning   = __import__('src.spawn.'+glbl.fms['spawning'],
+    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
                             fromlist=['a'])
 
     # if we're in the coupled regime and using default time step, reject
-    if spawning.in_coupled_regime(master) and time_step == glbl.fms['default_time_step']:
+    if spawning.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
     dpop = abs(sum(master.pop()) - sum(master.pop()))
-    if dpop > glbl.fms['pop_jump_toler']:
+    if dpop > glbl.propagate['pop_jump_toler']:
         return False, ' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
     #  ... or energy conservation (only need to check traj which exist in
     # master0. If spawned, will be last entry(ies) in master
@@ -197,7 +197,7 @@ def check_step_bundle(master0, master, time_step):
         energy_new = (master.traj[i].potential() +
                       master.traj[i].kinetic())
         dener = abs(energy_old - energy_new)
-        if dener > glbl.fms['energy_jump_toler']:
+        if dener > glbl.propagate['energy_jump_toler']:
             return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
     # If we pass all the tests, return 'success'
     return True, ' success'
@@ -216,5 +216,5 @@ def check_step_trajectory(traj0, traj):
     energy_new = traj.classical()
 
     # If we pass all the tests, return 'success'
-    return not abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']
+    return not abs(energy_old - energy_new) > glbl.propagate['energy_jump_toler']
 

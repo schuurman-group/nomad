@@ -36,7 +36,7 @@ def sq_ind(index, n):
 @timings.timed
 def hamiltonian(traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    ints = __import__('src.integrals.'+glbl.fms['integrals'], fromlist=['a'])
+    ints = __import__('src.integrals.'+glbl.propagate['integrals'], fromlist=['a'])
 
     n_alive = len(traj_alive)
     if ints.hermitian:

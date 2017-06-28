@@ -57,7 +57,7 @@ class Trajectory:
 
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
-                               glbl.fms['interface'], fromlist = ['a'])
+                               glbl.interface['interface'], fromlist = ['a'])
 
         # data structure to hold the pes data from the interface
         self.pes_data  = None
@@ -106,7 +106,7 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-        if glbl.fms['phase_prop'] != 0:
+        if glbl.propagate['phase_prop'] != 0:
             self.gamma = phase
             #self.gamma = 0.5 * np.dot(self.x(), self.p())
             if abs(self.gamma) > 2*np.pi:
@@ -159,7 +159,7 @@ class Trajectory:
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label))
-        return (self.pes_data.potential[state] + float(glbl.fms['pot_shift']))
+        return (self.pes_data.potential[state] + float(glbl.propagate['pot_shift']))
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
@@ -206,7 +206,7 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        if glbl.fms['phase_prop'] == 0:
+        if glbl.propagate['phase_prop'] == 0:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
@@ -232,7 +232,7 @@ class Trajectory:
         # F.p/m
         coup = self.coup_dot_vel(j_state)
         # G
-        if glbl.fms['coupling_order'] > 1:
+        if glbl.interface['coupling_order'] > 1:
             coup += self.scalar_coup(self.state, j_state)
 
         return coup

@@ -12,7 +12,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.bundle as bundle
 import src.dynamics.timings as timings
-import src.dynamics.initial as initial
+import src.dynamics.initialize as initialize
 import src.dynamics.step as step
 
 
@@ -32,7 +32,7 @@ def main():
     # read in options/variables pertaining to the running
     # of the dynamics, pass the starting time of the simluation
     # a nd the end time
-    fileio.read_input_files()
+    fileio.read_input_file()
 
     # initialize random number generator
     random.seed(glbl.fms['seed'])
@@ -41,7 +41,7 @@ def main():
     master = bundle.Bundle(glbl.fms['n_states'], glbl.fms['integrals'])
 
     # set the initial conditions for trajectories
-    initial.init_bundle(master)
+    initialize.init_bundle(master)
 
     # propagate the trajectories
     while master.time < glbl.fms['simulation_time']:

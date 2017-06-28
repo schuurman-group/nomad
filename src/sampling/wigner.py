@@ -9,42 +9,42 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
-integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
-def sample_distribution(master):
+def set_initial_coords(widths, geoms, momenta, master):
     """Samples a v=0 Wigner distribution
     """
 
     # Compression parameter
-    beta = glbl.fms['sampling_compression']
+    beta = glbl.sampling['sampling_compression']
 
     # Set the coordinate type: Cartesian or normal mode coordinates
-    if glbl.fms['interface'] == 'vibronic':
+    if glbl.interface['interface'] == 'vibronic':
         import src.interfaces.vibronic as interface
         coordtype = 'normal'
         ham = interface.ham
     else:
         coordtype = 'cart'
 
-    # Read the geometry.dat file
-    (ncrd, crd_dim, amps, lbls,
-     geoms, moms, width, mass, states) = fileio.read_geometry()
-
     # if multiple geometries in geometry.dat -- just take the first one
-    ndim = int(len(geoms)/len(amps))
-    geom_ref = np.asarray(geoms[0:ndim],dtype=float)
-    mom_ref  = np.asarray(moms[0:ndim],dtype=float)
+    ngeoms  = len(geoms)
+    crd_dim = int(len(geoms[0][0]))
+    ndim    = int(len(geoms[0]) * crd_dim )
+
+    x_ref = np.array()
+    p_ref = np.array()
+    w_vec = np.array([widths[i] for j in range(crd_dim) for i in range(len(widths))])
 
     # Read the hessian.dat file (Cartesian coordinates only)
     if coordtype == 'cart':
         hessian = fileio.read_hessian()
 
-    origin_traj = trajectory.Trajectory(glbl.fms['n_states'],
+    origin_traj = trajectory.Trajectory(glbl.propagate['n_states'],
                                         ndim,
-                                        width=width[0:ndim],
-                                        mass=mass[0:ndim],
+                                        width=w_vec,
                                         crd_dim=crd_dim,
                                         parent=0)
+
     origin_traj.update_x(geom_ref)
     origin_traj.update_p(mom_ref)
     # if we need pes data to evaluate overlaps, determine that now
@@ -93,7 +93,7 @@ def sample_distribution(master):
 
     # loop over the number of initial trajectories
     max_try = 1000
-    ntraj  = glbl.fms['n_init_traj']
+    ntraj  = glbl.sampling['n_init_traj']
     for i in range(ntraj):
         delta_x   = np.zeros(n_modes)
         delta_p   = np.zeros(n_modes)
@@ -109,11 +109,11 @@ def sample_distribution(master):
                     dx = random.gauss(0., sigma_x)
                     dp = random.gauss(0., sigma_p)
                     itry += 1
-                    if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
+                    if mode_overlap(alpha, dx, dp) > glbl.sampling['init_mode_min_olap']:
                         break
-                if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
+                if mode_overlap(alpha, dx, dp) < glbl.sampling['init_mode_min_olap']:
                     print('Cannot get mode overlap > ' +
-                      str(glbl.fms['init_mode_min_olap']) +
+                      str(glbl.sampling['init_mode_min_olap']) +
                       ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp
@@ -147,25 +147,7 @@ def sample_distribution(master):
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
 
-    # Calculate the initial expansion coefficients via projection onto
-    # the initial wavefunction that we are sampling
-    ovec = np.zeros(ntraj, dtype=complex)
-    for i in range(ntraj):
-        ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
-    smat = np.zeros((ntraj, ntraj), dtype=complex)
-    for i in range(ntraj):
-        for j in range(i+1):
-            smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
-            if i != j:
-                smat[j,i] = smat[i,j].conjugate()
-    #print(smat)
-    sinv = sp_linalg.pinvh(smat)
-    cvec = np.dot(sinv, ovec)
-    for i in range(ntraj):
-        master.traj[i].update_amplitude(cvec[i])
-
-    # state of trajectory not set, return False
-    return False
+    return
 
 def mode_overlap(alpha, dx, dp):
     """Returns the overlap of Gaussian primitives

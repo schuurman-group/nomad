@@ -26,15 +26,13 @@ tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
 
-interface_dict = dict()
-
-def read_input_files():
+def read_input_file():
     """Reads the fms.input files.
 
     This file contains variables related to the running of the
     dynamics simulation.
     """
-    global scr_path, home_path, interface_dict
+    global scr_path, home_path
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
@@ -51,55 +49,71 @@ def read_input_files():
     #   spawning
     #   interface
     #   geometry
-   
-    # Read fms.input. This contains general simulation variables
-    kwords = read_namelist('fms.input')
-    for k, v in kwords.items():
-        if k in glbl.fms:
-            glbl.fms[k] = v
+    #   printing
+
+    # Read fms.input. Small enough to gulp the whole thing
+    with open('fms.input', 'r') as infile:
+        fms_input = infile.readlines()
+
+    # remove comment lines
+    fms_input = [item for item in fms_input if 
+                 not item.startswith("#") and not item.startswith("!")]
+    print("all input="+str(fms_input))
+
+    sec_strings = list(glbl.input_groups)
+    print("search string 1=|"+str('begin '+sec_strings[0]+'-section')+"|")
+ 
+    current_line = 0
+    # look for begining of input section
+    while current_line < len(fms_input):
+        print("current_line="+str(fms_input[current_line]))
+        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line]) 
+                     for i in range(len(sec_strings))]
+        print("sec_start="+str(sec_start))
+        if all([v is None for v in sec_start]):
+            current_line+=1
         else:
+            print("about to parse")
+            section = next(item for item in sec_start 
+                           if item is not None).string
+            print("section expand="+section)
+            section = section.replace('-section','').replace('begin','').strip()
+            print("section: "+section+" found. parsing...")
+            current_line = parse_section(fms_input, current_line, section)    
+    
+    for i in range(len(sec_strings)):
+        keys  = list(glbl.input_groups[sec_strings[i]])
+        print("keys["+str(i)+"]="+str(keys))
+        for j in range(len(keys)):
+            print(keys[j]+' = '+glbl.input_groups[sec_strings[i]][keys[j]])
+
+#
+# set keywords in the appropriate keyword dictionary by parsing
+# input array
+#
+def parse_section(kword_array, line_start, section):
+    """Reads a namelist style input, returns results in dictionary.""" 
+
+    current_line = line_start + 1
+    print("current_line="+str(current_line))
+    while (current_line < len(kword_array) and 
+           re.search('end '+section+'-section',kword_array[current_line]) is None):
+        line = kword_array[current_line].rstrip('\r\n')
+        print("line="+str(line))
+        key,value = line.split('=',1)
+        key   = key.strip()
+        value = value.strip()
+        
+        if key not in glbl.input_groups[section].keys():
             if glbl.mpi_rank == 0:
-                print('Variable ' + str(k) +
-                      ' in fms.input unrecognized. Ignoring...')
+                print("Cannot find input parameter: "+key+
+                      " in input section: "+section)
+        else:
+            glbl.input_groups[section][key] = value
 
-    # Read pes.input. This contains interface-specific user options. Get what
-    #  interface we're using via glbl.fms['interface'], and populate the
-    #  corresponding dictionary of keywords from glbl module
-    # Still need to add a new dict to glbl for each new interface.
-    interface_dict = getattr(glbl, glbl.fms['interface'])
-    kwords = read_namelist('pes.input')
-    for k, v in kwords.items():
-        if k in interface_dict:
-            interface_dict[k] = v
-        elif glbl.mpi_rank == 0:
-            print('Variable ' + str(k) +
-                  ' in fms.input unrecognized. Ignoring...')
+        current_line+=1
 
-
-def read_namelist(filename):
-    """Reads a namelist style input, returns results in dictionary."""
-    kwords = dict()
-
-    if os.path.exists(filename):
-        with open(filename, 'r', encoding='utf-8') as infile:
-            for line in infile:
-                if '=' in line:
-                    line = line.rstrip('\r\n')
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip()
-                    try:
-                        kwords[key] = float(value)
-                        if kwords[key].is_integer():
-                            kwords[key] = int(value)
-                    except ValueError:
-                        pass
-
-                    if key not in kwords:
-                        kwords[key] = value
-
-    return kwords
-
+    return current_line
 
 def init_fms_output():
     """Initialized all the output format descriptors."""
@@ -109,7 +123,7 @@ def init_fms_output():
     (ncrd, crd_dim, amp_data, label_data,
      geom_data, mom_data, width_data, mass_data, state_data) = read_geometry()
 
-    nst = int(glbl.fms['n_states'])
+    nst = int(glbl.propagate['n_states'])
     dstr = ('x', 'y', 'z')
     acc1 = 12
     acc2 = 16
@@ -256,15 +270,11 @@ def init_fms_output():
 
         log_str = ('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
-        for k, v in glbl.fms.items():
-            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-        logfile.write(log_str)
-
-        log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
-        log_str += ' ----------------------------------------\n'
-        for k, v in interface_dict.items():
-            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-        logfile.write(log_str)
+        for group in glbl.input_groups.items():
+            logfile.write(" ** "+str(group)+" ** ")
+            for k, v in glbl.input_groups[group]:
+                log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+            logfile.write(log_str+'\n')
 
         log_str = ('\n ***********\n' +
                    ' propagation\n' +
@@ -272,6 +282,7 @@ def init_fms_output():
         logfile.write(log_str)
 
     log_format['general']     = '   ** {:60s} **\n'
+    log_format['warning']     = ' ** WARNING\: {:100s} **\n'
     log_format['string']      = ' {:160s}\n'
     log_format['t_step']      = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
     log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
@@ -291,6 +302,7 @@ def init_fms_output():
     log_format['timings' ]      = '{}'
 
     print_level['general']        = 5
+    pirnt_level['warning']        = 0
     print_level['string']         = 5
     print_level['t_step']         = 0
     print_level['coupled']        = 3
@@ -327,7 +339,7 @@ def update_logs(bundle):
     relatively constant -- regardless of what the propagator requires
     to do accurate integration.
     """
-    dt    = glbl.fms['default_time_step']
+    dt    = glbl.propagate['default_time_step']
     mod_t = bundle.time % dt
 
     # this. is. ugly.
@@ -371,7 +383,7 @@ def print_fms_logfile(otype, data):
 
     if otype not in log_format:
         print('CANNOT WRITE otype=' + str(otype) + '\n')
-    elif glbl.fms['print_level'] >= print_level[otype]:
+    elif glbl.printing['print_level'] >= print_level[otype]:
         filename = home_path + '/fms.log'
         with open(filename, 'a') as logfile:
             logfile.write(log_format[otype].format(*data))
@@ -382,96 +394,41 @@ def print_fms_logfile(otype, data):
 # Read geometry.dat and hessian.dat files
 #
 #----------------------------------------------------------------------------
-def read_geometry():
-    """Reads position and momenta from geometry.dat."""
-    global home_path
-    state_data = []
-    amp_data   = []
-    geom_data  = []
-    mom_data   = []
-    width_data = []
-    label_data = []
-    mass_data  = []
-    mass_conv  = 1.
+def read_geometry(geom_file):
+    """Reads position and momenta from an xyz file"""
+    geoms   = []
+    momenta = []
 
-    with open(home_path + '/geometry.dat', 'r') as gfile:
+    with open(geom_file, 'r') as gfile:
         gm_file = gfile.readlines()
 
-    not_done = True
-    lcnt = -1
-    while not_done:
-        # comment line -- if keyword "amplitude" is present, set amplitude
-        lcnt += 1
-        line = [x.strip().lower() for x in gm_file[lcnt].split()]
-        if 'amplitude' in line:
-            ind = line.index('amplitude')
-            amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
-        else:
-            amp_data.append(1 + 0j)
+    # parse file for number of atoms/dof, dimension of coordinates
+    # and number of geometries
+    ncrd    = int(gm_file[0].strip()[0])
+    crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
+    ngeoms  = len(gm_file)/(ncrd+2)
+    
+    # read in the atom/crd labels -- assumes atoms are same for each
+    # geometry in the list    
+    labels  = [gm_file[j].strip().split()[0] for j in range(2,ncrd)] 
 
-        # number of atoms/coordinates
-        lcnt += 1
-        nq = int(gm_file[lcnt])
+    # loop over geoms, load positions and momenta into arrays
+    for i in range(ngeoms):
+        geom = np.zeros((ncrd,crd_dim),dtype=float)
+        mom  = np.zeros((ncrd,crd_dim),dtype=float)        
 
-        # read in geometry
-        for i in range(nq):
-            lcnt += 1
-            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                      for j in range(1,len(gm_file[lcnt].rstrip().split()))])
-            crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
-            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0]
-                       for i in range(crd_dim)])
-            # if in cartesians, assume mass given in amu, convert to au
-            if crd_dim == 3:
-                mass_conv = 1 * glbl.mass2au
+        # delete first and comment lines
+        del gm_file[0:1]
+        for j in range(ncrd):
+            line = gm_file[j].strip().split()
+            geom[j,:] = np.array(line[1:crd_dim+1)
+            mom[j,:]  = np.array(line[crd_dim+1:2*crd_dim+1])
+            del gm_file[0]
 
-        # read in momenta
-        for i in range(nq):
-            lcnt += 1
-            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                       for j in range(len(gm_file[lcnt].rstrip().split()))])
-
-        # read in widths, if present
-        if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
-            for i in range(nq):
-                lcnt += 1
-                width_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                               for j in range(1,len(gm_file[lcnt].split()))])
-        else:
-            for lbl in label_data:
-                if atom_lib.valid_atom(lbl):
-                    adata = atom_lib.atom_data(lbl)
-                    width_data.extend([float(adata[0])])
-                else:
-                    width_data.extend([0.])
-
-        # read in masses, if present
-        if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
-            for i in range(nq):
-                lcnt += 1
-                mass_data.extend([float(gm_file[lcnt].rstrip().split()[j]) * mass_conv
-                               for j in range(1,len(gm_file[lcnt].split()))])
-        else:
-            for lbl in label_data:
-                if atom_lib.valid_atom(lbl):
-                    adata = atom_lib.atom_data(lbl)
-                    mass_data.extend([float(adata[1]) * mass_conv])
-                else:
-                    mass_data.extend([1.])
-
-        # read in state, if present
-        if (lcnt+1) < len(gm_file) and 'state' in gm_file[lcnt+1]:
-            lcnt += 1
-            state_data.append(int(gm_file[lcnt].rstrip().split()[1]))
-        else:
-            state_data.append(int(-1))
-
-        # check if we've reached the end of the file
-        if (lcnt+1) == len(gm_file):
-            not_done = False
-
-    return (nq, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data, state_data)
+        geoms.append(geom)
+        momenta.append(mom)
+        
+    return labels,geoms,momenta
 
 #
 def read_hessian():

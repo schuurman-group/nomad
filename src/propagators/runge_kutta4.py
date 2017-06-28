@@ -13,7 +13,6 @@ takes a trajectory argument and a time step argument.
   ky4 = f(t+dt, y(t)+ky3*dt)
 """
 import numpy as np
-import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 

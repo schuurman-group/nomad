@@ -14,7 +14,6 @@ au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
 
-
 # t=0 bundle
 bundle0  = None
 
@@ -24,67 +23,91 @@ mpi_comm     = None
 mpi_rank     = None
 mpi_nproc    = 1
 
-# Simulation parameters read from the fms.input file
-fms = dict(
-    spawning               = 'forward_backward',
+# input related to initial conditions
+sampling = dict(
+    restart                = False,
+    init_sampling          = 'gs_wigner',
+    n_init_traj            = 1,
+    init_state             = [1],
+    init_brightest         = False,
+    restart_time           = 0.,
+    init_mode_min_olap     = 0.,
+    seed                   = 0,
+    virtual_basis          = 0,
+    sampling_compression   = 1.0,
+)
+
+propagate = dict(
+    n_states               = 1,
+    matching_pursuit       = 0,
     simulation_time        = 0.,
     default_time_step      = 10.,
     coupled_time_step      = 5.,
-    interface              = 'boson_model_diabatic',
-    init_sampling          = 'gs_wigner',
     integrals              = 'saddle_point',
-    n_init_traj            = 1,
-    seed                   = 0,
-    restart                = False,
-    n_states               = 1,
-    init_state             = 1,
-    init_brightest         = False,
-    restart_time           = 0.,
     propagator             = 'velocity_verlet',
-    spawn_pop_thresh       = 0.025,
-    spawn_coup_thresh      = 0.02,
-    spawn_olap_thresh      = 0.7,
     energy_jump_toler      = 0.0001,
     pop_jump_toler         = 0.0001,
     pot_shift              = 0.,
-    init_mode_min_olap     = 0.,
-    continuous_min_overlap = 0.5,
+    renorm                 = 0,
+    sinv_thrsh             = -1.0,
+    norm_thresh            = 10.,
+    auto                   = 0,
+    phase_prop             = 1,
     sij_thresh             = 1.e-5,
     hij_coup_thresh        = 0.001,
-    norm_thresh            = 10.,
+)
+
+spawning = dict(
+    spawning               = 'forward_backward',
+    spawn_pop_thresh       = 0.025,
+    spawn_coup_thresh      = 0.02,
+    spawn_olap_thresh      = 0.7,
+    continuous_min_overlap = 0.5,
+)
+
+interface = dict(
+    # pertain to all interfaces
+    interface              = 'boson_model_diabatic',
+    coupling_order         = 1,
+
+    # parameters that apply to the COLUMBUS interface
+    mem_per_core           = 100,
+    coup_de_thresh         = 100.,
+
+    # parameters that apply to vibronic interface
+    opfile                 = 'fms.op',
+    # highest polynomial order in vibronic expansion
+    ordr_max               = 1
+)
+
+nuclear_basis = dict(
+    use_atom_lib     = True,
+    init_amp_overlap = True,
+    geometry = [0],
+    momenta  = [0],
+    geomfile = '',
+    hessian  = [0],
+    hessfile = '',
+    amplitudes = [0],
+    widths   = [0],
+    states   = [0],
+    masses   = [0],
+)
+
+printing = dict(
+    print_level            = 1,
     print_traj             = 1,
     print_es               = 1,
     print_matrices         = 1,
     print_chkpt            = 1,
-    virtual_basis          = 0,
-    print_level            = 1,
-    opfile                 = 'fms.op',
-    coupling_order         = 1,
-    auto                   = 0,
-    phase_prop             = 1,
-    renorm                 = 0,
-    sinv_thrsh             = -1.0,
-    sampling_compression   = 1.0,
-    matching_pursuit       = 0,
-    )
+)
 
-# Electronic structure information read from interface-specific
-# routines
+# this is a list of valid dictionary names. groups of input need to be added to 
+# this last (obvs)
+input_groups   = {'sampling':sampling,
+                  'propagate':propagate,
+                  'spawning':spawning,
+                  'nuclear_basis':nuclear_basis,
+                  'interface':interface,
+                  'printing':printing}
 
-# COLUMBUS input variables
-columbus = dict(
-    # memory per core in MB
-    mem_per_core = 100,
-    coup_de_thresh = 100.
-    )
-
-# Vibronic multistate representation, loaded by operator parsing
-# function
-vibronic = dict(
-    # highest polynomial order in vibronic expansion
-    ordr_max = 1,
-    )
-
-boson = dict(
-    coupling = 0.09
-    )
