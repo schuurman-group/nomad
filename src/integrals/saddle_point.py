@@ -12,6 +12,9 @@ import src.integrals.nuclear_gaussian as nuclear
 interface = __import__('src.interfaces.' + glbl.fms['interface'],
                        fromlist = ['a'])
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = False
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
 
@@ -21,8 +24,13 @@ hermitian = True
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+def nuc_overlap(t1, t2):
+    """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
+    return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                           t2.phase(),t2.widths(),t2.x(),t2.p())
+
 # the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods). 
+# (i.e. pseudospectral/collocation methods).
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     return s_integral(t1, t2, nuc_only=nuc_only, Snuc=Snuc)
@@ -37,7 +45,6 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
         if Snuc is None:
             return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            return nuclear.overlap(t1,t2) 
         else:
             return Snuc
 
@@ -45,7 +52,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
-    if t1.tid == t2.tid:
+    if t1.label == t2.label:
         # Adiabatic energy
         v = t1.energy(t1.state)
         # DBOC
@@ -96,15 +103,14 @@ def ke_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            Snuc = nuclear.overlap(t1,t2)
 
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                  t2.phase(),t2.widths(),t2.x(),t2.p())
-#        ke = nuclear.deld2x(t1, t2, S=Snuc)
-        return -sum( ke * interface.kecoeff)
+
+        return -np.dot(ke, interface.kecoeff)
 
 # time derivative of the overlap
-def sdot_integral(t1, t2, Snuc=None):
+def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if t1.state != t2.state:
         return 0j
@@ -113,15 +119,13 @@ def sdot_integral(t1, t2, Snuc=None):
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#            Snuc = nuclear.overlap(t1, t2, S=Snuc)
-    
+
         deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-#        deldx = nuclear.deldx(t1, t2, S=Snuc)
-#        deldp = nuclear.deldp(t1, t2, S=Snuc)
- 
-        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) 
+
+        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
                 +1j * t2.phase_dot() * Snuc)
+
         return sdot

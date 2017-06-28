@@ -10,6 +10,7 @@ import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
 import src.basis.atom_lib as atom_lib
 
+
 # Make sure that we print entire arrays
 np.set_printoptions(threshold = np.inf)
 
@@ -25,8 +26,8 @@ log_format  = dict()
 tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
-
 interface_dict = dict()
+
 
 def read_input_files():
     """Reads the fms.input files.
@@ -41,7 +42,7 @@ def read_input_files():
 
     # set a sensible default for scr_path
     scr_path = os.environ['TMPDIR']
-    if os.path.exists(scr_path):
+    if os.path.exists(scr_path) and glbl.mpi_rank==0:
         shutil.rmtree(scr_path)
         os.makedirs(scr_path)
 
@@ -51,8 +52,9 @@ def read_input_files():
         if k in glbl.fms:
             glbl.fms[k] = v
         else:
-            print('Variable ' + str(k) +
-                  ' in fms.input unrecognized. Ignoring...')
+            if glbl.mpi_rank == 0:
+                print('Variable ' + str(k) +
+                      ' in fms.input unrecognized. Ignoring...')
 
     # Read pes.input. This contains interface-specific user options. Get what
     #  interface we're using via glbl.fms['interface'], and populate the
@@ -63,7 +65,7 @@ def read_input_files():
     for k, v in kwords.items():
         if k in interface_dict:
             interface_dict[k] = v
-        else:
+        elif glbl.mpi_rank == 0:
             print('Variable ' + str(k) +
                   ' in fms.input unrecognized. Ignoring...')
 
@@ -95,13 +97,12 @@ def read_namelist(filename):
 
 def init_fms_output():
     """Initialized all the output format descriptors."""
-    global home_path, scr_path, log_format, tkeys, bkeys
-    global dump_header, dump_format, tfile_names, bfile_names, print_level
+    global log_format, dump_header, dump_format, tfile_names, bfile_names, print_level
 
     (ncrd, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data) = read_geometry()
+     geom_data, mom_data, width_data, mass_data, state_data) = read_geometry()
 
-    nums = int(glbl.fms['n_states'])
+    nst = int(glbl.fms['n_states'])
     dstr = ('x', 'y', 'z')
     acc1 = 12
     acc2 = 16
@@ -123,34 +124,43 @@ def init_fms_output():
                              '\n')
 
     # potential energy
-    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nums)]
+    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nst)]
     tfile_names[tkeys[1]] = 'poten'
     dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[1]] = ('{:12.4f}' +
-                             ''.join('{:16.10f}' for i in range(nums)) + '\n')
+                             ''.join('{:16.10f}' for i in range(nst)) + '\n')
+
+    # gradients
+    arr1 = ['        crd' + str(i+1) + '.' + dstr[j]
+            for i in range(ncrd) for j in range(crd_dim)]
+    tfile_names[tkeys[7]] = 'gradient'
+    dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[7]] = ('{0:>12.4f}' +
+                             ''.join('{' + str(i) + ':14.8f}'
+                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
 
     # coupling
-    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nums)]
-    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nums)]
+    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
+    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nst)]
     tfile_names[tkeys[2]] = 'coupling'
     dump_header[tkeys[2]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + '\n')
     dump_format[tkeys[2]] = ('{:12.4f}' +
-                             ''.join('{:12.5f}' for i in range(2*nums)) + '\n')
+                             ''.join('{:12.5f}' for i in range(2*nst)) + '\n')
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nums) for j in range(crd_dim)]
+            for i in range(nst) for j in range(crd_dim)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*crd_dim)) + '\n')
+                                     for i in range(nst*crd_dim)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nums) for j in range(i) for k in range(crd_dim)]
-    ncol = int(nums*(nums-1)*crd_dim/2+1)
+            for i in range(nst) for j in range(i) for k in range(crd_dim)]
+    ncol = int(nst*(nst-1)*crd_dim/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{:12.4f}' +
@@ -159,40 +169,31 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nums) for j in range(crd_dim)]
+            for i in range(nst) for j in range(crd_dim)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nums*crd_dim)) + '\n')
+                                     for i in range(nst*crd_dim)) + '\n')
 
     # atomic populations
-    arr1 = ['    st' + str(i) + '_p' + str(j+1)
-            for i in range(nums) for j in range(ncrd)]
+    arr1 = ['    st' + str(i) + '_a' + str(j+1)
+            for i in range(nst) for j in range(ncrd)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{:12.4f}' +
                              ''.join('{:10.5f}'
-                                     for i in range(nums*ncrd)) + '\n')
-
-    # gradients
-    arr1 = ['  grad_part' + str(i+1) + '.' + dstr[j]
-            for i in range(ncrd) for j in range(crd_dim)]
-    tfile_names[tkeys[7]] = 'gradient'
-    dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[7]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
+                                     for i in range(nst*ncrd)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
     # adiabatic state populations
-    arr1 = ['     state.' + str(i) for i in range(nums)]
+    arr1 = ['     state.' + str(i) for i in range(nst)]
     bfile_names[bkeys[0]] = 'n.dat'
     dump_header[bkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              'Norm'.rjust(acc1) + '\n')
     dump_format[bkeys[0]] = ('{:12.4f}' +
-                             ''.join('{:12.6f}' for i in range(nums)) +
+                             ''.join('{:12.6f}' for i in range(nst)) +
                              '{:12.6f}\n')
 
     # the bundle energy
@@ -243,7 +244,7 @@ def init_fms_output():
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
                    ' home_path   = ' + str(home_path) + '\n' +
-                   ' scr_path    = ' + str(scr_path) + '\n')
+                   ' scr_path    = ' + os.uname()[1] + ':' + scr_path + '\n')
         logfile.write(log_str)
 
         log_str = ('\n fms simulation keywords\n' +
@@ -263,22 +264,23 @@ def init_fms_output():
                    ' ***********\n\n')
         logfile.write(log_str)
 
-    log_format['general']     = '   ** {:60s} **\n'
-    log_format['string']      = ' {:160s}\n'
-    log_format['t_step']      = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
-    log_format['coupled']     = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
-    log_format['new_step']    = '   -- error: {:50s} / re-trying with new time step: {:8.4f}\n'
-    log_format['spawn_start'] = ('  -- spawing: trajectory {:4d}, ' +
-                                 'state {:2d} --> state {:2d}\n' +
-                                 'time'.rjust(14) + 'coup'.rjust(10) +
-                                 'overlap'.rjust(10) + '   spawn\n')
-    log_format['spawn_step']  = '{:14.4f}{:10.4f}{:10.4f}   {:40s}\n'
-    log_format['spawn_back']  = '      back propagating:  {:12.2f}\n'
-    log_format['spawn_bad_step']= '       --> could not spawn: {:40s}\n'
-    log_format['spawn_success'] = ' - spawn successful, new trajectory created at {:14.4f}\n'
-    log_format['spawn_failure'] = ' - spawn failed, cannot create new trajectory\n'
-    log_format['complete']      = ' ------- simulation completed --------\n'
-    log_format['timings' ]      = '{}'
+    log_format['general']        = '   ** {:60s} **\n'
+    log_format['string']         = ' {:160s}\n'
+    log_format['t_step']         = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
+    log_format['coupled']        = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
+    log_format['new_step']       = '   -- {:50s} / re-trying with new time step: {:8.4f}\n'
+    log_format['spawn_start']    = ('  -- spawning: trajectory {:4d}, ' +
+                                    'state {:2d} --> state {:2d}\n' +
+                                    'time'.rjust(14) + 'coup'.rjust(10) +
+                                    'overlap'.rjust(10) + '   spawn\n')
+    log_format['spawn_step']     = '{:14.4f}{:10.4f}{:10.4f}   {:40s}\n'
+    log_format['spawn_back']     = '      back propagating:  {:12.2f}\n'
+    log_format['spawn_bad_step'] = '       --> could not spawn: {:40s}\n'
+    log_format['spawn_success']  = ' - spawn successful, new trajectory created at {:14.4f}\n'
+    log_format['spawn_failure']  = ' - spawn failed, cannot create new trajectory\n'
+    log_format['complete']       = ' ------- simulation completed --------\n'
+    log_format['error']          = '\n{}\n ------- simulation terminated  --------\n'
+    log_format['timings' ]       = '{}'
 
     print_level['general']        = 5
     print_level['string']         = 5
@@ -292,14 +294,14 @@ def init_fms_output():
     print_level['spawn_success']  = 1
     print_level['spawn_failure']  = 1
     print_level['complete']       = 0
+    print_level['error']          = 0
     print_level['timings']        = 0
 
 
-def print_traj_row(tid, fkey, data):
+def print_traj_row(label, fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
-    global scr_path, tkeys, tfile_names, dump_header, dump_format
-    filename = scr_path + '/' + tfile_names[tkeys[fkey]] + '.' + str(tid)
+    filename = scr_path + '/' + tfile_names[tkeys[fkey]] + '.' + str(label)
 
     if not os.path.isfile(filename):
         with open(filename, 'x') as outfile:
@@ -320,14 +322,16 @@ def update_logs(bundle):
     mod_t = bundle.time % dt
 
     # this. is. ugly.
-    return (mod_t < 0.0001*dt or mod_t > 0.999*dt)
+    return mod_t < 0.0001*dt or mod_t > 0.999*dt
 
 
 def print_bund_row(fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
-    global scr_path, bkeys, bfile_names, dump_header, dump_format
     filename = scr_path + '/' + bfile_names[bkeys[fkey]]
+
+    if glbl.mpi_rank !=0:
+        return
 
     if not os.path.isfile(filename):
         with open(filename, 'x') as outfile:
@@ -340,7 +344,6 @@ def print_bund_row(fkey, data):
 
 def print_bund_mat(time, fname, mat):
     """Prints a matrix to file with a time label."""
-    global scr_path
     filename = scr_path + '/' + fname
 
     with open(filename, 'a') as outfile:
@@ -350,7 +353,8 @@ def print_bund_mat(time, fname, mat):
 
 def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
-    global log_format, print_level
+    if glbl.mpi_rank != 0:
+        return
 
     if otype not in log_format:
         print('CANNOT WRITE otype=' + str(otype) + '\n')
@@ -367,15 +371,16 @@ def print_fms_logfile(otype, data):
 #----------------------------------------------------------------------------
 def read_geometry():
     """Reads position and momenta from geometry.dat."""
-    global home_path
+    state_data = []
     amp_data   = []
     geom_data  = []
     mom_data   = []
     width_data = []
     label_data = []
     mass_data  = []
+    mass_conv  = 1.
 
-    with open(home_path + '/geometry.dat', 'r', encoding='utf-8') as gfile:
+    with open(home_path + '/geometry.dat', 'r') as gfile:
         gm_file = gfile.readlines()
 
     not_done = True
@@ -383,14 +388,12 @@ def read_geometry():
     while not_done:
         # comment line -- if keyword "amplitude" is present, set amplitude
         lcnt += 1
-        line = [x.strip().lower() for x in re.split('\W+', gm_file[lcnt])]
+        line = [x.strip().lower() for x in gm_file[lcnt].split()]
         if 'amplitude' in line:
             ind = line.index('amplitude')
             amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
         else:
             amp_data.append(1 + 0j)
-
-        print("amp_data=",amp_data)
 
         # number of atoms/coordinates
         lcnt += 1
@@ -399,29 +402,31 @@ def read_geometry():
         # read in geometry
         for i in range(nq):
             lcnt += 1
-            geom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                      for j in range(1,len(gm_file[lcnt].rstrip().split()))])
-            crd_dim = len(gm_file[lcnt].rstrip().split()[1:])
-            label_data.extend([gm_file[lcnt].lstrip().rstrip().split()[0]
+            geom_data.extend([float(gm_file[lcnt].split()[j])
+                      for j in range(1,len(gm_file[lcnt].split()))])
+            crd_dim = len(gm_file[lcnt].split()[1:])
+            label_data.extend([gm_file[lcnt].split()[0]
                        for i in range(crd_dim)])
+            # if in cartesians, assume mass given in amu, convert to au
+            if crd_dim == 3:
+                mass_conv = 1 * glbl.mass2au
 
         # read in momenta
         for i in range(nq):
             lcnt += 1
-            mom_data.extend([float(gm_file[lcnt].rstrip().split()[j])
-                       for j in range(len(gm_file[lcnt].rstrip().split()))])
+            mom_data.extend([float(gm_file[lcnt].split()[j])
+                       for j in range(len(gm_file[lcnt].split()))])
 
         # read in widths, if present
         if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                width_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                width_data.extend([float(gm_file[lcnt].split()[j])
                                for j in range(1,len(gm_file[lcnt].split()))])
         else:
-            labels = label_data[-nq * crd_dim]
-            for lbl in labels:
+            for lbl in label_data:
                 if atom_lib.valid_atom(lbl):
-                    adata = atom_data(lbl)
+                    adata = atom_lib.atom_data(lbl)
                     width_data.extend([float(adata[0])])
                 else:
                     width_data.extend([0.])
@@ -430,30 +435,34 @@ def read_geometry():
         if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
             for i in range(nq):
                 lcnt += 1
-                mass_data.extend([float(gm_file[lcnt].rstrip().split()[j])
+                mass_data.extend([float(gm_file[lcnt].split()[j]) * mass_conv
                                for j in range(1,len(gm_file[lcnt].split()))])
         else:
-            labels = label_data[-nq * crd_dim]
-            for lbl in labels:
+            for lbl in label_data:
                 if atom_lib.valid_atom(lbl):
-                    adata = atom_data(lbl)
-                    mass_data.extend([float(adata[1])])
+                    adata = atom_lib.atom_data(lbl)
+                    mass_data.extend([float(adata[1]) * mass_conv])
                 else:
                     mass_data.extend([1.])
+
+        # read in state, if present
+        if (lcnt+1) < len(gm_file) and 'state' in gm_file[lcnt+1]:
+            lcnt += 1
+            state_data.append(int(gm_file[lcnt].split()[1]))
+        else:
+            state_data.append(int(-1))
 
         # check if we've reached the end of the file
         if (lcnt+1) == len(gm_file):
             not_done = False
 
     return (nq, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data)
+            geom_data, mom_data, width_data, mass_data, state_data)
+
 
 def read_hessian():
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
-    global home_path
-
-    hessian = np.loadtxt(home_path + '/hessian.dat', dtype=float)
-    return hessian
+    return np.loadtxt(home_path + '/hessian.dat', dtype=float)
 
 
 #----------------------------------------------------------------------------
@@ -461,39 +470,56 @@ def read_hessian():
 # FMS summary output file
 #
 #----------------------------------------------------------------------------
-def cleanup():
+def cleanup(exception=None):
     """Cleans up the FMS log file."""
-    global home_path, scr_path
+    if glbl.mpi_rank == 0:
+        # simulation ended
+        if exception is None:
+            print_fms_logfile('complete', [])
+        else:
+            print_fms_logfile('error', [rm_timer(exception)])
+            for timer in timings.active_stack[:0:-1]:
+                timings.stop(timer.name)
 
-    # simulation complete
-    print_fms_logfile('complete', [])
+        # print timing information
+        timings.stop('global', cumulative=True)
+        t_table = timings.print_timings()
+        print_fms_logfile('timings', [t_table])
 
-    # print timing information
-    timings.stop('global', cumulative=True)
-    t_table = timings.print_timings()
-    print_fms_logfile('timings', [t_table])
+        # move trajectory summary files to an output directory in the home area
+        odir = home_path + '/output'
+        if os.path.exists(odir):
+            shutil.rmtree(odir)
+        os.makedirs(odir)
 
-    # move trajectory summary files to an output directory in the home area
-    odir = home_path + '/output'
-    if os.path.exists(odir):
-        shutil.rmtree(odir)
-    os.makedirs(odir)
+        # move trajectory files
+        for key, fname in tfile_names.items():
+            for tfile in glob.glob(scr_path + '/' + fname + '.*'):
+                if not os.path.isdir(tfile):
+                    shutil.move(tfile, odir)
 
-    # move trajectory files
-    for key, fname in tfile_names.items():
-        for tfile in glob.glob(scr_path + '/' + fname + '.*'):
-            if not os.path.isdir(tfile):
-                shutil.move(tfile, odir)
+        # move bundle files
+        for key, fname in bfile_names.items():
+            try:
+                shutil.move(scr_path + '/' + fname, odir)
+            except IOError:
+                pass
 
-    # move bundle files
-    for key, fname in bfile_names.items():
+        # move chkpt file
         try:
-            shutil.move(scr_path + '/' + fname, odir)
+            shutil.move(scr_path + '/last_step.dat', odir)
         except IOError:
             pass
 
-    # move chkpt file
-    try:
-        shutil.move(scr_path + '/last_step.dat', odir)
-    except IOError:
-        pass
+
+def rm_timer(exc):
+    """Removes the timer lines from an Exception traceback."""
+    tb = exc.split('\n')
+    regex = re.compile('.*timings\.py.*in (hooked|_run_func)')
+    i = 0
+    while i < len(tb):
+        if re.match(regex, tb[i]):
+            tb = tb[:i] + tb[i+2:]
+        else:
+            i += 1
+    return '\n'.join(tb)

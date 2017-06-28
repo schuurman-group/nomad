@@ -52,6 +52,8 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
     Sdot    = np.zeros((n_alive, n_alive), dtype=complex)
     Heff    = np.zeros((n_alive, n_alive), dtype=complex)
     t_ovrlp = np.zeros((n_alive, n_alive), dtype=complex)
+    sig     = np.zeros((n_alive, n_alive), dtype=complex)
+    tau     = np.zeros((n_alive, n_alive), dtype=complex)
 
     # now evaluate the hamiltonian matrix
     for ij in range(n_elem):
@@ -63,12 +65,17 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         ii = traj_alive[i]
         jj = traj_alive[j]
 
+#        print("hmat="+str(ii)+' '+str(traj_list[ii].pes_data.diabat_pot))
+#        print("theta="+str(ii)+' '+str(jj)+' '+str(ints.theta(traj_list[ii]))+' '+str(ints.theta(traj_list[jj])))
+#        print("eovr="+str(ii)+' '+str(jj)+' '+str(ints.elec_overlap(traj_list[ii],traj_list[jj])))
+
         # compute overlap of trajectories (different from S, which may or may
         # not involve integration in a gaussian basis
         t_ovrlp[i,j] = ints.traj_overlap(traj_list[ii],traj_list[jj])
 
         # overlap matrix (excluding electronic component)
         Snuc      = ints.s_integral(traj_list[ii],traj_list[jj],nuc_only=True)
+#        print("novr="+str(ii)+' '+str(jj)+' '+str(Snuc))
 
         # overlap matrix (including electronic component)
         S[i,j]    = ints.s_integral(traj_list[ii],traj_list[jj],Snuc=Snuc)
@@ -76,6 +83,11 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         # time-derivative of the overlap matrix (not hermitian in general)
         Sdot[i,j] = ints.sdot_integral(traj_list[ii], 
                                        traj_list[jj], Snuc=Snuc)
+
+        sig[i,j]     = ints.sdot_integral(traj_list[ii],
+                                          traj_list[jj], Snuc=Snuc,e_only=True)
+        tau[i,j]     = ints.sdot_integral(traj_list[ii],
+                                          traj_list[jj], Snuc=Snuc,nuc_only=True)
 
         # kinetic energy matrix
         T[i,j]    = ints.ke_integral(traj_list[ii], 
@@ -99,6 +111,11 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
             t_ovrlp[j,i] = t_ovrlp[i,j].conjugate()
             Sdot[j,i]    = ints.sdot_integral(traj_list[jj],
                                               traj_list[ii], Snuc=Snuc)
+            sig[j,i]     = ints.sdot_integral(traj_list[jj],
+                                              traj_list[ii], Snuc=Snuc,e_only=True)
+            tau[j,i]     = ints.sdot_integral(traj_list[jj],
+                                              traj_list[ii], Snuc=Snuc,nuc_only=True)
+
             T[j,i]       = T[i,j].conjugate()
             V[j,i]       = V[i,j].conjugate()
             H[j,i]       = H[i,j].conjugate()
@@ -115,5 +132,9 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         timings.stop('hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
+
+    sig[abs(sig)< 1e-10]=0
+    print("sig="+str(sig))
+#    print("tau="+str(tau))
 
     return t_ovrlp, T, V, S, Sdot, Heff

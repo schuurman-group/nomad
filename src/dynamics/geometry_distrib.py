@@ -8,27 +8,36 @@ import src.basis.trajectory as trajectory
 def sample_distribution(master):
     """Takes initial position and momentum from geometry.dat file."""
     (ncrd, crd_dim, amps, label, 
-                 geoms, moms, width, mass) = fileio.read_geometry()
+                 geoms, moms, width, mass, states) = fileio.read_geometry()
     ngeoms  = len(amps)
     ndim    = int(len(geoms) / ngeoms)
+    state_set = True
 
+    print("states="+str(states))
     for i in range(ngeoms):
-        
-        # add a single trajectory specified by geometry.dat
-        master.add_trajectory(trajectory.Trajectory(
-                                     glbl.fms['n_states'],
+       
+        itraj = trajectory.Trajectory(glbl.fms['n_states'],
                                      ndim,
                                      width=width[i*ndim:(i+1)*ndim],
                                      mass=mass[i*ndim:(i+1)*ndim],
                                      crd_dim=crd_dim,
-                                     parent=0))
+                                     parent=0)
 
         # set position and momentum
-        master.traj[i].update_x(geoms[i*ndim:(i+1)*ndim])
-        master.traj[i].update_p(moms[i*ndim:(i+1)*ndim])    
+        itraj.update_x(geoms[i*ndim:(i+1)*ndim])
+        itraj.update_p(moms[i*ndim:(i+1)*ndim])
 
-        # and initial amplitude
-        master.traj[i].amplitude = amps[i]
+        # set the initial amplitude
+        itraj.update_amplitude(complex(amps[i]))
 
-    # state of trajectory not set, return false
-    return False
+        # set the initial state
+        if states[i] != -1:
+            itraj.state = int(states[i])
+        else:
+            state_set = False
+
+        # add a single trajectory specified by geometry.dat
+        master.add_trajectory(itraj)
+
+    # if all states aren't set, return False
+    return state_set

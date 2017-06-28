@@ -17,8 +17,9 @@ data_cache = dict()
 
 class Surface:
     """Object containing potential energy surface data."""
-    def __init__(self, n_states, t_dim, crd_dim):
+    def __init__(self, tag, n_states, t_dim, crd_dim):
         # necessary for array allocation
+        self.tag      = tag
         self.n_states = n_states
         self.t_dim    = t_dim
         self.crd_dim  = crd_dim
@@ -39,33 +40,24 @@ class Surface:
         self.adiabat_pot   = np.zeros(n_states)
         self.adiabat_deriv = np.zeros((t_dim, n_states))
 
+    def copy(self):
+        """Creates a copy of a Surface object."""
+        new_info = Surface(self.tag, self.n_states, self.t_dim, self.crd_dim)
 
-def copy_surface(orig_info):
-    """Creates a copy of a Surface object."""
-    if orig_info is None:
-        return None
-    elif not isinstance(orig_info, Surface):
-        raise TypeError('copy_surface can only be used to copy objects of '
-                        '\'Surface\' type')
+        new_info.data_keys     = copy.copy(self.data_keys)
+        new_info.geom          = copy.deepcopy(self.geom)
+        new_info.potential     = copy.deepcopy(self.potential)
+        new_info.deriv         = copy.deepcopy(self.deriv)
 
-    new_info = Surface(orig_info.n_states,
-                       orig_info.t_dim,
-                       orig_info.crd_dim)
-
-    new_info.data_keys     = copy.copy(orig_info.data_keys)
-    new_info.geom          = copy.deepcopy(orig_info.geom)
-    new_info.potential     = copy.deepcopy(orig_info.potential)
-    new_info.deriv         = copy.deepcopy(orig_info.deriv)
-
-    new_info.scalar_coup   = copy.deepcopy(orig_info.scalar_coup)
-    new_info.adt_mat       = copy.deepcopy(orig_info.adt_mat)
-    new_info.dat_mat       = copy.deepcopy(orig_info.dat_mat)
-    new_info.ddat_mat      = copy.deepcopy(orig_info.ddat_mat)
-    new_info.diabat_pot    = copy.deepcopy(orig_info.diabat_pot)
-    new_info.diabat_deriv  = copy.deepcopy(orig_info.diabat_deriv)
-    new_info.adiabat_pot   = copy.deepcopy(orig_info.adiabat_pot)
-    new_info.adiabat_deriv = copy.deepcopy(orig_info.adiabat_deriv)
-    return new_info
+        new_info.scalar_coup   = copy.deepcopy(self.scalar_coup)
+        new_info.adt_mat       = copy.deepcopy(self.adt_mat)
+        new_info.dat_mat       = copy.deepcopy(self.dat_mat)
+        new_info.ddat_mat      = copy.deepcopy(self.ddat_mat)
+        new_info.diabat_pot    = copy.deepcopy(self.diabat_pot)
+        new_info.diabat_deriv  = copy.deepcopy(self.diabat_deriv)
+        new_info.adiabat_pot   = copy.deepcopy(self.adiabat_pot)
+        new_info.adiabat_deriv = copy.deepcopy(self.adiabat_deriv)
+        return new_info
 
 
 class VibHam:
@@ -229,15 +221,18 @@ def init_interface():
         fileio.print_fms_logfile('string', [string])
 
 
-def evaluate_trajectory(tid, geom, stateindx):
+def evaluate_trajectory(traj):
     """Evaluates the trajectory."""
     global data_cache
+
+    label = traj.label
+    geom  = traj.x()
 
     # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
 
     # Calculation of the adiabatic potential vector and ADT matrix
-    adiabpot, adtmat = calc_adt(tid, diabpot)
+    adiabpot, adtmat = calc_adt(label, diabpot)
 
     # Calculation of the nuclear derivatives of the diabatic potential
     diabderiv1 = calc_diabderiv1(geom)
@@ -259,7 +254,7 @@ def evaluate_trajectory(tid, geom, stateindx):
     sctmat, dbocderiv1 = calc_scts(adiabpot, adtmat, diabderiv1,
                                    nactmat, adiabderiv1, diablap)
 
-    t_data = Surface(nsta, ham.nmode_active, 1)
+    t_data = Surface(label, nsta, ham.nmode_active, 1)
     t_data.geom      = geom
     t_data.potential = adiabpot
     t_data.deriv = [np.diag(adiabderiv1[m]) for m in
@@ -267,7 +262,7 @@ def evaluate_trajectory(tid, geom, stateindx):
 
     t_data.scalar_coup   = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.adt_mat       = adtmat
-    t_data.dat_mat       = sp_linalg.inv(adtmat)
+    t_data.dat_mat       = sp_linalg.pinv(adtmat)
     #t_data.ddat_mat      = ddat2
     t_data.diabat_pot    = diabpot
     t_data.diabat_deriv  = diabderiv1
@@ -278,16 +273,15 @@ def evaluate_trajectory(tid, geom, stateindx):
                             'diabat_pot','diabat_deriv',
                             'adiabat_pot','adiabat_deriv']
 
-    data_cache[tid] = t_data
+    data_cache[label] = t_data
     return t_data
 
-
-def evaluate_centroid(tid, geom, stateindices):
+def evaluate_centroid(traj):
     """Evaluates the centroid.
 
     At the moment, this function is just evaluate_trajectory.
     """
-    return evaluate_trajectory(tid, geom, stateindices[0])
+    return evaluate_trajectory(traj)
 
 
 #----------------------------------------------------------------------
@@ -381,14 +375,14 @@ def calc_diabpot(q):
     return diabpot
 
 
-def calc_adt(tid, diabpot):
+def calc_adt(label, diabpot):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
     adiabpot, adtmat = sp_linalg.eigh(diabpot)
 
-    if tid in data_cache:
+    if label in data_cache:
         # Ensure phase continuity from geometry to another
-        adtmat *= np.sign(np.dot(adtmat.T, data_cache[tid].adt_mat).diagonal())
+        adtmat *= np.sign(np.dot(adtmat.T, data_cache[label].adt_mat).diagonal())
     else:
         # Set phase convention that the greatest abs element in adt column
         # vector is positive

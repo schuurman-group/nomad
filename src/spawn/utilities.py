@@ -1,76 +1,11 @@
 """
 General routines for all spawning algorithms.
 """
+import sys as sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-import src.basis.trajectory as trajectory
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
-
-
-def fms_step_trajectory(traj, init_time, dt):
-    """Propagates a single trajectory.
-
-    Used to backward/forward propagate a trajectory during spawning.
-    NOTE: fms_step_bundle and fms_step_trajectory could/should probably
-    be integrated somehow...
-    """
-    integrator = __import__('src.propagators.' + glbl.fms['propagator'],
-                            fromlist=['a'])
-
-    current_time = init_time
-    end_time     = init_time + dt
-    time_step    = dt
-    min_time_step = dt / 2.**5
-
-    while current_time < end_time:
-        # save the bundle from previous step in case step rejected
-        traj0 = trajectory.copy_traj(traj)
-
-        # propagate single trajectory
-        integrator.propagate_trajectory(traj, time_step)
-
-        # update current time
-        proposed_time = current_time + time_step
-
-        # check time_step is fine, energy/amplitude conserved
-        accept = check_step_trajectory(traj0, traj)
-
-        # if everything is ok..
-        if accept:
-            current_time = proposed_time
-        else:
-            # redo time step
-            # recall -- this time trying to propagate
-            # to the failed step
-            time_step  = 0.5 * time_step
-
-            if  time_step < min_time_step:
-                fileio.print_fms_logfile('general',
-                                         ['minimum time step exceeded -- STOPPING.'])
-                raise ValueError('fms_step_trajectory')
-
-            # reset the beginning of the time step
-            traj = trajectory.copy_traj(traj0)
-            # go back to the beginning of the while loop
-            continue
-
-
-# check if we should reject a macro step because we're in a coupling region
-#
-def check_step_trajectory(traj0, traj):
-    """Checks if we should reject a macro step because we're in a
-    coupling region.
-
-    ... or energy conservation
-    Only need to check traj which exist in master0. If spawned, will be
-    last entry(ies) in master.
-    """
-    energy_old = traj0.classical()
-    energy_new = traj.classical()
-
-    # If we pass all the tests, return 'success'
-    return not abs(energy_old - energy_new) > glbl.fms['energy_jump_toler']
 
 
 def adjust_child(parent, child, scale_dir):
@@ -105,14 +40,14 @@ def adjust_child(parent, child, scale_dir):
     p_perp = p_child - p_para
 
     # the kinetic energy is given by:
-    # KE = (P . P) * kecoeff
-    #    = (p_para + p_perp).(p_para + p_perp) * kecoeff
-    #    = (p_para.p_para)*kecoeff + (p_para.p_perp)*2*kecoeff + (p_perp.p_perp)*kecoeff
-    #    = KE_para_para + KE_para_perp + KE_perp_perp
-    kecoeff=child.interface.kecoeff
-    ke_para_para = np.dot( p_para, p_para * kecoeff )
-    ke_para_perp = np.dot( p_para, p_perp * kecoeff )
-    ke_perp_perp = np.dot( p_perp, p_perp * kecoeff )
+    # KE = (P . P) * / (2M)
+    #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M)
+    #    = x^2 * (p_para.p_para) / 2M + 2.*x*(p_para.p_perp) / 2M + (p_perp.p_perp) / 2M
+    #    = x^2 * KE_para_para + x * KE_para_perp + KE_perp_perp
+    inv_mass     = 1. / (2. * child.masses())
+    ke_para_para =     np.dot( p_para, p_para * inv_mass )
+    ke_para_perp = 2.* np.dot( p_para, p_perp * inv_mass )
+    ke_perp_perp =     np.dot( p_perp, p_perp * inv_mass )
 
     # scale p_para by x so that KE == ke_goal
     # (ke_para_para)*x^2 + (ke_para_perp)*x + (ke_perp_perp - ke_goal) = 0
@@ -135,6 +70,7 @@ def adjust_child(parent, child, scale_dir):
     p_new = x*p_para + p_perp
 
     child.update_p(p_new)
+
     return True
 
 
@@ -157,11 +93,28 @@ def overlap_with_bundle(traj, bundle):
     return t_overlap_bundle
 
 
+def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
+    """return the maximum overlap between the nuclear component of
+       traj_i, and other trajectories in the bundle. If overlap_state
+       is specified, only consider overlap with trajectories on state
+       overlap_state"""
+
+    max_sij = 0.
+    for j in range(bundle.n_traj()):
+        if bundle.traj[j].alive and j != overlap_traj:
+            if overlap_state is None or bundle.traj[j].state == overlap_state:
+                max_sij = max(max_sij, abs(integrals.traj_overlap(
+                                                 bundle.traj[overlap_traj],
+                                                 bundle.traj[j], nuc_only=True)))
+
+    return max_sij
+
+
 def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     """Packages data to print to the spawn log."""
     # add a line entry to the spawn log
     data = [entry_time, spawn_time, exit_time]
-    data.extend([parent.tid, parent.state, child.tid, child.state])
+    data.extend([parent.label, parent.state, child.label, child.state])
     data.extend([parent.kinetic(), child.kinetic(), parent.potential(),
                  child.potential()])
     data.extend([parent.classical(), child.classical()])

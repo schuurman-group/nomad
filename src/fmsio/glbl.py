@@ -1,4 +1,4 @@
-"""
+""":
 Conversion factors and constants for FMSpy.
 """
 # convert fs to au
@@ -13,10 +13,16 @@ au2ev    = 27.21138505
 au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
-# spark context
-sc       = None
+
+
 # t=0 bundle
 bundle0  = None
+
+# MPI variables
+mpi_parallel = False
+mpi_comm     = None
+mpi_rank     = None
+mpi_nproc    = 1
 
 # Simulation parameters read from the fms.input file
 fms = dict(
@@ -33,7 +39,7 @@ fms = dict(
     n_states               = 1,
     init_state             = 1,
     init_brightest         = False,
-    restart_time           = 0.,
+    restart_time           = -1,
     propagator             = 'velocity_verlet',
     spawn_pop_thresh       = 0.025,
     spawn_coup_thresh      = 0.02,
@@ -45,6 +51,7 @@ fms = dict(
     continuous_min_overlap = 0.5,
     sij_thresh             = 1.e-5,
     hij_coup_thresh        = 0.001,
+    norm_thresh            = 10.,
     print_traj             = True,
     print_es               = True,
     print_matrices         = True,
@@ -59,9 +66,8 @@ fms = dict(
     sinv_thrsh             = -1.0,
     sampling_compression   = 1.0,
     matching_pursuit       = False,
-# MSS -- can be 'adiabatic','diabatic','crude_adiabatic'
     representation         = 'adiabatic'
-    )
+           )
 
 # Electronic structure information read from interface-specific
 # routines
@@ -70,15 +76,16 @@ fms = dict(
 columbus = dict(
     # memory per core in MB
     mem_per_core = 100,
-    )
+    coup_de_thresh = 100.
+                )
 
 # Vibronic multistate representation, loaded by operator parsing
 # function
 vibronic = dict(
     # highest polynomial order in vibronic expansion
     ordr_max = 1,
-    )
+                )
 
 boson = dict(
     coupling = 0.09
-    )
+             )

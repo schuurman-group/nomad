@@ -5,6 +5,10 @@ basis function, assumes bra is also product of frozen gaussians
 import operator, functools
 import numpy as np
 
+print('WARNING: Using uncompiled Python module for Gaussian integrals. '
+      'For optimal performance, compile Cython module using '
+      '\'python setup.py build_ext --inplace\'.')
+
 #@timings.timed
 def overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2):
     """Returns overlap of the nuclear component between two trajectories."""
@@ -15,7 +19,7 @@ def overlap(gamma1, a1, x1, p1, gamma2, a2, x2, p2):
     x_center  = (a1 * x1 + a2 * x2) / (a1 + a2)
     real_part = (a1*a2*dx**2 + 0.25*dp**2) / (a1 + a2)
     imag_part = (p1 * x1 - p2 * x2) - x_center * dp
-    S *= (functools.reduce(operator.mul,prefactor) * 
+    S *= (functools.reduce(operator.mul,prefactor) *
          np.exp(sum(-real_part + 1j*imag_part)))
     return S
 
@@ -55,7 +59,7 @@ def deld2x(S, gamma1, a1, x1, p1, gamma2, a2, x2, p2):
 
 def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
     """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
-     -- up to an overlap integral -- 
+     -- up to an overlap integral --
     """
     # since range(N) runs up to N-1, add "1" to result of floor
     n_2 = int(np.floor(0.5 * N) + 1)
@@ -72,4 +76,3 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
 
     # refer to appendix for derivation of these relations
     return v_int * np.math.factorial(N) / 2.**N
-

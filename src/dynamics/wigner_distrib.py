@@ -7,6 +7,7 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
+import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
 integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
@@ -27,7 +28,7 @@ def sample_distribution(master):
 
     # Read the geometry.dat file
     (ncrd, crd_dim, amps, lbls,
-     geoms, moms, width, mass) = fileio.read_geometry()
+     geoms, moms, width, mass, states) = fileio.read_geometry()
 
     # if multiple geometries in geometry.dat -- just take the first one
     ndim = int(len(geoms)/len(amps))
@@ -46,6 +47,9 @@ def sample_distribution(master):
                                         parent=0)
     origin_traj.update_x(geom_ref)
     origin_traj.update_p(mom_ref)
+    # if we need pes data to evaluate overlaps, determine that now
+    if integrals.overlap_requires_pes:
+        surface.update_pes_traj(origin_traj)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
@@ -60,12 +64,9 @@ def sample_distribution(master):
         freq_list = []
         mode_list = []
         for i in range(len(evals)):
-            if evals[i] < 0:
-                continue
-            if np.sqrt(evals[i]) < f_cutoff:
-                continue
-            freq_list.append(np.sqrt(evals[i]))
-            mode_list.append(evecs[:,i].tolist())
+            if evals[i] >= 0 and np.sqrt(evals[i]) >= f_cutoff:
+                freq_list.append(np.sqrt(evals[i]))
+                mode_list.append(evecs[:,i].tolist())
         n_modes = len(freq_list)
         freqs = np.asarray(freq_list)
         modes = np.asarray(mode_list).transpose()
@@ -132,9 +133,13 @@ def sample_distribution(master):
         p_sample = mom_ref  + disp_p
 
         # add new trajectory to the bundle
-        new_traj = trajectory.copy_traj(origin_traj)
+        new_traj = origin_traj.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
+
+        # if we need pes data to evaluate overlaps, determine that now
+        if integrals.overlap_requires_pes:
+            surface.update_pes_traj(new_traj)
 
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
@@ -150,7 +155,7 @@ def sample_distribution(master):
             smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
             if i != j:
                 smat[j,i] = smat[i,j].conjugate()
-    print(smat)
+    #print(smat)
     sinv = sp_linalg.pinvh(smat)
     cvec = np.dot(sinv, ovec)
     for i in range(ntraj):

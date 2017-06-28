@@ -5,6 +5,9 @@ import math
 import numpy as np
 import src.integrals.nuclear_gaussian as nuclear
 
+# Let FMS know if overlap matrix elements require PES info
+overlap_requires_pes = False
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
@@ -22,69 +25,73 @@ def traj_overlap(traj1, traj2, nuc_only=False, Snuc=None):
     return s_integral(traj1, traj2, nuc_only, Snuc)
 
 # returns total overlap of trajectory basis function
-def s_integral(traj1, traj2):
+def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if traj1.state != traj2.state and not nuc_only:
-        return 0j
+        return complex(0.,0.)
+
     else:
         if Snuc is None:
             return nuclear.overlap(traj1, traj2)
         else:
             return Snuc
 
+#
 def v_integral(traj1, traj2, centroid=None, Snuc=None):
-    """Returns potential coupling matrix element between two trajectories.
+    """Returns potential coupling matrix element between two trajectories."""
+    # evaluate just the nuclear component (for re-use)
+    if Snuc is None:
+        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-    This will depend on how the operator is stored, and
-    what type of coordinates are employed, etc.
-    """
-    pass
+    states = np.sort(np.array([traj1.state, traj2.state]))
+    v_total = complex(0.,0.)
 
+    # roll through terms in the hamiltonian
+    for i in range(ham.nterms):
 
-def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
-    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+        if states == ham.stalbl[i,:]-1: 
+            # adiabatic states in diabatic basis -- cross terms between orthogonal
+            # diabatic states are zero
+            v_term = complex(1.,0.) * ham.coe[i]
+            for q in range(ham.nmode_active):
+                if ham.order[i,q] > 0:
+                    v_term *=  nuclear.prim_v_integral(ham.order[i,q],
+                               traj1.widths()[q],traj1.x()[q],traj1.p()[q],
+                               traj2.widths()[q],traj2.x()[q],traj2.p()[q])
 
-    Takes the arguments as particles.
-    """
-    n_2 = np.floor(0.5 * N)
-    a   = p1.width + p2.width
-    b   = np.fromiter((complex(2.*(a1*x1 + a2*x2),-(p1-p2)) 
-                                         for i in range(1)),dtype=complex)
+            v_total += v_term
 
-    # generally these should be 1D harmonic oscillators. If
-    # multi-dimensional, the final result is a direct product of
-    # each dimension
-    v_total  = 1 + 0j
-    for d in range(1):
-        v = 0j
-        for i in range(n_2):
-            v += (v + a**(i-N) * b**(N-2*i) /
-                 (np.math.factorial(i) * np.math.factorial(N-2*i)))
-        v_total = v_total * v
-
-    # refer to appendix for derivation of these relations
-    return v_total * np.math.factorial(N) / 2.**N
+    return v_total * Snuc 
 
 
 def ke_integral(traj1, traj2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     if traj1.state != traj2.state:
         return 0j
+
     else:
+
         if Snuc is None:
             Snuc = nuclear.overlap(traj1, traj2)
-        ke = nuclear.deld2x(traj1,traj2, S=Snuc)
+
+        ke = nuclear.deld2x(traj1, traj2, S=Snuc)
+
         return -sum( ke * interface.kecoeff)
 
 def sdot_integral(traj1, traj2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if traj1.state != traj2.state:
-        return 0j
+        return complex(0.,0.)
+
     else:
+
         if Snuc is None:
             Snuc = nuclear.overlap(traj1, traj2)
+
         sdot = (-np.dot( traj2.velocity(), nuclear.deldx(traj1,traj2,S=Snuc) )+
                  np.dot( traj2.force(),    nuclear.deldp(traj1,traj2,S=Snuc) )+
                  1.j * traj2.phase_dot() * Snuc)
+
         return sdot

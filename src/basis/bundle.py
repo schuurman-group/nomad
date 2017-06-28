@@ -12,41 +12,6 @@ from src.basis import trajectory as trajectory
 from src.basis import centroid as centroid
 from src.basis import hamiltonian as fms_ham
 
-@timings.timed
-def copy_bundle(orig_bundle):
-    """Copys a Bundle object with new references.
-
-    This method is the simplest way i can see to make a copy
-    of a bundle with new references. Overriding deepcopy for
-    significantly more work.
-    """
-    new_bundle = Bundle(orig_bundle.nstates,
-                        orig_bundle.integral_type)
-    new_bundle.time   = copy.copy(orig_bundle.time)
-    new_bundle.nalive = copy.copy(orig_bundle.nalive)
-    new_bundle.ndead  = copy.copy(orig_bundle.ndead)
-    new_bundle.alive  = copy.deepcopy(orig_bundle.alive)
-    new_bundle.T      = copy.deepcopy(orig_bundle.T)
-    new_bundle.V      = copy.deepcopy(orig_bundle.V)
-    new_bundle.S      = copy.deepcopy(orig_bundle.S)
-    new_bundle.Sdot   = copy.deepcopy(orig_bundle.Sdot)
-    new_bundle.Heff   = copy.deepcopy(orig_bundle.Heff)
-    new_bundle.traj_ovrlp = copy.deepcopy(orig_bundle.traj_ovrlp)
-
-    # copy the trajectory array
-    for i in range(orig_bundle.n_traj()):
-        traj_i = trajectory.copy_traj(orig_bundle.traj[i])
-        new_bundle.traj.append(traj_i)
-
-    # copy the centroid matrix
-    if new_bundle.integrals.require_centroids:
-        for i in range(len(orig_bundle.cent)):
-            new_bundle.cent.append([None for j in range(orig_bundle.n_traj())])
-            for j in range(i):
-                new_bundle.cent[i][j] = centroid.copy_cent(orig_bundle.cent[i][j])
-                new_bundle.cent[j][i] = centroid.copy_cent(orig_bundle.cent[j][i])
-
-    return new_bundle
 
 class Bundle:
     """Class constructor for the Bundle object."""
@@ -73,6 +38,41 @@ class Bundle:
         except ImportError:
             print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
 
+    @timings.timed
+    def copy(self):
+        """Copys a Bundle object with new references.
+
+        This method is the simplest way i can see to make a copy
+        of a bundle with new references. Overriding deepcopy for
+        significantly more work.
+        """
+        new_bundle = Bundle(self.nstates, self.integral_type)
+        new_bundle.time   = copy.copy(self.time)
+        new_bundle.nalive = copy.copy(self.nalive)
+        new_bundle.ndead  = copy.copy(self.ndead)
+        new_bundle.alive  = copy.deepcopy(self.alive)
+        new_bundle.T      = copy.deepcopy(self.T)
+        new_bundle.V      = copy.deepcopy(self.V)
+        new_bundle.S      = copy.deepcopy(self.S)
+        new_bundle.Sdot   = copy.deepcopy(self.Sdot)
+        new_bundle.Heff   = copy.deepcopy(self.Heff)
+        new_bundle.traj_ovrlp = copy.deepcopy(self.traj_ovrlp)
+
+        # copy the trajectory array
+        for i in range(self.n_traj()):
+            traj_i = self.traj[i].copy()
+            new_bundle.traj.append(traj_i)
+
+        # copy the centroid matrix
+        if new_bundle.integrals.require_centroids:
+            for i in range(len(self.cent)):
+                new_bundle.cent.append([None for j in range(self.n_traj())])
+                for j in range(i):
+                    new_bundle.cent[i][j] = self.cent[i][j].copy()
+                    new_bundle.cent[j][i] = self.cent[j][i].copy()
+
+        return new_bundle
+
     def n_traj(self):
         """Returns total number of trajectories."""
         return self.nalive + self.ndead
@@ -80,48 +80,53 @@ class Bundle:
     @timings.timed
     def add_trajectory(self, new_traj):
         """Adds a trajectory to the bundle."""
-        self.traj.append(new_traj)
         self.nalive         += 1
         self.nactive        += 1
-        self.traj[-1].alive  = True
-        self.traj[-1].active = True
-        self.traj[-1].tid    = self.n_traj() - 1
-        self.alive.append(self.traj[-1].tid)
-        self.active.append(self.traj[-1].tid)
+        new_traj.alive       = True
+        new_traj.active      = True
+        new_traj.label       = self.n_traj() - 1
+        self.alive.append(new_traj.label)
+        self.active.append(new_traj.label)
+        self.traj.append(new_traj)
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        if self.integrals.require_centroids:
+            self.create_centroids()
 
     def add_trajectories(self, traj_list):
         """Adds a set of trajectories to the bundle."""
-        for traj in traj_list:
-            self.traj.append(traj)
+        for new_traj in traj_list:
             self.nalive         += 1
             self.nactive        += 1
-            self.traj[-1].alive  = True
-            self.traj[-1].active = True
-            self.traj[-1].tid    = self.n_traj() - 1
-            self.alive.append(self.traj[-1].tid)
-            self.active.append(self.traj[-1].tid)
+            new_traj.alive       = True
+            new_traj.active      = True
+            new_traj.label       = self.n_traj() - 1
+            self.alive.append(new_traj.label)
+            self.active.append(new_traj.label)
+            self.traj.append(new_traj)
+
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
+        if self.integrals.require_centroids:
+            self.create_centroids()
 
     @timings.timed
-    def kill_trajectory(self, tid):
+    def kill_trajectory(self, label):
         """Moves a live trajectory to the list of dead trajecotries.
 
         The trajectory will no longer contribute to H, S, etc.
         """
         # Remove the trajectory from the list of living trajectories
-        self.alive.remove(tid)
-        self.traj[tid].alive = False
+        self.alive.remove(label)
+        self.traj[label].alive = False
         self.nalive          = self.nalive - 1
         self.ndead           = self.ndead + 1
         # Remove the trajectory from the list of active trajectories
@@ -139,14 +144,14 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def revive_trajectory(self, tid):
+    def revive_trajectory(self, label):
         """
         Moves a dead trajectory to the list of live trajectories.
         """
-        self.traj[tid].alive = True
+        self.traj[label].alive = True
 
         # Add the trajectory to the list of living trajectories
-        self.alive.append(tid)
+        self.alive.insert(label,label)
 
         self.nalive          = self.nalive + 1
         self.ndead           = self.ndead - 1
@@ -159,21 +164,22 @@ class Bundle:
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
 
     @timings.timed
-    def update_amplitudes(self, dt, H=None, Ct=None):
+    def update_amplitudes(self, dt, update_ham=True, H=None, Ct=None):
         """Updates the amplitudes of the trajectory in the bundle.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
-        self.update_matrices()
+        if update_ham:
+            self.update_matrices()
 
-        # if no Hamiltonian is pased, use the current effective
+        # if no Hamiltonian is passed, use the current effective
         # Hamiltonian
         if H is None:
             Hmat = self.Heff
         else:
             Hmat = H
 
-        # if no vector of amplitdues are supplied (to propagate),
-        # propogate the current amplitudes
+        # if no vector of amplitudes are supplied (to propagate),
+        # propagate the current amplitudes
         if Ct is None:
             old_amp = self.amplitudes()
         else:
@@ -196,37 +202,27 @@ class Bundle:
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
     @timings.timed
+    def centroid_required(self, traj_i, traj_j):
+        """Determine if centroid is required for integral. Data at centroid will
+           NOT be computed if:
+           a) the nuclear overlap between trajectories is below threshold
+        """
+        if not self.integrals.require_centroids:
+            return False
+        else:
+            return True
+
+    @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the bundle."""
-        current_pop = self.pop()
-        norm = 1. / np.sqrt(sum(current_pop))
+        norm_factor = 1. / np.sqrt(self.norm())
         for i in range(self.n_traj()):
-            self.traj[i].update_amplitude(self.traj[i].amplitude * norm)
+            self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
 
     def prune(self):
         """Kills trajectories that are dead."""
         for i in range(self.nalive):
             continue
-        return False
-
-    def in_coupled_regime(self):
-        """Returns true if we are in a regime of coupled trajectories."""
-
-        # check if trajectories are coupled
-        for i in range(self.nalive):
-            for j in range(i):
-                if abs(self.T[i,j]+self.V[i,j]) > glbl.fms['hij_coup_thresh']:
-                    return True
-
-        # THE BUNDLE SHOULDN'T KNOW ABOUT HOW WE SPAWN. THIS CHECK IS HANDLED
-        # ELSEWHERE
-        # check if any trajectories exceed NAD threshold
-        #for i in range(self.nalive):
-        #    for j in range(self.nstates):
-        #        if abs(self.traj[i].coup_dot_vel(j)) > glbl.fms['spawn_coup_thresh']:
-        #            return True
-
-        # else, return false
         return False
 
     def amplitudes(self):
@@ -239,30 +235,34 @@ class Bundle:
         for i in range(self.nalive):
             self.traj[self.alive[i]].amplitude = amps[i]
 
-    def mulliken_pop(self, tid):
+    def mulliken_pop(self, label):
         """Returns the Mulliken-like population."""
         mulliken = 0.
 
-        if not self.traj[tid].alive:
+        if not self.traj[label].alive:
             return mulliken
-        i = self.alive.index(tid)
+        i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
             mulliken += abs(self.traj_ovrlp[i,j] *
-                            self.traj[tid].amplitude.conjugate() *
+                            self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
 
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-        return np.dot(np.dot(np.conj(self.amplitudes()),
+        ntot = np.dot(np.dot(np.conj(self.amplitudes()),
                              self.traj_ovrlp),self.amplitudes()).real
+        if ntot > glbl.fms['norm_thresh']:
+            raise ValueError('Wavefunction norm threshold exceeded')
+        else:
+            return ntot
 
     @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
-        pop    = np.zeros(self.nstates)
+        pop    = np.zeros(self.nstates, dtype=complex)
         nalive = len(self.alive)
 
         # live contribution
@@ -271,13 +271,16 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
+                if self.traj[jj].state != state:
+                    continue
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
-                pop[state] += popij.real
+                pop[state] += popij
 
-        # dead contribution?
-        return pop
+        pop /= sum(pop)
+
+        return pop.real
 
     @timings.timed
     def pot_classical(self):
@@ -286,13 +289,9 @@ class Bundle:
         Currently only includes energy from alive trajectories
         """
         nalive  = len(self.alive)
-        wgts    = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                            self.traj[self.alive[i]].amplitude
-                            for i in range(nalive)])
-        nrm     = np.sqrt(sum(wgts))
         pot_vec = np.array([self.traj[self.alive[i]].potential()
                             for i in range(nalive)])
-        return (np.dot(wgts,pot_vec) / nrm).real
+        return sum(pot_vec)/nalive
 
     @timings.timed
     def pot_quantum(self):
@@ -309,14 +308,10 @@ class Bundle:
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
-        wgts   = np.array([np.conj(self.traj[self.alive[i]].amplitude)*
-                           self.traj[self.alive[i]].amplitude
-                           for i in range(nalive)])
-        nrm    = np.sqrt(sum(wgts))
         ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
-                           self.traj[self.alive[i]].interface.kecoeff)
+                           1./(2.* self.traj[self.alive[i]].masses()))
                            for i in range(nalive)])
-        return (np.dot(wgts,ke_vec).real / nrm).real
+        return sum(ke_vec)/nalive
 
     @timings.timed
     def kin_quantum(self):
@@ -363,18 +358,25 @@ class Bundle:
     #
     #----------------------------------------------------------------------
     @timings.timed
-    def update_centroids(self):
-        """Updates the centroids."""
+    def create_centroids(self):
+        """Increases the centroid 'matrix' to account for new basis functions.
 
-        # make sure centroid array has sufficient space to hold required
-        # centroids. Note that n_traj includes alive AND dead trajectories --
-        # therefore it can only increase. So, only need to check n_traj > dim_cent
-        # condition
+        Called by add_trajectory. Make sure centroid array has sufficient
+        space to hold required centroids. Note that n_traj includes alive
+        AND dead trajectories -- therefore it can only increase. So, only
+        need to check n_traj > dim_cent condition.
+        """
         dim_cent = len(self.cent)
 
+        # number of centroids already correct
+        if self.n_traj() == dim_cent:
+            return
+
+        # n_traj includes living and dead -- this condition should never be satisfied
         if self.n_traj() < dim_cent:
             raise ValueError('n_traj() < dim_cent in bundle. Exiting...')
 
+        # ...else we need to add more centroids
         if self.n_traj() > dim_cent:
             for i in range(dim_cent):
                 self.cent[i].extend([None for j in range(self.n_traj() -
@@ -384,26 +386,36 @@ class Bundle:
                 self.cent.append([None for j in range(self.n_traj())])
 
         for i in range(self.n_traj()):
-            if not self.traj[i].alive:
-                continue
+            if self.traj[i].alive:
+                for j in range(i):
+                    if self.traj[j].alive:
+                        # now check to see if needed index has an existing trajectory
+                        # if not, copy trajectory from one of the parents into the
+                        # required slots
+                        if self.cent[i][j] is None:
+                            self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
+                                                                traj_j=self.traj[j])
+                            self.cent[j][i] = self.cent[i][j]
 
-            for j in range(i):
-                if not self.traj[j].alive:
-                    continue
+    @timings.timed
+    def update_centroids(self):
+        """Updates the positions of the centroids."""
 
-                # now check to see if needed index has an existing trajectory
-                # if not, copy trajectory from one of the parents into the
-                # required slots
-                if self.cent[i][j] is None:
-                    self.cent[i][j] = centroid.Centroid(traj_i=self.traj[i],
-                                                        traj_j=self.traj[j])
-                    self.cent[j][i] = self.cent[i][j]
+        for i in range(self.n_traj()):
+            if self.traj[i].alive:
+                for j in range(i):
+                    if self.traj[j].alive:
+                        self.cent[i][j].update_x(self.traj[i],self.traj[j])
+                        self.cent[j][i].update_x(self.traj[j],self.traj[i])
+                        self.cent[i][j].update_p(self.traj[i],self.traj[j])
+                        self.cent[j][i].update_p(self.traj[j],self.traj[i])
 
     @timings.timed
     def update_matrices(self):
         """Updates T, V, S, Sdot and Heff matrices."""
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
+
         if self.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
@@ -437,9 +449,11 @@ class Bundle:
 #        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
 #        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
 
+#        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
+
+#        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
 
         for i in range(self.n_traj()):
-
             if not self.traj[i].active:
                 continue
 
@@ -453,13 +467,19 @@ class Bundle:
                              abs(self.traj[i].amplitude),
                              self.traj[i].state])
 
-                fileio.print_traj_row(self.traj[i].tid, 0, data)
+                fileio.print_traj_row(self.traj[i].label, 0, data)
 
                 # potential energy
                 data = [self.time]
                 data.extend([self.traj[i].energy(j)
                              for j in range(self.nstates)])
-                fileio.print_traj_row(self.traj[i].tid, 1, data)
+                fileio.print_traj_row(self.traj[i].label, 1, data)
+
+                # gradients
+                data = [self.time]
+                data.extend(self.traj[i].derivative(self.traj[i].state,
+                                                    self.traj[i].state).tolist())
+                fileio.print_traj_row(self.traj[i].label, 7, data)
 
                 # coupling
                 data = [self.time]
@@ -467,7 +487,7 @@ class Bundle:
                              for j in range(self.nstates)])
                 data.extend([self.traj[i].coup_dot_vel(j)
                              for j in range(self.nstates)])
-                fileio.print_traj_row(self.traj[i].tid, 2, data)
+                fileio.print_traj_row(self.traj[i].label, 2, data)
 
             # print pes information relevant to the chosen interface
             if glbl.fms['print_es']:
@@ -479,43 +499,39 @@ class Bundle:
                     if key in ['geom','poten','deriv']:
                         continue
 
-                    #
+                    # permanent dipoles
+                    if key == 'dipole':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            data.extend(self.traj[i].pes_data.dipoles[:,j,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 3, data)
 
-                # permanent dipoles
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].dipole(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 3, data)
+                    # transition dipoles
+                    if key == 'tr_dipole':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            for k in range(j):
+                                data.extend(self.traj[i].pes_data.dipoles[:,k,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 4, data)
 
-                # transition dipoles
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    for k in range(j):
-#                        data.extend(self.traj[i].tdipole(k,j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 4, data)
+                    # second moments
+                    if key == 'sec_mom':
+                        crd_dim = self.traj[i].crd_dim
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            diag_mom = [self.traj[i].pes_data.sec_moms[k,k,j] 
+                                        for k in range(crd_dim)]
+                            data.extend(diag_mom)
+                        fileio.print_traj_row(self.traj[i].label, 5, data)
 
-                # second moments
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].sec_mom(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 5, data)
-
-                # atomic populations
-#                data = [self.time]
-#                for j in range(self.nstates):
-#                    data.extend(self.traj[i].atom_pop(j).tolist())
-#                fileio.print_traj_row(self.traj[i].tid, 6, data)
-
-                # gradients
-                data = [self.time]
-                data.extend(self.traj[i].derivative(self.traj[i].state,
-                                                    self.traj[i].state).tolist())
-                fileio.print_traj_row(self.traj[i].tid, 7, data)
+                    # atomic populations
+                    if key == 'atom_pop':
+                        data = [self.time]
+                        for j in range(self.nstates):
+                            data.extend(self.traj[i].pes_data.atom_pop[:,j].tolist())
+                        fileio.print_traj_row(self.traj[i].label, 6, data)
 
         # now dump bundle information ####################################
-
-#        print("T="+str(self.T))
-#        print("V="+str(self.V))
 
         # state populations
         data = [self.time]
@@ -573,16 +589,14 @@ class Bundle:
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
             chkpt.write('coordinate widths --\n')
-            chkpt.write(str(np.array2string(self.traj[0].widths(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
-            chkpt.write('coordinate masses --\n')
-            chkpt.write(str(np.array2string(self.traj[0].masses(),
-                        formatter={'float_kind':lambda x: "%.4f" % x}))+'\n')
+            self.traj[0].widths().tofile(chkpt, ' ', '%.4f')
+            chkpt.write('\ncoordinate masses --\n')
+            self.traj[0].masses().tofile(chkpt, ' ', '%.4f')
 
             # first write out the live trajectories. The function
             # write_trajectory can only write to a pre-existing file stream
             for i in range(len(self.traj)):
-                chkpt.write('-------- trajectory {:4d} --------\n'.format(i))
+                chkpt.write('\n-------- trajectory {:4d} --------\n'.format(i))
                 self.traj[i].write_trajectory(chkpt)
         chkpt.close()
 
@@ -615,8 +629,8 @@ class Bundle:
 
         # read common bundle information
         self.time    = float(chkpt.readline().split()[0])
-        self.nalive  = int(chkpt.readline().split()[0])
-        self.ndead   = int(chkpt.readline().split()[0])
+        nalive  = int(chkpt.readline().split()[0])
+        ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
         crd_dim      = int(chkpt.readline().split()[0])
@@ -631,18 +645,17 @@ class Bundle:
         masses = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
 
         # read-in trajectories
-        for i in range(self.nalive + self.ndead):
+        for i in range(nalive + ndead):
             chkpt.readline()
             t_read = trajectory.Trajectory(self.nstates,
-                                           dim,
+                                           ndim,
                                            width=widths,
                                            mass=masses,
                                            crd_dim=crd_dim,
-                                           tid=i,
-                                           parent=0,
-                                           n_basis=0)
+                                           label=i,
+                                           parent=0)
             t_read.read_trajectory(chkpt)
-            self.traj.append(t_read)
+            self.add_trajectory(t_read)
 
         # create the bundle matrices
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
