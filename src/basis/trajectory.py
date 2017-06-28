@@ -251,7 +251,7 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        if glbl.fms['phase_prop'] == 0:
+        if not glbl.fms['phase_prop']:
             return 0.
         else:
             return (self.kinetic() - self.potential() -

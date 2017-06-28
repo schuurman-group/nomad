@@ -1,0 +1,18 @@
+ iblock,l1,ksym,k1s,k1f                                 
+     1     1     1     1    27
+     2     2     1     1    27
+     3     3     1     1    27
+     4     4     1     1    27
+     5     5     1     1    27
+     6     6     1     1    27
+     7     7     1     1    27
+ ndg4ext ndg2ext ndg0ext                                
+       756        378         56
+ n4ext n3ext n2ext n1ext n0ext n2extso n1extso n0extso  
+     81081      76167      31752       6804        546          0          0          0
+ intmxo mx4x mx3x mx2x maxbuf                           
+      4095      1131      1131      1134     32767
+ number of external orbitals                            
+      27       0       0       0       0       0       0       0
+ diagint ofdg fil3x fil3w fil4w fil4x (DP)             
+     16380     49140     98301     98301     98301     65534

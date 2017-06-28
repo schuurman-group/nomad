@@ -1,37 +1,42 @@
-spawning               = forward_backward
-simulation_time        = 2000.0
-default_time_step      = 10.0
-coupled_time_step      = 5.0
-interface              = vibronic
-init_sampling          = wigner_distrib
-sampling_compression   = 0.6
-integrals              = saddle_point
-n_init_traj            = 10
-virtual_basis          = 1
-renorm                 = 0
-seed                   = 0 
-num_particles          = 4
-dim_particles          = 1 
-n_states               = 2
-init_state             = 1
-restart_time           = 0.
-propagator             = velocity_verlet
-spawn_pop_thresh       = 0.025
-spawn_coup_thresh      = 0.001
-spawn_olap_thresh      = 0.8
-energy_jump_toler      = 0.01
-pop_jump_toler         = 0.0001
-pot_shift              = 0.
-init_mode_min_olap     = 0.
-continuous_min_overlap = 0.5
-sij_thresh             = 0.7
-hij_coup_thresh        = 0.001
-print_traj             = 1
-print_es               = 1
-print_matrices         = 1
-print_chkpt            = 1
-print_level            = 5
-opfile                 = pyrazine4d.op
-coupling_order         = 1
-phase_prop             = 0
-matching_pursuit       = 0
+# FMS input
+# interface
+interface            = vibronic
+opfile               = pyrazine4d.op
+coupling_order       = 1
+
+# initialization
+init_state           = 1
+init_sampling        = wigner_distrib
+sampling_compression = 0.6
+n_init_traj          = 10
+virtual_basis        = True
+seed                 = 0
+n_states             = 2
+init_mode_min_olap   = 0.
+
+# propagation
+simulation_time      = 2000.
+default_time_step    = 1.0
+coupled_time_step    = 0.5
+phase_prop           = False
+
+# integration
+integrals            = saddle_point
+renorm               = False
+propagator           = velocity_verlet
+energy_jump_toler    = 0.001
+pop_jump_toler       = 0.0001
+sij_thresh           = 0.7
+
+# spawning
+spawning             = forward_backward
+spawn_pop_thresh     = 0.025
+spawn_coup_thresh    = 0.001
+spawn_olap_thresh    = 0.8
+
+# printing
+print_traj           = True
+print_es             = True
+print_matrices       = True
+print_chkpt          = True
+print_level          = 5

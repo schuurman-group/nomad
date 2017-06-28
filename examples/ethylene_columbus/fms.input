@@ -1,37 +1,39 @@
 # FMS input
 # interface
-interface            = vibronic
-opfile               = butatriene.op
-coupling_order       = 1
+interface            = columbus
+mem_per_core         = 1000
+pot_shift            = 78.2962351321
+coup_de_thresh       = 0.12
 
 # initialization
-init_state           = 1
-init_sampling        = wigner_distrib
-sampling_compression = 0.6
-n_init_traj          = 10
-virtual_basis        = True
+init_state           = -1
+init_brightest       = True
+init_sampling        = geometry_distrib
+sampling_compression = 1.0
+n_init_traj          = 1
+virtual_basis        = 0
 seed                 = 0
-n_states             = 2
+n_states             = 3
 init_mode_min_olap   = 0.
 
 # propagation
-simulation_time      = 2000.
-default_time_step    = 1.0
-coupled_time_step    = 0.5
+simulation_time      = 1000.
+default_time_step    = 10.
+coupled_time_step    = 5.
 phase_prop           = False
 
 # integration
 integrals            = saddle_point
-renorm               = False
+renorm               = 0
 propagator           = velocity_verlet
 energy_jump_toler    = 0.001
 pop_jump_toler       = 0.0001
-sij_thresh           = 0.7
+sij_thresh           = 0.5
 
 # spawning
 spawning             = forward_backward
-spawn_pop_thresh     = 0.025
-spawn_coup_thresh    = 0.001
+spawn_pop_thresh     = 0.02
+spawn_coup_thresh    = 0.017
 spawn_olap_thresh    = 0.8
 
 # printing
@@ -40,3 +42,4 @@ print_es             = True
 print_matrices       = True
 print_chkpt          = True
 print_level          = 5
+
