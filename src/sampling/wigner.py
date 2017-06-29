@@ -31,8 +31,8 @@ def set_initial_coords(widths, geoms, momenta, master):
     crd_dim = int(len(geoms[0][0]))
     ndim    = int(len(geoms[0]) * crd_dim )
 
-    x_ref = np.array()
-    p_ref = np.array()
+    x_ref = np.array(geoms[0])
+    p_ref = np.array(momenta[0])
     w_vec = np.array([widths[i] for j in range(crd_dim) for i in range(len(widths))])
 
     # Read the hessian.dat file (Cartesian coordinates only)

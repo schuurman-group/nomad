@@ -4,6 +4,7 @@ Routines for reading input files and writing log files.
 import os
 import re
 import glob
+import ast
 import shutil
 import numpy as np
 import src.dynamics.timings as timings
@@ -58,34 +59,23 @@ def read_input_file():
     # remove comment lines
     fms_input = [item for item in fms_input if 
                  not item.startswith("#") and not item.startswith("!")]
-    print("all input="+str(fms_input))
 
     sec_strings = list(glbl.input_groups)
-    print("search string 1=|"+str('begin '+sec_strings[0]+'-section')+"|")
  
     current_line = 0
     # look for begining of input section
     while current_line < len(fms_input):
-        print("current_line="+str(fms_input[current_line]))
         sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line]) 
                      for i in range(len(sec_strings))]
-        print("sec_start="+str(sec_start))
         if all([v is None for v in sec_start]):
             current_line+=1
         else:
-            print("about to parse")
             section = next(item for item in sec_start 
                            if item is not None).string
-            print("section expand="+section)
             section = section.replace('-section','').replace('begin','').strip()
-            print("section: "+section+" found. parsing...")
             current_line = parse_section(fms_input, current_line, section)    
     
-    for i in range(len(sec_strings)):
-        keys  = list(glbl.input_groups[sec_strings[i]])
-        print("keys["+str(i)+"]="+str(keys))
-        for j in range(len(keys)):
-            print(keys[j]+' = '+glbl.input_groups[sec_strings[i]][keys[j]])
+    return
 
 #
 # set keywords in the appropriate keyword dictionary by parsing
@@ -109,7 +99,7 @@ def parse_section(kword_array, line_start, section):
         print("line="+str(line))
         key,value = line.split('=',1)
         key   = key.strip()
-        value = value.strip()
+        value = value.strip().lower() # convert to lowercase
         
         if key not in glbl.input_groups[section].keys():
             if glbl.mpi['rank'] == 0:
@@ -122,25 +112,37 @@ def parse_section(kword_array, line_start, section):
             valid = True
             if glbl.keyword_type[key][1] == 2:
                 try:
-                    varcast = [glbl.keyword_type[key][0](item) 
-                               for item in sublist for sublist in value]
+                    value = ast.literal_eval(value)
+                except Exception:
+                    valid = False
+                    print("Cannot interpret input as nested array: "+
+                            str(ast.literal_eval('"%s"' % value)))
+                try:
+                    varcast = [[glbl.keyword_type[key][0](item) 
+                               for item in sublist] for sublist in value]
                 except ValueError:
                     valid = False
-                    print("Can't read variable: "+str(key)+ 
+                    print("Cannot read variable: "+str(key)+ 
                           " as nested list of "+str(glbl.keyword_type[key][0]))
             elif glbl.keyword_type[key][1] == 1:
+                try:
+                    value = ast.literal_eval(value)
+                except Exception:
+                    valid = False
+                    print("Cannot interpret input as list: "+
+                            str(ast.literal_eval('"%s"' % value)))
                 try:
                     varcast = [glbl.keyword_type[key][0](item) for item in value]
                 except ValueError:
                     valid = False
-                    print("Can't read variable: "+str(key)+ 
+                    print("Cannot read variable: "+str(key)+ 
                           " as list of "+str(glbl.keyword_type[key][0]))
             else:
                 try:
                     varcast = glbl.keyword_type[key][0](value)
                 except ValueError:
                     valid = False
-                    print("Can't read variable: "+str(key)+
+                    print("Cannot read variable: "+str(key)+
                           " as a "+str(glbl.keyword_type[key][0]))
 
             if valid:
@@ -155,20 +157,34 @@ def init_fms_output():
     global home_path, scr_path, log_format, tkeys, bkeys
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    (ncrd, crd_dim, amp_data, label_data,
-     geom_data, mom_data, width_data, mass_data, state_data) = read_geometry()
+    if glbl.nuclear_basis['geomfile'] is not '':
+        (labels, geoms, moms) = read_geometry(glbl.nuclear_basis['geomfile'])
+    elif len(glbl.nuclear_basis['geometries']) != 0:
+        labels = glbl.nuclear_basis['labels']
+        ngeoms = len(glbl.nuclear_basis['geometries'])
+        for i in range(ngeoms):
+            geoms  = np.asarray(glbl.nuclear_basis['geometries'][i])
+            moms   = np.asarray(glbl.nuclear_basis['momenta'][i])
+    else:
+        sys.exit('sampling.explicit: No geometry specified')
 
-    nst = int(glbl.propagate['n_states'])
-    dstr = ('x', 'y', 'z')
-    acc1 = 12
-    acc2 = 16
+    print("labels="+str(labels))
+    print("geoms="+str(geoms))
+    print("Moms="+str(moms))
+
+    ncart = 3         # assumes expectation values of transition/permanent dipoles in 
+                      # cartesian coordinates
+    ncrd  = len(geoms[0])
+    natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
+    nst   = glbl.propagate['n_states']
+    dstr  = ('x', 'y', 'z')
+    acc1  = 12
+    acc2  = 16
 
     # ----------------- dump formats (trajectory files) -----------------
     # trajectory output
-    arr1 = ['{:>12s}'.format('pos' + str(i+1) + '.' + dstr[x])
-            for i in range(ncrd) for x in range(crd_dim)]
-    arr2 = ['{:>12s}'.format('mom' + str(i+1) + '.' + dstr[x])
-            for i in range(ncrd) for x in range(crd_dim)]
+    arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
+    arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
     tfile_names[tkeys[0]] = 'trajectory'
     dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + 'Phase'.rjust(acc1) +
@@ -176,7 +192,7 @@ def init_fms_output():
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
     dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(2*ncrd*crd_dim+5))+
+                             ''.join('{:12.6f}' for i in range(2*ncrd+5))+
                              '\n')
 
     # potential energy
@@ -187,13 +203,12 @@ def init_fms_output():
                              ''.join('{:16.10f}' for i in range(nst)) + '\n')
 
     # gradients
-    arr1 = ['        crd' + str(i+1) + '.' + dstr[j]
-            for i in range(ncrd) for j in range(crd_dim)]
+    arr1 = ['            x' + str(i+1) for i in range(ncrd)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
+                                     for i in range(1, ncrd+1)) + '\n')
 
     # coupling
     arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
@@ -206,17 +221,17 @@ def init_fms_output():
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nst) for j in range(crd_dim)]
+            for i in range(nst) for j in range(ncart)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nst*crd_dim)) + '\n')
+                                     for i in range(nst*ncart)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nst) for j in range(i) for k in range(crd_dim)]
-    ncol = int(nst*(nst-1)*crd_dim/2+1)
+            for i in range(nst) for j in range(i) for k in range(ncart)]
+    ncol = int(nst*(nst-1)*ncart/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{:12.4f}' +
@@ -225,21 +240,21 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nst) for j in range(crd_dim)]
+            for i in range(nst) for j in range(ncart)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nst*crd_dim)) + '\n')
+                                     for i in range(nst*ncart)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_a' + str(j+1)
-            for i in range(nst) for j in range(ncrd)]
+            for i in range(nst) for j in range(natm)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{:12.4f}' +
                              ''.join('{:10.5f}'
-                                     for i in range(nst*ncrd)) + '\n')
+                                     for i in range(nst*natm)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
@@ -441,11 +456,13 @@ def read_geometry(geom_file):
     # and number of geometries
     ncrd    = int(gm_file[0].strip()[0])
     crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
-    ngeoms  = len(gm_file)/(ncrd+2)
-    
+    ngeoms  = int(len(gm_file)/(ncrd+2))
+   
     # read in the atom/crd labels -- assumes atoms are same for each
-    # geometry in the list    
-    labels  = [gm_file[j].strip().split()[0] for j in range(2,ncrd)] 
+    # geometry in the list
+    labels = []
+    for i in range(2,ncrd+2):
+        labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
 
     # loop over geoms, load positions and momenta into arrays
     for i in range(ngeoms):
@@ -453,16 +470,16 @@ def read_geometry(geom_file):
         mom  = []       
 
         # delete first and comment lines
-        del gm_file[0:1]
+        del gm_file[0:2]
         for j in range(ncrd):
-            line = gm_file[j].strip().split()
-            geom.extend([line[k] for k in range(1,crd_dim+1)])
-            mom.extend([line[k] for k in range(crd_dim+1,2*crd_dim+1)])
+            line = gm_file[0].strip().split()
+            geom.extend([float(line[k]) for k in range(1,crd_dim+1)])
+            mom.extend([float(line[k]) for k in range(crd_dim+1,2*crd_dim+1)])
             del gm_file[0]
 
         geoms.append(geom)
         moms.append(mom)
-        
+       
     return labels,geoms,moms
 
 #

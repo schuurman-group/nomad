@@ -34,16 +34,12 @@ def main():
     # a nd the end time
     fileio.read_input_file()
 
-    print("all done read_input_file..")
-
     # initialize random number generator
     random.seed(glbl.sampling['seed'])
 
-    print("random seed done")
-
     # Create the collection of trajectories
     master = bundle.Bundle(glbl.propagate['n_states'],
-                           glbl.interface['integrals'])
+                           glbl.propagate['integrals'])
 
     print("master bundle done")
 

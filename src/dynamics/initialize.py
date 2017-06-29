@@ -17,20 +17,34 @@ import src.dynamics.surface as surface
 #--------------------------------------------------------------------------
 def init_bundle(master):
     """Initializes the trajectories."""
-    pes       = __import__('src.interfaces.'+glbl.interface['interface'],
+
+    try:
+        pes      = __import__('src.interfaces.'+glbl.interface['interface'],
                          fromlist=['NA'])
-    sampling  = __import__('src.sampling.'+glbl.sampling['init_sampling'],
+    except ImportError:
+        print('Cannot import pes: src.interfaces.'+
+               str(glbl.interface['interface']))
+
+    try:
+        sampling = __import__('src.sampling.'+glbl.sampling['init_sampling'],
                          fromlist=['NA'])
+    except ImportError:
+        print('Cannot import sampling: src.sampling.'+
+               str(glbl.sampling['init_sampling']))
+
 
     # initialize the trajectory and bundle output files
+    print("init fms output")
     fileio.init_fms_output()
 
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
+    print("init interface")
     pes.init_interface()
 
     # initialize the surface module -- caller of the pes interface
+    print("init surface")
     surface.init_surface(glbl.interface['interface'])
 
     # now load the initial trajectories into the bundle
@@ -40,10 +54,12 @@ def init_bundle(master):
 
         # load the width, coordinates and momenta from input
         # this is an edit
+        print("read coord info")
         (labels, widths, coords, momenta) = read_coord_info()
 
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
+        print("set initial coords")
         sampling.set_initial_coords(widths, coords, momenta, master)
 
         # set widths and masses
@@ -102,11 +118,11 @@ def read_coord_info():
 
     if glbl.nuclear_basis['geomfile'] is not '':
         (labels, geoms, moms) = fileio.read_geometry(glbl.nuclear_basis['geomfile'])
-    elif len(glbl.nuclear_basis['geometry']) != 0:
+    elif len(glbl.nuclear_basis['geometries']) != 0:
         labels = glbl.nuclear_basis['labels']
-        ngeoms = len(glbl.nuclear_basis['geometry'])
+        ngeoms = len(glbl.nuclear_basis['geometries'])
         for i in range(ngeoms):
-            geoms  = np.asarray(glbl.nuclear_basis['geometry'][i])
+            geoms  = np.asarray(glbl.nuclear_basis['geometries'][i])
             moms   = np.asarray(glbl.nuclear_basis['momenta'][i])
     else:
         sys.exit('sampling.explicit: No geometry specified')
