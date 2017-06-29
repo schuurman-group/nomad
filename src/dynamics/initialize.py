@@ -72,7 +72,7 @@ def init_bundle(master):
     glbl.bundle0 = master.copy()
 
     # write to the log files
-    if glbl.mpi_rank == 0:
+    if glbl.mpi['rank'] == 0:
         master.update_logs()
 
     fileio.print_fms_logfile('t_step', [master.time, glbl.propagate['default_time_step'],

@@ -39,7 +39,7 @@ def read_input_file():
 
     # set a sensible default for scr_path
     scr_path = os.environ['TMPDIR']
-    if os.path.exists(scr_path) and glbl.mpi_rank==0:
+    if os.path.exists(scr_path) and glbl.mpi['rank']==0:
         shutil.rmtree(scr_path)
         os.makedirs(scr_path)
 
@@ -99,17 +99,52 @@ def parse_section(kword_array, line_start, section):
     while (current_line < len(kword_array) and 
            re.search('end '+section+'-section',kword_array[current_line]) is None):
         line = kword_array[current_line].rstrip('\r\n')
+
+        # allow for multi-line input
+        while ("=" not in kword_array[current_line+1] and 
+               'end '+section+'-section' not in kword_array[current_line+1]):
+            current_line += 1
+            line += kword_array[current_line].rstrip('\r\n').strip()
+
         print("line="+str(line))
         key,value = line.split('=',1)
         key   = key.strip()
         value = value.strip()
         
         if key not in glbl.input_groups[section].keys():
-            if glbl.mpi_rank == 0:
+            if glbl.mpi['rank'] == 0:
                 print("Cannot find input parameter: "+key+
                       " in input section: "+section)
         else:
-            glbl.input_groups[section][key] = value
+            # put all variable types into a flat list
+            # here we explicitly consider dimension 0,1,2 lists: which
+            # is pretty messy.
+            valid = True
+            if glbl.keyword_type[key][1] == 2:
+                try:
+                    varcast = [glbl.keyword_type[key][0](item) 
+                               for item in sublist for sublist in value]
+                except ValueError:
+                    valid = False
+                    print("Can't read variable: "+str(key)+ 
+                          " as nested list of "+str(glbl.keyword_type[key][0]))
+            elif glbl.keyword_type[key][1] == 1:
+                try:
+                    varcast = [glbl.keyword_type[key][0](item) for item in value]
+                except ValueError:
+                    valid = False
+                    print("Can't read variable: "+str(key)+ 
+                          " as list of "+str(glbl.keyword_type[key][0]))
+            else:
+                try:
+                    varcast = glbl.keyword_type[key][0](value)
+                except ValueError:
+                    valid = False
+                    print("Can't read variable: "+str(key)+
+                          " as a "+str(glbl.keyword_type[key][0]))
+
+            if valid:
+                glbl.input_groups[section][key] = varcast
 
         current_line+=1
 
@@ -352,7 +387,7 @@ def print_bund_row(fkey, data):
     global scr_path, bkeys, bfile_names, dump_header, dump_format
     filename = scr_path + '/' + bfile_names[bkeys[fkey]]
 
-    if glbl.mpi_rank !=0:
+    if glbl.mpi['rank'] !=0:
         return
 
     if not os.path.isfile(filename):
@@ -378,7 +413,7 @@ def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
     global log_format, print_level
 
-    if glbl.mpi_rank != 0:
+    if glbl.mpi['rank'] != 0:
         return
 
     if otype not in log_format:
@@ -396,8 +431,8 @@ def print_fms_logfile(otype, data):
 #----------------------------------------------------------------------------
 def read_geometry(geom_file):
     """Reads position and momenta from an xyz file"""
-    geoms   = []
-    momenta = []
+    geoms = []
+    moms  = []
 
     with open(geom_file, 'r') as gfile:
         gm_file = gfile.readlines()
@@ -414,21 +449,21 @@ def read_geometry(geom_file):
 
     # loop over geoms, load positions and momenta into arrays
     for i in range(ngeoms):
-        geom = np.zeros((ncrd,crd_dim),dtype=float)
-        mom  = np.zeros((ncrd,crd_dim),dtype=float)        
+        geom = []
+        mom  = []       
 
         # delete first and comment lines
         del gm_file[0:1]
         for j in range(ncrd):
             line = gm_file[j].strip().split()
-            geom[j,:] = np.array(line[1:crd_dim+1)
-            mom[j,:]  = np.array(line[crd_dim+1:2*crd_dim+1])
+            geom.extend([line[k] for k in range(1,crd_dim+1)])
+            mom.extend([line[k] for k in range(crd_dim+1,2*crd_dim+1)])
             del gm_file[0]
 
         geoms.append(geom)
-        momenta.append(mom)
+        moms.append(mom)
         
-    return labels,geoms,momenta
+    return labels,geoms,moms
 
 #
 def read_hessian():
@@ -448,7 +483,7 @@ def cleanup(exception=None):
     """Cleans up the FMS log file."""
     global home_path, scr_path
 
-    if glbl.mpi_rank == 0:
+    if glbl.mpi['rank'] == 0:
         # simulation ended
         if exception is None:
             print_fms_logfile('complete', [])

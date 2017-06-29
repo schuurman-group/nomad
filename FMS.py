@@ -18,13 +18,13 @@ import src.dynamics.step as step
 
 def main():
     # initialize MPI communicator
-    if glbl.mpi_parallel:
-        glbl.mpi_comm  = MPI.COMM_WORLD
-        glbl.mpi_rank  = glbl.mpi_comm.Get_rank()
-        glbl.mpi_nproc = glbl.mpi_comm.Get_size()
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm']  = MPI.COMM_WORLD
+        glbl.mpi['rank']  = glbl.mpi['comm'].Get_rank()
+        glbl.mpi['nproc'] = glbl.mpi['comm'].Get_size()
     else:
-        glbl.mpi_rank  = 0
-        glbl.mpi_nproc = 1
+        glbl.mpi['rank']  = 0
+        glbl.mpi['nproc'] = 1
 
     # start the global timer
     timings.start('global')
@@ -34,17 +34,26 @@ def main():
     # a nd the end time
     fileio.read_input_file()
 
+    print("all done read_input_file..")
+
     # initialize random number generator
-    random.seed(glbl.fms['seed'])
+    random.seed(glbl.sampling['seed'])
+
+    print("random seed done")
 
     # Create the collection of trajectories
-    master = bundle.Bundle(glbl.fms['n_states'], glbl.fms['integrals'])
+    master = bundle.Bundle(glbl.propagate['n_states'],
+                           glbl.interface['integrals'])
+
+    print("master bundle done")
 
     # set the initial conditions for trajectories
     initialize.init_bundle(master)
 
+    print("initialize done")
+
     # propagate the trajectories
-    while master.time < glbl.fms['simulation_time']:
+    while master.time < glbl.propagate['simulation_time']:
 
         # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
@@ -59,7 +68,7 @@ def main():
             break
 
         # determine whether it is necessary to update the output logs
-        if fileio.update_logs(master) and glbl.mpi_rank==0:
+        if fileio.update_logs(master) and glbl.mpi['rank']==0:
             # update the fms output files, as well as checkpoint, if necessary
             master.update_logs()
 
@@ -73,7 +82,7 @@ if __name__ == '__main__':
 
     # parse command line arguments
     if '-mpi' in sys.argv:
-        glbl.mpi_parallel = True
+        glbl.mpi['parallel'] = True
 
     try:
         main()

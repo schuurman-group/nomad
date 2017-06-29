@@ -16,7 +16,7 @@ def set_initial_coords(widths, geoms, momenta, master):
     """
 
     # Compression parameter
-    beta = glbl.sampling['sampling_compression']
+    beta = glbl.sampling['distrib_compression']
 
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.interface['interface'] == 'vibronic':

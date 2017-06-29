@@ -152,13 +152,13 @@ def init_interface():
     input_path    = fileio.scr_path + '/input'
     restart_path  = fileio.scr_path + '/restart'
     # ...but each process has it's own work directory
-    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi_rank)
+    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
     os.makedirs(work_path)
 
-    if glbl.mpi_rank == 0:
+    if glbl.mpi['rank'] == 0:
         if os.path.exists(input_path):
             shutil.rmtree(input_path)
         if os.path.exists(restart_path):
@@ -173,13 +173,13 @@ def init_interface():
         work_file  = os.path.join(work_path, item)
         shutil.copy2(local_file, work_file)
 
-        if glbl.mpi_rank == 0:
+        if glbl.mpi['rank'] == 0:
           input_file = os.path.join(input_path, item)
           shutil.copy2(local_file, input_file)
 
     # make sure process 0 is finished populating the input directory
-    if glbl.mpi_parallel:
-        glbl.mpi_comm.barrier()
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].barrier()
 
     # now -- pull information from columbus input
     n_atoms    = natm
@@ -1036,7 +1036,7 @@ def append_log(label, listing_file):
     """
 
     # open the running log for this process
-    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi_rank), 'a')
+    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(" ---------- trajectory "+str(label)+
                    ": "+str(listing_file)+" summary --------\n")
