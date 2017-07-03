@@ -530,11 +530,11 @@ class Bundle:
 
                     # second moments
                     if key == 'sec_mom':
-                        crd_dim = self.traj[i].crd_dim
+                        ncart = 3 
                         data = [self.time]
                         for j in range(self.nstates):
                             diag_mom = [self.traj[i].pes_data.sec_moms[k,k,j] 
-                                        for k in range(crd_dim)]
+                                        for k in range(ncart)]
                             data.extend(diag_mom)
                         fileio.print_traj_row(self.traj[i].label, 5, data)
 
@@ -588,7 +588,6 @@ class Bundle:
         """
         if mode not in ('w','a'):
             raise ValueError('Invalid write mode in bundle.write_bundle')
-        crd_dim = self.traj[0].crd_dim
         ndim    = self.traj[0].dim
         with open(filename, mode) as chkpt:
             # first write out the bundle-level information
@@ -598,7 +597,6 @@ class Bundle:
             chkpt.write('{:10d}            dead trajectories\n'.format(self.ndead))
             chkpt.write('{:10d}            number of states\n'.format(self.nstates))
             chkpt.write('{:10d}            number of coordinates\n'.format(ndim))
-            chkpt.write('{:10d}            dimensions of coord system\n'.format(crd_dim))
 
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
@@ -649,7 +647,6 @@ class Bundle:
         self.ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
-        crd_dim      = int(chkpt.readline().split()[0])
 
         # the read common info that will be the same for all trajectories
         chkpt.readline()
@@ -667,7 +664,6 @@ class Bundle:
                                            dim,
                                            width=widths,
                                            mass=masses,
-                                           crd_dim=crd_dim,
                                            label=i,
                                            parent=0,
                                            n_basis=0)

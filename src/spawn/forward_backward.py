@@ -22,7 +22,7 @@ import src.basis.trajectory as trajectory
 import src.spawn.utilities as utils
 import src.dynamics.step as step
 import src.dynamics.surface as surface
-integrals = __import__('src.integrals.'+glbl.interface['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 
 coup_hist = []

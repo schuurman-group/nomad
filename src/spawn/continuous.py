@@ -18,7 +18,7 @@ import src.fmsio.fileio as fileio
 import src.dynamics.timings as timings
 import src.basis.trajectory as trajectory
 import src.spawn.utilities as utilities
-integrals = __import__('src.integrals.'+glbl.interface['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 @timings.timed
 def spawn(master, dt):

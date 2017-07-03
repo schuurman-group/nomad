@@ -11,7 +11,7 @@ import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
 integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
-def set_initial_coords(widths, geoms, momenta, master):
+def set_initial_coords(masses, widths, geoms, momenta, master):
     """Samples a v=0 Wigner distribution
     """
 
@@ -28,25 +28,21 @@ def set_initial_coords(widths, geoms, momenta, master):
 
     # if multiple geometries in geometry.dat -- just take the first one
     ngeoms  = len(geoms)
-    crd_dim = int(len(geoms[0][0]))
-    ndim    = int(len(geoms[0]) * crd_dim )
+    ndim    = int(len(geoms[0]))
 
     x_ref = np.array(geoms[0])
     p_ref = np.array(momenta[0])
-    w_vec = np.array([widths[i] for j in range(crd_dim) for i in range(len(widths))])
+    w_vec = np.array(widths)
 
     # Read the hessian.dat file (Cartesian coordinates only)
     if coordtype == 'cart':
         hessian = fileio.read_hessian()
 
     origin_traj = trajectory.Trajectory(glbl.propagate['n_states'],
-                                        ndim,
-                                        width=w_vec,
-                                        crd_dim=crd_dim,
-                                        parent=0)
+                                        ndim, width=w_vec, parent=0)
 
-    origin_traj.update_x(geom_ref)
-    origin_traj.update_p(mom_ref)
+    origin_traj.update_x(x_ref)
+    origin_traj.update_p(p_ref)
     # if we need pes data to evaluate overlaps, determine that now
     if integrals.overlap_requires_pes:
         surface.update_pes_traj(origin_traj)
@@ -55,7 +51,6 @@ def set_initial_coords(widths, geoms, momenta, master):
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        masses  = np.asarray([mass[i] for i in range(ndim)], dtype=float)
         invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
                               else 0 for i in range(len(masses))], dtype=float)
         mw_hess = invmass * hessian * invmass[:,np.newaxis]

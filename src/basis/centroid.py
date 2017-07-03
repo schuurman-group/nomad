@@ -18,7 +18,7 @@ def cent_label(itraj_id, jtraj_id):
 class Centroid:
     """Class constructor for the Centroid object."""
     def __init__(self, traj_i=None, traj_j=None, nstates=0, pstates=[-1,-1],
-                 dim=0, width=None, crd_dim=3, label=-1):
+                 dim=0, width=None, label=-1):
         if traj_i is None or traj_j is None:
             # total number of states
             self.nstates = int(nstates)
@@ -31,9 +31,6 @@ class Centroid:
                 self.width = np.zeros(dim)
             else:
                 self.width = np.asarray(width)
-            # dimension of the coordinate system
-            #(i.e. ==3 for Cartesian, == 3N-6 for internals)
-            self.crd_dim = crd_dim
             # unique identifier for centroid
             self.label     = label
             # current position of the centroid
@@ -49,7 +46,6 @@ class Centroid:
             self.nstates = max(traj_i.nstates,traj_j.nstates)
             self.pstates = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
-            self.crd_dim = max(traj_i.crd_dim, traj_j.crd_dim)
             self.label     = -((idi * (idi - 1) // 2) + idj + 1)
             # now update the position in phase space of the centroid
             # if wid_i == wid_j, this is clearly just the simply mean
@@ -71,8 +67,7 @@ class Centroid:
     def copy(self):
         """Copys a Centroid object with new references."""
         new_cent = Centroid(nstates=self.nstates, pstates=self.pstates,
-                            dim=self.dim, width=self.width,
-                            crd_dim=self.crd_dim, label=self.label)
+                            dim=self.dim, width=self.width,label=self.label)
         new_cent.pos = copy.deepcopy(self.pos)
         new_cent.mom = copy.deepcopy(self.mom)
         if self.pes_data is not None:

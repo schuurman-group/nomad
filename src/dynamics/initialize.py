@@ -34,17 +34,14 @@ def init_bundle(master):
 
 
     # initialize the trajectory and bundle output files
-    print("init fms output")
     fileio.init_fms_output()
 
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
-    print("init interface")
     pes.init_interface()
 
     # initialize the surface module -- caller of the pes interface
-    print("init surface")
     surface.init_surface(glbl.interface['interface'])
 
     # now load the initial trajectories into the bundle
@@ -54,16 +51,14 @@ def init_bundle(master):
 
         # load the width, coordinates and momenta from input
         # this is an edit
-        print("read coord info")
-        (labels, widths, coords, momenta) = read_coord_info()
+        (masses, widths, coords, momenta) = read_coord_info()
 
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
-        print("set initial coords")
-        sampling.set_initial_coords(widths, coords, momenta, master)
+        sampling.set_initial_coords(masses, widths, coords, momenta, master)
 
         # set widths and masses
-        set_masses(labels, master)
+        set_masses(masses, master)
 
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
@@ -117,54 +112,55 @@ def init_restart(master):
 def read_coord_info():
 
     if glbl.nuclear_basis['geomfile'] is not '':
-        (labels, geoms, moms) = fileio.read_geometry(glbl.nuclear_basis['geomfile'])
+        (labels, xlst, plst) = fileio.read_geometry(glbl.nuclear_basis['geomfile'])
+        geoms = np.array(xlst)
+        moms  = np.array(plst)
+
     elif len(glbl.nuclear_basis['geometries']) != 0:
         labels = glbl.nuclear_basis['labels']
+        geoms  = np.array(glbl.nuclear_basis['geometries'])
+        moms   = np.array(glbl.nuclear_basis['momenta'])
         ngeoms = len(glbl.nuclear_basis['geometries'])
-        for i in range(ngeoms):
-            geoms  = np.asarray(glbl.nuclear_basis['geometries'][i])
-            moms   = np.asarray(glbl.nuclear_basis['momenta'][i])
+
     else:
         sys.exit('sampling.explicit: No geometry specified')
 
     if glbl.nuclear_basis['use_atom_lib']:
-        widths = np.zeros(len(geoms[0]))
+        ncart = 3
+        wlst  = []
+        mlst  = []
         for i in len(labels):
-            (mass, widths[i], num) = basis.atom_lib(labels[i])
-    else:
-        mass  = np.asarray(glbl.nuclear_basis['masses'])
-        width = np.asarray(glbl.nuclear_basis['width'])
+            (mass, wid, num) = basis.atom_lib(labels[i])
+            mlst.extend([mass for i in range(ncart)])
+            wlst.extend([wid for i in range(ncart)])
+        masses = np.array(mlst, dtype=float)
+        widths = np.array(wlst, dtype=float)
+                
+    elif (len(glbl.nuclear_basis['masses']) != 0 and 
+          len(glbl.nuclear_basis['widths']) != 0):
+        masses = np.array(glbl.nuclear_basis['masses'])
+        widths = np.array(glbl.nuclear_basis['widths'])
 
-    return (labels, widths, geoms, moms)
+    else:
+        sys.exit('sampling.explicit: No masses/widths specified') 
+
+    return (masses, widths, geoms, moms)
 
 #
 # set the mass and width of trajectory basis functions
 #
-def set_masses(labels, master):
+def set_masses(masses, master):
 
-    if glbl.nuclear_basis['use_atom_lib']:
-        masses = np.zeros(len(labels))
-        for i in len(labels):
-            (masses[i], widths, num) = basis.atom_lib(labels[i])
-
-        crd_dim = master.traj[0].crd_dim
-
-        m_vec = np.array([masses[i] for j in range(crd_dim) 
-                                    for i in range(len(masses))])
-
-        for i in range(master.n_traj()):
-            master.traj[i].mass = m_vec
-        
     # if vibronic, assume freq/mass weighted coordinates
-    elif glbl.interface['interface'] is 'vibronic':
+    if glbl.interface['interface'] is 'vibronic':
         m_vec = pes.kecoeff
 
-        for i in range(master.n_traj()):
-            master.traj[i].mass = m_vec
-
-    # don't know how to set masses
+    # use the masses from atom lib 
     else:
-        sys.exit('No masses found')
+        m_vec = masses
+
+    for i in range(master.n_traj()):
+        master.traj[i].mass = m_vec
 
     return
 
@@ -212,7 +208,7 @@ def set_initial_state(master):
 
 #
 #
-def set_initial_amplitude(master):
+def set_initial_amplitudes(master):
 
     if glbl.nuclear_basis['init_amp_overlap']:
 
@@ -233,8 +229,8 @@ def set_initial_amplitude(master):
         for i in range(ntraj):
             master.traj[i].update_amplitude(cvec[i])
 
-    elif len(glbl.sampling['amplitudes']) == master.n_traj():
-        amps = np.array(glbl.sampling['amplitudes'],dtype=complex)
+    elif len(glbl.nuclear_basis['amplitudes']) == master.n_traj():
+        amps = np.array(glbl.nuclear_basis['amplitudes'],dtype=complex)
         for i in range(master.n_traj()):
             master.traj[i].update_amplitude(amps[i])
 

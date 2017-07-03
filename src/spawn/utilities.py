@@ -5,7 +5,7 @@ import sys as sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-integrals = __import__('src.integrals.'+glbl.interface['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 
 def adjust_child(parent, child, scale_dir):

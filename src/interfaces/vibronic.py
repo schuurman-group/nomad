@@ -86,8 +86,8 @@ class VibHam:
     def rdgeomfile(self, fname):
         """Reads the labels of the geometry.dat file for ordering purposes."""
         with open(fname, 'r') as infile:
-            infile.readline()
             self.nmode_total = int(infile.readline().split()[0])
+            infile.readline()
             for i in range(self.nmode_total):
                 lbl = infile.readline().split()[0]
                 self.mlbl_total.append(lbl.lower())
@@ -186,8 +186,25 @@ def init_interface():
 
     # Read in geometry labels, frequency and operator files
     ham = VibHam()
-    ham.rdgeomfile(fileio.home_path + '/geometry.dat')
-    ham.rdfreqfile(fileio.home_path + '/freq.dat')
+
+    # if 'geometry.dat' present, read info from there, else, from inputfile
+    if glbl.nuclear_basis['geomfile'] != '':
+        ham.rdgeomfile(fileio.home_path + '/geometry.dat')
+    else:
+        ham.nmode_total = len(glbl.nuclear_basis['geometries'][0])
+        ham.mlbl_total  = glbl.nuclear_basis['labels']
+
+    # I propose discontinuing 'freq.dat' file. This can be entered in
+    # input file. Need way to differentiate between active/inactive modes
+    # I presume
+    #ham.rdfreqfile(fileio.home_path + '/freq.dat')
+    ham.nmode_active = len(glbl.nuclear_basis['freqs'])
+    ham.mlbl_active  = ham.mlbl_total
+    ham.freq         = np.array(glbl.nuclear_basis['freqs'])
+    for i in range(len(ham.freq)):
+        ham.freqmap[ham.mlbl_active[i]] = ham.freq[i]
+
+    # operator file will always be a separate file
     ham.rdoperfile(fileio.home_path + '/' + glbl.interface['opfile'])
 
     # KE operator coefficients, mass- and frequency-scaled normal mode

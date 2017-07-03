@@ -41,8 +41,6 @@ def main():
     master = bundle.Bundle(glbl.propagate['n_states'],
                            glbl.propagate['integrals'])
 
-    print("master bundle done")
-
     # set the initial conditions for trajectories
     initialize.init_bundle(master)
 

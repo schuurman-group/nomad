@@ -10,7 +10,7 @@ import src.fmsio.glbl as glbl
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
-    def __init__(self, nstates, dim, width=None, mass=None, crd_dim=3,
+    def __init__(self, nstates, dim, width=None, mass=None,
                  label=0, parent=0):
         # total number of states
         self.nstates = int(nstates)
@@ -26,9 +26,6 @@ class Trajectory:
             self.mass = np.zeros(dim)
         else:
             self.mass = np.array(mass)
-        # dimension of the coordinate system
-        #(i.e. ==3 for Cartesian, ==3N-6 for internals)
-        self.crd_dim = crd_dim
         # unique identifier for trajectory
         self.label        = label
         # trajectory that spawned this one:
@@ -66,7 +63,7 @@ class Trajectory:
     def copy(self):
         """Copys a Trajectory object with new references."""
         new_traj = Trajectory(self.nstates, self.dim, self.width, self.mass,
-                              self.crd_dim, self.label, self.parent)
+                              self.label, self.parent)
         new_traj.state      = copy.copy(self.state)
         new_traj.alive      = copy.copy(self.alive)
         new_traj.amplitude  = copy.copy(self.amplitude)
@@ -189,7 +186,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() / (2. * self.masses()))
+        return sum( self.p() * self.p() * self.interface.kecoeff )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -307,8 +304,7 @@ class Trajectory:
         # create Surface object, if doesn't already exist
         if self.pes_data is None:
             self.pes_data = self.interface.Surface(self.nstates,
-                                                   self.dim,
-                                                   self.crd_dim)
+                                                   self.dim)
 
         chkpt.readline()
         # potential energy -- nstates

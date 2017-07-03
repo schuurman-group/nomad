@@ -27,6 +27,9 @@ tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
 
+#
+#
+#
 def read_input_file():
     """Reads the fms.input files.
 
@@ -85,7 +88,6 @@ def parse_section(kword_array, line_start, section):
     """Reads a namelist style input, returns results in dictionary.""" 
 
     current_line = line_start + 1
-    print("current_line="+str(current_line))
     while (current_line < len(kword_array) and 
            re.search('end '+section+'-section',kword_array[current_line]) is None):
         line = kword_array[current_line].rstrip('\r\n')
@@ -96,7 +98,6 @@ def parse_section(kword_array, line_start, section):
             current_line += 1
             line += kword_array[current_line].rstrip('\r\n').strip()
 
-        print("line="+str(line))
         key,value = line.split('=',1)
         key   = key.strip()
         value = value.strip().lower() # convert to lowercase
@@ -118,7 +119,7 @@ def parse_section(kword_array, line_start, section):
                     print("Cannot interpret input as nested array: "+
                             str(ast.literal_eval('"%s"' % value)))
                 try:
-                    varcast = [[glbl.keyword_type[key][0](item) 
+                    varcast = [[glbl.keyword_type[key][0](check_boolean(item)) 
                                for item in sublist] for sublist in value]
                 except ValueError:
                     valid = False
@@ -132,14 +133,15 @@ def parse_section(kword_array, line_start, section):
                     print("Cannot interpret input as list: "+
                             str(ast.literal_eval('"%s"' % value)))
                 try:
-                    varcast = [glbl.keyword_type[key][0](item) for item in value]
+                    varcast = [glbl.keyword_type[key][0](check_boolean(item)) 
+                               for item in value]
                 except ValueError:
                     valid = False
                     print("Cannot read variable: "+str(key)+ 
                           " as list of "+str(glbl.keyword_type[key][0]))
             else:
                 try:
-                    varcast = glbl.keyword_type[key][0](value)
+                    varcast = glbl.keyword_type[key][0](check_boolean(value))
                 except ValueError:
                     valid = False
                     print("Cannot read variable: "+str(key)+
@@ -152,6 +154,9 @@ def parse_section(kword_array, line_start, section):
 
     return current_line
 
+#
+#
+#
 def init_fms_output():
     """Initialized all the output format descriptors."""
     global home_path, scr_path, log_format, tkeys, bkeys
@@ -167,10 +172,6 @@ def init_fms_output():
             moms   = np.asarray(glbl.nuclear_basis['momenta'][i])
     else:
         sys.exit('sampling.explicit: No geometry specified')
-
-    print("labels="+str(labels))
-    print("geoms="+str(geoms))
-    print("Moms="+str(moms))
 
     ncart = 3         # assumes expectation values of transition/permanent dipoles in 
                       # cartesian coordinates
@@ -318,18 +319,18 @@ def init_fms_output():
                    ' scr_path    = ' + str(scr_path) + '\n')
         logfile.write(log_str)
 
-        log_str = ('\n fms simulation keywords\n' +
+        logfile.write('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
-        for group in glbl.input_groups.items():
-            logfile.write(" ** "+str(group)+" ** ")
-            for k, v in glbl.input_groups[group]:
+        for group,keywords in glbl.input_groups.items():
+            logfile.write("\n ** "+str(group)+" **\n")
+            log_str = ''
+            for k, v in glbl.input_groups[group].items():
                 log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
             logfile.write(log_str+'\n')
 
-        log_str = ('\n ***********\n' +
-                   ' propagation\n' +
-                   ' ***********\n\n')
-        logfile.write(log_str)
+        logfile.write ('\n ***********\n' +
+                         ' propagation\n' +
+                         ' ***********\n\n')
 
     log_format['general']     = '   ** {:60s} **\n'
     log_format['warning']     = ' ** WARNING\: {:100s} **\n'
@@ -352,7 +353,7 @@ def init_fms_output():
     log_format['timings' ]      = '{}'
 
     print_level['general']        = 5
-    pirnt_level['warning']        = 0
+    print_level['warning']        = 0
     print_level['string']         = 5
     print_level['t_step']         = 0
     print_level['coupled']        = 3
@@ -367,7 +368,9 @@ def init_fms_output():
     print_level['error']          = 0
     print_level['timings']        = 0
 
-
+#
+#
+#
 def print_traj_row(label, fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -382,6 +385,9 @@ def print_traj_row(label, fkey, data):
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[tkeys[fkey]].format(*data))
 
+#
+#
+#
 def update_logs(bundle):
     """Determines if it is appropriate to update the traj/bundle logs.
 
@@ -395,7 +401,9 @@ def update_logs(bundle):
     # this. is. ugly.
     return (mod_t < 0.0001*dt or mod_t > 0.999*dt)
 
-
+#
+#
+#
 def print_bund_row(fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -438,6 +446,19 @@ def print_fms_logfile(otype, data):
         with open(filename, 'a') as logfile:
             logfile.write(log_format[otype].format(*data))
 
+#
+# routine to check if string is boolean, 'true','TRUE','True', etc. and if
+# so, return "True" or "False".
+#
+def check_boolean(chk_str):
+
+    bool_str = str(chk_str).strip().lower()
+    if bool_str == 'true':
+        return True 
+    elif bool_str == 'false':
+        return False
+    else:
+        return chk_str
 
 #----------------------------------------------------------------------------
 #
