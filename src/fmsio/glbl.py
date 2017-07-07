@@ -7,7 +7,7 @@ fs2au    = 41.34137221718
 # convert bohr to angstrom
 bohr2ang = 0.529177249
 # convert mass in amu to au
-mass2au  = 1822.887
+amu2au  = 1822.887
 # convert hartree to eV
 au2ev    = 27.21138505
 # convert hartree to cm-1
@@ -82,12 +82,12 @@ nuclear_basis = dict(
     init_amp_overlap       = True,
     geometries             = [[0]],
     momenta                = [[0]],
-    geomfile               = '',
+    geomfile               = "",
     hessian                = [[0]],
-    hessfile               = '',
+    hessfile               = "",
     freqs                  = [0],
-    labels                 = [''],
-    amplitudes             = [0+0j],
+    labels                 = [""],
+    amplitudes             = [1.+0.j],
     widths                 = [0],
     masses                 = [0])
 

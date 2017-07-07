@@ -7,57 +7,44 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
 
-def set_initial_coords(masses, widths, geoms, momenta, master):
+def set_initial_coords(master):
     """Samples a v=0 Wigner distribution
     """
-
-    # Compression parameter
-    beta = glbl.sampling['distrib_compression']
-
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.interface['interface'] == 'vibronic':
-        import src.interfaces.vibronic as interface
         coordtype = 'normal'
-        ham = interface.ham
+        import src.interfaces.vibronic as interface
+        ham       = interface.ham
     else:
         coordtype = 'cart'
 
     # if multiple geometries in geometry.dat -- just take the first one
-    ngeoms  = len(geoms)
-    ndim    = int(len(geoms[0]))
+    x_ref = np.array(glbl.nuclear_basis['geometries'][0],dtype=float)
+    p_ref = np.array(glbl.nuclear_basis['momenta'][0],dtype=float)
+    w_vec = np.array(glbl.nuclear_basis['widths'],dtype=float)
+    m_vec = np.array(glbl.nuclear_basis['masses'],dtype=float)
+    ndim  = len(x_ref)
 
-    x_ref = np.array(geoms[0])
-    p_ref = np.array(momenta[0])
-    w_vec = np.array(widths)
-    m_vec = np.array(masses)
-
-    # Read the hessian.dat file (Cartesian coordinates only)
-    if coordtype == 'cart':
-        hessian = fileio.read_hessian()
-
+    # create template trajectory basis function 
     template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
-                                     width=w_vec, mass=m_vec,parent=0)
-
+                                     width=w_vec, mass=m_vec, parent=0)
     template.update_x(x_ref)
     template.update_p(p_ref)
-    # if we need pes data to evaluate overlaps, determine that now
-    if master.integrals.overlap_requires_pes:
-        surface.update_pes_traj(template)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
-                              else 0 for i in range(len(masses))], dtype=float)
-        mw_hess = invmass * hessian * invmass[:,np.newaxis]
+        hessian   = np.array(glbl.nuclear_basis['hessian'],dtype=float)
+        invmass = np.asarray([1./ np.sqrt(m_vec[i]) if m_vec[i] != 0.
+                              else 0 for i in range(len(m_vec))], dtype=float)
+        mw_hess      = invmass * hessian * invmass[:,np.newaxis]
         evals, evecs = sp_linalg.eigh(mw_hess)
-        f_cutoff = 0.0001
-        freq_list = []
-        mode_list = []
+        f_cutoff     = 0.0001
+        freq_list    = []
+        mode_list    = []
         for i in range(len(evals)):
             if evals[i] < 0:
                 continue
@@ -97,8 +84,10 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             if alpha > glbl.fpzero:
-                sigma_x = beta*np.sqrt(0.25 / alpha)
-                sigma_p = beta*np.sqrt(alpha)
+                sigma_x = (glbl.sampling['distrib_compression'] * 
+                           np.sqrt(0.25 / alpha))
+                sigma_p = (glbl.sampling['distrib_compression'] *
+                           np.sqrt(alpha))
                 itry = 0
                 while itry <= max_try:
                     dx = random.gauss(0., sigma_x)
@@ -116,8 +105,8 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
         # If Cartesian coordinates are being used, displace along each
         # normal mode to generate the final geometry...
         if coordtype == 'cart':
-            disp_x = np.dot(modes, delta_x) / np.sqrt(masses)
-            disp_p = np.dot(modes, delta_p) / np.sqrt(masses)
+            disp_x = np.dot(modes, delta_x) / np.sqrt(m_vec)
+            disp_p = np.dot(modes, delta_p) / np.sqrt(m_vec)
 
         # ... else if mass- and frequency-scaled normal modes are
         # being used, then take the frequency-scaled normal mode
@@ -134,10 +123,6 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
         new_traj = template.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
-
-        # if we need pes data to evaluate overlaps, determine that now
-        if master.integrals.overlap_requires_pes:
-            surface.update_pes_traj(new_traj)
 
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)

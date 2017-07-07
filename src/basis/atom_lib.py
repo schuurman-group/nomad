@@ -1,3 +1,5 @@
+import src.fmsio.glbl
+
 """
 A library containing atom widths, atomic numbers, etc.
 """
@@ -21,9 +23,9 @@ def atom_data(atom_sym):
     """Returns the gaussian width, mass, and atomic number from the
        atomic symbol"""
     
-    if atom_sym in atom_name:
+    if valid_atom(atom_sym):
         index = atom_name.index(atom_sym)
-        return atom_width[index],atom_mass[index],atom_anum[index]
+        return atom_width[index],atom_mass[index]*glbl.amu2au,atom_anum[index]
 
     else:
         raise ValueError('Atom: '+str(atom_sym)+' not found in library') 

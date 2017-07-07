@@ -20,10 +20,9 @@ integrals = None
 #
 #--------------------------------------------------------------------------
 def init_bundle(master):
-    global pes, sampling, integrals
-    
     """Initializes the trajectories."""
-
+    global pes, sampling, integrals
+   
     try:
         pes      = __import__('src.interfaces.'+glbl.interface['interface'],
                          fromlist=['NA'])
@@ -32,8 +31,10 @@ def init_bundle(master):
                str(glbl.interface['interface']))
 
     try:
+        print("samp string="+'src.sampling.'+glbl.sampling['init_sampling'])
         sampling = __import__('src.sampling.'+glbl.sampling['init_sampling'],
                          fromlist=['NA'])
+        print("getting here?")
     except ImportError:
         print('Cannot import sampling: src.sampling.'+
                str(glbl.sampling['init_sampling']))
@@ -60,28 +61,19 @@ def init_bundle(master):
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
         init_restart(master)
-    else:
 
-        # load the width, coordinates and momenta from input
-        # this is an edit
-        (masses, widths, coords, momenta) = read_coord_info()
+    else:
 
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
-        sampling.set_initial_coords(masses, widths, coords, momenta, master)
-
-        # set widths and masses
-        set_masses(masses, master)
+        sampling.set_initial_coords(master)
 
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
         set_initial_state(master)
 
         # set the initial amplitudes of the basis functions
-        origin = None
-        if glbl.nuclear_basis['init_amp_overlap']:
-            origin = make_origin_traj(master, masses, widths, coords, momenta)
-        set_initial_amplitudes(master, origin)
+        set_initial_amplitudes(master)
  
         # add virtual basis functions, if desired (i.e. virtual basis = true)
         if glbl.sampling['virtual_basis']:
@@ -121,64 +113,6 @@ def init_restart(master):
         fname = fileio.home_path+'/checkpoint.dat'
 
     master.read_bundle(fname, glbl.sampling['restart_time'])
-
-#
-# read the geometries, momenta, widths from input
-#
-def read_coord_info():
-
-    if glbl.nuclear_basis['geomfile'] is not '':
-        (labels, xlst, plst) = fileio.read_geometry(glbl.nuclear_basis['geomfile'])
-        geoms = np.array(xlst)
-        moms  = np.array(plst)
-
-    elif len(glbl.nuclear_basis['geometries']) != 0:
-        labels = glbl.nuclear_basis['labels']
-        geoms  = np.array(glbl.nuclear_basis['geometries'])
-        moms   = np.array(glbl.nuclear_basis['momenta'])
-        ngeoms = len(glbl.nuclear_basis['geometries'])
-
-    else:
-        sys.exit('sampling.explicit: No geometry specified')
-
-    if glbl.nuclear_basis['use_atom_lib']:
-        ncart = 3
-        wlst  = []
-        mlst  = []
-        for i in len(labels):
-            (mass, wid, num) = basis.atom_lib(labels[i])
-            mlst.extend([mass for i in range(ncart)])
-            wlst.extend([wid for i in range(ncart)])
-        masses = np.array(mlst, dtype=float)
-        widths = np.array(wlst, dtype=float)
-                
-    elif (len(glbl.nuclear_basis['masses']) != 0 and 
-          len(glbl.nuclear_basis['widths']) != 0):
-        masses = np.array(glbl.nuclear_basis['masses'])
-        widths = np.array(glbl.nuclear_basis['widths'])
-
-    else:
-        sys.exit('sampling.explicit: No masses/widths specified') 
-
-    return (masses, widths, geoms, moms)
-
-#
-# set the mass and width of trajectory basis functions
-#
-def set_masses(masses, master):
-
-    # if vibronic, assume freq/mass weighted coordinates
-    if glbl.interface['interface'] is 'vibronic':
-        m_vec = pes.kecoeff
-
-    # use the masses from atom lib 
-    else:
-        m_vec = masses
-
-    for i in range(master.n_traj()):
-        master.traj[i].mass = m_vec
-
-    return
 
 #
 #
@@ -224,9 +158,18 @@ def set_initial_state(master):
 
 #
 #
-def set_initial_amplitudes(master, origin):
-
+def set_initial_amplitudes(master):
+    global integrals
+ 
+    # if init_amp_overlap is set, overwrite 'amplitudes' that was 
+    # set in fms.input
     if glbl.nuclear_basis['init_amp_overlap']:
+
+        origin = make_origin_traj()
+
+        # update all pes info for all trajectories and centroids (where necessary)
+        if integrals.overlap_requires_pes:
+            surface.update_pes(master)
 
         # Calculate the initial expansion coefficients via projection onto
         # the initial wavefunction that we are sampling
@@ -243,18 +186,19 @@ def set_initial_amplitudes(master, origin):
                     smat[j,i] = smat[i,j].conjugate()
         print(smat)
         sinv = sp_linalg.pinvh(smat)
-        cvec = np.dot(sinv, ovec)
-        for i in range(master.n_traj()):
-            master.traj[i].update_amplitude(cvec[i])
+        glbl.nuclear_basis['amplitudes'] = np.dot(sinv, ovec)
 
-    elif len(glbl.nuclear_basis['amplitudes']) == master.n_traj():
-        amps = np.array(glbl.nuclear_basis['amplitudes'],dtype=complex)
-        for i in range(master.n_traj()):
-            master.traj[i].update_amplitude(amps[i])
+    # if we don't have a sufficient number of amplitudes, append
+    # amplitudes with "zeros" as necesary
+    if len(glbl.nuclear_basis['amplitudes']) < master.n_traj():
+        dif = master.n_traj() - len(glbl.nuclear_basis['amplitudes'])
+        fileio.print_fms_logfile('warning',['appending '+str(dif)+
+                                 ' values of 0+0j to amplitudes'])
+        glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])    
 
-    else:
-        for i in range(master.n_traj()):
-            master.traj[i].update_amplitude(1.+0j)
+    # finally -- update amplitudes in the bundle
+    for i in range(master.n_traj()):
+        master.traj[i].update_amplitude(glbl.nuclear_basis['amplitudes'][i])
 
     return
 
@@ -279,15 +223,15 @@ def virtual_basis(master):
 # construct a trajectory basis function at the origin specified in the 
 # input.
 #
-def make_origin_traj(master, masses, widths, pos, mom):
+def make_origin_traj():
     """construct a trajectory basis function at the origin
        specified in the input files"""
 
-    ndim = len(pos[0])
-    m_vec = np.array(masses)
-    w_vec = np.array(widths)
-    x_vec = np.array(pos[0])
-    p_vec = np.array(mom[0])
+    ndim = len(glbl.nuclear_basis['geometries'][0])
+    m_vec = np.array(glbl.nuclear_basis['masses'])
+    w_vec = np.array(glbl.nuclear_basis['widths'])
+    x_vec = np.array(glbl.nuclear_basis['geometries'][0])
+    p_vec = np.array(glbl.nuclear_basis['momenta'][0])
 
     origin = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
                                    width=w_vec, mass=m_vec, parent=0)
