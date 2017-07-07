@@ -21,6 +21,10 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
         itraj.update_x(geoms[i,:])
         itraj.update_p(momenta[i,:])
 
+        # if we need pes data to evaluate overlaps, determine that now
+        if master.integrals.overlap_requires_pes:
+            surface.update_pes_traj(itraj)
+
         # add a single trajectory specified by geometry.dat
         master.add_trajectory(itraj)
 

@@ -3,19 +3,25 @@ Routines for initializing dynamics calculations.
 """
 import sys
 import numpy as np
+import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
 
-
+# the dynamically loaded libraries (done once by init_bundle)
+pes       = None
+sampling  = None 
+integrals = None
 #--------------------------------------------------------------------------
 #
 # Externally visible routines
 #
 #--------------------------------------------------------------------------
 def init_bundle(master):
+    global pes, sampling, integrals
+    
     """Initializes the trajectories."""
 
     try:
@@ -31,6 +37,13 @@ def init_bundle(master):
     except ImportError:
         print('Cannot import sampling: src.sampling.'+
                str(glbl.sampling['init_sampling']))
+
+    try:
+        integrals = __import__('src.integrals.'+glbl.propagate['integrals'],
+                         fromlist=['NA'])
+    except ImportError:
+        print('Cannot import sampling: src.integrals.'+
+               str(glbl.propagate['integrals']))
 
 
     # initialize the trajectory and bundle output files
@@ -65,11 +78,14 @@ def init_bundle(master):
         set_initial_state(master)
 
         # set the initial amplitudes of the basis functions
-        set_initial_amplitudes(master)
+        origin = None
+        if glbl.nuclear_basis['init_amp_overlap']:
+            origin = make_origin_traj(master, masses, widths, coords, momenta)
+        set_initial_amplitudes(master, origin)
  
-    # add virtual basis functions, if desired (i.e. virtual basis = true)
-    if glbl.sampling['virtual_basis']:
-        virtual_basis(master)
+        # add virtual basis functions, if desired (i.e. virtual basis = true)
+        if glbl.sampling['virtual_basis']:
+            virtual_basis(master)
 
     # update all pes info for all trajectories and centroids (where necessary)
     surface.update_pes(master)
@@ -208,25 +224,27 @@ def set_initial_state(master):
 
 #
 #
-def set_initial_amplitudes(master):
+def set_initial_amplitudes(master, origin):
 
     if glbl.nuclear_basis['init_amp_overlap']:
 
         # Calculate the initial expansion coefficients via projection onto
         # the initial wavefunction that we are sampling
-        ovec = np.zeros(ntraj, dtype=complex)
-        for i in range(ntraj):
-            ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
-        smat = np.zeros((ntraj, ntraj), dtype=complex)
-        for i in range(ntraj):
+        ovec = np.zeros(master.n_traj(), dtype=complex)
+        for i in range(master.n_traj()):
+            ovec[i] = integrals.traj_overlap(master.traj[i], origin, nuc_only=True)
+        print("ovec="+str(ovec))
+        smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
+        for i in range(master.n_traj()):
             for j in range(i+1):
-                smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
+                smat[i,j] = master.integrals.traj_overlap(master.traj[i], 
+                                                          master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
-        #print(smat)
+        print(smat)
         sinv = sp_linalg.pinvh(smat)
         cvec = np.dot(sinv, ovec)
-        for i in range(ntraj):
+        for i in range(master.n_traj()):
             master.traj[i].update_amplitude(cvec[i])
 
     elif len(glbl.nuclear_basis['amplitudes']) == master.n_traj():
@@ -239,8 +257,6 @@ def set_initial_amplitudes(master):
             master.traj[i].update_amplitude(1.+0j)
 
     return
-
-
 
 def virtual_basis(master):
     """Add virtual basis funcions.
@@ -258,3 +274,29 @@ def virtual_basis(master):
             new_traj.amplitude = 0j
             new_traj.state = j
             master.add_trajectory(new_traj)
+
+#
+# construct a trajectory basis function at the origin specified in the 
+# input.
+#
+def make_origin_traj(master, masses, widths, pos, mom):
+    """construct a trajectory basis function at the origin
+       specified in the input files"""
+
+    ndim = len(pos[0])
+    m_vec = np.array(masses)
+    w_vec = np.array(widths)
+    x_vec = np.array(pos[0])
+    p_vec = np.array(mom[0])
+
+    origin = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
+                                   width=w_vec, mass=m_vec, parent=0)
+
+    origin.update_x(x_vec)
+    origin.update_p(p_vec)
+    origin.state = 0
+    # if we need pes data to evaluate overlaps, determine that now
+    if integrals.overlap_requires_pes:
+        surface.update_pes_traj(origin)
+
+    return origin

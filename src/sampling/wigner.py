@@ -9,7 +9,6 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
-integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 def set_initial_coords(masses, widths, geoms, momenta, master):
     """Samples a v=0 Wigner distribution
@@ -33,19 +32,20 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
     x_ref = np.array(geoms[0])
     p_ref = np.array(momenta[0])
     w_vec = np.array(widths)
+    m_vec = np.array(masses)
 
     # Read the hessian.dat file (Cartesian coordinates only)
     if coordtype == 'cart':
         hessian = fileio.read_hessian()
 
-    origin_traj = trajectory.Trajectory(glbl.propagate['n_states'],
-                                        ndim, width=w_vec, parent=0)
+    template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
+                                     width=w_vec, mass=m_vec,parent=0)
 
-    origin_traj.update_x(x_ref)
-    origin_traj.update_p(p_ref)
+    template.update_x(x_ref)
+    template.update_p(p_ref)
     # if we need pes data to evaluate overlaps, determine that now
-    if integrals.overlap_requires_pes:
-        surface.update_pes_traj(origin_traj)
+    if master.integrals.overlap_requires_pes:
+        surface.update_pes_traj(template)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
@@ -127,16 +127,16 @@ def set_initial_coords(masses, widths, geoms, momenta, master):
             disp_x = delta_x * np.sqrt(freqs)
             disp_p = delta_p * np.sqrt(freqs)
 
-        x_sample = geom_ref + disp_x
-        p_sample = mom_ref  + disp_p
+        x_sample = x_ref + disp_x
+        p_sample = p_ref + disp_p
 
         # add new trajectory to the bundle
-        new_traj = origin_traj.copy()
+        new_traj = template.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
 
         # if we need pes data to evaluate overlaps, determine that now
-        if integrals.overlap_requires_pes:
+        if master.integrals.overlap_requires_pes:
             surface.update_pes_traj(new_traj)
 
         # Add the trajectory to the bundle
