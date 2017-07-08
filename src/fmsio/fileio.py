@@ -1,6 +1,7 @@
 """
 Routines for reading input files and writing log files.
 """
+import sys
 import os
 import re
 import glob
@@ -77,6 +78,10 @@ def read_input_file():
                            if item is not None).string
             section = section.replace('-section','').replace('begin','').strip()
             current_line = parse_section(fms_input, current_line, section)    
+
+    print("validating input...")
+    # ensure that input is internally consistent
+    validate_input()
     
     return
 
@@ -155,6 +160,60 @@ def parse_section(kword_array, line_start, section):
     return current_line
 
 #
+# ensure input values are internally consistent
+#
+def validate_input():
+    """ensures that input values are internally consistent"""
+
+    # Currently there are multiple ways to set variables in the nuclear
+    # basis section. The following lines ensure that subsequent usage of the 
+    # entries in glbl is consistent, regardless of how input specified
+
+   # if geomfile specified, it's contents overwrite variable settings in fms.input
+    if os.path.isfile(glbl.nuclear_basis['geomfile']):
+        (labels, geoms, moms)            = read_geometry(glbl.nuclear_basis['geomfile'])
+        glbl.nuclear_basis['labels']     = labels
+        glbl.nuclear_basis['geometries'] = geoms
+        glbl.nuclear_basis['momenta']    = moms
+
+    # if hessfile is specified, its contents overwrite variable settings from fms.input
+    if os.path.isfile(glbl.nuclear_basis['hessfile']):
+        glbl.nuclear_basis['hessian']    = read_hessian(glbl.nuclear_basis['hessfile'])
+
+    # if use_atom_lib == True, atom_lib values overwrite variables settings from fms.input
+    if glbl.nuclear_basis['use_atom_lib']:
+        ncart = 3
+        wlst  = []
+        mlst  = []
+        for i in len(labels):
+            (mass, wid, num) = atom_lib.atom_data(labels[i])
+            mlst.extend([mass for i in range(ncart)])
+            wlst.extend([wid for i in range(ncart)])
+        glbl.nuclear_basis['masses'] = mlst
+        glbl.nuclear_basis['widths'] = wlst
+
+    # set mass array here if using vibronic interface
+    if glbl.interface['interface'] == 'vibronic':
+        if all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
+            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
+                                              range(len(glbl.nuclear_basis['freqs']))]
+        else:
+            sys.exit("ERROR -- zero frequency")
+
+    # subsequent code will ONLY use the "init_states" array. If that array hasn't
+    # been set, using the value of "init_state" to create it
+    if (any(state == -1 for state in glbl.sampling['init_states']) or 
+         len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
+        glbl.sampling['init_states'] = [glbl.sampling['init_state'] for 
+                                        i in range(glbl.sampling['n_init_traj'])]
+
+    # check array lengths
+    #ngeom   = len(glbl.nuclear_basis['geometries'])
+    #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
+
+    return
+
+#
 #
 #
 def init_fms_output():
@@ -162,20 +221,9 @@ def init_fms_output():
     global home_path, scr_path, log_format, tkeys, bkeys
     global dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    if glbl.nuclear_basis['geomfile'] is not '':
-        (labels, geoms, moms) = read_geometry(glbl.nuclear_basis['geomfile'])
-    elif len(glbl.nuclear_basis['geometries']) != 0:
-        labels = glbl.nuclear_basis['labels']
-        ngeoms = len(glbl.nuclear_basis['geometries'])
-        for i in range(ngeoms):
-            geoms  = np.asarray(glbl.nuclear_basis['geometries'][i])
-            moms   = np.asarray(glbl.nuclear_basis['momenta'][i])
-    else:
-        sys.exit('sampling.explicit: No geometry specified')
-
     ncart = 3         # assumes expectation values of transition/permanent dipoles in 
                       # cartesian coordinates
-    ncrd  = len(geoms[0])
+    ncrd  = len(glbl.nuclear_basis['geometries'][0])
     natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
     nst   = glbl.propagate['n_states']
     dstr  = ('x', 'y', 'z')

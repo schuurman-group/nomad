@@ -144,12 +144,9 @@ def set_initial_state(master):
             master.traj[i].state = np.argmax(tdip)+1
 
     # use "init_state" to set the initial state
-    elif len(glbl.sampling['init_state']) == master.n_traj():
+    elif len(glbl.sampling['init_states']) == master.n_traj():
         for i in range(master.n_traj()):
-            istate = glbl.sampling['init_state'][i]
-            if istate == -1:
-                raise ValueError('Invalid state assignment traj '+str(i)+' state=-1')
-            master.traj[i].state = glbl.sampling['init_state'][i]
+            master.traj[i].state = glbl.sampling['init_states'][i]
         
     else:
         raise ValueError('Ambiguous initial state assignment.')
