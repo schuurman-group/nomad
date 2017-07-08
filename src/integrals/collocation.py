@@ -8,7 +8,7 @@ import numpy as np
 import src.fmsio.glbl as glbl
 import src.integrals.nuclear_dirac as dirac 
 import src.integrals.nuclear_gaussian as gauss
-interface  = __import__('src.interfaces.' + glbl.fms['interface'],
+interface  = __import__('src.interfaces.' + glbl.interface['interface'],
                        fromlist = ['a'])
 
 # Let FMS know if overlap matrix elements require PES info

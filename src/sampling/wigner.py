@@ -7,62 +7,44 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-import src.dynamics.surface as surface
 import src.basis.trajectory as trajectory
-integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
 
-def sample_distribution(master):
+def set_initial_coords(master):
     """Samples a v=0 Wigner distribution
     """
-
-    # Compression parameter
-    beta = glbl.fms['sampling_compression']
-
     # Set the coordinate type: Cartesian or normal mode coordinates
-    if glbl.fms['interface'] == 'vibronic':
-        import src.interfaces.vibronic as interface
+    if glbl.interface['interface'] == 'vibronic':
         coordtype = 'normal'
-        ham = interface.ham
+        import src.interfaces.vibronic as interface
+        ham       = interface.ham
     else:
         coordtype = 'cart'
 
-    # Read the geometry.dat file
-    (ncrd, crd_dim, amps, lbls,
-     geoms, moms, width, mass, states) = fileio.read_geometry()
-
     # if multiple geometries in geometry.dat -- just take the first one
-    ndim = int(len(geoms)/len(amps))
-    geom_ref = np.asarray(geoms[0:ndim],dtype=float)
-    mom_ref  = np.asarray(moms[0:ndim],dtype=float)
+    x_ref = np.array(glbl.nuclear_basis['geometries'][0],dtype=float)
+    p_ref = np.array(glbl.nuclear_basis['momenta'][0],dtype=float)
+    w_vec = np.array(glbl.nuclear_basis['widths'],dtype=float)
+    m_vec = np.array(glbl.nuclear_basis['masses'],dtype=float)
+    ndim  = len(x_ref)
 
-    # Read the hessian.dat file (Cartesian coordinates only)
-    if coordtype == 'cart':
-        hessian = fileio.read_hessian()
-
-    origin_traj = trajectory.Trajectory(glbl.fms['n_states'],
-                                        ndim,
-                                        width=width[0:ndim],
-                                        mass=mass[0:ndim],
-                                        crd_dim=crd_dim,
-                                        parent=0)
-    origin_traj.update_x(geom_ref)
-    origin_traj.update_p(mom_ref)
-    # if we need pes data to evaluate overlaps, determine that now
-    if integrals.overlap_requires_pes:
-        surface.update_pes_traj(origin_traj)
+    # create template trajectory basis function 
+    template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
+                                     width=w_vec, mass=m_vec, parent=0)
+    template.update_x(x_ref)
+    template.update_p(p_ref)
 
     # If Cartesian coordinates are being used, then set up the
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        masses  = np.asarray([mass[i] for i in range(ndim)], dtype=float)
-        invmass = np.asarray([1./ np.sqrt(masses[i]) if masses[i] != 0.
-                              else 0 for i in range(len(masses))], dtype=float)
-        mw_hess = invmass * hessian * invmass[:,np.newaxis]
+        hessian   = np.array(glbl.nuclear_basis['hessian'],dtype=float)
+        invmass = np.asarray([1./ np.sqrt(m_vec[i]) if m_vec[i] != 0.
+                              else 0 for i in range(len(m_vec))], dtype=float)
+        mw_hess      = invmass * hessian * invmass[:,np.newaxis]
         evals, evecs = sp_linalg.eigh(mw_hess)
-        f_cutoff = 0.0001
-        freq_list = []
-        mode_list = []
+        f_cutoff     = 0.0001
+        freq_list    = []
+        mode_list    = []
         for i in range(len(evals)):
             if evals[i] >= 0 and np.sqrt(evals[i]) >= f_cutoff:
                 freq_list.append(np.sqrt(evals[i]))
@@ -90,7 +72,7 @@ def sample_distribution(master):
 
     # loop over the number of initial trajectories
     max_try = 1000
-    ntraj  = glbl.fms['n_init_traj']
+    ntraj  = glbl.sampling['n_init_traj']
     for i in range(ntraj):
         delta_x   = np.zeros(n_modes)
         delta_p   = np.zeros(n_modes)
@@ -99,18 +81,20 @@ def sample_distribution(master):
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             if alpha > glbl.fpzero:
-                sigma_x = beta*np.sqrt(0.25 / alpha)
-                sigma_p = beta*np.sqrt(alpha)
+                sigma_x = (glbl.sampling['distrib_compression'] * 
+                           np.sqrt(0.25 / alpha))
+                sigma_p = (glbl.sampling['distrib_compression'] *
+                           np.sqrt(alpha))
                 itry = 0
                 while itry <= max_try:
                     dx = random.gauss(0., sigma_x)
                     dp = random.gauss(0., sigma_p)
                     itry += 1
-                    if mode_overlap(alpha, dx, dp) > glbl.fms['init_mode_min_olap']:
+                    if mode_overlap(alpha, dx, dp) > glbl.sampling['init_mode_min_olap']:
                         break
-                if mode_overlap(alpha, dx, dp) < glbl.fms['init_mode_min_olap']:
+                if mode_overlap(alpha, dx, dp) < glbl.sampling['init_mode_min_olap']:
                     print('Cannot get mode overlap > ' +
-                      str(glbl.fms['init_mode_min_olap']) +
+                      str(glbl.sampling['init_mode_min_olap']) +
                       ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp
@@ -118,8 +102,8 @@ def sample_distribution(master):
         # If Cartesian coordinates are being used, displace along each
         # normal mode to generate the final geometry...
         if coordtype == 'cart':
-            disp_x = np.dot(modes, delta_x) / np.sqrt(masses)
-            disp_p = np.dot(modes, delta_p) / np.sqrt(masses)
+            disp_x = np.dot(modes, delta_x) / np.sqrt(m_vec)
+            disp_p = np.dot(modes, delta_p) / np.sqrt(m_vec)
 
         # ... else if mass- and frequency-scaled normal modes are
         # being used, then take the frequency-scaled normal mode
@@ -129,40 +113,18 @@ def sample_distribution(master):
             disp_x = delta_x * np.sqrt(freqs)
             disp_p = delta_p * np.sqrt(freqs)
 
-        x_sample = geom_ref + disp_x
-        p_sample = mom_ref  + disp_p
+        x_sample = x_ref + disp_x
+        p_sample = p_ref + disp_p
 
         # add new trajectory to the bundle
-        new_traj = origin_traj.copy()
+        new_traj = template.copy()
         new_traj.update_x(x_sample)
         new_traj.update_p(p_sample)
-
-        # if we need pes data to evaluate overlaps, determine that now
-        if integrals.overlap_requires_pes:
-            surface.update_pes_traj(new_traj)
 
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
 
-    # Calculate the initial expansion coefficients via projection onto
-    # the initial wavefunction that we are sampling
-    ovec = np.zeros(ntraj, dtype=complex)
-    for i in range(ntraj):
-        ovec[i] = integrals.traj_overlap(master.traj[i],origin_traj)
-    smat = np.zeros((ntraj, ntraj), dtype=complex)
-    for i in range(ntraj):
-        for j in range(i+1):
-            smat[i,j] = integrals.traj_overlap(master.traj[i],master.traj[j])
-            if i != j:
-                smat[j,i] = smat[i,j].conjugate()
-    #print(smat)
-    sinv = sp_linalg.pinvh(smat)
-    cvec = np.dot(sinv, ovec)
-    for i in range(ntraj):
-        master.traj[i].update_amplitude(cvec[i])
-
-    # state of trajectory not set, return False
-    return False
+    return
 
 def mode_overlap(alpha, dx, dp):
     """Returns the overlap of Gaussian primitives

@@ -11,18 +11,17 @@ import src.fmsio.fileio as fileio
 
 kecoeff = None
 ham = None
-nsta = glbl.fms['n_states']
+nsta = glbl.propagate['n_states']
 data_cache = dict()
 
 
 class Surface:
     """Object containing potential energy surface data."""
-    def __init__(self, tag, n_states, t_dim, crd_dim):
+    def __init__(self, tag, n_states, t_dim):
         # necessary for array allocation
         self.tag      = tag
         self.n_states = n_states
         self.t_dim    = t_dim
-        self.crd_dim  = crd_dim
 
         # these are the standard quantities ALL interface_data objects return
         self.data_keys = []
@@ -42,7 +41,7 @@ class Surface:
 
     def copy(self):
         """Creates a copy of a Surface object."""
-        new_info = Surface(self.tag, self.n_states, self.t_dim, self.crd_dim)
+        new_info = Surface(self.tag, self.n_states, self.t_dim)
 
         new_info.data_keys     = copy.copy(self.data_keys)
         new_info.geom          = copy.deepcopy(self.geom)
@@ -86,8 +85,8 @@ class VibHam:
     def rdgeomfile(self, fname):
         """Reads the labels of the geometry.dat file for ordering purposes."""
         with open(fname, 'r') as infile:
-            infile.readline()
             self.nmode_total = int(infile.readline().split()[0])
+            infile.readline()
             for i in range(self.nmode_total):
                 lbl = infile.readline().split()[0]
                 self.mlbl_total.append(lbl.lower())
@@ -186,9 +185,26 @@ def init_interface():
 
     # Read in geometry labels, frequency and operator files
     ham = VibHam()
-    ham.rdgeomfile(fileio.home_path + '/geometry.dat')
-    ham.rdfreqfile(fileio.home_path + '/freq.dat')
-    ham.rdoperfile(fileio.home_path + '/' + glbl.fms['opfile'])
+
+    # if 'geometry.dat' present, read info from there, else, from inputfile
+    if glbl.nuclear_basis['geomfile'] != '':
+        ham.rdgeomfile(fileio.home_path + '/geometry.dat')
+    else:
+        ham.nmode_total = len(glbl.nuclear_basis['geometries'][0])
+        ham.mlbl_total  = glbl.nuclear_basis['labels']
+
+    # I propose discontinuing 'freq.dat' file. This can be entered in
+    # input file. Need way to differentiate between active/inactive modes
+    # I presume
+    #ham.rdfreqfile(fileio.home_path + '/freq.dat')
+    ham.nmode_active = len(glbl.nuclear_basis['freqs'])
+    ham.mlbl_active  = ham.mlbl_total
+    ham.freq         = np.array(glbl.nuclear_basis['freqs'])
+    for i in range(len(ham.freq)):
+        ham.freqmap[ham.mlbl_active[i]] = ham.freq[i]
+
+    # operator file will always be a separate file
+    ham.rdoperfile(fileio.home_path + '/' + glbl.interface['opfile'])
 
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
@@ -201,7 +217,7 @@ def init_interface():
                              ['* Vibronic Coupling Hamiltonian Information'])
     fileio.print_fms_logfile('string', ['*'*72])
     fileio.print_fms_logfile('string',
-                             ['Operator file: ' + glbl.fms['opfile']])
+                             ['Operator file: ' + glbl.interface['opfile']])
     fileio.print_fms_logfile('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
     string = 'Total no. modes: ' + str(ham.nmode_total)
@@ -254,7 +270,7 @@ def evaluate_trajectory(traj):
     sctmat, dbocderiv1 = calc_scts(adiabpot, adtmat, diabderiv1,
                                    nactmat, adiabderiv1, diablap)
 
-    t_data = Surface(label, nsta, ham.nmode_active, 1)
+    t_data = Surface(label, nsta, ham.nmode_active)
     t_data.geom      = geom
     t_data.potential = adiabpot
     t_data.deriv = [np.diag(adiabderiv1[m]) for m in

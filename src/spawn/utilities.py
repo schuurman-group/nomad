@@ -5,7 +5,7 @@ import sys as sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 
 def adjust_child(parent, child, scale_dir):
@@ -86,7 +86,7 @@ def overlap_with_bundle(traj, bundle):
                 sij = 0j
             else:
                 sij = integrals.traj_overlap(traj, bundle.traj[i])
-            if abs(sij) > glbl.fms['sij_thresh']:
+            if abs(sij) > glbl.propagate['sij_thresh']:
                 t_overlap_bundle = True
                 break
 

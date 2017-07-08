@@ -11,7 +11,6 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
   ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
-import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 

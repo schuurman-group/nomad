@@ -31,11 +31,11 @@ def pseudo_inverse(mat):
         cond = s[0]/s[ns-1]
 
     # Moore-Penrose pseudo-inverse
-    if glbl.fms['sinv_thrsh'] == -1.0:
+    if glbl.propagate['sinv_thrsh'] == -1.0:
         # set cutoff to machine epsilon * sigma_max
         cutoff = np.finfo(float).eps * np.maximum.reduce(s)
     else:
-        cutoff = glbl.fms['sinv_thrsh']
+        cutoff = glbl.propagate['sinv_thrsh']
     for i in range(min(dim1, dim2)):
         if s[i] > cutoff:
             s[i] = 1./s[i]

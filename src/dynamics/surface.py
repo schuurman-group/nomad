@@ -33,7 +33,7 @@ def update_pes(master, update_centroids=None):
     if update_centroids is None:
         update_centroids = master.integrals.require_centroids
 
-    if glbl.mpi_parallel:
+    if glbl.mpi['parallel']:
         # update electronic structure
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
@@ -69,10 +69,10 @@ def update_pes(master, update_centroids=None):
                                 'not recognized')
             local_results.append(pes_calc)
 
-        global_results = glbl.mpi_comm.allgather(local_results)
+        global_results = glbl.mpi['comm'].allgather(local_results)
 
         # update the cache
-        for i in range(glbl.mpi_nproc):
+        for i in range(glbl.mpi['nproc']):
             for j in range(len(global_results[i])):
                 pes_cache[global_results[i][j].tag] = global_results[i][j]
 
@@ -123,12 +123,12 @@ def update_pes_traj(traj):
 
     results = None
 
-    if glbl.mpi_rank == 0:
+    if glbl.mpi['rank'] == 0:
         results = pes.evaluate_trajectory(traj)
 
-    if glbl.mpi_parallel:
-        results = glbl.mpi_comm.bcast(results, root=0)
-        glbl.mpi_comm.barrier()
+    if glbl.mpi['parallel']:
+        results = glbl.mpi['comm'].bcast(results, root=0)
+        glbl.mpi['comm'].barrier()
 
     traj.update_pes_info(results)
 

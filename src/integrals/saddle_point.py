@@ -9,7 +9,7 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.integrals.nuclear_gaussian as nuclear
-interface = __import__('src.interfaces.' + glbl.fms['interface'],
+interface = __import__('src.interfaces.' + glbl.interface['interface'],
                        fromlist = ['a'])
 
 # Let FMS know if overlap matrix elements require PES info
@@ -56,7 +56,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Adiabatic energy
         v = t1.energy(t1.state)
         # DBOC
-        if glbl.fms['coupling_order'] == 3:
+        if glbl.interface['coupling_order'] == 3:
             v += t1.scalar_coup(t1.state, t2.state)
         return v
 
@@ -71,7 +71,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Adiabatic energy
         v = centroid.energy(t1.state) * Snuc
         # DBOC
-        if glbl.fms['coupling_order'] == 3:
+        if glbl.interface['coupling_order'] == 3:
             v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 
@@ -85,7 +85,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                                           t2.phase(),t2.widths(),t2.x(),t2.p()))
 #                       nuclear.deldx(t1, t2, S=Snuc))
         # Scalar coupling
-        if glbl.fms['coupling_order'] > 1:
+        if glbl.interface['coupling_order'] > 1:
             v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 

@@ -63,12 +63,11 @@ mem_str      = ''
 
 class Surface:
     """Object containing potential energy surface data."""
-    def __init__(self, tag, n_states, t_dim, crd_dim):
+    def __init__(self, tag, n_states, t_dim):
         # necessary for array allocation
         self.tag      = tag
         self.n_states = n_states
         self.t_dim    = t_dim
-        self.crd_dim  = crd_dim
 
         # these are the standard quantities ALL interface_data objects return
         self.data_keys = []
@@ -78,7 +77,7 @@ class Surface:
 
         # these are interface-specific quantities
         # atomic populations
-        self.atom_pop  = np.zeros((int(t_dim/crd_dim),n_states))
+        self.atom_pop  = np.zeros((int(t_dim/p_dim),n_states))
         # includes permanent (diagonal) and transition (off-diagonal) dipoles
         self.dipoles   = np.zeros((p_dim, n_states, n_states))
         # second moments of the current states (3x3 tensor)
@@ -88,7 +87,7 @@ class Surface:
 
     def copy(self):
         """Creates a copy of a Surface object."""
-        new_info = Surface(self.tag, self.n_states, self.t_dim, self.crd_dim)
+        new_info = Surface(self.tag, self.n_states, self.t_dim)
 
         # required potential data
         new_info.data_keys = copy.copy(self.data_keys)
@@ -118,11 +117,10 @@ def init_interface():
 
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
-    (natm, crd_dim, amp_data, label_data, geom_data,
-     mom_data, width_data, mass_data, state_data) = fileio.read_geometry()
 
     # set atomic symbol, number, mass,
-    a_sym   = [label_data[i].split()[0] for i in range(0,natm*crd_dim,crd_dim)]
+    natm    = len(glbl.nuclear_basis['labels'])
+    a_sym   = glbl.nuclear_basis['labels']
 
     a_data  = []
     for i in range(natm):
@@ -134,7 +132,7 @@ def init_interface():
     a_num   = [a_data[i][2] for i in range(natm)]
 
     # set coefficient for kinetic energy determination
-    kecoeff = 1./(2. * np.array(mass_data, dtype=float))
+    kecoeff = 1./(2. * np.array(glbl.nuclear_basis['masses'], dtype=float))
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
@@ -151,13 +149,13 @@ def init_interface():
     input_path    = fileio.scr_path + '/input'
     restart_path  = fileio.scr_path + '/restart'
     # ...but each process has it's own work directory
-    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi_rank)
+    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
     os.makedirs(work_path)
 
-    if glbl.mpi_rank == 0:
+    if glbl.mpi['rank'] == 0:
         if os.path.exists(input_path):
             shutil.rmtree(input_path)
         if os.path.exists(restart_path):
@@ -172,17 +170,17 @@ def init_interface():
         work_file  = os.path.join(work_path, item)
         shutil.copy2(local_file, work_file)
 
-        if glbl.mpi_rank == 0:
+        if glbl.mpi['rank'] == 0:
           input_file = os.path.join(input_path, item)
           shutil.copy2(local_file, input_file)
 
     # make sure process 0 is finished populating the input directory
-    if glbl.mpi_parallel:
-        glbl.mpi_comm.barrier()
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].barrier()
 
     # now -- pull information from columbus input
     n_atoms    = natm
-    n_cart     = natm * crd_dim
+    n_cart     = natm * p_dim
     n_orbs     = int(read_pipe_keyword('input/cidrtmsin',
                                        'orbitals per irrep'))
     n_mcstates = int(read_nlist_keyword('input/mcscfin',
@@ -194,12 +192,12 @@ def init_interface():
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(int(glbl.columbus['mem_per_core']))
-    coup_de_thresh = float(glbl.columbus['coup_de_thresh'])
+    mem_str = str(int(glbl.interface['mem_per_core']))
+    coup_de_thresh = float(glbl.interface['coup_de_thresh'])
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
-    if n_cistates < int(glbl.fms['n_states']):
-        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.fms['n_states']))
+    if n_cistates < int(glbl.propagate['n_states']):
+        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.propagate['n_states']))
 
     # generate one time input files for columbus calculations
     make_one_time_input()
@@ -223,7 +221,7 @@ def evaluate_trajectory(traj):
               'id associated with centroid, label=' + str(label))
 
     # create surface object to hold potential information
-    col_surf      = Surface(label, nstates, n_cart, p_dim)
+    col_surf      = Surface(label, nstates, n_cart)
     col_surf.geom = traj.x()
     col_surf.data_keys.append('geom')
 
@@ -300,7 +298,7 @@ def evaluate_centroid(Cent):
     state_j = max(Cent.pstates)
 
     # create surface object to hold potential information
-    col_surf      = Surface(label, nstates, n_cart, p_dim)
+    col_surf      = Surface(label, nstates, n_cart)
     col_surf.geom = Cent.x()
     col_surf.data_keys.append('geom')
 
@@ -739,6 +737,8 @@ def run_col_gradient(traj):
 
 
 def run_col_coupling(traj, ci_ener):
+    global n_cart
+
     """Computes couplings to states within prescribed DE window."""
     if type(traj) is trajectory.Trajectory:
         t_state    = traj.state
@@ -1004,7 +1004,7 @@ def append_log(label, listing_file):
     Useful for diagnosing electronic structure problems.
     """
     # open the running log for this process
-    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi_rank), 'a')
+    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(" ---------- trajectory "+str(label)+
                    ": "+str(listing_file)+" summary --------\n")

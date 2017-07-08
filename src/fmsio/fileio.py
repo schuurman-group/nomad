@@ -1,9 +1,11 @@
 """
 Routines for reading input files and writing log files.
 """
+import sys
 import os
 import re
 import glob
+import ast
 import shutil
 import numpy as np
 import src.dynamics.timings as timings
@@ -26,93 +28,212 @@ log_format  = dict()
 tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
-interface_dict = dict()
 
-
-def read_input_files():
+#
+#
+#
+def read_input_file():
     """Reads the fms.input files.
 
     This file contains variables related to the running of the
     dynamics simulation.
     """
-    global scr_path, home_path, interface_dict
+    global scr_path, home_path
 
     # save the name of directory where program is called from
     home_path = os.getcwd()
 
     # set a sensible default for scr_path
     scr_path = os.environ['TMPDIR']
-    if os.path.exists(scr_path) and glbl.mpi_rank==0:
+    if os.path.exists(scr_path) and glbl.mpi['rank']==0:
         shutil.rmtree(scr_path)
         os.makedirs(scr_path)
 
-    # Read fms.input. This contains general simulation variables
-    kwords = read_namelist('fms.input')
-    for k, v in kwords.items():
-        if k in glbl.fms:
-            glbl.fms[k] = v
+    # Read fms.input. Valid sections are:
+    #   initial_conditions
+    #   propagation
+    #   spawning
+    #   interface
+    #   geometry
+    #   printing
+
+    # Read fms.input. Small enough to gulp the whole thing
+    with open('fms.input', 'r') as infile:
+        fms_input = infile.readlines()
+
+    # remove comment lines
+    fms_input = [item for item in fms_input if 
+                 not item.startswith("#") and not item.startswith("!")]
+
+    sec_strings = list(glbl.input_groups)
+ 
+    current_line = 0
+    # look for begining of input section
+    while current_line < len(fms_input):
+        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line]) 
+                     for i in range(len(sec_strings))]
+        if all([v is None for v in sec_start]):
+            current_line+=1
         else:
-            if glbl.mpi_rank == 0:
-                print('Variable ' + str(k) +
-                      ' in fms.input unrecognized. Ignoring...')
+            section = next(item for item in sec_start 
+                           if item is not None).string
+            section = section.replace('-section','').replace('begin','').strip()
+            current_line = parse_section(fms_input, current_line, section)    
 
-    # Read pes.input. This contains interface-specific user options. Get what
-    #  interface we're using via glbl.fms['interface'], and populate the
-    #  corresponding dictionary of keywords from glbl module
-    # Still need to add a new dict to glbl for each new interface.
-    interface_dict = getattr(glbl, glbl.fms['interface'])
-    kwords = read_namelist('pes.input')
-    for k, v in kwords.items():
-        if k in interface_dict:
-            interface_dict[k] = v
-        elif glbl.mpi_rank == 0:
-            print('Variable ' + str(k) +
-                  ' in fms.input unrecognized. Ignoring...')
+    print("validating input...")
+    # ensure that input is internally consistent
+    validate_input()
+    
+    return
 
+#
+# set keywords in the appropriate keyword dictionary by parsing
+# input array
+#
+def parse_section(kword_array, line_start, section):
+    """Reads a namelist style input, returns results in dictionary.""" 
 
-def read_namelist(filename):
-    """Reads a namelist style input, returns results in dictionary."""
-    kwords = dict()
+    current_line = line_start + 1
+    while (current_line < len(kword_array) and 
+           re.search('end '+section+'-section',kword_array[current_line]) is None):
+        line = kword_array[current_line].rstrip('\r\n')
 
-    if os.path.exists(filename):
-        with open(filename, 'r', encoding='utf-8') as infile:
-            for line in infile:
-                if '=' in line:
-                    line = line.rstrip('\r\n')
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip()
-                    try:
-                        kwords[key] = float(value)
-                        if kwords[key].is_integer():
-                            kwords[key] = int(value)
-                    except ValueError:
-                        pass
+        # allow for multi-line input
+        while ("=" not in kword_array[current_line+1] and 
+               'end '+section+'-section' not in kword_array[current_line+1]):
+            current_line += 1
+            line += kword_array[current_line].rstrip('\r\n').strip()
 
-                    if key not in kwords:
-                        kwords[key] = value
+        key,value = line.split('=',1)
+        key   = key.strip()
+        value = value.strip().lower() # convert to lowercase
+        
+        if key not in glbl.input_groups[section].keys():
+            if glbl.mpi['rank'] == 0:
+                print("Cannot find input parameter: "+key+
+                      " in input section: "+section)
+        else:
+            # put all variable types into a flat list
+            # here we explicitly consider dimension 0,1,2 lists: which
+            # is pretty messy.
+            valid = True
+            if glbl.keyword_type[key][1] == 2:
+                try:
+                    value = ast.literal_eval(value)
+                except Exception:
+                    valid = False
+                    print("Cannot interpret input as nested array: "+
+                            str(ast.literal_eval('"%s"' % value)))
+                try:
+                    varcast = [[glbl.keyword_type[key][0](check_boolean(item)) 
+                               for item in sublist] for sublist in value]
+                except ValueError:
+                    valid = False
+                    print("Cannot read variable: "+str(key)+ 
+                          " as nested list of "+str(glbl.keyword_type[key][0]))
+            elif glbl.keyword_type[key][1] == 1:
+                try:
+                    value = ast.literal_eval(value)
+                except Exception:
+                    valid = False
+                    print("Cannot interpret input as list: "+
+                            str(ast.literal_eval('"%s"' % value)))
+                try:
+                    varcast = [glbl.keyword_type[key][0](check_boolean(item)) 
+                               for item in value]
+                except ValueError:
+                    valid = False
+                    print("Cannot read variable: "+str(key)+ 
+                          " as list of "+str(glbl.keyword_type[key][0]))
+            else:
+                try:
+                    varcast = glbl.keyword_type[key][0](check_boolean(value))
+                except ValueError:
+                    valid = False
+                    print("Cannot read variable: "+str(key)+
+                          " as a "+str(glbl.keyword_type[key][0]))
 
-    return kwords
+            if valid:
+                glbl.input_groups[section][key] = varcast
 
+        current_line+=1
 
+    return current_line
+
+#
+# ensure input values are internally consistent
+#
+def validate_input():
+    """ensures that input values are internally consistent"""
+
+    # Currently there are multiple ways to set variables in the nuclear
+    # basis section. The following lines ensure that subsequent usage of the 
+    # entries in glbl is consistent, regardless of how input specified
+
+   # if geomfile specified, it's contents overwrite variable settings in fms.input
+    if os.path.isfile(glbl.nuclear_basis['geomfile']):
+        (labels, geoms, moms)            = read_geometry(glbl.nuclear_basis['geomfile'])
+        glbl.nuclear_basis['labels']     = labels
+        glbl.nuclear_basis['geometries'] = geoms
+        glbl.nuclear_basis['momenta']    = moms
+
+    # if hessfile is specified, its contents overwrite variable settings from fms.input
+    if os.path.isfile(glbl.nuclear_basis['hessfile']):
+        glbl.nuclear_basis['hessian']    = read_hessian(glbl.nuclear_basis['hessfile'])
+
+    # if use_atom_lib == True, atom_lib values overwrite variables settings from fms.input
+    if glbl.nuclear_basis['use_atom_lib']:
+        ncart = 3
+        wlst  = []
+        mlst  = []
+        for i in len(labels):
+            (mass, wid, num) = atom_lib.atom_data(labels[i])
+            mlst.extend([mass for i in range(ncart)])
+            wlst.extend([wid for i in range(ncart)])
+        glbl.nuclear_basis['masses'] = mlst
+        glbl.nuclear_basis['widths'] = wlst
+
+    # set mass array here if using vibronic interface
+    if glbl.interface['interface'] == 'vibronic':
+        if all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
+            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
+                                              range(len(glbl.nuclear_basis['freqs']))]
+        else:
+            sys.exit("ERROR -- zero frequency")
+
+    # subsequent code will ONLY use the "init_states" array. If that array hasn't
+    # been set, using the value of "init_state" to create it
+    if (any(state == -1 for state in glbl.sampling['init_states']) or 
+         len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
+        glbl.sampling['init_states'] = [glbl.sampling['init_state'] for 
+                                        i in range(glbl.sampling['n_init_traj'])]
+
+    # check array lengths
+    #ngeom   = len(glbl.nuclear_basis['geometries'])
+    #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
+
+    return
+
+#
+#
+#
 def init_fms_output():
     """Initialized all the output format descriptors."""
     global log_format, dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    (ncrd, crd_dim, amp_data, label_data,
-     geom_data, mom_data, width_data, mass_data, state_data) = read_geometry()
-
-    nst = int(glbl.fms['n_states'])
-    dstr = ('x', 'y', 'z')
-    acc1 = 12
-    acc2 = 16
+    ncart = 3         # assumes expectation values of transition/permanent dipoles in 
+                      # cartesian coordinates
+    ncrd  = len(glbl.nuclear_basis['geometries'][0])
+    natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
+    nst   = glbl.propagate['n_states']
+    dstr  = ('x', 'y', 'z')
+    acc1  = 12
+    acc2  = 16
 
     # ----------------- dump formats (trajectory files) -----------------
     # trajectory output
-    arr1 = ['{:>12s}'.format('pos' + str(i+1) + '.' + dstr[x])
-            for i in range(ncrd) for x in range(crd_dim)]
-    arr2 = ['{:>12s}'.format('mom' + str(i+1) + '.' + dstr[x])
-            for i in range(ncrd) for x in range(crd_dim)]
+    arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
+    arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
     tfile_names[tkeys[0]] = 'trajectory'
     dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + 'Phase'.rjust(acc1) +
@@ -120,7 +241,7 @@ def init_fms_output():
                              'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
                              '\n')
     dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(2*ncrd*crd_dim+5))+
+                             ''.join('{:12.6f}' for i in range(2*ncrd+5))+
                              '\n')
 
     # potential energy
@@ -131,13 +252,12 @@ def init_fms_output():
                              ''.join('{:16.10f}' for i in range(nst)) + '\n')
 
     # gradients
-    arr1 = ['        crd' + str(i+1) + '.' + dstr[j]
-            for i in range(ncrd) for j in range(crd_dim)]
+    arr1 = ['            x' + str(i+1) for i in range(ncrd)]
     tfile_names[tkeys[7]] = 'gradient'
     dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[7]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, ncrd*crd_dim+1)) + '\n')
+                                     for i in range(1, ncrd+1)) + '\n')
 
     # coupling
     arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
@@ -150,17 +270,17 @@ def init_fms_output():
 
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nst) for j in range(crd_dim)]
+            for i in range(nst) for j in range(ncart)]
     tfile_names[tkeys[3]] = 'dipole'
     dump_header[tkeys[3]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nst*crd_dim)) + '\n')
+                                     for i in range(nst*ncart)) + '\n')
 
     # transition dipoles
     arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nst) for j in range(i) for k in range(crd_dim)]
-    ncol = int(nst*(nst-1)*crd_dim/2+1)
+            for i in range(nst) for j in range(i) for k in range(ncart)]
+    ncol = int(nst*(nst-1)*ncart/2+1)
     tfile_names[tkeys[4]] = 'tr_dipole'
     dump_header[tkeys[4]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[4]] = ('{:12.4f}' +
@@ -169,21 +289,21 @@ def init_fms_output():
 
     # second moments
     arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nst) for j in range(crd_dim)]
+            for i in range(nst) for j in range(ncart)]
     tfile_names[tkeys[5]] = 'sec_mom'
     dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[5]] = ('{:12.4f}' +
                              ''.join('{:12.5f}'
-                                     for i in range(nst*crd_dim)) + '\n')
+                                     for i in range(nst*ncart)) + '\n')
 
     # atomic populations
     arr1 = ['    st' + str(i) + '_a' + str(j+1)
-            for i in range(nst) for j in range(ncrd)]
+            for i in range(nst) for j in range(natm)]
     tfile_names[tkeys[6]] = 'atom_pop'
     dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[6]] = ('{:12.4f}' +
                              ''.join('{:10.5f}'
-                                     for i in range(nst*ncrd)) + '\n')
+                                     for i in range(nst*natm)) + '\n')
 
     # ----------------- dump formats (bundle files) -----------------
 
@@ -247,24 +367,22 @@ def init_fms_output():
                    ' scr_path    = ' + os.uname()[1] + ':' + scr_path + '\n')
         logfile.write(log_str)
 
-        log_str = ('\n fms simulation keywords\n' +
+        logfile.write('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
-        for k, v in glbl.fms.items():
-            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-        logfile.write(log_str)
+        for group,keywords in glbl.input_groups.items():
+            logfile.write("\n ** "+str(group)+" **\n")
+            log_str = ''
+            for k, v in glbl.input_groups[group].items():
+                log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+            logfile.write(log_str+'\n')
 
-        log_str = '\n ' + str(glbl.fms['interface']) + ' simulation keywords\n'
-        log_str += ' ----------------------------------------\n'
-        for k, v in interface_dict.items():
-            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-        logfile.write(log_str)
-
-        log_str = ('\n ***********\n' +
-                   ' propagation\n' +
-                   ' ***********\n\n')
-        logfile.write(log_str)
+        logfile.write ('\n ***********\n' +
+                         ' propagation\n' +
+                         ' ***********\n\n')
 
     log_format['general']        = '   ** {:60s} **\n'
+    log_format['warning']     = ' ** WARNING\: {:100s} **\n'
+
     log_format['string']         = ' {:160s}\n'
     log_format['t_step']         = ' > time: {:14.4f} step:{:8.4f} [{:4d} trajectories]\n'
     log_format['coupled']        = '  -- in coupling regime -> timestep reduced to {:8.4f}\n'
@@ -283,6 +401,7 @@ def init_fms_output():
     log_format['timings' ]       = '{}'
 
     print_level['general']        = 5
+    print_level['warning']        = 0
     print_level['string']         = 5
     print_level['t_step']         = 0
     print_level['coupled']        = 3
@@ -297,7 +416,9 @@ def init_fms_output():
     print_level['error']          = 0
     print_level['timings']        = 0
 
-
+#
+#
+#
 def print_traj_row(label, fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -311,6 +432,9 @@ def print_traj_row(label, fkey, data):
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[tkeys[fkey]].format(*data))
 
+#
+#
+#
 def update_logs(bundle):
     """Determines if it is appropriate to update the traj/bundle logs.
 
@@ -318,19 +442,21 @@ def update_logs(bundle):
     relatively constant -- regardless of what the propagator requires
     to do accurate integration.
     """
-    dt    = glbl.fms['default_time_step']
+    dt    = glbl.propagate['default_time_step']
     mod_t = bundle.time % dt
 
     # this. is. ugly.
     return mod_t < 0.0001*dt or mod_t > 0.999*dt
 
-
+#
+#
+#
 def print_bund_row(fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
     filename = scr_path + '/' + bfile_names[bkeys[fkey]]
 
-    if glbl.mpi_rank !=0:
+    if glbl.mpi['rank'] !=0:
         return
 
     if not os.path.isfile(filename):
@@ -353,111 +479,74 @@ def print_bund_mat(time, fname, mat):
 
 def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
-    if glbl.mpi_rank != 0:
+    global log_format, print_level
+
+    if glbl.mpi['rank'] != 0:
         return
 
     if otype not in log_format:
         print('CANNOT WRITE otype=' + str(otype) + '\n')
-    elif glbl.fms['print_level'] >= print_level[otype]:
+    elif glbl.printing['print_level'] >= print_level[otype]:
         filename = home_path + '/fms.log'
         with open(filename, 'a') as logfile:
             logfile.write(log_format[otype].format(*data))
 
+#
+# routine to check if string is boolean, 'true','TRUE','True', etc. and if
+# so, return "True" or "False".
+#
+def check_boolean(chk_str):
+
+    bool_str = str(chk_str).strip().lower()
+    if bool_str == 'true':
+        return True 
+    elif bool_str == 'false':
+        return False
+    else:
+        return chk_str
 
 #----------------------------------------------------------------------------
 #
 # Read geometry.dat and hessian.dat files
 #
 #----------------------------------------------------------------------------
-def read_geometry():
-    """Reads position and momenta from geometry.dat."""
-    state_data = []
-    amp_data   = []
-    geom_data  = []
-    mom_data   = []
-    width_data = []
-    label_data = []
-    mass_data  = []
-    mass_conv  = 1.
+def read_geometry(geom_file):
+    """Reads position and momenta from an xyz file"""
+    geoms = []
+    moms  = []
 
-    with open(home_path + '/geometry.dat', 'r') as gfile:
+    with open(geom_file, 'r') as gfile:
         gm_file = gfile.readlines()
 
-    not_done = True
-    lcnt = -1
-    while not_done:
-        # comment line -- if keyword "amplitude" is present, set amplitude
-        lcnt += 1
-        line = [x.strip().lower() for x in gm_file[lcnt].split()]
-        if 'amplitude' in line:
-            ind = line.index('amplitude')
-            amp_data.append(complex(float(line[ind+1]), float(line[ind+2])))
-        else:
-            amp_data.append(1 + 0j)
+    # parse file for number of atoms/dof, dimension of coordinates
+    # and number of geometries
+    ncrd    = int(gm_file[0].strip()[0])
+    crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
+    ngeoms  = int(len(gm_file)/(ncrd+2))
+   
+    # read in the atom/crd labels -- assumes atoms are same for each
+    # geometry in the list
+    labels = []
+    for i in range(2,ncrd+2):
+        labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
 
-        # number of atoms/coordinates
-        lcnt += 1
-        nq = int(gm_file[lcnt])
+    # loop over geoms, load positions and momenta into arrays
+    for i in range(ngeoms):
+        geom = []
+        mom  = []       
 
-        # read in geometry
-        for i in range(nq):
-            lcnt += 1
-            geom_data.extend([float(gm_file[lcnt].split()[j])
-                      for j in range(1,len(gm_file[lcnt].split()))])
-            crd_dim = len(gm_file[lcnt].split()[1:])
-            label_data.extend([gm_file[lcnt].split()[0]
-                       for i in range(crd_dim)])
-            # if in cartesians, assume mass given in amu, convert to au
-            if crd_dim == 3:
-                mass_conv = 1 * glbl.mass2au
+        # delete first and comment lines
+        del gm_file[0:2]
+        for j in range(ncrd):
+            line = gm_file[0].strip().split()
+            geom.extend([float(line[k]) for k in range(1,crd_dim+1)])
+            mom.extend([float(line[k]) for k in range(crd_dim+1,2*crd_dim+1)])
+            del gm_file[0]
 
-        # read in momenta
-        for i in range(nq):
-            lcnt += 1
-            mom_data.extend([float(gm_file[lcnt].split()[j])
-                       for j in range(len(gm_file[lcnt].split()))])
-
-        # read in widths, if present
-        if (lcnt+1) < len(gm_file) and 'alpha' in gm_file[lcnt+1]:
-            for i in range(nq):
-                lcnt += 1
-                width_data.extend([float(gm_file[lcnt].split()[j])
-                               for j in range(1,len(gm_file[lcnt].split()))])
-        else:
-            for lbl in label_data:
-                if atom_lib.valid_atom(lbl):
-                    adata = atom_lib.atom_data(lbl)
-                    width_data.extend([float(adata[0])])
-                else:
-                    width_data.extend([0.])
-
-        # read in masses, if present
-        if (lcnt+1) < len(gm_file) and 'mass' in gm_file[lcnt+1]:
-            for i in range(nq):
-                lcnt += 1
-                mass_data.extend([float(gm_file[lcnt].split()[j]) * mass_conv
-                               for j in range(1,len(gm_file[lcnt].split()))])
-        else:
-            for lbl in label_data:
-                if atom_lib.valid_atom(lbl):
-                    adata = atom_lib.atom_data(lbl)
-                    mass_data.extend([float(adata[1]) * mass_conv])
-                else:
-                    mass_data.extend([1.])
-
-        # read in state, if present
-        if (lcnt+1) < len(gm_file) and 'state' in gm_file[lcnt+1]:
-            lcnt += 1
-            state_data.append(int(gm_file[lcnt].split()[1]))
-        else:
-            state_data.append(int(-1))
-
-        # check if we've reached the end of the file
-        if (lcnt+1) == len(gm_file):
-            not_done = False
-
-    return (nq, crd_dim, amp_data, label_data,
-            geom_data, mom_data, width_data, mass_data, state_data)
+        geoms.append(geom)
+        moms.append(mom)
+       
+    return labels,geoms,moms
 
 
 def read_hessian():
@@ -472,7 +561,9 @@ def read_hessian():
 #----------------------------------------------------------------------------
 def cleanup(exception=None):
     """Cleans up the FMS log file."""
-    if glbl.mpi_rank == 0:
+    global home_path, scr_path
+
+    if glbl.mpi['rank'] == 0:
         # simulation ended
         if exception is None:
             print_fms_logfile('complete', [])

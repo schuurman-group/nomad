@@ -18,7 +18,7 @@ def cent_label(itraj_id, jtraj_id):
 class Centroid:
     """Class constructor for the Centroid object."""
     def __init__(self, traj_i=None, traj_j=None, nstates=0, pstates=[-1,-1],
-                 dim=0, width=None, crd_dim=3, label=-1):
+                 dim=0, width=None, label=-1):
         if traj_i is None or traj_j is None:
             # total number of states
             self.nstates = int(nstates)
@@ -31,9 +31,6 @@ class Centroid:
                 self.width = np.zeros(dim)
             else:
                 self.width = np.asarray(width)
-            # dimension of the coordinate system
-            #(i.e. ==3 for Cartesian, == 3N-6 for internals)
-            self.crd_dim = crd_dim
             # unique identifier for centroid
             self.label     = label
             # current position of the centroid
@@ -49,7 +46,6 @@ class Centroid:
             self.nstates = max(traj_i.nstates,traj_j.nstates)
             self.pstates = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
-            self.crd_dim = max(traj_i.crd_dim, traj_j.crd_dim)
             self.label     = -((idi * (idi - 1) // 2) + idj + 1)
             # now update the position in phase space of the centroid
             # if wid_i == wid_j, this is clearly just the simply mean
@@ -62,7 +58,7 @@ class Centroid:
 
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
-                               glbl.fms['interface'], fromlist = ['a'])
+                               glbl.interface['interface'], fromlist = ['a'])
 
         # data structure to hold the data from the interface
         self.pes_data  = None
@@ -71,8 +67,7 @@ class Centroid:
     def copy(self):
         """Copys a Centroid object with new references."""
         new_cent = Centroid(nstates=self.nstates, pstates=self.pstates,
-                            dim=self.dim, width=self.width,
-                            crd_dim=self.crd_dim, label=self.label)
+                            dim=self.dim, width=self.width,label=self.label)
         new_cent.pos = copy.deepcopy(self.pos)
         new_cent.mom = copy.deepcopy(self.mom)
         if self.pes_data is not None:
@@ -131,7 +126,7 @@ class Centroid:
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: centroid.energy() called, ' +
                   'but pes_geom != centroid.x(). ID=' + str(self.label))
-        return self.pes_data.potential[state] + glbl.fms['pot_shift']
+        return self.pes_data.potential[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
         """Returns either a gradient or derivative coupling depending
@@ -198,7 +193,7 @@ class Centroid:
         # F.p/m
         coup = self.coup_dot_vel()
         # G
-        if glbl.fms['coupling_order'] > 1:
+        if glbl.interface['coupling_order'] > 1:
             coup += self.scalar_coup(pstates[0], pstates[1])
         return coup
 

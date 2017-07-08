@@ -10,7 +10,7 @@ import src.fmsio.glbl as glbl
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
-    def __init__(self, nstates, dim, width=None, mass=None, crd_dim=3,
+    def __init__(self, nstates, dim, width=None, mass=None,
                  label=0, parent=0):
         # total number of states
         self.nstates = int(nstates)
@@ -26,9 +26,6 @@ class Trajectory:
             self.mass = np.zeros(dim)
         else:
             self.mass = np.array(mass)
-        # dimension of the coordinate system
-        #(i.e. ==3 for Cartesian, ==3N-6 for internals)
-        self.crd_dim = crd_dim
         # unique identifier for trajectory
         self.label        = label
         # trajectory that spawned this one:
@@ -57,7 +54,7 @@ class Trajectory:
 
         # name of interface to get potential information
         self.interface = __import__('src.interfaces.' +
-                               glbl.fms['interface'], fromlist = ['a'])
+                               glbl.interface['interface'], fromlist = ['a'])
 
         # data structure to hold the pes data from the interface
         self.pes_data  = None
@@ -66,7 +63,7 @@ class Trajectory:
     def copy(self):
         """Copys a Trajectory object with new references."""
         new_traj = Trajectory(self.nstates, self.dim, self.width, self.mass,
-                              self.crd_dim, self.label, self.parent)
+                              self.label, self.parent)
         new_traj.state      = copy.copy(self.state)
         new_traj.alive      = copy.copy(self.alive)
         new_traj.amplitude  = copy.copy(self.amplitude)
@@ -158,7 +155,7 @@ class Trajectory:
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label))
-        return self.pes_data.potential[state] + float(glbl.fms['pot_shift'])
+        return self.pes_data.potential[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
@@ -188,7 +185,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() / (2. * self.masses()))
+        return sum( self.p() * self.p() * self.interface.kecoeff )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -205,7 +202,7 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        if not glbl.fms['phase_prop']:
+        if not glbl.propagate['phase_prop']:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
@@ -231,7 +228,7 @@ class Trajectory:
         # F.p/m
         coup = self.coup_dot_vel(j_state)
         # G
-        if glbl.fms['coupling_order'] > 1:
+        if glbl.interface['coupling_order'] > 1:
             coup += self.scalar_coup(self.state, j_state)
 
         return coup
@@ -298,7 +295,7 @@ class Trajectory:
         # create Surface object, if doesn't already exist
         if self.pes_data is None:
             self.pes_data = self.interface.Surface(self.label, self.nstates,
-                                                   self.dim, self.crd_dim)
+                                                   self.dim)
 
         # potential energy -- nstates
         chkpt.readline()

@@ -22,7 +22,7 @@ import src.basis.trajectory as trajectory
 import src.spawn.utilities as utils
 import src.dynamics.step as step
 import src.dynamics.surface as surface
-integrals = __import__('src.integrals.'+glbl.fms['integrals'],fromlist=['a'])
+integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
 
 
 coup_hist = []
@@ -144,7 +144,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
             # try to set up the child
             if not adjust_success:
                 sp_str = 'no [momentum adjust fail]'
-            elif sij < glbl.fms['spawn_olap_thresh']:
+            elif sij < glbl.spawning['spawn_olap_thresh']:
                 sp_str = 'no [overlap too small]'
             elif not np.all(coup[0] > coup[1:]):
                 sp_str = 'no [decreasing coupling]'
@@ -187,7 +187,7 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
 
     # Return False if:
     # if insufficient population on trajectory to spawn
-    if abs(traj.amplitude) < glbl.fms['spawn_pop_thresh']:
+    if abs(traj.amplitude) < glbl.spawning['spawn_pop_thresh']:
         return False
 
     # we have already spawned to this state
@@ -195,7 +195,7 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
         return False
 
     # there is insufficient coupling
-    if abs(traj.eff_coup(spawn_state)) < glbl.fms['spawn_coup_thresh']:
+    if abs(traj.eff_coup(spawn_state)) < glbl.spawning['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing
@@ -205,7 +205,7 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
     # if we already have sufficient overlap with a function on the
     # spawn_state
     if utils.max_nuc_overlap(bundle, traj_index,
-                             overlap_state=spawn_state) > glbl.fms['sij_thresh']:
+                             overlap_state=spawn_state) > glbl.propagate['sij_thresh']:
         return False
 
     return True
@@ -216,7 +216,7 @@ def in_coupled_regime(bundle):
     for i in range(bundle.n_traj()):
         for st in range(bundle.nstates):
             if st != bundle.traj[i].state:
-                if abs(bundle.traj[i].eff_coup(st)) > glbl.fms['spawn_coup_thresh']:
+                if abs(bundle.traj[i].eff_coup(st)) > glbl.spawning['spawn_coup_thresh']:
                     return True
 
     return False

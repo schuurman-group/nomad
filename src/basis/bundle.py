@@ -131,7 +131,7 @@ class Bundle:
         self.ndead           = self.ndead + 1
         # Remove the trajectory from the list of active trajectories
         # iff matching pursuit is not being used
-        if not glbl.fms['matching_pursuit']:
+        if not glbl.propagate['matching_pursuit']:
             self.active.remove(tid)
             self.traj[tid].active = False
             self.nactive = self.nactive - 1
@@ -254,7 +254,7 @@ class Bundle:
         """Returns the norm of the wavefunction """
         ntot = np.dot(np.dot(np.conj(self.amplitudes()),
                              self.traj_ovrlp),self.amplitudes()).real
-        if ntot > glbl.fms['norm_thresh']:
+        if ntot > glbl.propagate['norm_thresh']:
             raise ValueError('Wavefunction norm threshold exceeded')
         else:
             return ntot
@@ -458,7 +458,7 @@ class Bundle:
                 continue
 
             # trajectory files
-            if glbl.fms['print_traj']:
+            if glbl.printing['print_traj']:
                 data = [self.time]
                 data.extend(self.traj[i].x().tolist())
                 data.extend(self.traj[i].p().tolist())
@@ -490,7 +490,7 @@ class Bundle:
                 fileio.print_traj_row(self.traj[i].label, 2, data)
 
             # print pes information relevant to the chosen interface
-            if glbl.fms['print_es']:
+            if glbl.printing['print_es']:
 
                 # print the interface-specific data
                 for key in self.traj[i].pes_data.data_keys:
@@ -516,11 +516,11 @@ class Bundle:
 
                     # second moments
                     if key == 'sec_mom':
-                        crd_dim = self.traj[i].crd_dim
+                        ncart = 3 
                         data = [self.time]
                         for j in range(self.nstates):
                             diag_mom = [self.traj[i].pes_data.sec_moms[k,k,j] 
-                                        for k in range(crd_dim)]
+                                        for k in range(ncart)]
                             data.extend(diag_mom)
                         fileio.print_traj_row(self.traj[i].label, 5, data)
 
@@ -546,7 +546,7 @@ class Bundle:
         fileio.print_bund_row(1, data)
 
         # bundle matrices
-        if glbl.fms['print_matrices']:
+        if glbl.printing['print_matrices']:
             if self.integrals.basis != 'gaussian':
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp)
             fileio.print_bund_mat(self.time, 's.dat', self.S)
@@ -557,11 +557,11 @@ class Bundle:
             fileio.print_bund_mat(self.time, 'sdot.dat', self.Sdot)
 
         # dump full bundle to an checkpoint file
-        if glbl.fms['print_chkpt']:
+        if glbl.printing['print_chkpt']:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
         # wavepacket autocorrelation function
-        if glbl.fms['auto'] and glbl.bundle0 is not None:
+        if glbl.propagate['auto'] and glbl.bundle0 is not None:
             auto = self.overlap(glbl.bundle0)
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(8, data)
@@ -574,7 +574,6 @@ class Bundle:
         """
         if mode not in ('w','a'):
             raise ValueError('Invalid write mode in bundle.write_bundle')
-        crd_dim = self.traj[0].crd_dim
         ndim    = self.traj[0].dim
         with open(filename, mode) as chkpt:
             # first write out the bundle-level information
@@ -584,7 +583,6 @@ class Bundle:
             chkpt.write('{:10d}            dead trajectories\n'.format(self.ndead))
             chkpt.write('{:10d}            number of states\n'.format(self.nstates))
             chkpt.write('{:10d}            number of coordinates\n'.format(ndim))
-            chkpt.write('{:10d}            dimensions of coord system\n'.format(crd_dim))
 
             # information common to all trajectories
             chkpt.write('--------- common trajectory information --------\n')
@@ -633,7 +631,6 @@ class Bundle:
         ndead   = int(chkpt.readline().split()[0])
         self.nstates = int(chkpt.readline().split()[0])
         ndim         = int(chkpt.readline().split()[0])
-        crd_dim      = int(chkpt.readline().split()[0])
 
         # the read common info that will be the same for all trajectories
         chkpt.readline()
@@ -651,7 +648,6 @@ class Bundle:
                                            ndim,
                                            width=widths,
                                            mass=masses,
-                                           crd_dim=crd_dim,
                                            label=i,
                                            parent=0)
             t_read.read_trajectory(chkpt)
