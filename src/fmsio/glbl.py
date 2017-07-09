@@ -27,7 +27,7 @@ mpi = dict(
 # input related to initial conditions
 sampling = dict(
     restart                = False,
-    init_sampling          = 'gs_wigner',
+    init_sampling          = 'wigner',
     n_init_traj            = 1,
     init_state             = 0,
     init_states            = [-1],
@@ -40,7 +40,6 @@ sampling = dict(
 
 propagate = dict(
     n_states               = 1,
-    matching_pursuit       = False,
     simulation_time        = 0.,
     default_time_step      = 10.,
     coupled_time_step      = 5.,
@@ -52,21 +51,10 @@ propagate = dict(
     renorm                 = False,
     sinv_thrsh             = -1.0,
     norm_thresh            = 10.,
-    print_traj             = True,
-    print_es               = True,
-    print_matrices         = True,
-    print_chkpt            = True,
-    virtual_basis          = False,
-    print_level            = 1,
-    opfile                 = 'fms.op',
-    coupling_order         = 1,
     auto                   = False,
     phase_prop             = True,
-    renorm                 = False,
     sinv_thrsh             = -1.0,
-    sampling_compression   = 1.0,
-    matching_pursuit       = False,
-    representation         = 'adiabatic')
+    matching_pursuit       = False)
 
 # Electronic structure information read from interface-specific
 # routines
