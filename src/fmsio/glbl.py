@@ -53,8 +53,8 @@ propagate = dict(
     norm_thresh            = 10.,
     auto                   = False,
     phase_prop             = True,
-    sij_thresh             = 0.7
-    hij_coup_thresh        = 0.001
+    sij_thresh             = 0.7,
+    hij_coup_thresh        = 0.001,
     matching_pursuit       = False)
 
 # Electronic structure information read from interface-specific
