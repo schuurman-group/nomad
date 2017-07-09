@@ -31,10 +31,8 @@ def init_bundle(master):
                str(glbl.interface['interface']))
 
     try:
-        print("samp string="+'src.sampling.'+glbl.sampling['init_sampling'])
         sampling = __import__('src.sampling.'+glbl.sampling['init_sampling'],
                          fromlist=['NA'])
-        print("getting here?")
     except ImportError:
         print('Cannot import sampling: src.sampling.'+
                str(glbl.sampling['init_sampling']))
@@ -173,7 +171,6 @@ def set_initial_amplitudes(master):
         ovec = np.zeros(master.n_traj(), dtype=complex)
         for i in range(master.n_traj()):
             ovec[i] = integrals.traj_overlap(master.traj[i], origin, nuc_only=True)
-        print("ovec="+str(ovec))
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):

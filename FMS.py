@@ -37,23 +37,17 @@ def init():
     # read in options/variables pertaining to the running
     # of the dynamics, pass the starting time of the simluation
     # a nd the end time
-    print("aa")
     fileio.read_input_file()
 
-    print("BB")
     # initialize random number generator
     random.seed(glbl.sampling['seed'])
 
-    print("CC")
     # Create the collection of trajectories
     master = bundle.Bundle(glbl.propagate['n_states'],
                            glbl.propagate['integrals'])
 
-    print("DD")
     # set the initial conditions for trajectories
     initialize.init_bundle(master)
-
-    print("initialize done")
 
     return master
 

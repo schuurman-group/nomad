@@ -134,7 +134,6 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
     Heff = np.dot( Sinv, H - 1j * Sdot )
 
     sig[abs(sig)< 1e-10]=0
-    print("sig="+str(sig))
 #    print("tau="+str(tau))
 
     return t_ovrlp, T, V, S, Sdot, Heff
