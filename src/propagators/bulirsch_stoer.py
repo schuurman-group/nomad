@@ -24,7 +24,7 @@ import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
 
-propphase = glbl.fms['phase_prop'] != 0
+propphase = glbl.propagate['phase_prop']
 
 maxattempt = 8
 tol = 1e-6

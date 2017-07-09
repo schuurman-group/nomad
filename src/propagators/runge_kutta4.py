@@ -11,6 +11,7 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
   ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
+import src.fmsio.glbl as glbl
 import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
@@ -18,7 +19,7 @@ import src.dynamics.surface as surface
 rk_ordr = 4
 coeff = np.array([0.5, 0.5, 1.])
 wgt = np.array([1./6., 1./3., 1./3., 1./6.])
-propphase = glbl.fms['phase_prop'] != 0
+propphase = glbl.propagate['phase_prop']
 
 
 @timings.timed

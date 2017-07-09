@@ -11,7 +11,7 @@ import src.dynamics.timings as timings
 import src.dynamics.surface as surface
 
 
-propphase = glbl.fms['phase_prop'] != 0
+propphase = glbl.propagate['phase_prop']
 
 
 @timings.timed
