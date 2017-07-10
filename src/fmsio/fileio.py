@@ -80,7 +80,6 @@ def read_input_file():
             section = section.replace('-section','').replace('begin','').strip()
             current_line = parse_section(fms_input, current_line, section)    
 
-    print("validating input...")
     # ensure that input is internally consistent
     validate_input()
     
@@ -519,7 +518,7 @@ def read_geometry(geom_file):
 
     # parse file for number of atoms/dof, dimension of coordinates
     # and number of geometries
-    ncrd    = int(gm_file[0].strip()[0])
+    ncrd    = int(gm_file[0].strip().split()[0])
     crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
     ngeoms  = int(len(gm_file)/(ncrd+2))
    
@@ -528,7 +527,6 @@ def read_geometry(geom_file):
     labels = []
     for i in range(2,ncrd+2):
         labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
-        print("labels="+str(labels))
 
     # loop over geoms, load positions and momenta into arrays
     for i in range(ngeoms):
@@ -549,9 +547,9 @@ def read_geometry(geom_file):
     return labels,geoms,moms
 
 
-def read_hessian():
+def read_hessian(hess_file):
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
-    return np.loadtxt(home_path + '/hessian.dat', dtype=float)
+    return np.loadtxt(str(hess_file), dtype=float)
 
 
 #----------------------------------------------------------------------------
