@@ -183,15 +183,14 @@ def validate_input():
 
     # if use_atom_lib == True, atom_lib values overwrite variables settings from fms.input
     if glbl.nuclear_basis['use_atom_lib']:
-        ncart = 3
         wlst  = []
         mlst  = []
-        for i in len(labels):
-            (mass, wid, num) = atom_lib.atom_data(labels[i])
-            mlst.extend([mass for i in range(ncart)])
-            wlst.extend([wid for i in range(ncart)])
-        glbl.nuclear_basis['masses'] = mlst
+        for i in range(len(labels)):
+            (wid, mass, num) = atom_lib.atom_data(labels[i])
+            wlst.append(wid)
+            mlst.append(mass)
         glbl.nuclear_basis['widths'] = wlst
+        glbl.nuclear_basis['masses'] = mlst
 
     # set mass array here if using vibronic interface
     if glbl.interface['interface'] == 'vibronic':
@@ -529,6 +528,7 @@ def read_geometry(geom_file):
     labels = []
     for i in range(2,ncrd+2):
         labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
+        print("labels="+str(labels))
 
     # loop over geoms, load positions and momenta into arrays
     for i in range(ngeoms):

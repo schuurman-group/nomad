@@ -77,11 +77,11 @@ class Surface:
 
         # these are interface-specific quantities
         # atomic populations
-        self.atom_pop  = np.zeros((int(t_dim/p_dim),n_states))
+        self.atom_pop  = np.zeros((int(t_dim/3),n_states))
         # includes permanent (diagonal) and transition (off-diagonal) dipoles
-        self.dipoles   = np.zeros((p_dim, n_states, n_states))
+        self.dipoles   = np.zeros((3, n_states, n_states))
         # second moments of the current states (3x3 tensor)
-        self.sec_moms  = np.zeros((p_dim, p_dim, n_states))
+        self.sec_moms  = np.zeros((3, 3, n_states))
         # molecular orbitals
         self.mos       = None
 
@@ -111,7 +111,7 @@ class Surface:
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path, log_file
-    global a_sym, a_num, a_mass, n_atoms, n_cart, coup_de_thresh
+    global a_sym, a_num, a_mass, n_atoms, n_cart, p_dim, coup_de_thresh
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
     global kecoeff
 
@@ -119,10 +119,12 @@ def init_interface():
     # a_i = 1/2m_i
 
     # set atomic symbol, number, mass,
-    natm    = len(glbl.nuclear_basis['labels'])
-    a_sym   = glbl.nuclear_basis['labels']
+    natm    = int(len(glbl.nuclear_basis['labels']) / p_dim)
+    a_sym   = [glbl.nuclear_basis['labels'][p_dim*i] for i in range(natm)]
 
     a_data  = []
+    # we need to go through this to pull out the atomic numbers for
+    # correct writing of input
     for i in range(natm):
         if atom_lib.valid_atom(a_sym[i]):
             a_data.append(atom_lib.atom_data(a_sym[i]))
@@ -212,6 +214,8 @@ def evaluate_trajectory(traj):
     Thus, if electronic structure information is not up2date, all methods
     call the same routine: run_single_point.
     """
+    global n_cart
+
     label   = traj.label
     state   = traj.state
     nstates = traj.nstates
@@ -286,6 +290,7 @@ def evaluate_trajectory(traj):
 def evaluate_centroid(Cent):
     """Evaluates  all requested electronic structure information at a
     centroid."""
+    global n_cart
 
     label   = Cent.label
     nstates = Cent.nstates
@@ -342,6 +347,9 @@ def evaluate_centroid(Cent):
 #---------------------------------------------------------------
 def make_one_time_input():
     """Creates a Columbus input for MRCI calculations."""
+    global mem_str
+    global columbus_path, work_path
+
     # all calculations take place in work_dir
     os.chdir(work_path)
 
@@ -371,6 +379,8 @@ def make_one_time_input():
 
 def generate_integrals(label):
     """Runs Dalton to generate AO integrals."""
+    global work_path
+
     os.chdir(work_path)
 
     # run unik.gets.x script
@@ -393,6 +403,9 @@ def generate_integrals(label):
 
 def run_col_mcscf(traj):
     """Runs MCSCF program."""
+    global n_mcstates, n_drt, mrci_lvl, mem_str
+    global work_path
+
     label = traj.label
 
     if type(traj) is trajectory.Trajectory:
@@ -464,6 +477,9 @@ def run_col_mcscf(traj):
 
 def run_col_mrci(traj, ci_restart):
     """Runs MRCI if running at that level of theory."""
+    global n_atoms, n_cistates, max_l, mem_str
+    global work_path
+
     os.chdir(work_path)
 
     # get a fresh ciudgin file
@@ -591,6 +607,9 @@ def run_col_mrci(traj, ci_restart):
 
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
+    global p_dim, mrci_lvl, mem_str 
+    global work_path
+
     os.chdir(work_path)
 
     nst       = traj.nstates
@@ -640,6 +659,9 @@ def run_col_multipole(traj):
 def run_col_tdipole(label, state_i, state_j):
     """Computes transition dipoles between ground and excited state,
     and between trajectory states and other state."""
+    global p_dim, mrci_lvl, mem_str
+    global work_path
+
     os.chdir(work_path)
 
     # make sure we point to the correct formula tape file
@@ -689,6 +711,9 @@ def run_col_tdipole(label, state_i, state_j):
 def run_col_gradient(traj):
     """Performs integral transformation and determine gradient on
     trajectory state."""
+    global mrci_lvl, mem_str
+    global work_path
+
     os.chdir(work_path)
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     tstate = traj.state + 1
@@ -737,9 +762,10 @@ def run_col_gradient(traj):
 
 
 def run_col_coupling(traj, ci_ener):
-    global n_cart
-
     """Computes couplings to states within prescribed DE window."""
+    global n_cart, coup_de_thresh, mrci_lvl, mem_str
+    global input_path, work_path
+
     if type(traj) is trajectory.Trajectory:
         t_state    = traj.state
         c_states   = range(traj.nstates)
@@ -822,6 +848,8 @@ def run_col_coupling(traj, ci_ener):
 
 def make_col_restart(traj):
     """Saves mocoef and ci files to restart directory."""
+    global restart_path, work_path
+
     os.chdir(work_path)
     label = traj.label
 
@@ -967,6 +995,8 @@ def get_col_restart(traj):
 def get_adiabatic_phase(traj, new_coup):
     """Determines the phase of the computed coupling that yields smallest
     change from previous coupling."""
+    global n_cart
+
     label = traj.label
     if type(traj) is trajectory.Trajectory:
         state = traj.state
@@ -1060,6 +1090,9 @@ def append_log(label, listing_file):
 
 def write_col_geom(geom):
     """Writes a array of atoms to a COLUMBUS style geom file."""
+    global n_atoms, p_dim, a_sym, a_num, a_mass
+    global work_path
+
     os.chdir(work_path)
 
     f = open('geom', 'w', encoding='utf-8')

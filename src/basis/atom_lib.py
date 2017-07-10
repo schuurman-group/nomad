@@ -1,4 +1,4 @@
-import src.fmsio.glbl
+import src.fmsio.glbl as glbl
 
 """
 A library containing atom widths, atomic numbers, etc.

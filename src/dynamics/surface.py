@@ -41,7 +41,7 @@ def update_pes(master, update_centroids=None):
             if master.traj[i].active and not cached(master.traj[i].label,
                                                     master.traj[i].x()):
                 n_total += 1
-                if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(master.traj[i])
 
         if update_centroids:
@@ -55,7 +55,7 @@ def update_pes(master, update_centroids=None):
                                            cached(master.cent[i][j].label,
                                                   master.cent[i][j].x()):
                         n_total += 1
-                        if n_total % glbl.mpi_nproc == glbl.mpi_rank:
+                        if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                             exec_list.append(master.cent[i][j])
 
         local_results = []
