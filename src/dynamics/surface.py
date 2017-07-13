@@ -30,7 +30,9 @@ def update_pes(master, update_centroids=None):
     global pes, pes_cache
     success = True
 
-    if update_centroids is None:
+    # this conditional checks to see if we actually need centroids,
+    # even if propagator requests them
+    if update_centroids is None or not master.integrals.require_centroids:
         update_centroids = master.integrals.require_centroids
 
     if glbl.mpi['parallel']:

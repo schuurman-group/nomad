@@ -191,11 +191,13 @@ def validate_input():
         glbl.nuclear_basis['widths'] = wlst
         glbl.nuclear_basis['masses'] = mlst
 
-    # set mass array here if using vibronic interface
-    if glbl.interface['interface'] == 'vibronic':
-        if all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
-            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
-                                              range(len(glbl.nuclear_basis['freqs']))]
+    # set mass and width array here if using vibronic interface
+    elif glbl.interface['interface'] == 'vibronic':
+        freqs = glbl.nuclear_basis['freqs']
+        nfreq = len(freqs)
+        glbl.nuclear_basis['widths'] = [1./np.sqrt(2.) for i in range(nfreq)]
+        if all(freq != 0. for freq in freqs):
+            glbl.nuclear_basis['masses'] = [1./freqs[i] for i in range(nfreq)]
         else:
             sys.exit("ERROR -- zero frequency")
 
