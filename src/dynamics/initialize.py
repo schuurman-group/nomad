@@ -178,7 +178,6 @@ def set_initial_amplitudes(master):
                                                           master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
-        print(smat)
         sinv = sp_linalg.pinvh(smat)
         glbl.nuclear_basis['amplitudes'] = np.dot(sinv, ovec)
 

@@ -83,7 +83,7 @@ def fms_step_bundle(master, dt):
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                master.update_matrices()
+                 master.update_matrices()
 
             # re-expression of the basis using the matching pursuit
             # algorithm

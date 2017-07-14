@@ -542,7 +542,6 @@ def run_col_mrci(traj, ci_restart):
     ci_tol  = []
     mrci_iter = False
     converged = True
-    sys.stdout.flush()
     with open('ciudgsm', 'r') as ofile:
         for line in ofile:
             if 'beginning the ci' in line:
@@ -949,7 +948,6 @@ def get_col_restart(traj):
                 print("found: "+mocoef_file+par_arr[i])
                 par_str = par_arr[i]
                 break
-        sys.stdout.flush()
 
     if not mo_restart:
         # else, just take the mocoef file we have lying around
