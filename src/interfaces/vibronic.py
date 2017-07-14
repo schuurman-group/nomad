@@ -237,7 +237,7 @@ def init_interface():
         fileio.print_fms_logfile('string', [string])
 
 
-def evaluate_trajectory(traj):
+def evaluate_trajectory(traj, t=None):
     """Evaluates the trajectory."""
     global data_cache
 
@@ -292,12 +292,12 @@ def evaluate_trajectory(traj):
     data_cache[label] = t_data
     return t_data
 
-def evaluate_centroid(traj):
+def evaluate_centroid(traj, t=None):
     """Evaluates the centroid.
 
     At the moment, this function is just evaluate_trajectory.
     """
-    return evaluate_trajectory(traj)
+    return evaluate_trajectory(traj, t)
 
 
 #----------------------------------------------------------------------

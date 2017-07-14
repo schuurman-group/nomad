@@ -152,9 +152,10 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > 10.*glbl.fpzero:
             print('WARNING: trajectory.energy() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.potential[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
@@ -164,7 +165,8 @@ class Trajectory:
         """
         if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.deriv[:, state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
@@ -172,6 +174,10 @@ class Trajectory:
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes_data.data_keys:
             return 0.
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+            print('WARNING: trajectory.scalar_coup() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.scalar_coup[state_i, state_j]
 
     #------------------------------------------------------------------------

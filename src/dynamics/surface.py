@@ -63,9 +63,9 @@ def update_pes(master, update_centroids=None):
         local_results = []
         for i in range(len(exec_list)):
             if type(exec_list[i]) is trajectory.Trajectory:
-                pes_calc = pes.evaluate_trajectory(exec_list[i])
+                pes_calc = pes.evaluate_trajectory(exec_list[i], master.time)
             elif type(exec_list[i]) is centroid.Centroid:
-                pes_calc = pes.evaluate_centroid(exec_list[i])
+                pes_calc = pes.evaluate_centroid(exec_list[i], master.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
@@ -99,7 +99,8 @@ def update_pes(master, update_centroids=None):
         # iterate over trajectories..
         for i in range(master.n_traj()):
             if master.traj[i].active:
-                master.traj[i].update_pes_info(pes.evaluate_trajectory(master.traj[i]))
+                master.traj[i].update_pes_info(pes.evaluate_trajectory(
+                                               master.traj[i], master.time))
 
         # ...and centroids if need be
         if update_centroids:
@@ -110,7 +111,8 @@ def update_pes(master, update_centroids=None):
                 # if centroid not initialized, skip it
                     if master.cent[i][j] is not None:
                         master.cent[i][j].update_pes_info(
-                                          pes.evaluate_centroid(master.cent[i][j]))
+                                          pes.evaluate_centroid(
+                                          master.cent[i][j], master.time))
                         master.cent[j][i] = master.cent[i][j]
 
     return success
