@@ -205,7 +205,7 @@ def init_interface():
     make_one_time_input()
 
 
-def evaluate_trajectory(traj):
+def evaluate_trajectory(traj, t=None):
     """Computes MCSCF/MRCI energy and computes all couplings.
 
     For the columbus module, since gradients are not particularly
@@ -237,15 +237,15 @@ def evaluate_trajectory(traj):
         raise IOError('cannot find starting orbitals for mcscf')
 
     # generate integrals
-    generate_integrals(label)
+    generate_integrals(label, t)
 
     # run mcscf
-    run_col_mcscf(traj)
+    run_col_mcscf(traj, t)
     col_surf.mos = pack_mocoef()
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    col_surf.potential, col_surf.atom_pop = run_col_mrci(traj, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(traj, ci_restart, t)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
@@ -268,11 +268,11 @@ def evaluate_trajectory(traj):
     col_surf.data_keys.append('tr_dipole')
 
     # compute gradient on current state
-    grads = run_col_gradient(traj)
+    grads = run_col_gradient(traj, t)
     col_surf.deriv[:, state, state] = grads
 
     # run coupling to other states
-    nad_coup = run_col_coupling(traj, col_surf.potential)
+    nad_coup = run_col_coupling(traj, col_surf.potential, t)
     for i in range(nstates):
         if i != state:
             state_i = min(i,state)
@@ -287,7 +287,7 @@ def evaluate_trajectory(traj):
     return col_surf
 
 
-def evaluate_centroid(Cent):
+def evaluate_centroid(Cent, t=None):
     """Evaluates  all requested electronic structure information at a
     centroid."""
     global n_cart
@@ -315,21 +315,21 @@ def evaluate_centroid(Cent):
         raise IOError('cannot find starting orbitals for mcscf')
 
     # generate integrals
-    generate_integrals(label)
+    generate_integrals(label, t)
 
     # run mcscf
-    run_col_mcscf(Cent)
+    run_col_mcscf(Cent, t)
     col_surf.mos = pack_mocoef()
     col_surf.data_keys.append('mos')
 
     # run mrci, if necessary
-    col_surf.potential, col_surf.atom_pop = run_col_mrci(Cent, ci_restart)
+    col_surf.potential, col_surf.atom_pop = run_col_mrci(Cent, ci_restart, t)
     col_surf.data_keys.append('poten')
     col_surf.data_keys.append('atom_pop')
 
     if state_i != state_j:
         # run coupling to other states
-        nad_coup = run_col_coupling(Cent, col_surf.potential)
+        nad_coup = run_col_coupling(Cent, col_surf.potential, t)
         col_surf.deriv[:,state_i, state_j] =  nad_coup[:,state_j]
         col_surf.deriv[:,state_j, state_i] = -nad_coup[:,state_j]
         col_surf.data_keys.append('deriv')
@@ -377,7 +377,7 @@ def make_one_time_input():
     shutil.copy('ciudgin.drt1', 'ciudgin')
 
 
-def generate_integrals(label):
+def generate_integrals(label, t):
     """Runs Dalton to generate AO integrals."""
     global work_path
 
@@ -398,10 +398,10 @@ def generate_integrals(label):
         subprocess.run(['dalton.x', '-m', mem_str], stdout=hermitls,
                        universal_newlines=True, shell=True)
 
-    append_log(label,'integral')
+    append_log(label,'integral', t)
 
 
-def run_col_mcscf(traj):
+def run_col_mcscf(traj, t):
     """Runs MCSCF program."""
     global n_mcstates, n_drt, mrci_lvl, mem_str
     global work_path
@@ -472,10 +472,10 @@ def run_col_mcscf(traj):
     shutil.copy('mocoef_mc', 'mocoef')
 
     # grab mcscfls output
-    append_log(label,'mcscf')
+    append_log(label,'mcscf', t)
 
 
-def run_col_mrci(traj, ci_restart):
+def run_col_mrci(traj, ci_restart, t):
     """Runs MRCI if running at that level of theory."""
     global n_atoms, n_cistates, max_l, mem_str
     global work_path
@@ -542,6 +542,7 @@ def run_col_mrci(traj, ci_restart):
     ci_tol  = []
     mrci_iter = False
     converged = True
+    sys.stdout.flush()
     with open('ciudgsm', 'r') as ofile:
         for line in ofile:
             if 'beginning the ci' in line:
@@ -587,7 +588,7 @@ def run_col_mrci(traj, ci_restart):
                 atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
-    append_log(traj.label,'mrci')
+    append_log(traj.label,'mrci', t)
 
     # transform integrals using cidrtfl.cigrd
     if int_trans:
@@ -707,7 +708,7 @@ def run_col_tdipole(label, state_i, state_j):
     return tran_dip
 
 
-def run_col_gradient(traj):
+def run_col_gradient(traj, t):
     """Performs integral transformation and determine gradient on
     trajectory state."""
     global mrci_lvl, mem_str
@@ -755,12 +756,12 @@ def run_col_gradient(traj):
     shutil.move('cartgrd', 'cartgrd.s'+str(traj.state)+'.'+str(traj.label))
 
     # grab cigrdls output
-    append_log(traj.label,'cigrd')
+    append_log(traj.label,'cigrd', t)
 
     return gradient
 
 
-def run_col_coupling(traj, ci_ener):
+def run_col_coupling(traj, ci_ener, t):
     """Computes couplings to states within prescribed DE window."""
     global n_cart, coup_de_thresh, mrci_lvl, mem_str
     global input_path, work_path
@@ -837,7 +838,7 @@ def run_col_coupling(traj, ci_ener):
         shutil.move('cartgrd', 'cartgrd.nad.' + str(s1) + '.' + str(s2))
 
         # grab mcscfls output
-        append_log(traj.label,'nad')
+        append_log(traj.label,'nad', t)
 
     # set the phase of the new coupling vectors using the cached data
     nad_coupl_phased = get_adiabatic_phase(traj, nad_coupl)
@@ -948,6 +949,7 @@ def get_col_restart(traj):
                 print("found: "+mocoef_file+par_arr[i])
                 par_str = par_arr[i]
                 break
+        sys.stdout.flush()
 
     if not mo_restart:
         # else, just take the mocoef file we have lying around
@@ -1026,16 +1028,23 @@ def get_adiabatic_phase(traj, new_coup):
 # File parsing
 #
 #-----------------------------------------------------------------
-def append_log(label, listing_file):
+def append_log(label, listing_file, time):
     """Grabs key output from columbus listing files.
 
     Useful for diagnosing electronic structure problems.
     """
+    # check to see if time is given, if not -- this is a spawning
+    # situation
+    if time is None:
+        tstr = "spawning"
+    else:
+        tstr = str(time)
+
     # open the running log for this process
     log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
-    log_file.write(" ---------- trajectory "+str(label)+
-                   ": "+str(listing_file)+" summary --------\n")
+    log_file.write(" time="+tstr+" trajectory="+str(label)+
+                   ": "+str(listing_file)+" summary -------------\n")
 
     if listing_file == 'integral':
         with open('hermitls', 'r') as hermitls:
