@@ -130,7 +130,9 @@ def init_interface():
             a_data.append(atom_lib.atom_data(a_sym[i]))
         else:
             raise ValueError('Atom: '+str(a_sym[i])+' not found in library')
-    a_mass  = [a_data[i][1] for i in range(natm)]
+
+    # masses are au -- columbus geom reads mass in amu
+    a_mass  = [a_data[i][1]/glbl.amu2au for i in range(natm)]
     a_num   = [a_data[i][2] for i in range(natm)]
 
     # set coefficient for kinetic energy determination
