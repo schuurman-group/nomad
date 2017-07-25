@@ -13,7 +13,7 @@ import src.fmsio.fileio as fileio
 import src.basis.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
-
+import src.utils.error as error 
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -396,9 +396,14 @@ def generate_integrals(label, t):
 
     # run dalton.x
     shutil.copy('hermitin', 'daltcomm')
+
     with open('hermitls', 'w') as hermitls:
-        subprocess.run(['dalton.x', '-m', mem_str], stdout=hermitls,
-                       universal_newlines=True, shell=True)
+        try:
+            subprocess.run(['dalton.x', '-m', mem_str], stdout=hermitls,
+                       universal_newlines=True, shell=True, check=True)
+        except subprocess.CalledProcessError:
+            error.abort('dalton.x returned error, traj='+str(label))
+
 
     append_log(label,'integral', t)
 
@@ -422,8 +427,12 @@ def run_col_mcscf(traj, t):
     for i in range(1, n_drt+1):
         shutil.copy('mcdrtin.' + str(i), 'mcdrtin')
         with open('mcdrtls', 'w') as mcdrtls, open('mcdrtin', 'r') as mcdrtin:
-            subprocess.run(['mcdrt.x', '-m', mem_str], stdin=mcdrtin,
-                           stdout=mcdrtls)
+            try:
+                subprocess.run(['mcdrt.x', '-m', mem_str], stdin=mcdrtin,
+                           stdout=mcdrtls, check=True)
+            except subprocess.CalledProcessError:
+                error.abort('mcdrt.x returned error, traj='+str(label))
+
         with open('mcuftls', 'w') as mcuftls:
             subprocess.run(['mcuft.x'], stdout=mcuftls)
 
@@ -458,7 +467,12 @@ def run_col_mcscf(traj, t):
             ncoupl = int(read_nlist_keyword('mcscfin', 'ncoupl'))
             niter  = int(read_nlist_keyword('mcscfin', 'niter'))
             set_nlist_keyword('mcscfin', 'ncoupl', niter+1)
-        subprocess.run(['mcscf.x -m ' + mem_str], shell=True)
+
+        try: 
+            subprocess.run(['mcscf.x -m ' + mem_str], shell=True, check=True)
+        except subprocess.CalledProcessError:
+            error.abort('mcscf.x returned error, traj='+str(label))
+
         # check convergence
         with open('mcscfls', 'r') as ofile:
             for line in ofile:
@@ -468,7 +482,8 @@ def run_col_mcscf(traj, t):
 
     # if not converged, we have to die here...
     if not converged:
-        raise TimeoutError('MCSCF not converged.')
+#        raise TimeoutError('MCSCF not converged.')
+        error.abort('MCSCF not converged, traj='+str(label))
 
     # save output
     shutil.copy('mocoef_mc', 'mocoef')
@@ -483,6 +498,7 @@ def run_col_mrci(traj, ci_restart, t):
     global work_path
 
     os.chdir(work_path)
+    label = traj.label
 
     # get a fresh ciudgin file
     shutil.copy(input_path + '/ciudgin.drt1', 'ciudgin')
@@ -534,10 +550,19 @@ def run_col_mrci(traj, ci_restart, t):
     # perform the integral transformation
     with open('tranin', 'w') as ofile:
         ofile.write('&input\nLUMORB=0\n&end')
-    subprocess.run(['tran.x', '-m', mem_str])
+
+    try:
+        subprocess.run(['tran.x', '-m', mem_str], check=True)
+    except subprocess.CalledProcessError:
+        error.abort('tran.x returned error, traj='+str(label))
+
 
     # run mrci
-    subprocess.run(['ciudg.x', '-m', mem_str])
+    try:
+        subprocess.run(['ciudg.x', '-m', mem_str], check=True)
+    except subprocess.CalledProcessError:
+        error.abort('ciudg.x returned error, traj='+str(label))
+
 
     ci_ener = []
     ci_res  = []
@@ -564,7 +589,8 @@ def run_col_mrci(traj, ci_restart, t):
 
     # determine convergence...
     if not converged:
-        raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
+#        raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
+        error.abort('ciudg.x did not converge. traj='+str(label))
 
     # if we're good, update energy array
     energies = np.array([ci_ener[i] for i in range(traj.nstates)],dtype=float)
@@ -602,7 +628,11 @@ def run_col_mrci(traj, ci_restart, t):
             link_force('cidrtfl.cigrd', 'cidrtfl')
             link_force('cidrtfl.cigrd', 'cidrtfl.1')
             shutil.copy(input_path + '/tranin', 'tranin')
-            subprocess.run(['tran.x', '-m', mem_str])
+            try:
+                subprocess.run(['tran.x', '-m', mem_str], check=True)
+            except subprocess.CalledProcessError:
+                error.abort('tran.x returned error, traj='+str(label))
+
 
     return energies, atom_pops
 
@@ -627,7 +657,11 @@ def run_col_multipole(traj):
         i1 = istate + 1
         link_force('nocoef_' + str(type_str) + '.drt1.state' + str(i1),
                    'mocoef_prop')
-        subprocess.run(['exptvl.x', '-m', mem_str])
+        try:
+            subprocess.run(['exptvl.x', '-m', mem_str],check=True)
+        except subprocess.CalledProcessError:
+            error.abort('exptvl.x returned error, traj='+str(traj.label))
+
         with open('propls', 'r') as prop_file:
             for line in prop_file:
                 if 'Dipole moments' in line:
@@ -680,12 +714,18 @@ def run_col_tdipole(label, state_i, state_j):
     if mrci_lvl == 0:
         with open('transftin', 'w') as ofile:
             ofile.write('y\n1\n' + str(j1) + '\n1\n' + str(i1))
-            subprocess.run(['transft.x'], stdin='transftin',
-                           stdout='transftls')
+            try:
+                subprocess.run(['transft.x'], stdin='transftin',
+                           stdout='transftls', check=True)
+            except subprocess.CalledProcessError:
+                error.abort('transft.x returned error, traj='+str(label))
 
         with open('transmomin', 'w') as ofile:
             ofile.write('MCSCF\n1 ' + str(j1) + '\n1\n' + str(i1))
-            subprocess.run(['transmom.x', '-m', mem_str])
+            try:
+                subprocess.run(['transmom.x', '-m', mem_str], check=True)
+            except subprocess.CalledProcessError:
+                error.abort('transmom.x returned error, traj='+str(label))
 
         os.remove('mcoftfl')
         shutil.copy('mcoftfl.1', 'mcoftfl')
@@ -694,7 +734,11 @@ def run_col_tdipole(label, state_i, state_j):
         with open('trnciin', 'w') as ofile:
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
-        subprocess.run(['transci.x', '-m', mem_str])
+        try:
+            subprocess.run(['transci.x', '-m', mem_str])
+        except subprocess.CalledProcessError:
+            error.abort('transci.x returned error, traj='+str(label))
+
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
 
     tran_dip = np.zeros(p_dim)
@@ -732,21 +776,34 @@ def run_col_gradient(traj, t):
 
     # run cigrd
     set_nlist_keyword('cigrdin', 'nadcalc', 0)
-    subprocess.run(['cigrd.x', '-m', mem_str])
+    try:
+        subprocess.run(['cigrd.x', '-m', mem_str], check=True)
+    except subprocess.CalledProcessError:
+        error.abort('cigrd.x returned error, traj='+str(traj.label))
+
     os.remove('cid1fl')
     os.remove('cid2fl')
     shutil.move('effd1fl', 'modens')
     shutil.move('effd2fl', 'modens2')
 
     # run tran
-    subprocess.run(['tran.x', '-m', mem_str])
+    try:
+        subprocess.run(['tran.x', '-m', mem_str])
+    except subprocess.CalledProcessError:
+        error.abort('tran.x returned error, traj='+str(traj.label))
+
     os.remove('modens')
     os.remove('modens2')
 
     # run dalton
     shutil.copy(input_path + '/abacusin', 'daltcomm')
     with open('abacusls', 'w') as abacusls:
-        subprocess.run(['dalton.x', '-m', mem_str], stdout=abacusls)
+        try:
+            subprocess.run(['dalton.x', '-m', mem_str], 
+                                             stdout=abacusls, check=True)
+        except subprocess.CalledProcessError:
+            error.abort('dalton.x returned error, traj='+str(traj.label))
+
     shutil.move('abacusls', 'abacusls.grad')
 
     with open('cartgrd', 'r') as cartgrd:
@@ -826,7 +883,12 @@ def run_col_coupling(traj, ci_ener, t):
 
         subprocess.run(['tran.x', '-m', mem_str])
         with open('abacusls', 'w') as abacusls:
-            subprocess.run(['dalton.x', '-m', mem_str], stdout=abacusls)
+            try:
+                subprocess.run(['dalton.x', '-m', mem_str], 
+                                                 stdout=abacusls, check=True)
+            except subprocess.CalledProcessError:
+                error.abort('dalton.x returned error, traj='+str(traj.label))
+
 
         # read in cartesian gradient and save to array
         with open('cartgrd', 'r') as cartgrd:

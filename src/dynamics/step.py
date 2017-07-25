@@ -9,6 +9,7 @@ import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 import src.dynamics.surface as surface
 import src.basis.matching_pursuit as mp
+import src.utils.error as error
 
 
 def fms_time_step(master):
@@ -101,7 +102,7 @@ def fms_step_bundle(master, dt):
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
                                          ['minimum time step exceeded -- STOPPING.'])
-                raise ValueError('fms_step_bundle')
+                error.abort('Bundle minimum step exceeded. Abort...')
 
             # reset the beginning of the time step and go to beginning of loop
             #del master
@@ -150,7 +151,7 @@ def fms_step_trajectory(traj, init_time, dt):
             if  abs(time_step) < min_time_step:
                 fileio.print_fms_logfile('general',
                                          ['minimum time step exceeded -- STOPPING.'])
-                raise ValueError('fms_step_trajectory')
+                error.abort('Trajectory minimum step exceeded. Abort...')
 
             # reset the beginning of the time step and go to beginning of loop
             traj = traj0.copy()
