@@ -7,6 +7,7 @@ import copy
 import shutil
 import pathlib
 import subprocess
+import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
@@ -1246,8 +1247,9 @@ def ang_mom_dalton(infile):
             for j in range(len(n_con)):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
-                    nprim = int(line.split()[1])
-                    for l in range(nprim):
+                    nprim  = int(line.split()[1])
+                    n_line = math.ceil(float(line.split()[2])/3.) 
+                    for l in range(nprim * n_line):
                         line = daltaoin.readline()
     return max_l
 

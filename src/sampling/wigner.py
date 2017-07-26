@@ -70,6 +70,12 @@ def set_initial_coords(master):
         freqs = np.zeros(n_modes)
         freqs[ham.mrange] = ham.freq
 
+    # write out frequencies 
+    fileio.print_fms_logfile('string',[' -- frequencies from hessian.dat --\n'])
+    fstr = '\n'.join(['{0:.1f}'.format(freqs[j]*glbl.au2cm) 
+                                                       for j in range(n_modes)]) 
+    fileio.print_fms_logfile('string',[fstr+'\n'])
+
     # loop over the number of initial trajectories
     max_try = 1000
     ntraj  = glbl.sampling['n_init_traj']

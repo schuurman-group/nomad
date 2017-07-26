@@ -201,10 +201,13 @@ def validate_input():
 
     # subsequent code will ONLY use the "init_states" array. If that array hasn't
     # been set, using the value of "init_state" to create it
-    if (any(state == -1 for state in glbl.sampling['init_states']) or 
-         len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
+    if glbl.sampling['init_state'] != -1:
         glbl.sampling['init_states'] = [glbl.sampling['init_state'] for 
                                         i in range(glbl.sampling['n_init_traj'])]
+
+    elif (any(state == -1 for state in glbl.sampling['init_states']) or 
+          len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
+        sys.exit("ERROR -- cannot assign state")  
 
     # check array lengths
     #ngeom   = len(glbl.nuclear_basis['geometries'])
