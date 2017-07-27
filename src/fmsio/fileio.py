@@ -578,30 +578,39 @@ def cleanup(exception=None):
         t_table = timings.print_timings()
         print_fms_logfile('timings', [t_table])
 
-        # move trajectory summary files to an output directory in the home area
-        odir = home_path + '/output'
-        if os.path.exists(odir):
-            shutil.rmtree(odir)
-        os.makedirs(odir)
+        # copy output files
+        copy_output()
 
-        # move trajectory files
-        for key, fname in tfile_names.items():
-            for tfile in glob.glob(scr_path + '/' + fname + '.*'):
-                if not os.path.isdir(tfile):
-                    shutil.move(tfile, odir)
+#
+# copy output files to current working directory
+#
+def copy_output():
+    global home_path, scr_path
 
-        # move bundle files
-        for key, fname in bfile_names.items():
-            try:
-                shutil.move(scr_path + '/' + fname, odir)
-            except IOError:
-                pass
+    # move trajectory summary files to an output directory in the home area
+    odir = home_path + '/output'
+    if os.path.exists(odir):
+        shutil.rmtree(odir)
+    os.makedirs(odir)
 
-        # move chkpt file
+    # move trajectory files
+    for key, fname in tfile_names.items():
+        for tfile in glob.glob(scr_path + '/' + fname + '.*'):
+            if not os.path.isdir(tfile):
+                shutil.move(tfile, odir)
+
+    # move bundle files
+    for key, fname in bfile_names.items():
         try:
-            shutil.move(scr_path + '/last_step.dat', odir)
+            shutil.move(scr_path + '/' + fname, odir)
         except IOError:
             pass
+
+    # move chkpt file
+    try:
+        shutil.move(scr_path + '/last_step.dat', odir)
+    except IOError:
+        pass
 
 
 def rm_timer(exc):

@@ -736,7 +736,7 @@ def run_col_tdipole(label, state_i, state_j):
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
         try:
-            subprocess.run(['transci.x', '-m', mem_str])
+            subprocess.run(['transci.x', '-m', mem_str], check=True)
         except subprocess.CalledProcessError:
             error.abort('transci.x returned error, traj='+str(label))
 
@@ -789,7 +789,7 @@ def run_col_gradient(traj, t):
 
     # run tran
     try:
-        subprocess.run(['tran.x', '-m', mem_str])
+        subprocess.run(['tran.x', '-m', mem_str], check=True)
     except subprocess.CalledProcessError:
         error.abort('tran.x returned error, traj='+str(traj.label))
 
@@ -877,12 +877,20 @@ def run_col_coupling(traj, ci_ener, t):
         set_nlist_keyword('cigrdin', 'root1', s1)
         set_nlist_keyword('cigrdin', 'root2', s2)
 
-        subprocess.run(['cigrd.x', '-m', mem_str])
+        try:
+            subprocess.run(['cigrd.x', '-m', mem_str],check=True)
+        except subprocess.CalledProcessError:
+            error.abort('cigrd.x returned error, traj='+str(traj.label))
 
         shutil.move('effd1fl', 'modens')
         shutil.move('effd2fl', 'modens2')
 
-        subprocess.run(['tran.x', '-m', mem_str])
+        try:
+            subprocess.run(['tran.x', '-m', mem_str],check=True)
+        except subprocess.CalledProcessError:
+            print("Hello? getting here?")    
+            error.abort('tran.x returned error, traj='+str(traj.label))
+
         with open('abacusls', 'w') as abacusls:
             try:
                 subprocess.run(['dalton.x', '-m', mem_str], 
