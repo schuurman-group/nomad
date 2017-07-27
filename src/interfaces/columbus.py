@@ -362,14 +362,16 @@ def make_one_time_input():
 
     # cidrtfil files
     with open('cidrtmsls', 'w') as cidrtmsls, open('cidrtmsin', 'r') as cidrtmsin:
-        subprocess.run([columbus_path+'/cidrtms.x', '-m', mem_str],
-                        stdin=cidrtmsin,stdout=cidrtmsls)
+        run_prog('init', 'cidrtms.x', args=['-m',mem_str], 
+                                   in_pipe=cidrtmsin,
+                                   out_pipe=cidrtmsls)
     shutil.move('cidrtfl.1', 'cidrtfl.ci')
 
     with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, \
          open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
-        subprocess.run([columbus_path+'/cidrtms.x', '-m', mem_str],
-                        stdin=cidrtmsin_grd,stdout=cidrtmsls_grd)
+        run_prog('init', 'cidrtms.x', args=['-m',mem_str],
+                                   in_pipe=cidrtmsin_grd,
+                                   out_pipe=cidrtmsls_grd)
     shutil.move('cidrtfl.1', 'cidrtfl.cigrd')
 
     # check if hermitin exists, if not, copy daltcomm
@@ -388,23 +390,18 @@ def generate_integrals(label, t):
 
     # run unik.gets.x script
     with open('unikls', 'w') as unikls:
-        subprocess.run(['unik.gets.x'], stdout=unikls,
-                       universal_newlines=True, shell=True)
+        run_prog(label, 'unik.gets.x', out_pipe=unikls)
 
     # run hernew
-    subprocess.run(['hernew.x'])
+    run_prog(label, 'hernew.x')
     shutil.move('daltaoin.new', 'daltaoin')
 
     # run dalton.x
     shutil.copy('hermitin', 'daltcomm')
 
     with open('hermitls', 'w') as hermitls:
-        try:
-            subprocess.run(['dalton.x', '-m', mem_str], stdout=hermitls,
-                       universal_newlines=True, shell=True, check=True)
-        except subprocess.CalledProcessError:
-            error.abort('dalton.x returned error, traj='+str(label))
-
+        run_prog(label, 'dalton.x', args=['-m', mem_str],
+                             out_pipe = hermitls)
 
     append_log(label,'integral', t)
 
@@ -428,14 +425,12 @@ def run_col_mcscf(traj, t):
     for i in range(1, n_drt+1):
         shutil.copy('mcdrtin.' + str(i), 'mcdrtin')
         with open('mcdrtls', 'w') as mcdrtls, open('mcdrtin', 'r') as mcdrtin:
-            try:
-                subprocess.run(['mcdrt.x', '-m', mem_str], stdin=mcdrtin,
-                           stdout=mcdrtls, check=True)
-            except subprocess.CalledProcessError:
-                error.abort('mcdrt.x returned error, traj='+str(label))
+            run_prog(label, 'mcdrt.x', args     = ['-m', mem_str],
+                                       in_pipe  = mcdrtin,
+                                       out_pipe = mcdrtls)
 
         with open('mcuftls', 'w') as mcuftls:
-            subprocess.run(['mcuft.x'], stdout=mcuftls)
+            run_prog(label, 'mcuft.x', out_pipe = mcuftls)
 
         # save formula tape and log files for each DRT
         shutil.copy('mcdrtfl', 'mcdrtfl.' + str(i))
@@ -469,10 +464,7 @@ def run_col_mcscf(traj, t):
             niter  = int(read_nlist_keyword('mcscfin', 'niter'))
             set_nlist_keyword('mcscfin', 'ncoupl', niter+1)
 
-        try: 
-            subprocess.run(['mcscf.x -m ' + mem_str], shell=True, check=True)
-        except subprocess.CalledProcessError:
-            error.abort('mcscf.x returned error, traj='+str(label))
+        run_prog(label, 'mcscf.x', args=['-m', mem_str])
 
         # check convergence
         with open('mcscfls', 'r') as ofile:
@@ -551,19 +543,10 @@ def run_col_mrci(traj, ci_restart, t):
     # perform the integral transformation
     with open('tranin', 'w') as ofile:
         ofile.write('&input\nLUMORB=0\n&end')
-
-    try:
-        subprocess.run(['tran.x', '-m', mem_str], check=True)
-    except subprocess.CalledProcessError:
-        error.abort('tran.x returned error, traj='+str(label))
-
-
+    run_prog(label, 'tran.x', args=['-m', mem_str])
+ 
     # run mrci
-    try:
-        subprocess.run(['ciudg.x', '-m', mem_str], check=True)
-    except subprocess.CalledProcessError:
-        error.abort('ciudg.x returned error, traj='+str(label))
-
+    run_prog(label, 'ciudg.x', args=['-m', mem_str])
 
     ci_ener = []
     ci_res  = []
@@ -617,7 +600,7 @@ def run_col_mrci(traj, ci_restart, t):
                 atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
-    append_log(traj.label,'mrci', t)
+    append_log(label,'mrci', t)
 
     # transform integrals using cidrtfl.cigrd
     if int_trans:
@@ -629,11 +612,7 @@ def run_col_mrci(traj, ci_restart, t):
             link_force('cidrtfl.cigrd', 'cidrtfl')
             link_force('cidrtfl.cigrd', 'cidrtfl.1')
             shutil.copy(input_path + '/tranin', 'tranin')
-            try:
-                subprocess.run(['tran.x', '-m', mem_str], check=True)
-            except subprocess.CalledProcessError:
-                error.abort('tran.x returned error, traj='+str(label))
-
+            run_prog(label, 'tran.x', args=['-m', mem_str])
 
     return energies, atom_pops
 
@@ -658,10 +637,7 @@ def run_col_multipole(traj):
         i1 = istate + 1
         link_force('nocoef_' + str(type_str) + '.drt1.state' + str(i1),
                    'mocoef_prop')
-        try:
-            subprocess.run(['exptvl.x', '-m', mem_str],check=True)
-        except subprocess.CalledProcessError:
-            error.abort('exptvl.x returned error, traj='+str(traj.label))
+        run_prog(traj.label, 'exptvl.x', args=['-m', mem_str])
 
         with open('propls', 'r') as prop_file:
             for line in prop_file:
@@ -715,18 +691,11 @@ def run_col_tdipole(label, state_i, state_j):
     if mrci_lvl == 0:
         with open('transftin', 'w') as ofile:
             ofile.write('y\n1\n' + str(j1) + '\n1\n' + str(i1))
-            try:
-                subprocess.run(['transft.x'], stdin='transftin',
-                           stdout='transftls', check=True)
-            except subprocess.CalledProcessError:
-                error.abort('transft.x returned error, traj='+str(label))
+        run_prog(label, 'transft.x', in_pipe='transftin', out_pipe='transftls')
 
         with open('transmomin', 'w') as ofile:
             ofile.write('MCSCF\n1 ' + str(j1) + '\n1\n' + str(i1))
-            try:
-                subprocess.run(['transmom.x', '-m', mem_str], check=True)
-            except subprocess.CalledProcessError:
-                error.abort('transmom.x returned error, traj='+str(label))
+        run_prog(label, 'transmom.x', args=['-m', mem_str])
 
         os.remove('mcoftfl')
         shutil.copy('mcoftfl.1', 'mcoftfl')
@@ -735,10 +704,7 @@ def run_col_tdipole(label, state_i, state_j):
         with open('trnciin', 'w') as ofile:
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
-        try:
-            subprocess.run(['transci.x', '-m', mem_str], check=True)
-        except subprocess.CalledProcessError:
-            error.abort('transci.x returned error, traj='+str(label))
+        run_prog(label, 'transci.x', args=['-m', mem_str])   
 
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
 
@@ -777,10 +743,7 @@ def run_col_gradient(traj, t):
 
     # run cigrd
     set_nlist_keyword('cigrdin', 'nadcalc', 0)
-    try:
-        subprocess.run(['cigrd.x', '-m', mem_str], check=True)
-    except subprocess.CalledProcessError:
-        error.abort('cigrd.x returned error, traj='+str(traj.label))
+    run_prog(traj.label, 'cigrd.x', args=['-m', mem_str])
 
     os.remove('cid1fl')
     os.remove('cid2fl')
@@ -788,10 +751,7 @@ def run_col_gradient(traj, t):
     shutil.move('effd2fl', 'modens2')
 
     # run tran
-    try:
-        subprocess.run(['tran.x', '-m', mem_str], check=True)
-    except subprocess.CalledProcessError:
-        error.abort('tran.x returned error, traj='+str(traj.label))
+    run_prog(traj.label, 'tran.x', args=['-m', mem_str])
 
     os.remove('modens')
     os.remove('modens2')
@@ -799,11 +759,8 @@ def run_col_gradient(traj, t):
     # run dalton
     shutil.copy(input_path + '/abacusin', 'daltcomm')
     with open('abacusls', 'w') as abacusls:
-        try:
-            subprocess.run(['dalton.x', '-m', mem_str], 
-                                             stdout=abacusls, check=True)
-        except subprocess.CalledProcessError:
-            error.abort('dalton.x returned error, traj='+str(traj.label))
+        run_prog(traj.label, 'dalton.x', args=['-m', mem_str],
+                                         out_pipe=abacusls)
 
     shutil.move('abacusls', 'abacusls.grad')
 
@@ -877,27 +834,16 @@ def run_col_coupling(traj, ci_ener, t):
         set_nlist_keyword('cigrdin', 'root1', s1)
         set_nlist_keyword('cigrdin', 'root2', s2)
 
-        try:
-            subprocess.run(['cigrd.x', '-m', mem_str],check=True)
-        except subprocess.CalledProcessError:
-            error.abort('cigrd.x returned error, traj='+str(traj.label))
+        run_prog(traj.label, 'cigrd.x', args=['-m', mem_str])
 
         shutil.move('effd1fl', 'modens')
         shutil.move('effd2fl', 'modens2')
 
-        try:
-            subprocess.run(['tran.x', '-m', mem_str],check=True)
-        except subprocess.CalledProcessError:
-            print("Hello? getting here?")    
-            error.abort('tran.x returned error, traj='+str(traj.label))
+        run_prog(traj.label, 'tran.x', args=['-m', mem_str])
 
         with open('abacusls', 'w') as abacusls:
-            try:
-                subprocess.run(['dalton.x', '-m', mem_str], 
-                                                 stdout=abacusls, check=True)
-            except subprocess.CalledProcessError:
-                error.abort('dalton.x returned error, traj='+str(traj.label))
-
+            run_prog(traj.label, 'dalton.x', args=['-m', mem_str],
+                                             out_pipe=abacusls)
 
         # read in cartesian gradient and save to array
         with open('cartgrd', 'r') as cartgrd:
@@ -1101,6 +1047,59 @@ def get_adiabatic_phase(traj, new_coup):
 # File parsing
 #
 #-----------------------------------------------------------------
+def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
+    """Tries to run a Columbus program executable. If error is
+       raised, return False, else True"""
+
+    arg    = [str(prog_name)]
+    kwargs = dict()
+
+    # first argument is executable, plus any arguments passed to executable
+    if args:
+        arg.extend(args)
+
+    # if we need to pipe input
+    if in_pipe:
+        kwargs['stdin'] = in_pipe
+
+    # if we need to pipe output
+    if out_pipe:
+        kwargs['stdout'] = out_pipe
+
+    # append check for error code
+    kwargs['check'] = True
+    kwargs['universal_newlines'] = True
+
+    try:
+        subprocess.run(arg, **kwargs)
+        # if got here, return code not caught as non-zero, but check
+        # bummer file to be sure error code not caught by Columbus
+        if not prog_status():
+            raise subprocess.CalledProcessError
+
+    except subprocess.CalledProcessError:
+        error.abort(str(prog_name)+' returned error, traj='+str(tid))
+
+
+def prog_status():
+    """Opens bummer file, checks to see if fatal error message
+       has been written. If so, return False, else, return True"""
+
+    try:
+        with open("bummer", "r") as f:
+            bummer = f.readlines()
+
+    except EnvironmentError: # if bummer not here, return True
+        return True
+
+    bstr = "".join(bummer)
+
+    if bstr.find('fatal') != -1 and bstr.find('nonfatal') == -1:
+        return False
+    else:
+        return True
+
+
 def append_log(label, listing_file, time):
     """Grabs key output from columbus listing files.
 
