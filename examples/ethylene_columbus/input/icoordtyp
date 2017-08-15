@@ -1,12 +1,24 @@
-   1.     C 2  =  C 1   STRE  sc=.8600
-   2.     H 3  -  C 2   STRE  sc=.9000
-   3.     H 4  -  C 1   STRE  sc=.9000
-   4.     H 5  -  C 2   STRE  sc=.9000
-   5.     H 6  -  C 1   STRE  sc=.9000
-   6. pXY2,2-1-1,X= C 1 SCIS  sc=.8000
-   7. pXY2, 1-1, X= C 1 ROCK  sc=.8000
-   8. pXY2, oop, X= C 1 WAGG  sc=.8000
-   9. pXY2,2-1-1,X= C 2 SCIS  sc=.8000
-  10. pXY2, 1-1, X= C 2 ROCK  sc=.8000
-  11. pXY2, oop, X= C 2 WAGG  sc=.8000
-  12. torsion  C 2- C 1 TORS  sc=.8000
+   1.     C 2  =  O 1   STRE  sc=.8260
+   2.     C 3  -  C 2   STRE  sc=.9200
+   3.     C 4  -  C 2   STRE  sc=.9200
+   4.     H 5  -  C 3   STRE  sc=.9000
+   5.     H 6  -  C 4   STRE  sc=.9000
+   6.     H 7  -  C 3   STRE  sc=.9000
+   7.     H 8  -  C 3   STRE  sc=.9000
+   8.     H 9  -  C 4   STRE  sc=.9000
+   9.     H10  -  C 4   STRE  sc=.9000
+  10. skel, C 3 C 4 C 2 BEND  sc=.8000
+  11. secd XY, C 2- O 1 ROCK  sc=.8000
+  12. secd XY, C 2- O 1 OUT   sc=.7000
+  13. prim XY3 , X= C 3 SDEF  sc=.8000
+  14. prim XY3 , X= C 3 ADEFa sc=.8000
+  15. prim XY3 , X= C 3 ADEFb sc=.8000
+  16. prim XY3 , X= C 3 ROCKa sc=.8000
+  17. prim XY3 , X= C 3 ROCKb sc=.8000
+  18. prim XY3 , X= C 4 SDEF  sc=.8000
+  19. prim XY3 , X= C 4 ADEFa sc=.8000
+  20. prim XY3 , X= C 4 ADEFb sc=.8000
+  21. prim XY3 , X= C 4 ROCKa sc=.8000
+  22. prim XY3 , X= C 4 ROCKb sc=.8000
+  23. torsion  C 3- C 2 TORS  sc=.8000
+  24. torsion  C 4- C 2 TORS  sc=.8000

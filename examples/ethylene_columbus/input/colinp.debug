@@ -1,2 +1,2 @@
-INC=/home/software/COLUMBUS/BETA/Columbus/CPAN /home/software/lib/perl5/site_perl/5.13.8/x86_64-linux-thread-multi /home/software/lib/perl5/site_perl/5.13.8 /home/software/lib/perl5/5.13.8/x86_64-linux-thread-multi /home/software/lib/perl5/5.13.8 .
+INC=/home/software/COLUMBUS/NEW/Columbus/CPAN /home/software/lib/perl5/site_perl/5.13.8/x86_64-linux-thread-multi /home/software/lib/perl5/site_perl/5.13.8 /home/software/lib/perl5/5.13.8/x86_64-linux-thread-multi /home/software/lib/perl5/5.13.8 .
 Perlversion:5.013008

@@ -1,72 +1,68 @@
  nsym=  1
-cimultgrad,cimult,cigradient=1,ndrt=
-getvector : 2
-getvector2 : 1, 2,   1,  1 
+cimult,cimult,cigradient=1,ndrt=
+getvector : 4
+getvector2 : 1, 4,   1,  1 
 getvector : 0
 getvector2 : 1, 0,   1,  1 
-getvector : 7
-getvector2 : 1, 7,   1,  1 
+getvector : 13
+getvector2 : 1, 13,   1,  1 
 getvector : 0
 getvector2 : 1, 0,   1,  1 
-gendata: 2
-getvector : 5
-getvector2 : 1, 5,   1,  1 
+gendata: 4
+getvector : 9
+getvector2 : 1, 9,   1,  1 
 getvector : 1
 getvector2 : 1, 1,   1,1 
-minimum joint docc vector=5
+minimum joint docc vector=9
  isym     fc      int        jdocc     ciaux 
 ---------------------------------------------
-       1        2        7          5          0 
+       1        4       13          9          0 
  ORDERING= REFBOTTOM
-fc= 2nf=2
+fc= 4nf=4
 groups of 2 elements,  / frozen core orbitals 
   ,  -1 
 groups of 2 elements,  / frozen virtual orbitals 
   ,  -1 
-groups of 2 elements,  ,  3 
-groups of 2 elements,  ,  9 
-groups of 2 elements,  ,  3 
+groups of 2 elements,  ,  7 
+groups of 2 elements,  ,  17 
+groups of 2 elements,  ,  7 
 groups of 2 elements,  / internal orbitals ,  -1 
-groups of 1 elements,  / occminr ,  1 
-groups of 1 elements,  / occmaxr ,  1 
-groups of 1 elements,  / bminr ,  1 
-groups of 1 elements,  / bmaxr ,  1 
-groups of 1 elements,  /step masksr,  1 
-groups of 1 elements, / occmin ,  8 
-groups of 1 elements, / occmax ,  8 
-groups of 1 elements, / bmin ,  8 
-groups of 1 elements, / bmax ,  8 
-groups of 1 elements, / step masks,  8 
-groups of 1 elements,  /step vector disposition pairs,  8 
-groups of 1 elements,  /reference occupations vector,  8 
-minimum joint docc vector=5
+groups of 1 elements,  / occminr ,  3 
+groups of 1 elements,  / occmaxr ,  3 
+groups of 1 elements,  / bminr ,  3 
+groups of 1 elements,  / bmaxr ,  3 
+groups of 1 elements,  /step masksr,  3 
+groups of 1 elements, / occmin ,  16 
+groups of 1 elements, / occmax ,  16 
+groups of 1 elements, / bmin ,  16 
+groups of 1 elements, / bmax ,  16 
+groups of 1 elements, / step masks,  16 
+groups of 1 elements,  /step vector disposition pairs,  16 
+groups of 1 elements,  /reference occupations vector,  16 
+minimum joint docc vector=9
  isym     fc      int        jdocc     ciaux 
 ---------------------------------------------
-       1        2        7          5          0 
+       1        4       13          9          0 
  ORDERING= REFBOTTOM
-fc= 2nf=2
+fc= 4nf=4
 groups of 2 elements,  / frozen core orbitals 
-  ,  3 
+  ,  7 
 groups of 2 elements,  / frozen virtual orbitals 
   ,  -1 
-groups of 2 elements,  ,  9 
-groups of 2 elements,  ,  3 
+groups of 2 elements,  ,  17 
+groups of 2 elements,  ,  7 
 groups of 2 elements,  / internal orbitals ,  -1 
-groups of 1 elements,  / occminr ,  1 
-groups of 1 elements,  / occmaxr ,  1 
-groups of 1 elements,  / bminr ,  1 
-groups of 1 elements,  / bmaxr ,  1 
-groups of 1 elements,  /step masksr,  1 
-groups of 1 elements, / occmin ,  6 
-groups of 1 elements, / occmax ,  6 
-groups of 1 elements, / bmin ,  6 
-groups of 1 elements, / bmax ,  6 
-groups of 1 elements, / step masks,  6 
-groups of 1 elements,  /step vector disposition pairs,  6 
-groups of 1 elements,  /reference occupations vector,  6 
+groups of 1 elements,  / occminr ,  3 
+groups of 1 elements,  / occmaxr ,  3 
+groups of 1 elements,  / bminr ,  3 
+groups of 1 elements,  / bmaxr ,  3 
+groups of 1 elements,  /step masksr,  3 
+groups of 1 elements, / occmin ,  12 
+groups of 1 elements, / occmax ,  12 
+groups of 1 elements, / bmin ,  12 
+groups of 1 elements, / bmax ,  12 
+groups of 1 elements, / step masks,  12 
+groups of 1 elements,  /step vector disposition pairs,  12 
+groups of 1 elements,  /reference occupations vector,  12 
 ndrt,idrt=1 , 1
  ondisk= :: $ondisk 
-tmp= total:       49735  total:       49735  total:       49735 
-h= total:       49735
- prepare_ciinput: cimult,1,ciudg
-cimult: drt 1
