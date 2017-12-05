@@ -252,12 +252,8 @@ class Bundle:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-        ntot = np.dot(np.dot(np.conj(self.amplitudes()),
+        return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.traj_ovrlp),self.amplitudes()).real
-        if ntot > glbl.propagate['norm_thresh']:
-            raise ValueError('Wavefunction norm threshold exceeded')
-        else:
-            return ntot
 
     @timings.timed
     def pop(self):
@@ -271,8 +267,8 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
-                if self.traj[jj].state != state:
-                    continue
+#                if self.traj[jj].state != state:
+#                    continue
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())

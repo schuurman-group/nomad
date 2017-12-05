@@ -185,6 +185,12 @@ def check_step_bundle(master0, master, time_step):
     dpop = abs(sum(master0.pop()) - sum(master.pop()))
     if dpop > glbl.propagate['pop_jump_toler']:
         return False, ' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
+    # this is largely what the above check is checking -- but is more direct. I would say 
+    # we should remove the above check...
+    dnorm = master.norm()
+    if abs(dnorm-1.) > glbl.propagate['norm_thresh']:
+        return False, 'Wfn norm threshold exceeded, |norm|-1. = {:8.4f}'.format(dnorm-1.)
+
     #  ... or energy conservation (only need to check traj which exist in
     # master0. If spawned, will be last entry(ies) in master
     for i in range(master0.n_traj()):
