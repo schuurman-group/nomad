@@ -132,3 +132,62 @@ def prim_v_integral(double N,
     # refer to appendix for derivation of these relations
     return v_int * np.math.factorial(N) / (2.**N)
 
+@cython.boundscheck(False)
+def ordr1_vec(double[::1] a1, double[::1] x1, double[::1] p1,
+              double[::1] a2, double[::1] x2, double[::1] p2):
+    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+     -- up to an overlap integral -- 
+    """
+    # since range(N) runs up to N-1, add "1" to result of floor
+    cdef int i
+    cdef int n   = a1.shape[0]
+    cdef double complex[::1] v_int = np.zeros((n),dtype=np.complex)
+    cdef double a
+    cdef double complex b
+
+    for i in range(n):
+        a = a1[i] + a2[i]
+        b = complex(2.*(a1[i]*x1[i] + a2[i]*x2[i]),-(p1[i]-p2[i]))
+
+        # avoid weird issues associated with 0^0==1, occurs when N==2*i:
+        if abs(b) < np.finfo(float).eps:
+            v_int[i] = 0.5 
+
+        else:
+            # generally these should be 1D harmonic oscillators. If
+            # multi-dimensional, the final result is a direct product of
+            # each dimension
+            v_int[i] = b/(2.*a)
+
+    # refer to appendix for derivation of these relations
+    return v_int
+
+@cython.boundscheck(False)
+def ordr2_vec(double[::1] a1, double[::1] x1, double[::1] p1,
+              double[::1] a2, double[::1] x2, double[::1] p2):
+    """Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
+     -- up to an overlap integral -- 
+    """
+    # since range(N) runs up to N-1, add "1" to result of floor
+    cdef int i
+    cdef int n   = a1.shape[0]
+    cdef double complex[::1] v_int = np.zeros((n),dtype=np.complex)
+    cdef double a
+    cdef double complex b
+
+    for i in range(n):
+        a = a1[i] + a2[i]
+        b = complex(2.*(a1[i]*x1[i] + a2[i]*x2[i]),-(p1[i]-p2[i]))
+
+        # avoid weird issues associated with 0^0==1, occurs when N==2*i:
+        if abs(b) < np.finfo(float).eps:
+            v_int[i] = 0.5 / a
+
+        else:
+            # generally these should be 1D harmonic oscillators. If
+            # multi-dimensional, the final result is a direct product of
+            # each dimension
+            v_int[i]  = 0.5 * (b**2 / (2 * a**2) + (1/a))
+
+    # refer to appendix for derivation of these relations
+    return v_int
