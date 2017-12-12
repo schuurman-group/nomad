@@ -16,7 +16,7 @@ from src.basis import hamiltonian as fms_ham
 class Bundle:
     """Class constructor for the Bundle object."""
     def __init__(self, nstates, integral_type):
-        self.integral_type  = integral_type
+        self.integral_type = integral_type
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -267,8 +267,8 @@ class Bundle:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
-#                if self.traj[jj].state != state:
-#                    continue
+                if self.traj[jj].state != state:
+                    continue
                 popij = (self.traj_ovrlp[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
@@ -304,8 +304,8 @@ class Bundle:
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         nalive = len(self.alive)
-        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
-                           1./(2.* self.traj[self.alive[i]].masses()))
+        kecoef = self.traj[0].interface.kecoeff
+        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2, kecoef) 
                            for i in range(nalive)])
         return sum(ke_vec)/nalive
 
@@ -448,6 +448,8 @@ class Bundle:
 #        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
 
 #        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
+
+        np.set_printoptions(precision=8, linewidth=80, suppress=False)
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:

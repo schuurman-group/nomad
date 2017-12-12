@@ -475,7 +475,8 @@ def print_bund_mat(time, fname, mat):
 
     with open(filename, 'a') as outfile:
         outfile.write('{:9.2f}\n'.format(time))
-        outfile.write(np.array2string(mat)+'\n')
+        outfile.write(np.array2string(mat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
 
 def print_fms_logfile(otype, data):
