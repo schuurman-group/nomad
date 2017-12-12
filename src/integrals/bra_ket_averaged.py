@@ -19,7 +19,7 @@ overlap_requires_pes = False
 require_centroids = False
 
 # Determines the Hamiltonian symmetry
-hermitian = False 
+hermitian = True 
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -54,39 +54,48 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     # matrix element -- simply return potential energy of trajectory
 
     if Snuc is None:
-        Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                               t2.phase(),t2.widths(),t2.x(),t2.p())
+        Sij = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                           t2.phase(),t2.widths(),t2.x(),t2.p())
+    else: 
+        Sij = Snuc
+
+    Sji = Sij.conjugate()
 
     if t1.state == t2.state:
         state = t1.state
         # Adiabatic energy
-        vi = t1.energy(state) * Snuc
-        vj = t2.energy(state) * Snuc
+        vij = t1.energy(state) * Sij
+        vji = t2.energy(state) * Sji
 
         if glbl.propagate['integral_order'] > 0:
-            prim1 = nuclear.ordr1_vec(t1.widths(),t1.x(),t1.p(),
+            o1_ij = nuclear.ordr1_vec(t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p()) 
-            vi += np.dot(prim1 - t1.x()*Snuc, t1.derivative(state,state))
-            vj += np.dot(prim1 - t2.x()*Snuc, t2.derivative(state,state))
+            o1_ji = nuclear.ordr1_vec(t2.widths(),t2.x(),t2.p(),
+                                      t1.widths(),t1.x(),t1.p())
+            vij += np.dot(o1_ij - t1.x()*Sij, t1.derivative(state,state))
+            vji += np.dot(o1_ji - t2.x()*Sji, t2.derivative(state,state))
 
         if glbl.propagate['integral_order'] > 1:
             xcen  = (t1.widths()*t1.x() + t2.widths()*t2.x()) / (t1.widths()+t2.widths())
-            prim2 = nuclear.ordr2_vec(t1.widths(),t1.x(),t1.p(),
+            o2_ij = nuclear.ordr2_vec(t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
+            o2_ji = nuclear.ordr2_vec(t2.widths(),t2.x(),t2.p(),
+                                      t1.widths(),t1.x(),t1.p())
+
             for k in range(t1.dim):
-                vi += 0.5*prim2[k]*t1.hessian(state,state)[k,k]
-                vj += 0.5*prim2[k]*t2.hessian(state,state)[k,k]
+                vij += 0.5*o2_ij[k]*t1.hessian(state,state)[k,k]
+                vji += 0.5*o2_ji[k]*t2.hessian(state,state)[k,k]
                 for l in range(k):
-                    vi += 0.5 * (2.*prim1[k]*prim1[l] 
-                                 - xcen[k]*prim1[l] - xcen[l]*prim1[k] 
-                                 - prim1[k]*t1.x()[l] - prim1[l]*t1.x()[k] 
-                                 + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Snuc) 
-                                 * t1.hessian(state,state)[k,l] 
-                    vj += 0.5 * (2.*prim1[k]*prim1[l]
-                                 - xcen[k]*prim1[l] - xcen[l]*prim1[k] 
-                                 - prim1[k]*t2.x()[l] - prim1[l]*t2.x()[k] 
-                                 + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Snuc) 
-                                 * t2.hessian(state,state)[k,l]
+                    vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l] 
+                                 - xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k] 
+                                 - o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k] 
+                                 + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) 
+                                 * t1.hessian(state,state)[k,l]) 
+                    vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l]
+                                 - xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k] 
+                                 - o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k] 
+                                 + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji) 
+                                 * t2.hessian(state,state)[k,l])
 
         if glbl.propagate['integral_order'] > 2:
             sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
@@ -97,21 +106,25 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
 
-        vi = 2.*np.vdot(t1.derivative(t1.state,t2.state), interface.kecoeff *
-                        nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                           t2.phase(),t2.widths(),t2.x(),t2.p()))
-        vj = 2.*np.vdot(t2.derivative(t1.state,t2.state), interface.kecoeff *
-                        nuclear.deldx(Snuc,t2.phase(),t2.widths(),t2.x(),t2.p(),
-                                           t1.phase(),t1.widths(),t1.x(),t1.p()))
+        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), interface.kecoeff *
+                        nuclear.deldx(Sij,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                          t2.phase(),t2.widths(),t2.x(),t2.p()))
+        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), interface.kecoeff *
+                        nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
+                                          t1.phase(),t1.widths(),t1.x(),t1.p()))
  
         if glbl.propagate['integral_order'] > 0:
+            vij += 0.
+            vji += 0.
 
         if glbl.propagate['integral_order'] > 1:
+            vij += 0.
+            vji += 0.
 
         if glbl.propagate['integral_order'] > 2:
             sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
       
-    return 0.5*(vi+vj) 
+    return 0.5*(vij + vji.conjugate()) 
 
 
 # kinetic energy integral
