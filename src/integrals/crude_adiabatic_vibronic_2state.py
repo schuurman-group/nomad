@@ -21,8 +21,8 @@ hermitian = True
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
 
-# cache of theta values -- to ensure theta is smoothly varying
-adt_cache = dict()
+#cache previous values of theta, ensure continuity
+theta_cache = dict()
 
 # adiabatic-diabatic rotation matrix
 def rot_mat(theta):
@@ -50,7 +50,6 @@ def theta(traj):
         return 0.
 
     hmat    = traj.pes_data.diabat_pot
-    dat_mat = traj.pes_data.dat_mat
     h12     = hmat[0,1]
     de      = hmat[1,1]-hmat[0,0]
 
@@ -60,25 +59,30 @@ def theta(traj):
             sgn = 1
         de = sgn * glbl.fpzero
 
-    ang     = 0.5*np.arctan(2.*h12/de)
-    adia_st = rot_mat(ang)
+    ang     = 0.5*np.arctan2(2.*h12,de)
+ #   adia_st = rot_mat(ang)
 
     # confirm that this rotation results in correct state ordering
-    adia_eners = np.diag(np.dot(np.dot(adia_st, hmat),
-                                       np.transpose(adia_st)))
-    if np.linalg.norm(adia_eners-np.sort(adia_eners)) > glbl.fpzero:
-        # if we've swapped adiabatic states, rotate by pi/2
-        ang -= 0.5 * np.pi
-        adia_eners = np.diag(np.dot(np.dot(rot_mat(ang), hmat), 
-                                           np.transpose(rot_mat(ang))))
+#    adia_eners = np.diag(np.dot(np.dot(adia_st, hmat),
+#                                       np.transpose(adia_st)))
+#    if np.linalg.norm(adia_eners-np.sort(adia_eners)) > glbl.fpzero:
+#        # if we've swapped adiabatic states, rotate by pi/2
+#        ang -= 0.5 * np.pi
+#        adia_eners = np.diag(np.dot(np.dot(rot_mat(ang), hmat), 
+#                                           np.transpose(rot_mat(ang))))
 
-    # ensure theta agrees with dat matrix
+    # check the cached value and shift if necessary.
     pi_mult  = [-2.,1.,0.,1.,2.]
-    dif_vec  = np.array([np.linalg.norm(dat_mat - rot_mat(ang+i*np.pi))
-                         for i in pi_mult])
-
-    if np.min(dif_vec) < glbl.fpzero:
-        ang += pi_mult[np.argmin(dif_vec)]*np.pi
+    # if not in cache, return current value
+    if traj.label in theta_cache:
+        dif_vec  = [np.abs(ang + pi_mult[i]*np.pi - theta_cache[traj.label])
+                    for i in range(len(pi_mult))]
+        shft = dif_vec.index(min(dif_vec))
+        ang += pi_mult[shft]*np.pi
+       
+    theta_cache[traj.label] = ang
+    if str(traj.label) == "0":
+        print(str(ang))
 
     return ang
 
