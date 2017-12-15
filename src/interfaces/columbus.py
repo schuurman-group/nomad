@@ -14,7 +14,7 @@ import src.fmsio.fileio as fileio
 import src.basis.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
-import src.utils.error as error 
+import src.utils.error as error
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -362,7 +362,7 @@ def make_one_time_input():
 
     # cidrtfil files
     with open('cidrtmsls', 'w') as cidrtmsls, open('cidrtmsin', 'r') as cidrtmsin:
-        run_prog('init', 'cidrtms.x', args=['-m',mem_str], 
+        run_prog('init', 'cidrtms.x', args=['-m',mem_str],
                                    in_pipe=cidrtmsin,
                                    out_pipe=cidrtmsls)
     shutil.move('cidrtfl.1', 'cidrtfl.ci')
@@ -475,8 +475,7 @@ def run_col_mcscf(traj, t):
 
     # if not converged, we have to die here...
     if not converged:
-#        raise TimeoutError('MCSCF not converged.')
-        error.abort('MCSCF not converged, traj='+str(label))
+        raise TimeoutError('MCSCF not converged.')
 
     # save output
     shutil.copy('mocoef_mc', 'mocoef')
@@ -544,7 +543,7 @@ def run_col_mrci(traj, ci_restart, t):
     with open('tranin', 'w') as ofile:
         ofile.write('&input\nLUMORB=0\n&end')
     run_prog(label, 'tran.x', args=['-m', mem_str])
- 
+
     # run mrci
     run_prog(label, 'ciudg.x', args=['-m', mem_str])
 
@@ -573,8 +572,7 @@ def run_col_mrci(traj, ci_restart, t):
 
     # determine convergence...
     if not converged:
-#        raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
-        error.abort('ciudg.x did not converge. traj='+str(label))
+        raise TimeoutError('MRCI did not converge for trajectory ' + str(label))
 
     # if we're good, update energy array
     energies = np.array([ci_ener[i] for i in range(traj.nstates)],dtype=float)
@@ -619,7 +617,7 @@ def run_col_mrci(traj, ci_restart, t):
 
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
-    global p_dim, mrci_lvl, mem_str 
+    global p_dim, mrci_lvl, mem_str
     global work_path
 
     os.chdir(work_path)
@@ -704,7 +702,7 @@ def run_col_tdipole(label, state_i, state_j):
         with open('trnciin', 'w') as ofile:
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
-        run_prog(label, 'transci.x', args=['-m', mem_str])   
+        run_prog(label, 'transci.x', args=['-m', mem_str])
 
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
 
@@ -1049,7 +1047,7 @@ def get_adiabatic_phase(traj, new_coup):
 #-----------------------------------------------------------------
 def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
     """Tries to run a Columbus program executable. If error is
-       raised, return False, else True"""
+    raised, return False, else True"""
 
     arg    = [str(prog_name)]
     kwargs = dict()
@@ -1075,10 +1073,11 @@ def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
         # if got here, return code not caught as non-zero, but check
         # bummer file to be sure error code not caught by Columbus
         if not prog_status():
-            raise subprocess.CalledProcessError
+            raise TimeoutError(str(prog_name)+' returned error, traj='+str(tid))
+    #        raise subprocess.CalledProcessError
 
-    except subprocess.CalledProcessError:
-        error.abort(str(prog_name)+' returned error, traj='+str(tid))
+    #except subprocess.CalledProcessError:
+    #    error.abort(str(prog_name)+' returned error, traj='+str(tid))
 
 
 def prog_status():
@@ -1255,7 +1254,7 @@ def ang_mom_dalton(infile):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
                     nprim  = int(line.split()[1])
-                    n_line = math.ceil(float(line.split()[2])/3.) 
+                    n_line = math.ceil(float(line.split()[2])/3.)
                     for l in range(nprim * n_line):
                         line = daltaoin.readline()
     return max_l

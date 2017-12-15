@@ -19,7 +19,7 @@ import src.dynamics.step as step
 def init():
     """Initializes the FMSpy inputs.
 
-    This must be seperate from main so that an error which occurs
+    This must be separate from main so that an error which occurs
     before the input file is created will be written to stdout.
     """
     # initialize MPI communicator
@@ -54,9 +54,7 @@ def init():
 
 def main(master):
     """Runs the main FMSpy routine."""
-    # propagate the trajectories
     while master.time < glbl.propagate['simulation_time']:
-        
         # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
         # dt should be shortened for numerics

@@ -1,8 +1,6 @@
 """
-Compute saddle-point integrals over trajectories traveling on adiabataic
-potentials
-
-This currently uses first-order saddle point.
+Compute Bra-ket averaged Taylor expansion integrals over trajectories
+traveling on adiabataic potentials
 """
 import sys
 import math
@@ -19,23 +17,27 @@ overlap_requires_pes = False
 require_centroids = False
 
 # Determines the Hamiltonian symmetry
-hermitian = True 
+hermitian = True
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
+
 
 def nuc_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
     return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
-# the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods).
+
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
-    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+    """Returns < Psi | Psi' >, the overlap integral of two trajectories.
+
+    The bra and ket functions for the s_integral may be different
+    (i.e. pseudospectral/collocation methods).
+    """
     return s_integral(t1, t2, nuc_only=nuc_only, Snuc=Snuc)
 
-# returns total overlap of trajectory basis function
+
 def s_integral(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
@@ -48,18 +50,24 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
         else:
             return Snuc
 
+
 def v_integral(t1, t2, centroid=None, Snuc=None):
-    """Returns potential coupling matrix element between two trajectories."""
-    # if we are passed a single trajectory, this is a diagonal
-    # matrix element -- simply return potential energy of trajectory
+    """Returns potential coupling matrix element between two trajectories.
+
+    If we are passed a single trajectory, this is a diagonal matrix
+    element -- simply return potential energy of trajectory.
+    """
 
     if Snuc is None:
         Sij = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                            t2.phase(),t2.widths(),t2.x(),t2.p())
-    else: 
+    else:
         Sij = Snuc
 
     Sji = Sij.conjugate()
+
+    if glbl.propagate['integral_order'] > 2:
+        raise ValueError('Integral_order > 2 not implemented for bra_ket_averaged')
 
     if t1.state == t2.state:
         state = t1.state
@@ -69,7 +77,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
 
         if glbl.propagate['integral_order'] > 0:
             o1_ij = nuclear.ordr1_vec(t1.widths(),t1.x(),t1.p(),
-                                      t2.widths(),t2.x(),t2.p()) 
+                                      t2.widths(),t2.x(),t2.p())
             o1_ji = nuclear.ordr1_vec(t2.widths(),t2.x(),t2.p(),
                                       t1.widths(),t1.x(),t1.p())
             vij += np.dot(o1_ij - t1.x()*Sij, t1.derivative(state,state))
@@ -86,20 +94,17 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                 vij += 0.5*o2_ij[k]*t1.hessian(state,state)[k,k]
                 vji += 0.5*o2_ji[k]*t2.hessian(state,state)[k,k]
                 for l in range(k):
-                    vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l] 
-                                 - xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k] 
-                                 - o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k] 
-                                 + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) 
-                                 * t1.hessian(state,state)[k,l]) 
+                    vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l]
+                                 - xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k]
+                                 - o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k]
+                                 + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij)
+                                 * t1.hessian(state,state)[k,l])
                     vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l]
-                                 - xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k] 
-                                 - o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k] 
-                                 + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji) 
+                                 - xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k]
+                                 - o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k]
+                                 + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji)
                                  * t2.hessian(state,state)[k,l])
 
-        if glbl.propagate['integral_order'] > 2:
-            sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
-          
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     else:
@@ -107,12 +112,12 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         fij = t1.derivative(t1.state, t2.state)
 
         vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), interface.kecoeff *
-                        nuclear.deldx(Sij,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                          t2.phase(),t2.widths(),t2.x(),t2.p()))
+                         nuclear.deldx(Sij,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                       t2.phase(),t2.widths(),t2.x(),t2.p()))
         vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), interface.kecoeff *
-                        nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
-                                          t1.phase(),t1.widths(),t1.x(),t1.p()))
- 
+                         nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
+                                       t1.phase(),t1.widths(),t1.x(),t1.p()))
+
         if glbl.propagate['integral_order'] > 0:
             vij += 0.
             vji += 0.
@@ -121,13 +126,9 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
             vij += 0.
             vji += 0.
 
-        if glbl.propagate['integral_order'] > 2:
-            sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
-      
-    return 0.5*(vij + vji.conjugate()) 
+    return 0.5*(vij + vji.conjugate())
 
 
-# kinetic energy integral
 def ke_integral(t1, t2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     if t1.state != t2.state:
@@ -139,11 +140,11 @@ def ke_integral(t1, t2, Snuc=None):
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
         ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                 t2.phase(),t2.widths(),t2.x(),t2.p())
+                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
         return -np.dot(ke, interface.kecoeff)
 
-# time derivative of the overlap
+
 def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if t1.state != t2.state:
@@ -155,9 +156,9 @@ def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
         deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+                              t2.phase(),t2.widths(),t2.x(),t2.p())
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+                              t2.phase(),t2.widths(),t2.x(),t2.p())
 
         sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
                 +1j * t2.phase_dot() * Snuc)

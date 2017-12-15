@@ -29,9 +29,7 @@ def reexpress_basis(master):
     # threshold, then return, else re-exress the basis using the
     # matching pursuit algorithm
     Sinv, cond = linalg.pseudo_inverse(master.S)
-    if cond <= epsilon:
-        return
-    else:
+    if cond > epsilon:
         matching_pursuit(master)
 
 
@@ -76,15 +74,12 @@ def mp_1iter(residual, master):
     # maximum number of trajectories
     if nbas == len(master.traj):
         conv = True
-        return
-
-    # (3) Check for convergence
-    check_conv(residual,master)
-    if conv == True:
-        return
-
-    # (4) Update the residual
-    update_residual(residual)
+    else:
+        # (3) Check for convergence
+        check_conv(residual,master)
+        if not conv:
+            # (4) Update the residual
+            update_residual(residual)
 
 
 def select_basfunc(residual):

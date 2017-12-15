@@ -10,10 +10,13 @@ import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
 
+
 # the dynamically loaded libraries (done once by init_bundle)
 pes       = None
-sampling  = None 
+sampling  = None
 integrals = None
+
+
 #--------------------------------------------------------------------------
 #
 # Externally visible routines
@@ -22,7 +25,7 @@ integrals = None
 def init_bundle(master):
     """Initializes the trajectories."""
     global pes, sampling, integrals
-   
+
     try:
         pes      = __import__('src.interfaces.'+glbl.interface['interface'],
                          fromlist=['NA'])
@@ -61,7 +64,6 @@ def init_bundle(master):
         init_restart(master)
 
     else:
-
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         sampling.set_initial_coords(master)
@@ -72,7 +74,7 @@ def init_bundle(master):
 
         # set the initial amplitudes of the basis functions
         set_initial_amplitudes(master)
- 
+
         # add virtual basis functions, if desired (i.e. virtual basis = true)
         if glbl.sampling['virtual_basis'] and not glbl.sampling['restart']:
             virtual_basis(master)
@@ -112,8 +114,7 @@ def init_restart(master):
 
     master.read_bundle(fname, glbl.sampling['restart_time'])
 
-#
-#
+
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
 
@@ -145,18 +146,16 @@ def set_initial_state(master):
     elif len(glbl.sampling['init_states']) == master.n_traj():
         for i in range(master.n_traj()):
             master.traj[i].state = glbl.sampling['init_states'][i]
-        
+
     else:
         raise ValueError('Ambiguous initial state assignment.')
 
-    return
 
-#
-#
 def set_initial_amplitudes(master):
+    """Sets the initial amplitudes."""
     global integrals
- 
-    # if init_amp_overlap is set, overwrite 'amplitudes' that was 
+
+    # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in fms.input
     if glbl.nuclear_basis['init_amp_overlap']:
 
@@ -174,7 +173,7 @@ def set_initial_amplitudes(master):
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):
-                smat[i,j] = master.integrals.traj_overlap(master.traj[i], 
+                smat[i,j] = master.integrals.traj_overlap(master.traj[i],
                                                           master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
@@ -187,13 +186,12 @@ def set_initial_amplitudes(master):
         dif = master.n_traj() - len(glbl.nuclear_basis['amplitudes'])
         fileio.print_fms_logfile('warning',['appending '+str(dif)+
                                  ' values of 0+0j to amplitudes'])
-        glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])    
+        glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])
 
     # finally -- update amplitudes in the bundle
     for i in range(master.n_traj()):
         master.traj[i].update_amplitude(glbl.nuclear_basis['amplitudes'][i])
 
-    return
 
 def virtual_basis(master):
     """Add virtual basis funcions.
@@ -212,13 +210,10 @@ def virtual_basis(master):
             new_traj.state = j
             master.add_trajectory(new_traj)
 
-#
-# construct a trajectory basis function at the origin specified in the 
-# input.
-#
+
 def make_origin_traj():
-    """construct a trajectory basis function at the origin
-       specified in the input files"""
+    """Construct a trajectory basis function at the origin
+    specified in the input files"""
 
     ndim = len(glbl.nuclear_basis['geometries'][0])
     m_vec = np.array(glbl.nuclear_basis['masses'])

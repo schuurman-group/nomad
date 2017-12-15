@@ -18,11 +18,12 @@ fpzero   = 1.e-10
 bundle0  = None
 
 # MPI variables
-mpi = dict( 
+mpi = dict(
     parallel               = False,
     comm                   = None,
     rank                   = 0,
-    nproc                  = 1)
+    nproc                  = 1
+           )
 
 # input related to initial conditions
 sampling = dict(
@@ -36,7 +37,8 @@ sampling = dict(
     init_mode_min_olap     = 0.,
     seed                   = 0,
     virtual_basis          = False,
-    distrib_compression    = 1.0)
+    distrib_compression    = 1.0
+                )
 
 propagate = dict(
     n_states               = 1,
@@ -56,7 +58,8 @@ propagate = dict(
     phase_prop             = True,
     sij_thresh             = 0.7,
     hij_coup_thresh        = 0.001,
-    matching_pursuit       = False)
+    matching_pursuit       = False
+                 )
 
 # Electronic structure information read from interface-specific
 # routines
@@ -66,7 +69,8 @@ spawning = dict(
     spawn_pop_thresh       = 0.025,
     spawn_coup_thresh      = 0.02,
     spawn_olap_thresh      = 0.7,
-    continuous_min_overlap = 0.5)
+    continuous_min_overlap = 0.5
+                )
 
 interface = dict(
     # pertain to all interfaces
@@ -80,7 +84,8 @@ interface = dict(
     # parameters that apply to vibronic interface
     opfile                 = 'fms.op',
     # highest polynomial order in vibronic expansion
-    ordr_max               = 1)
+    ordr_max               = 1
+                 )
 
 nuclear_basis = dict(
     use_atom_lib           = True,
@@ -94,25 +99,28 @@ nuclear_basis = dict(
     labels                 = [""],
     amplitudes             = [1.+0.j],
     widths                 = [0],
-    masses                 = [0])
+    masses                 = [0]
+                     )
 
 printing = dict(
     print_level            = 1,
     print_traj             = True,
     print_es               = True,
     print_matrices         = True,
-    print_chkpt            = True)
+    print_chkpt            = True
+                )
 
-# this is a list of valid dictionary names. groups of input need to be added to 
+# this is a list of valid dictionary names. groups of input need to be added to
 # this last (obvs)
-input_groups   = { 
-    'mpi'                  : mpi,
-    'sampling'             : sampling,
-    'propagate'            : propagate,
-    'spawning'             : spawning,
-    'nuclear_basis'        : nuclear_basis,
-    'interface'            : interface,
-    'printing'             : printing}
+input_groups = dict(
+    mpi                    = mpi,
+    sampling               = sampling,
+    propagate              = propagate,
+    spawning               = spawning,
+    nuclear_basis          = nuclear_basis,
+    interface              = interface,
+    printing               = printing
+                    )
 
 # lists keywords, the datatype of the keyword and the dimension
 # 0=scalar, 1=list, 2=nested list.
@@ -178,5 +186,5 @@ keyword_type = dict(
     print_traj             = [bool,0],
     print_es               = [bool,0],
     print_matrices         = [bool,0],
-    print_chkpt            = [bool,0])
-
+    print_chkpt            = [bool,0]
+                    )
