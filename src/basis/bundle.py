@@ -429,27 +429,14 @@ class Bundle:
     def update_logs(self):
         """Updates the log files."""
 
-#        dia1      = self.traj[0].pes_data.diabat_pot
-#        argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
-#        theta1    = 0.5 * np.arctan(argt1)
-
-#        dia2      = self.traj[1].pes_data.diabat_pot
-#        argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
-#        theta2    = 0.5 * np.arctan(argt2)
-
-#        print("theta1, theta2: "+str(theta1)+' '+str(theta2))
-#        print("cos,sin1: "+str([np.cos(theta1),np.sin(theta1)]))
-#        print("adt_mat:  "+str(self.traj[0].pes_data.adt_mat[:,self.traj[0].state]))
-#        print("dat_mat1:  "+str(self.traj[0].pes_data.dat_mat[:,self.traj[0].state]))
-#        print("cos,sin2: "+str([np.cos(theta2),np.sin(theta2)]))
-#        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
-#        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
-
-#        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
-
-#        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
-
         np.set_printoptions(precision=8, linewidth=80, suppress=False)
+
+#        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
+#        smat = np.array([[self.integrals.elec_overlap(self.traj[i],self.traj[j]) for i in range(self.nalive)] for j in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.2f}\n'.format(self.time))
+#            outfile.write(np.array2string(smat,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
@@ -486,6 +473,21 @@ class Bundle:
                 data.extend([self.traj[i].coup_dot_vel(j)
                              for j in range(self.nstates)])
                 fileio.print_traj_row(self.traj[i].label, 2, data)
+
+                # temporary writing of integral debugging
+#                filename='/tmp/schuurm/fmspy/theta.'+str(self.traj[i].label)
+#                with open(filename, 'a') as outfile:
+#                    outfile.write('\n'+str(self.time)+'  '+str(self.integrals.theta(self.traj[i])))
+#                filename='/tmp/schuurm/fmspy/hessian.'+str(self.traj[i].label)
+#                print("hesses="+str(self.traj[i].pes_data.diabat_deriv2))
+#                hess=self.traj[i].pes_data.diabat_deriv2[:,:,self.traj[i].state, self.traj[i].state]
+#                dderiv=self.traj[i].pes_data.diabat_deriv2[0,1]
+#                with open(filename, 'a') as outfile:
+#                    outfile.write('{:9.2f}\n'.format(self.time))
+#                    outfile.write(np.array2string(hess,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+#                    outfile.write(np.array2string(dderiv,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
             # print pes information relevant to the chosen interface
             if glbl.printing['print_es']:

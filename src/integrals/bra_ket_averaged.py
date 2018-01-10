@@ -58,7 +58,6 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                            t2.phase(),t2.widths(),t2.x(),t2.p())
     else: 
         Sij = Snuc
-
     Sji = Sij.conjugate()
 
     if t1.state == t2.state:
@@ -83,19 +82,19 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                                       t1.widths(),t1.x(),t1.p())
 
             for k in range(t1.dim):
-                vij += 0.5*o2_ij[k]*t1.hessian(state,state)[k,k]
-                vji += 0.5*o2_ji[k]*t2.hessian(state,state)[k,k]
+                vij += 0.5*o2_ij[k]*t1.hessian(state)[k,k]
+                vji += 0.5*o2_ji[k]*t2.hessian(state)[k,k]
                 for l in range(k):
                     vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l] 
                                  - xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k] 
                                  - o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k] 
                                  + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) 
-                                 * t1.hessian(state,state)[k,l]) 
+                                 * t1.hessian(state)[k,l]) 
                     vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l]
                                  - xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k] 
                                  - o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k] 
                                  + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji) 
-                                 * t2.hessian(state,state)[k,l])
+                                 * t2.hessian(state)[k,l])
 
         if glbl.propagate['integral_order'] > 2:
             sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
@@ -107,23 +106,12 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         fij = t1.derivative(t1.state, t2.state)
 
         vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), interface.kecoeff *
-                        nuclear.deldx(Sij,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                          t2.phase(),t2.widths(),t2.x(),t2.p()))
+                         nuclear.deldx(Sij,t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                           t2.phase(),t2.widths(),t2.x(),t2.p()))
         vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), interface.kecoeff *
-                        nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
-                                          t1.phase(),t1.widths(),t1.x(),t1.p()))
+                         nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
+                                           t1.phase(),t1.widths(),t1.x(),t1.p()))
  
-        if glbl.propagate['integral_order'] > 0:
-            vij += 0.
-            vji += 0.
-
-        if glbl.propagate['integral_order'] > 1:
-            vij += 0.
-            vji += 0.
-
-        if glbl.propagate['integral_order'] > 2:
-            sys.exit('integral_order > 2 not implemented for bra_ket_averaged')
-      
     return 0.5*(vij + vji.conjugate()) 
 
 
