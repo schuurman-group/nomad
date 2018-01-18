@@ -9,7 +9,6 @@ import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
 import src.dynamics.surface as surface
 import src.basis.matching_pursuit as mp
-import src.utils.error as error
 
 
 def fms_time_step(master):

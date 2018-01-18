@@ -7,6 +7,7 @@ import re
 import glob
 import ast
 import shutil
+import traceback
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
@@ -544,17 +545,10 @@ def read_hessian(hess_file):
 # FMS summary output file
 #
 #----------------------------------------------------------------------------
-def cleanup(exception=None):
-    """Cleans up the FMS log file."""
-    global home_path, scr_path
-
+def cleanup_end():
+    """Cleans up the FMS log file if calculation completed."""
     # simulation ended
-    if exception is None:
-        print_fms_logfile('complete', [])
-    else:
-        print_fms_logfile('error', [rm_timer(exception)])
-        for timer in timings.active_stack[:0:-1]:
-            timings.stop(timer.name)
+    print_fms_logfile('complete', [])
 
     # print timing information
     timings.stop('global', cumulative=True)
@@ -564,15 +558,32 @@ def cleanup(exception=None):
     # copy output files
     copy_output()
 
-    # abort everything if running in parallel
+
+def cleanup_exc(etyp, val, tb):
+    """Cleans up the FMS log file if an exception occurs."""
+    # print exception
+    exception = ''.join(traceback.format_exception(etyp, val, tb))
+    print_fms_logfile('error', [rm_timer(exception)])
+
+    # stop remaining timers
+    for timer in timings.active_stack[:0:-1]:
+        timings.stop(timer.name)
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_fms_logfile('timings', [t_table])
+
+    # copy output files
+    copy_output()
+
+    # abort other processes if running in parallel
     if glbl.mpi['parallel']:
         glbl.mpi['comm'].Abort(1)
 
 
 def copy_output():
     """Copies output files to current working directory."""
-    global home_path, scr_path
-
     # move trajectory summary files to an output directory in the home area
     odir = home_path + '/output'
     if os.path.exists(odir):

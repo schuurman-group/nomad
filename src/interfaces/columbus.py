@@ -14,7 +14,6 @@ import src.fmsio.fileio as fileio
 import src.basis.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
-import src.utils.error as error
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -1068,35 +1067,28 @@ def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
     kwargs['check'] = True
     kwargs['universal_newlines'] = True
 
-    try:
-        subprocess.run(arg, **kwargs)
-        # if got here, return code not caught as non-zero, but check
-        # bummer file to be sure error code not caught by Columbus
-        if not prog_status():
-            raise TimeoutError(str(prog_name)+' returned error, traj='+str(tid))
-    #        raise subprocess.CalledProcessError
-
-    #except subprocess.CalledProcessError:
-    #    error.abort(str(prog_name)+' returned error, traj='+str(tid))
+    subprocess.run(arg, **kwargs)
+    # if got here, return code not caught as non-zero, but check
+    # bummer file to be sure error code not caught by Columbus
+    if not prog_status():
+        raise TimeoutError(str(prog_name)+' returned error, traj='+str(tid))
 
 
 def prog_status():
     """Opens bummer file, checks to see if fatal error message
-       has been written. If so, return False, else, return True"""
+    has been written. If so, return False, else, return True"""
 
     try:
         with open("bummer", "r") as f:
             bummer = f.readlines()
 
-    except EnvironmentError: # if bummer not here, return True
+    except EnvironmentError:
+        # if bummer not here, return True
         return True
 
     bstr = "".join(bummer)
 
-    if bstr.find('fatal') != -1 and bstr.find('nonfatal') == -1:
-        return False
-    else:
-        return True
+    return bstr.find('fatal') == -1 or bstr.find('nonfatal') != -1
 
 
 def append_log(label, listing_file, time):

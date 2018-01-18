@@ -4,7 +4,6 @@ Main module used to initiate and run FMSpy.
 """
 import os
 import sys
-import traceback
 import random
 import numpy as np
 import mpi4py.MPI as MPI
@@ -42,6 +41,12 @@ def init():
     # initialize random number generator
     random.seed(glbl.sampling['seed'])
 
+    # initialize the trajectory and bundle output files
+    fileio.init_fms_output()
+
+
+def main():
+    """Runs the main FMSpy routine."""
     # Create the collection of trajectories
     master = bundle.Bundle(glbl.propagate['n_states'],
                            glbl.propagate['integrals'])
@@ -49,11 +54,6 @@ def init():
     # set the initial conditions for trajectories
     initialize.init_bundle(master)
 
-    return master
-
-
-def main(master):
-    """Runs the main FMSpy routine."""
     while master.time < glbl.propagate['simulation_time']:
         # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
@@ -68,12 +68,12 @@ def main(master):
             break
 
         # determine whether it is necessary to update the output logs
-        if fileio.update_logs(master) and glbl.mpi['rank']==0:
+        if fileio.update_logs(master) and glbl.mpi['rank'] == 0:
             # update the fms output files, as well as checkpoint, if necessary
             master.update_logs()
 
     # clean up, stop the global timer and write logs
-    fileio.cleanup()
+    fileio.cleanup_end()
 
 
 if __name__ == '__main__':
@@ -82,10 +82,8 @@ if __name__ == '__main__':
         glbl.mpi['parallel'] = True
 
     # initialize
-    master = init()
-    try:
-        # run the main routine
-        main(master)
-    except:
-        # if an error occurs, cleanup and report the error
-        fileio.cleanup(traceback.format_exc())
+    init()
+    # if an error occurs, cleanup and report the error
+    sys.excepthook = fileio.cleanup_exc
+    # run the main routine
+    main()

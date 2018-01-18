@@ -48,9 +48,6 @@ def init_bundle(master):
                str(glbl.propagate['integrals']))
 
 
-    # initialize the trajectory and bundle output files
-    fileio.init_fms_output()
-
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
