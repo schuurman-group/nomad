@@ -103,10 +103,10 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-        self.gamma = phase
-        #self.gamma = 0.5 * np.dot(self.x(), self.p())
-        if abs(self.gamma) > 2*np.pi:
-            self.gamma = self.gamma % 2*np.pi
+#        self.gamma = phase
+        self.gamma = 0.5 * np.dot(self.x(), self.p())
+#        if abs(self.gamma) > 2*np.pi:
+#            self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -169,6 +169,15 @@ class Trajectory:
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.deriv[:, state_i, state_j]
 
+    def hessian(self, state_i):
+        """Returns the hessian of the potential on state state_i
+        """
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+            print('WARNING: trajectory.derivative() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
+        return self.pes_data.deriv2[:, :, state_i]
+
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
            block (self.state,c_state)."""
@@ -211,9 +220,9 @@ class Trajectory:
         if not glbl.propagate['phase_prop']:
             return 0.
         else:
-            return (self.kinetic() - self.potential() -
-                    sum(self.widths() / (2. * self.masses())))
-            #return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
+#            return (self.kinetic() - self.potential() -
+#                    sum(self.widths() / (2. * self.masses())))
+            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""

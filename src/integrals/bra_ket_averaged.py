@@ -60,10 +60,9 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
 
     if Snuc is None:
         Sij = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                           t2.phase(),t2.widths(),t2.x(),t2.p())
+                              t2.phase(),t2.widths(),t2.x(),t2.p())
     else:
         Sij = Snuc
-
     Sji = Sij.conjugate()
 
     if glbl.propagate['integral_order'] > 2:
@@ -91,19 +90,19 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
                                       t1.widths(),t1.x(),t1.p())
 
             for k in range(t1.dim):
-                vij += 0.5*o2_ij[k]*t1.hessian(state,state)[k,k]
-                vji += 0.5*o2_ji[k]*t2.hessian(state,state)[k,k]
+                vij += 0.5*o2_ij[k]*t1.hessian(state)[k,k]
+                vji += 0.5*o2_ji[k]*t2.hessian(state)[k,k]
                 for l in range(k):
-                    vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l]
-                                 - xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k]
-                                 - o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k]
-                                 + (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij)
-                                 * t1.hessian(state,state)[k,l])
-                    vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l]
-                                 - xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k]
-                                 - o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k]
-                                 + (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji)
-                                 * t2.hessian(state,state)[k,l])
+                    vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l] -
+                                   xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k] -
+                                   o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k] +
+                                   (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) * 
+                                  t1.hessian(state)[k,l]) 
+                    vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l] -
+                                   xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k] -
+                                   o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k] +
+                                   (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji) *
+                                  t2.hessian(state)[k,l])
 
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
@@ -117,15 +116,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), interface.kecoeff *
                          nuclear.deldx(Sji,t2.phase(),t2.widths(),t2.x(),t2.p(),
                                        t1.phase(),t1.widths(),t1.x(),t1.p()))
-
-        if glbl.propagate['integral_order'] > 0:
-            vij += 0.
-            vji += 0.
-
-        if glbl.propagate['integral_order'] > 1:
-            vij += 0.
-            vji += 0.
-
+ 
     return 0.5*(vij + vji.conjugate())
 
 
@@ -160,7 +151,7 @@ def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
         deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
                               t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
-                +1j * t2.phase_dot() * Snuc)
+        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) +
+                1j * t2.phase_dot() * Snuc)
 
         return sdot
