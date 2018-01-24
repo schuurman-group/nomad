@@ -75,6 +75,7 @@ class Surface:
         self.geom      = np.zeros(t_dim)
         self.potential = np.zeros(n_states)
         self.deriv     = np.zeros((t_dim, n_states, n_states))
+        self.coupling  = np.zeros((t_dim, n_states, n_states))
 
         # these are interface-specific quantities
         # atomic populations
@@ -95,6 +96,7 @@ class Surface:
         new_info.geom      = copy.deepcopy(self.geom)
         new_info.potential = copy.deepcopy(self.potential)
         new_info.deriv     = copy.deepcopy(self.deriv)
+        new_info.coupling  = copy.deepcopy(self.coupling)
 
         # interface-dependent potential data
         new_info.atom_pop  = copy.deepcopy(self.atom_pop)
@@ -282,7 +284,10 @@ def evaluate_trajectory(traj, t=None):
             state_j = max(i,state)
             col_surf.deriv[:, state_i, state_j] =  nad_coup[:, i]
             col_surf.deriv[:, state_j, state_i] = -nad_coup[:, i]
+            col_surf.coupling[:, state_i, state_j] = nad_coup[:,i]
+            col_surf.coupling[:, state_j, state_i] = -nad_coup[:,i]
     col_surf.data_keys.append('deriv')
+    col_surf.data_keys.append('coupling')
 
     # save restart files
     make_col_restart(traj)
@@ -335,7 +340,11 @@ def evaluate_centroid(Cent, t=None):
         nad_coup = run_col_coupling(Cent, col_surf.potential, t)
         col_surf.deriv[:,state_i, state_j] =  nad_coup[:,state_j]
         col_surf.deriv[:,state_j, state_i] = -nad_coup[:,state_j]
-        col_surf.data_keys.append('deriv')
+        col_surf.coupling[:, state_i, state_j] = nad_coup[:,state_j]
+        col_surf.coupling[:, state_j, state_i] = -nad_coup[:,state_j]
+
+    col_surf.data_keys.append('deriv')
+    col_surf.data_keys.append('coupling')
 
     # save restart files
     make_col_restart(Cent)
