@@ -2,20 +2,28 @@
 Conversion factors and constants for FMSpy.
 """
 
-# convert fs to au
-fs2au    = 41.34137221718
-# convert bohr to angstrom
-bohr2ang = 0.529177249
-# convert mass in amu to au
-amu2au  = 1822.887
-# convert hartree to eV
-au2ev    = 27.21138505
-# convert hartree to cm-1
-au2cm    = 219474.63
-# floating point zero
-fpzero   = 1.e-10
-# t=0 bundle
-bundle0  = None
+constants = dict(
+  # convert fs to au
+  fs2au    = 41.34137221718,
+  # convert bohr to angstrom
+  bohr2ang = 0.529177249,
+  # convert mass in amu to au
+  amu2au  = 1822.887,
+  # convert hartree to eV
+  au2ev    = 27.21138505,
+  # convert hartree to cm-1
+  au2cm    = 219474.63,
+  # floating point zero
+  fpzero   = 1.e-10,
+)
+
+# contains global variables that are not user-specified
+variables = dict(
+  # t=0 bundle
+  bundle0  = None,
+  # surface representation: either adiabatic or diabatic
+  surface_rep = 'adiabatic'
+)
 
 # MPI variables
 mpi = dict( 
@@ -62,7 +70,7 @@ propagate = dict(
 # routines
 
 spawning = dict(
-    spawning               = 'forward_backward',
+    spawning               = 'optimal',
     spawn_pop_thresh       = 0.025,
     spawn_coup_thresh      = 0.02,
     spawn_olap_thresh      = 0.7,
@@ -70,7 +78,7 @@ spawning = dict(
 
 interface = dict(
     # pertain to all interfaces
-    interface              = 'boson_model_diabatic',
+    interface              = 'vibronic',
     coupling_order         = 1,
 
     # parameters that apply to the COLUMBUS interface
@@ -118,6 +126,14 @@ input_groups   = {
 # 0=scalar, 1=list, 2=nested list.
 # note that multi-dimensional keywords are python lists
 keyword_type = dict(
+    fs2au                  = [float,0], 
+    bohr2ang               = [float,0],
+    amu2au                 = [float,0],
+    au2ev                  = [float,0],
+    au2cm                  = [float,0],
+    fpzero                 = [float,0],
+    bundle0                = [None,0],
+    surf_rep               = [str,0],
     parallel               = [bool,0],
     comm                   = [None,0],
     rank                   = [int,0],
@@ -129,7 +145,7 @@ keyword_type = dict(
     init_states            = [int,1],
     init_brightest         = [bool,0],
     restart_time           = [float,0],
-    init_mode_min_olap     = [float,0.],
+    init_mode_min_olap     = [float,0],
     seed                   = [int,0],
     virtual_basis          = [bool,0],
     distrib_compression    = [float,0],

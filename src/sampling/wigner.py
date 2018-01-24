@@ -72,7 +72,7 @@ def set_initial_coords(master):
 
     # write out frequencies 
     fileio.print_fms_logfile('string',[' -- frequencies from hessian.dat --\n'])
-    fstr = '\n'.join(['{0:.1f}'.format(freqs[j]*glbl.au2cm) 
+    fstr = '\n'.join(['{0:.1f}'.format(freqs[j]*glbl.constants['au2cm']) 
                                                        for j in range(n_modes)]) 
     fileio.print_fms_logfile('string',[fstr+'\n'])
 
@@ -86,7 +86,7 @@ def set_initial_coords(master):
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            if alpha > glbl.fpzero:
+            if alpha > glbl.constants['fpzero']:
                 sigma_x = (glbl.sampling['distrib_compression'] * 
                            np.sqrt(0.25 / alpha))
                 sigma_p = (glbl.sampling['distrib_compression'] *

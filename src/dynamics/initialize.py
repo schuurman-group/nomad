@@ -86,7 +86,7 @@ def init_bundle(master):
 
     # this is the bundle at time t=0.  Save in order to compute auto
     # correlation function
-    glbl.bundle0 = master.copy()
+    glbl.variables['bundle0'] = master.copy()
 
     # write to the log files
     if glbl.mpi['rank'] == 0:

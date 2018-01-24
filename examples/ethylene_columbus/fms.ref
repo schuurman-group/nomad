@@ -331,7 +331,7 @@
  spawn_pop_thresh     = 0.02                
  spawn_olap_thresh    = 0.8                 
  spawn_coup_thresh    = 0.017               
- spawning             = forward_backward    
+ spawning             = optimal    
 
 
  ***********

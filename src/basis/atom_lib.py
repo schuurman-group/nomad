@@ -25,7 +25,7 @@ def atom_data(atom_sym):
     
     if valid_atom(atom_sym):
         index = atom_name.index(atom_sym)
-        return atom_width[index],atom_mass[index]*glbl.amu2au,atom_anum[index]
+        return atom_width[index],atom_mass[index]*glbl.constants['amu2au'],atom_anum[index]
 
     else:
         raise ValueError('Atom: '+str(atom_sym)+' not found in library') 

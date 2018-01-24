@@ -152,7 +152,7 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > 10.*glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
@@ -163,7 +163,7 @@ class Trajectory:
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
@@ -172,18 +172,27 @@ class Trajectory:
     def hessian(self, state_i):
         """Returns the hessian of the potential on state state_i
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.deriv2[:, :, state_i]
+
+    def coupling(self, state_i, state_j):
+        """Returns the coupling between surfaces state_i and state_j
+        """
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+            print('WARNING: trajectory.derivative() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
+        return self.pes_data.coupling[:, self.state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes_data.data_keys:
             return 0.
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
@@ -226,27 +235,26 @@ class Trajectory:
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""
-        if self.same_state(j_state):
-            return 0.
-        return np.linalg.norm(self.derivative(self.state, j_state))
+        return np.linalg.norm(self.coupling(self.state, j_state))
 
     def coup_dot_vel(self, j_state):
         """Returns the coupling dotted with the velocity."""
-        if self.same_state(j_state):
+        if glbl.variables['surface_rep'] == 'diabatic':
             return 0.
-        return np.dot( self.velocity(), self.derivative(self.state, j_state) )
+        else:
+            return np.dot(self.velocity(), self.coupling(self.state, j_state))
 
     def eff_coup(self, j_state):
         """Returns the effective coupling."""
-        if self.same_state(j_state):
-            return 0.
-        # F.p/m
-        coup = self.coup_dot_vel(j_state)
-        # G
-        if glbl.interface['coupling_order'] > 1:
-            coup += self.scalar_coup(self.state, j_state)
-
-        return coup
+        if glbl.variables['surface_rep'] == 'diabatic':
+            return self.coupling_norm(j_state)
+        else:
+            # F.p/m
+            coup = self.coup_dot_vel(j_state)
+            # G
+            if glbl.interface['coupling_order'] > 1:
+                coup += self.scalar_coup(self.state, j_state)
+            return coup
 
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""

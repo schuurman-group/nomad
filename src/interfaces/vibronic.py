@@ -8,7 +8,6 @@ import scipy.linalg as sp_linalg
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 
-
 kecoeff = None
 ham = None
 nsta = glbl.propagate['n_states']
@@ -25,13 +24,25 @@ class Surface:
 
         # these are the standard quantities ALL interface_data objects return
         self.data_keys = []
+        # the current geometry
         self.geom      = np.zeros(t_dim)
+        # the potential energy (adiabatic or diabatic, depening on integral scheme)
         self.potential = np.zeros(n_states)
+        # the derivative of the potentials. 
+        # For adiabatic surfaces, diagonal elements
+        # are the adiabatic gradients, of diagaonal are the derivative couplings
+        # For diabatic surfaces, just the derivative of the diabatic Hamiltonian
         self.deriv     = np.zeros((t_dim, n_states, n_states))
-        # if we need derivatives of derivative couplings, we can add them later: don't
-        # need them now
-        self.deriv2    = np.zeros((t_dim, t_dim, n_states))
-
+        # the second derivaative of the potentials
+        # For adiabatic surfaces, returns the hessians and the derivatives of the
+        # derivative couplings
+        # For diabatic propagation: second derivative of the diabatic Hamiltonian
+        self.deriv2    = np.zeros((t_dim, t_dim, n_states, n_states))
+        # return the coupling between the states
+        # For adiabatic surfaces, this is the derivative coupling
+        # For diabatic surfaces, this is the potential coupling divided by Delta E
+        self.coupling = np.zeros((t_dim, n_states, n_states))
+     
         # these are interface-specific quantities
         self.scalar_coup    = np.zeros((n_states, n_states))
         self.dat_mat        = np.zeros((n_states, n_states))
@@ -53,6 +64,7 @@ class Surface:
         new_info.potential     = copy.deepcopy(self.potential)
         new_info.deriv         = copy.deepcopy(self.deriv)
         new_info.deriv2        = copy.deepcopy(self.deriv2)
+        new_info.coupling      = copy.deepcopy(self.coupling)
 
         new_info.scalar_coup    = copy.deepcopy(self.scalar_coup)
         new_info.dat_mat        = copy.deepcopy(self.dat_mat)
@@ -287,12 +299,26 @@ def evaluate_trajectory(traj, t=None):
     sctmat, dbocderiv1 = calc_scts(adiabpot, datmat, diabderiv1,
                                    nactmat, adiabderiv1, diablap)
 
+    #** load the data into the pes object to pass to trajectory **
+
     t_data           = Surface(label, nsta, ham.nmode_active)
     t_data.geom      = geom
-    t_data.potential = adiabpot
-    t_data.deriv     = [np.diag(adiabderiv1[m]) for m in
+
+    if glbl.variables['surface_rep'] == 'adiabatic':
+      t_data.potential = adiabpot
+      t_data.deriv     = [np.diag(adiabderiv1[m]) for m in
                              range(ham.nmode_total)] + nactmat
-    t_data.deriv2    = adiabderiv2
+      t_data.deriv2    = adiabderiv2
+      t_data.coupling  = nactmat
+
+    else:
+      t_data.potential = diabpot
+      t_data.deriv     = diabderiv1 
+      t_data.deriv2    = diabderiv2
+      deinv = np.array([[ 1. / 
+                         max([diabpot[i,i]-diabpot[j,j],glbl.constants['fpzero']],key=abs) 
+                         for i in range(nsta)] for j in range(nsta)])
+      t_data.coupling  = np.multiply(diabpot - np.diag(diabpot.diagonal()),deinv)
 
     t_data.scalar_coup    = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
     t_data.dat_mat        = datmat
@@ -339,9 +365,9 @@ def conv(val_list):
         if val_list[2] == 'au':
             return float(val_list[0])
         elif val_list[2] == 'ev':
-            return float(val_list[0]) / glbl.au2ev
+            return float(val_list[0]) / glbl.constants['au2ev']
         elif val_list[2] == 'cm':
-            return float(val_list[0]) / glbl.au2cm
+            return float(val_list[0]) / glbl.constants['au2cm']
         else:
             raise ValueError('Unknown units:', val_list[2])
     else:

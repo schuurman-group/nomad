@@ -209,6 +209,13 @@ def validate_input():
           len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
         sys.exit("ERROR -- cannot assign state")  
 
+    # set the surface_rep variable depending on the value of the integrals
+    # keyword
+    if glbl.propagate['integrals'] == 'vibronic_diabatic':
+        glbl.variables['surface_rep'] = 'diabatic'
+    else:
+        glbl.variables['surface_rep'] = 'adiabatic'
+ 
     # check array lengths
     #ngeom   = len(glbl.nuclear_basis['geometries'])
     #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]

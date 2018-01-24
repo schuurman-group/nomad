@@ -36,7 +36,7 @@ end propagate-section
 
 # keywords related to spawning of new basis functions
 begin spawning-section
-    spawning               = forward_backward
+    spawning               = optimal 
     spawn_pop_thresh       = 0.025
     spawn_coup_thresh      = 0.001 
     spawn_olap_thresh      = 0.8

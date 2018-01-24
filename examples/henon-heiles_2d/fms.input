@@ -30,7 +30,7 @@ pop_jump_toler       = 0.0001
 sij_thresh           = 1e-4
 
 # spawning
-spawning             = forward_backward
+spawning             = optimal 
 spawn_pop_thresh     = 0.025
 spawn_coup_thresh    = 0.001
 spawn_olap_thresh    = 0.8

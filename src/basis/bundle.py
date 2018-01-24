@@ -431,12 +431,12 @@ class Bundle:
 
         np.set_printoptions(precision=8, linewidth=80, suppress=False)
 
-#        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
-#        smat = np.array([[self.integrals.elec_overlap(self.traj[i],self.traj[j]) for i in range(self.nalive)] for j in range(self.nalive)])
-#        with open(filename, 'a') as outfile:
-#            outfile.write('{:9.2f}\n'.format(self.time))
-#            outfile.write(np.array2string(smat,
-#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
+        smat = np.array([[self.integrals.elec_overlap(self.traj[i],self.traj[j]) for i in range(self.nalive)] for j in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.2f}\n'.format(self.time))
+            outfile.write(np.array2string(smat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
@@ -475,19 +475,19 @@ class Bundle:
                 fileio.print_traj_row(self.traj[i].label, 2, data)
 
                 # temporary writing of integral debugging
-#                filename='/tmp/schuurm/fmspy/theta.'+str(self.traj[i].label)
-#                with open(filename, 'a') as outfile:
-#                    outfile.write('\n'+str(self.time)+'  '+str(self.integrals.theta(self.traj[i])))
-#                filename='/tmp/schuurm/fmspy/hessian.'+str(self.traj[i].label)
-#                print("hesses="+str(self.traj[i].pes_data.diabat_deriv2))
-#                hess=self.traj[i].pes_data.diabat_deriv2[:,:,self.traj[i].state, self.traj[i].state]
-#                dderiv=self.traj[i].pes_data.diabat_deriv2[0,1]
-#                with open(filename, 'a') as outfile:
-#                    outfile.write('{:9.2f}\n'.format(self.time))
-#                    outfile.write(np.array2string(hess,
-#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
-#                    outfile.write(np.array2string(dderiv,
-#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+                filename='/tmp/schuurm/fmspy/theta.'+str(self.traj[i].label)
+                with open(filename, 'a') as outfile:
+                    outfile.write('\n'+str(self.time)+'  '+str(self.integrals.theta(self.traj[i])))
+                filename='/tmp/schuurm/fmspy/hessian.'+str(self.traj[i].label)
+                print("hesses="+str(self.traj[i].pes_data.diabat_deriv2))
+                hess=self.traj[i].pes_data.diabat_deriv2[:,:,self.traj[i].state, self.traj[i].state]
+                dderiv=self.traj[i].pes_data.diabat_deriv2[0,1]
+                with open(filename, 'a') as outfile:
+                    outfile.write('{:9.2f}\n'.format(self.time))
+                    outfile.write(np.array2string(hess,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+                    outfile.write(np.array2string(dderiv,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
             # print pes information relevant to the chosen interface
             if glbl.printing['print_es']:
@@ -561,8 +561,8 @@ class Bundle:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
         # wavepacket autocorrelation function
-        if glbl.propagate['auto'] and glbl.bundle0 is not None:
-            auto = self.overlap(glbl.bundle0)
+        if glbl.propagate['auto'] and glbl.variables['bundle0'] is not None:
+            auto = self.overlap(glbl.variables['bundle0'])
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(8, data)
 

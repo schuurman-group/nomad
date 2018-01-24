@@ -19,7 +19,7 @@ overlap_requires_pes = False
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = True
+hermitian = False 
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
