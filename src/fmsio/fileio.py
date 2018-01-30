@@ -7,6 +7,7 @@ import re
 import glob
 import ast
 import shutil
+import traceback
 import numpy as np
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
@@ -29,9 +30,7 @@ tfile_names = dict()
 bfile_names = dict()
 print_level = dict()
 
-#
-#
-#
+
 def read_input_file():
     """Reads the fms.input files.
 
@@ -62,43 +61,41 @@ def read_input_file():
         fms_input = infile.readlines()
 
     # remove comment lines
-    fms_input = [item for item in fms_input if 
-                 not item.startswith("#") and not item.startswith("!")]
+    fms_input = [item for item in fms_input if
+                 not item.startswith('#') and not item.startswith('!')]
 
     sec_strings = list(glbl.input_groups)
- 
+
     current_line = 0
     # look for begining of input section
     while current_line < len(fms_input):
-        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line]) 
+        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line])
                      for i in range(len(sec_strings))]
         if all([v is None for v in sec_start]):
             current_line+=1
         else:
-            section = next(item for item in sec_start 
+            section = next(item for item in sec_start
                            if item is not None).string
             section = section.replace('-section','').replace('begin','').strip()
-            current_line = parse_section(fms_input, current_line, section)    
+            current_line = parse_section(fms_input, current_line, section)
 
     # ensure that input is internally consistent
     validate_input()
-    
-    return
 
-#
-# set keywords in the appropriate keyword dictionary by parsing
-# input array
-#
+
 def parse_section(kword_array, line_start, section):
-    """Reads a namelist style input, returns results in dictionary.""" 
+    """Reads a namelist style input, returns results in dictionary.
+
+    Set keywords in the appropriate keyword dictionary by parsing
+    input array."""
 
     current_line = line_start + 1
-    while (current_line < len(kword_array) and 
+    while (current_line < len(kword_array) and
            re.search('end '+section+'-section',kword_array[current_line]) is None):
         line = kword_array[current_line].rstrip('\r\n')
 
         # allow for multi-line input
-        while ("=" not in kword_array[current_line+1] and 
+        while ('=' not in kword_array[current_line+1] and
                'end '+section+'-section' not in kword_array[current_line+1]):
             current_line += 1
             line += kword_array[current_line].rstrip('\r\n').strip()
@@ -106,11 +103,11 @@ def parse_section(kword_array, line_start, section):
         key,value = line.split('=',1)
         key   = key.strip()
         value = value.strip().lower() # convert to lowercase
-        
+
         if key not in glbl.input_groups[section].keys():
             if glbl.mpi['rank'] == 0:
-                print("Cannot find input parameter: "+key+
-                      " in input section: "+section)
+                print('Cannot find input parameter: '+key+
+                      ' in input section: '+section)
         else:
             # put all variable types into a flat list
             # here we explicitly consider dimension 0,1,2 lists: which
@@ -121,36 +118,36 @@ def parse_section(kword_array, line_start, section):
                     value = ast.literal_eval(value)
                 except Exception:
                     valid = False
-                    print("Cannot interpret input as nested array: "+
-                            str(ast.literal_eval('"%s"' % value)))
+                    print('Cannot interpret input as nested array: '+
+                            str(ast.literal_eval('\'%s\'' % value)))
                 try:
-                    varcast = [[glbl.keyword_type[key][0](check_boolean(item)) 
+                    varcast = [[glbl.keyword_type[key][0](check_boolean(item))
                                for item in sublist] for sublist in value]
                 except ValueError:
                     valid = False
-                    print("Cannot read variable: "+str(key)+ 
-                          " as nested list of "+str(glbl.keyword_type[key][0]))
+                    print('Cannot read variable: '+str(key)+
+                          ' as nested list of '+str(glbl.keyword_type[key][0]))
             elif glbl.keyword_type[key][1] == 1:
                 try:
                     value = ast.literal_eval(value)
                 except Exception:
                     valid = False
-                    print("Cannot interpret input as list: "+
-                            str(ast.literal_eval('"%s"' % value)))
+                    print('Cannot interpret input as list: '+
+                            str(ast.literal_eval('\'%s\'' % value)))
                 try:
-                    varcast = [glbl.keyword_type[key][0](check_boolean(item)) 
+                    varcast = [glbl.keyword_type[key][0](check_boolean(item))
                                for item in value]
                 except ValueError:
                     valid = False
-                    print("Cannot read variable: "+str(key)+ 
-                          " as list of "+str(glbl.keyword_type[key][0]))
+                    print('Cannot read variable: '+str(key)+
+                          ' as list of '+str(glbl.keyword_type[key][0]))
             else:
                 try:
                     varcast = glbl.keyword_type[key][0](check_boolean(value))
                 except ValueError:
                     valid = False
-                    print("Cannot read variable: "+str(key)+
-                          " as a "+str(glbl.keyword_type[key][0]))
+                    print('Cannot read variable: '+str(key)+
+                          ' as a '+str(glbl.keyword_type[key][0]))
 
             if valid:
                 glbl.input_groups[section][key] = varcast
@@ -159,15 +156,14 @@ def parse_section(kword_array, line_start, section):
 
     return current_line
 
-#
-# ensure input values are internally consistent
-#
-def validate_input():
-    """ensures that input values are internally consistent"""
 
-    # Currently there are multiple ways to set variables in the nuclear
-    # basis section. The following lines ensure that subsequent usage of the 
-    # entries in glbl is consistent, regardless of how input specified
+def validate_input():
+    """Ensures that input values are internally consistent.
+
+    Currently there are multiple ways to set variables in the nuclear
+    basis section. The following lines ensure that subsequent usage of the
+    entries in glbl is consistent, regardless of how input specified.
+    """
 
    # if geomfile specified, it's contents overwrite variable settings in fms.input
     if os.path.isfile(glbl.nuclear_basis['geomfile']):
@@ -180,7 +176,7 @@ def validate_input():
     if os.path.isfile(glbl.nuclear_basis['hessfile']):
         glbl.nuclear_basis['hessian']    = read_hessian(glbl.nuclear_basis['hessfile'])
 
-    # if use_atom_lib == True, atom_lib values overwrite variables settings from fms.input
+    # if use_atom_lib, atom_lib values overwrite variables settings from fms.input
     if glbl.nuclear_basis['use_atom_lib']:
         wlst  = []
         mlst  = []
@@ -213,15 +209,15 @@ def validate_input():
         else:
             glbl.nuclear_basis['widths'] = [0.5 for i in range(n_usr_freq)]
 
-    # subsequent code will ONLY use the "init_states" array. If that array hasn't
-    # been set, using the value of "init_state" to create it
+    # subsequent code will ONLY use the 'init_states' array. If that array hasn't
+    # been set, using the value of 'init_state' to create it
     if glbl.sampling['init_state'] != -1:
-        glbl.sampling['init_states'] = [glbl.sampling['init_state'] for 
+        glbl.sampling['init_states'] = [glbl.sampling['init_state'] for
                                         i in range(glbl.sampling['n_init_traj'])]
 
-    elif (any(state == -1 for state in glbl.sampling['init_states']) or 
+    elif (any(state == -1 for state in glbl.sampling['init_states']) or
           len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
-        sys.exit("ERROR -- cannot assign state")  
+        raise ValueError('Cannot assign state.')
 
     # set the surface_rep variable depending on the value of the integrals
     # keyword
@@ -234,16 +230,12 @@ def validate_input():
     #ngeom   = len(glbl.nuclear_basis['geometries'])
     #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
 
-    return
 
-#
-#
-#
 def init_fms_output():
     """Initialized all the output format descriptors."""
     global log_format, dump_header, dump_format, tfile_names, bfile_names, print_level
 
-    ncart = 3         # assumes expectation values of transition/permanent dipoles in 
+    ncart = 3         # assumes expectation values of transition/permanent dipoles in
                       # cartesian coordinates
     ncrd  = len(glbl.nuclear_basis['geometries'][0])
     natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
@@ -405,7 +397,7 @@ def init_fms_output():
         logfile.write(log_str+'\n')
 
         for group,keywords in glbl.input_groups.items():
-            logfile.write("\n ** "+str(group)+" **\n")
+            logfile.write('\n ** '+str(group)+' **\n')
             log_str = ''
             for k, v in glbl.input_groups[group].items():
                 log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
@@ -451,9 +443,7 @@ def init_fms_output():
     print_level['error']          = 0
     print_level['timings']        = 0
 
-#
-#
-#
+
 def print_traj_row(label, fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -467,9 +457,7 @@ def print_traj_row(label, fkey, data):
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[tkeys[fkey]].format(*data))
 
-#
-#
-#
+
 def update_logs(bundle):
     """Determines if it is appropriate to update the traj/bundle logs.
 
@@ -483,24 +471,20 @@ def update_logs(bundle):
     # this. is. ugly.
     return mod_t < 0.0001*dt or mod_t > 0.999*dt
 
-#
-#
-#
+
 def print_bund_row(fkey, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
     filename = scr_path + '/' + bfile_names[bkeys[fkey]]
 
-    if glbl.mpi['rank'] !=0:
-        return
-
-    if not os.path.isfile(filename):
-        with open(filename, 'x') as outfile:
-            outfile.write(dump_header[bkeys[fkey]])
-            outfile.write(dump_format[bkeys[fkey]].format(*data))
-    else:
-        with open(filename, 'a') as outfile:
-            outfile.write(dump_format[bkeys[fkey]].format(*data))
+    if glbl.mpi['rank'] == 0:
+        if not os.path.isfile(filename):
+            with open(filename, 'x') as outfile:
+                outfile.write(dump_header[bkeys[fkey]])
+                outfile.write(dump_format[bkeys[fkey]].format(*data))
+        else:
+            with open(filename, 'a') as outfile:
+                outfile.write(dump_format[bkeys[fkey]].format(*data))
 
 
 def print_bund_mat(time, fname, mat):
@@ -517,29 +501,29 @@ def print_fms_logfile(otype, data):
     """Prints a string to the log file."""
     global log_format, print_level
 
-    if glbl.mpi['rank'] != 0:
-        return
+    if glbl.mpi['rank'] == 0:
+        if otype not in log_format:
+            print('CANNOT WRITE otype=' + str(otype) + '\n')
+        elif glbl.printing['print_level'] >= print_level[otype]:
+            filename = home_path + '/fms.log'
+            with open(filename, 'a') as logfile:
+                logfile.write(log_format[otype].format(*data))
 
-    if otype not in log_format:
-        print('CANNOT WRITE otype=' + str(otype) + '\n')
-    elif glbl.printing['print_level'] >= print_level[otype]:
-        filename = home_path + '/fms.log'
-        with open(filename, 'a') as logfile:
-            logfile.write(log_format[otype].format(*data))
 
-#
-# routine to check if string is boolean, 'true','TRUE','True', etc. and if
-# so, return "True" or "False".
-#
 def check_boolean(chk_str):
+    """Routine to check if string is boolean.
+
+    Accepts 'true','TRUE','True', etc. and if so, return True or False.
+    """
 
     bool_str = str(chk_str).strip().lower()
     if bool_str == 'true':
-        return True 
+        return True
     elif bool_str == 'false':
         return False
     else:
         return chk_str
+
 
 #----------------------------------------------------------------------------
 #
@@ -559,7 +543,7 @@ def read_geometry(geom_file):
     ncrd    = int(gm_file[0].strip().split()[0])
     crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
     ngeoms  = int(len(gm_file)/(ncrd+2))
-   
+
     # read in the atom/crd labels -- assumes atoms are same for each
     # geometry in the list
     labels = []
@@ -569,7 +553,7 @@ def read_geometry(geom_file):
     # loop over geoms, load positions and momenta into arrays
     for i in range(ngeoms):
         geom = []
-        mom  = []       
+        mom  = []
 
         # delete first and comment lines
         del gm_file[0:2]
@@ -581,7 +565,7 @@ def read_geometry(geom_file):
 
         geoms.append(geom)
         moms.append(mom)
-       
+
     return labels,geoms,moms
 
 
@@ -595,33 +579,45 @@ def read_hessian(hess_file):
 # FMS summary output file
 #
 #----------------------------------------------------------------------------
-def cleanup(exception=None):
-    """Cleans up the FMS log file."""
-    global home_path, scr_path
+def cleanup_end():
+    """Cleans up the FMS log file if calculation completed."""
+    # simulation ended
+    print_fms_logfile('complete', [])
 
-    if glbl.mpi['rank'] == 0:
-        # simulation ended
-        if exception is None:
-            print_fms_logfile('complete', [])
-        else:
-            print_fms_logfile('error', [rm_timer(exception)])
-            for timer in timings.active_stack[:0:-1]:
-                timings.stop(timer.name)
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_fms_logfile('timings', [t_table])
 
-        # print timing information
-        timings.stop('global', cumulative=True)
-        t_table = timings.print_timings()
-        print_fms_logfile('timings', [t_table])
+    # copy output files
+    copy_output()
 
-        # copy output files
-        copy_output()
 
-#
-# copy output files to current working directory
-#
+def cleanup_exc(etyp, val, tb):
+    """Cleans up the FMS log file if an exception occurs."""
+    # print exception
+    exception = ''.join(traceback.format_exception(etyp, val, tb))
+    print_fms_logfile('error', [rm_timer(exception)])
+
+    # stop remaining timers
+    for timer in timings.active_stack[:0:-1]:
+        timings.stop(timer.name)
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_fms_logfile('timings', [t_table])
+
+    # copy output files
+    copy_output()
+
+    # abort other processes if running in parallel
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].Abort(1)
+
+
 def copy_output():
-    global home_path, scr_path
-
+    """Copies output files to current working directory."""
     # move trajectory summary files to an output directory in the home area
     odir = home_path + '/output'
     if os.path.exists(odir):

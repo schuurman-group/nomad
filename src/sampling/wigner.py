@@ -9,6 +9,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 
+
 def set_initial_coords(master):
     """Samples a v=0 Wigner distribution
     """
@@ -27,7 +28,7 @@ def set_initial_coords(master):
     m_vec = np.array(glbl.nuclear_basis['masses'],dtype=float)
     ndim  = len(x_ref)
 
-    # create template trajectory basis function 
+    # create template trajectory basis function
     template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
                                      width=w_vec, mass=m_vec, parent=0)
     template.update_x(x_ref)
@@ -125,7 +126,6 @@ def set_initial_coords(master):
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
 
-    return
 
 def mode_overlap(alpha, dx, dp):
     """Returns the overlap of Gaussian primitives
