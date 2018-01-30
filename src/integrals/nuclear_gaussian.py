@@ -66,6 +66,14 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
     a   = a1 + a2
     b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
 
+    if np.absolute(b) < glbl.constants['fpzero']:
+        if N % 2 != 0:
+            return 0.
+        else:
+            n_2 -= 1 # get rid of extra "1" for range value
+            v_int = (a**(-n_2))/np.math.factorial(n_2)
+            return v_int * np.math.factorial(N) / 2.**N
+
     # generally these should be 1D harmonic oscillators. If
     # multi-dimensional, the final result is a direct product of
     # each dimension

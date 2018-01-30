@@ -42,9 +42,12 @@ class Surface:
         # For adiabatic surfaces, this is the derivative coupling
         # For diabatic surfaces, this is the potential coupling divided by Delta E
         self.coupling = np.zeros((t_dim, n_states, n_states))
-     
-        # these are interface-specific quantities
+        # included for adiabatic coupling only
         self.scalar_coup    = np.zeros((n_states, n_states))
+        # nonadiabatic coupling
+        self.nac            = np.zeros((t_dim, n_states, n_states))
+
+        # the following will potentially be cleaned up (removed) at a later date:
         self.dat_mat        = np.zeros((n_states, n_states))
         self.adt_mat        = np.zeros((n_states, n_states))
         self.ddat_mat       = np.zeros((t_dim, n_states, n_states))
@@ -65,8 +68,9 @@ class Surface:
         new_info.deriv         = copy.deepcopy(self.deriv)
         new_info.deriv2        = copy.deepcopy(self.deriv2)
         new_info.coupling      = copy.deepcopy(self.coupling)
-
         new_info.scalar_coup    = copy.deepcopy(self.scalar_coup)
+        new_info.nac           = copy.deepcopy(self.nac)
+
         new_info.dat_mat        = copy.deepcopy(self.dat_mat)
         new_info.adt_mat        = copy.deepcopy(self.dat_mat)
         new_info.ddat_mat       = copy.deepcopy(self.ddat_mat)
@@ -267,9 +271,6 @@ def evaluate_trajectory(traj, t=None):
     # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
 
-    # Calculation of the adiabatic potential vector and ADT matrix
-    adiabpot, datmat = calc_dat(label, diabpot)
-
     # Calculation of the nuclear derivatives of the diabatic potential
     diabderiv1 = calc_diabderiv1(geom)
 
@@ -277,64 +278,74 @@ def evaluate_trajectory(traj, t=None):
     # matrix
     diabderiv2 = calc_diabderiv2(geom)
 
-    # Calculation of the NACT matrix
-    nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
-
-    # Calculation of the gradients (for diagonal elements) and derivative 
-    # couplings (off-diagonal elements)
-    adiabderiv1 = calc_adiabderiv1(datmat, diabderiv1)
-
-    # Calculation of the hessians (for diagonal elements) and derivative of
-    # derivative couplings (off-diagonal elements)
-    adiabderiv2 = calc_adiabderiv2(datmat, diabderiv2)
-
     # Calculation of the Laplacian of the diabatic potential wrt the
     # nuclear DOFs
     diablap = calc_diablap(geom)
-
-    # Calculation of the scalar couplings terms (SCTs)
-    # Note that in order to calculate the SCTs, we get the gradients of the
-    # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
-    # save these as a matter of course.
-    sctmat, dbocderiv1 = calc_scts(adiabpot, datmat, diabderiv1,
-                                   nactmat, adiabderiv1, diablap)
 
     #** load the data into the pes object to pass to trajectory **
 
     t_data           = Surface(label, nsta, ham.nmode_active)
     t_data.geom      = geom
 
-    if glbl.variables['surface_rep'] == 'adiabatic':
-      t_data.potential = adiabpot
-      t_data.deriv     = [np.diag(adiabderiv1[m]) for m in
-                             range(ham.nmode_total)] + nactmat
-      t_data.deriv2    = adiabderiv2
-      t_data.coupling  = nactmat
-
-    else:
-      t_data.potential = diabpot
-      t_data.deriv     = diabderiv1 
-      t_data.deriv2    = diabderiv2
-      deinv = np.array([[ 1. / 
-                         max([diabpot[i,i]-diabpot[j,j],glbl.constants['fpzero']],key=abs) 
-                         for i in range(nsta)] for j in range(nsta)])
-      t_data.coupling  = np.multiply(diabpot - np.diag(diabpot.diagonal()),deinv)
-
-    t_data.scalar_coup    = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
-    t_data.dat_mat        = datmat
-    t_data.adt_mat        = datmat.T
-
     t_data.diabat_pot     = diabpot
     t_data.diabat_deriv   = diabderiv1
     t_data.diabat_deriv2  = diabderiv2
 
-    t_data.adiabat_pot    = adiabpot
-    t_data.adiabat_deriv  = adiabderiv1
-    t_data.adiabat_deriv2 = adiabderiv2
-    t_data.data_keys     = ['geom','poten','deriv',
-                            'scalar_coup','dat_mat','dat_mat','ddat_mat',
-                            'diabat_pot','diabat_deriv',
-                            'adiabat_pot','adiabat_deriv']
+    t_data.data_keys     = ['geom','poten','deriv','deriv2','coupling','nac',
+                            'diabat_pot','diabat_deriv','diabat_deriv2']
+
+    if glbl.variables['surface_rep'] == 'adiabatic':
+        # Calculation of the adiabatic potential vector and ADT matrix
+        adiabpot, datmat = calc_dat(label, diabpot)
+
+        # Calculation of the NACT matrix
+        nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
+
+        # Calculation of the gradients (for diagonal elements) and derivative 
+        # couplings (off-diagonal elements)
+        adiabderiv1 = calc_adiabderiv1(datmat, diabderiv1)
+
+        # Calculation of the hessians (for diagonal elements) and derivative of
+        # derivative couplings (off-diagonal elements)
+        adiabderiv2 = calc_adiabderiv2(datmat, diabderiv2)
+
+        # Calculation of the scalar couplings terms (SCTs)
+        # Note that in order to calculate the SCTs, we get the gradients of the
+        # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
+        # save these as a matter of course.
+        sctmat, dbocderiv1 = calc_scts(adiabpot, datmat, diabderiv1,
+                                   nactmat, adiabderiv1, diablap)
+
+        t_data.potential   = adiabpot
+        t_data.deriv       = [np.diag(adiabderiv1[m]) for m in
+                             range(ham.nmode_total)] + nactmat
+        t_data.deriv2      = adiabderiv2
+        t_data.coupling    = nactmat
+        t_data.nac         = nactmat
+        t_data.scalar_coup = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
+
+        # adiabatic -> diabatic and diabatic -> adiabatic transformation matrices
+        t_data.dat_mat        = datmat
+        t_data.adt_mat        = datmat.T
+        t_data.adiabat_pot    = adiabpot
+        t_data.adiabat_deriv  = adiabderiv1
+        t_data.adiabat_deriv2 = adiabderiv2
+
+        t_data.data_keys.extend(['adiabat_pot','adiabat_deriv'])
+
+    else:
+        # Calculation of the adiabatic potential vector and ADT matrix
+        adiabpot, datmat = calc_dat(label, diabpot)
+        # Calculation of the NACT matrix
+        nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
+        # determine the effective diabatic coupling: Hij / (Ei - Ej)
+        diab_effcoup     = calc_diabeffcoup(diabpot)
+
+        t_data.potential = np.array([diabpot[i,i] for i in range(nsta)])
+        t_data.deriv     = diabderiv1 
+        t_data.deriv2    = diabderiv2
+        t_data.coupling  = diab_effcoup
+        t_data.nac       = nactmat
 
     data_cache[label] = t_data
     return t_data
@@ -461,7 +472,6 @@ def calc_ddat(label, q, diabpot, dat_mat):
 
     return ddat_mat
 
-
 def calc_diabderiv1(q):
     """Calculates the 1st derivatives of the elements of the diabatic
     potential matrix wrt the nuclear DOFs."""
@@ -537,6 +547,18 @@ def calc_diabderiv2(q):
                     icnt+=1
 
     return diabderiv2
+
+def calc_diabeffcoup(diabpot):
+    """Calculates the effective diabatic coupling between diabatic states i, j via
+       eff_coup = Hij / (H[i,i] - H[j,j])
+    """
+    eff_coup = np.zeros((1, nsta, nsta))
+
+    demat = np.array([[max([glbl.constants['fpzero'],diabpot[i,i]-diabpot[j,j]],key=abs) 
+                           for i in range(nsta)] for j in range(nsta)])
+    eff_coup[0] = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
+
+    return eff_coup
 
 
 def calc_nacts(adiabpot, datmat, diabderiv1):

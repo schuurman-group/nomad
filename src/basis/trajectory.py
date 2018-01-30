@@ -103,10 +103,10 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-#        self.gamma = phase
-        self.gamma = 0.5 * np.dot(self.x(), self.p())
-#        if abs(self.gamma) > 2*np.pi:
-#            self.gamma = self.gamma % 2*np.pi
+        self.gamma = phase
+#        self.gamma = 0.5 * np.dot(self.x(), self.p())
+        if abs(self.gamma) > 2*np.pi:
+            self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -185,7 +185,7 @@ class Trajectory:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.coupling[:, self.state_i, state_j]
+        return self.pes_data.coupling[:, state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
@@ -198,6 +198,18 @@ class Trajectory:
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
         return self.pes_data.scalar_coup[state_i, state_j]
 
+    def nact(self, state_i, state_j):
+        """Returns the derivative coupling between adiabatic states
+           block (self.state,c_state)."""
+        if 'nac' not in self.pes_data.data_keys:
+            return 0.
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+            print('WARNING: trajectory.nact() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
+        return self.pes_data.nac[:,state_i, state_j]
+
+
     #------------------------------------------------------------------------
     #
     # Computed quantities from the trajectory
@@ -209,7 +221,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() * self.interface.kecoeff )
+        return sum( self.p() * self.p() / (2. * self.masses()) )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -217,7 +229,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() / self.masses()
+        return self.p() / self.masses() 
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -229,9 +241,9 @@ class Trajectory:
         if not glbl.propagate['phase_prop']:
             return 0.
         else:
-#            return (self.kinetic() - self.potential() -
-#                    sum(self.widths() / (2. * self.masses())))
-            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
+            return (self.kinetic() - self.potential() -
+                    sum( self.widths() / (2. * self.masses()) ))
+#            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""

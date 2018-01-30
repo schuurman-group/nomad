@@ -21,7 +21,7 @@ scr_path    = ''
 tkeys       = ['traj_dump', 'ener_dump', 'coup_dump', 'dipole_dump',
                'secm_dump', 'tran_dump', 'apop_dump', 'grad_dump']
 bkeys       = ['pop_dump', 'bener_dump', 'spawn_dump',
-               's_mat', 'sdot_mat', 'h_mat', 'heff_mat','t_ovrlp','auto.dat']
+               'snuc_mat','s_mat', 'sdot_mat', 'h_mat', 'heff_mat','t_ovrlp','auto.dat']
 dump_header = dict()
 dump_format = dict()
 log_format  = dict()
@@ -193,11 +193,25 @@ def validate_input():
 
     # set mass array here if using vibronic interface
     if glbl.interface['interface'] == 'vibronic':
-        if all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
-            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
-                                              range(len(glbl.nuclear_basis['freqs']))]
+        n_usr_freq = len(glbl.nuclear_basis['freqs'])
+       
+        # automatically set the "mass" of the coordinates to be 1/omega
+        # the coefficient on p^2 -> 0.5 omega == 0.5 / m. Any user set masses
+        # will override the default
+        if len(glbl.nuclear_basis['masses']) >= n_usr_freq:
+            pass
         else:
-            sys.exit("ERROR -- zero frequency")
+            glbl.nuclear_basis['masses'] = [1. for i in range(n_usr_freq)]
+#        else all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
+#            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
+#                                             range(len(n_usr_freq)]
+
+        # set the widths to automatically be 1/2 (i.e. assumes frequency-weighted coordinates.
+        # Any user set widths will override the default
+        if len(glbl.nuclear_basis['widths']) >= n_usr_freq:
+            pass
+        else:
+            glbl.nuclear_basis['widths'] = [0.5 for i in range(n_usr_freq)]
 
     # subsequent code will ONLY use the "init_states" array. If that array hasn't
     # been set, using the value of "init_state" to create it
@@ -374,9 +388,22 @@ def init_fms_output():
                    ' home_path   = ' + str(home_path) + '\n' +
                    ' scr_path    = ' + os.uname()[1] + ':' + scr_path + '\n')
         logfile.write(log_str)
-
+                   
         logfile.write('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
+
+        logfile.write("\n ** constants **\n")
+        log_str = ''
+        for k,v in glbl.constants.items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
+
+        logfile.write("\n ** global variables **\n")
+        log_str = ''
+        for k,v in glbl.variables.items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
+
         for group,keywords in glbl.input_groups.items():
             logfile.write("\n ** "+str(group)+" **\n")
             log_str = ''

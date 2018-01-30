@@ -97,9 +97,9 @@ def propagate_bundle(master, dt):
                     dg_lo[i] = np.sum(wgt_lo * kg[i])
                     dg_hi[i] = np.sum(wgt_hi * kg[i])
 
-            print("a="+str(np.abs(dx_hi-dx_lo).flatten()))
-            print("b="+str(np.abs(dp_hi-dp_lo).flatten()))
-            print("c="+str(np.abs(dg_hi-dg_lo)))
+#            print("a="+str(np.abs(dx_hi-dx_lo).flatten()))
+#            print("b="+str(np.abs(dp_hi-dp_lo).flatten()))
+#            print("c="+str(np.abs(dg_hi-dg_lo)))
 
             err = np.max(np.max(np.abs(dg_hi-dg_lo)), np.max((np.abs(dx_hi-dx_lo).flatten(), np.abs(dp_hi-dp_lo).flatten())))
         else:

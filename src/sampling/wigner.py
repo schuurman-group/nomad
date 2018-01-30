@@ -54,25 +54,20 @@ def set_initial_coords(master):
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
-
-    ## If normal modes are being used, set the no. modes
-    ## equal to the number of active modes of the model
-    ## Hamiltonian and load the associated frequencies
-    #if coordtype == 'normal':
-    #    n_modes = ham.nmode_active
-    #    freqs = ham.freq
+        fileio.print_fms_logfile('string',['\n -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
     # equal to the total number of modes of the model
     # Hamiltonian and load only the active frequencies
     if coordtype == 'normal':
-        n_modes = ham.nmode_total
-        freqs = np.zeros(n_modes)
-        freqs[ham.mrange] = ham.freq
+        n_modes = len(w_vec)
+        # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for 
+        # vibronic hamiltonans is 1/2, assuming frequency weighted coords
+        freqs   = 2.* w_vec 
+        fileio.print_fms_logfile('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies 
-    fileio.print_fms_logfile('string',[' -- frequencies from hessian.dat --\n'])
-    fstr = '\n'.join(['{0:.1f}'.format(freqs[j]*glbl.constants['au2cm']) 
+    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*glbl.constants['au2cm']) 
                                                        for j in range(n_modes)]) 
     fileio.print_fms_logfile('string',[fstr+'\n'])
 
