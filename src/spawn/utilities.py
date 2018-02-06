@@ -27,7 +27,7 @@ def adjust_child(parent, child, scale_dir):
     # try to scale the momentum along the scale direction
     scale_vec  = scale_dir
     scale_norm = np.linalg.norm(scale_vec)
-    if scale_norm > glbl.fpzero:
+    if scale_norm > glbl.constants['fpzero']:
         scale_vec = scale_vec / scale_norm
     else:
         # if scale_dir is zero, scale momentum uniformly
@@ -60,9 +60,9 @@ def adjust_child(parent, child, scale_dir):
     if discrim < 0:
         return False
 
-    if abs(a) > glbl.fpzero:
+    if abs(a) > glbl.constants['fpzero']:
         x = (-b + np.sqrt(discrim)) / (2.*a)
-    elif abs(b) > glbl.fpzero:
+    elif abs(b) > glbl.constants['fpzero']:
         x = -c / b
     else:
         x = 0.

@@ -1,6 +1,7 @@
-niter = 1 
-nadcoupl
+niter = 40 
 hermit
 mcscf
 ciudgav
 ciudgmom
+nadcoupl
+gdiis

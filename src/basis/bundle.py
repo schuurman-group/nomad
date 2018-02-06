@@ -16,7 +16,7 @@ from src.basis import hamiltonian as fms_ham
 class Bundle:
     """Class constructor for the Bundle object."""
     def __init__(self, nstates, integral_type):
-        self.integral_type  = integral_type
+        self.integral_type = integral_type
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -29,6 +29,7 @@ class Bundle:
         self.T         = np.zeros((0, 0), dtype=complex)
         self.V         = np.zeros((0, 0), dtype=complex)
         self.S         = np.zeros((0, 0), dtype=complex)
+        self.Snuc      = np.zeros((0, 0), dtype=complex)
         self.Sdot      = np.zeros((0, 0), dtype=complex)
         self.Heff      = np.zeros((0, 0), dtype=complex)
         self.traj_ovrlp= np.zeros((0, 0), dtype=complex)
@@ -54,6 +55,7 @@ class Bundle:
         new_bundle.T      = copy.deepcopy(self.T)
         new_bundle.V      = copy.deepcopy(self.V)
         new_bundle.S      = copy.deepcopy(self.S)
+        new_bundle.Snuc   = copy.deepcopy(self.Snuc)
         new_bundle.Sdot   = copy.deepcopy(self.Sdot)
         new_bundle.Heff   = copy.deepcopy(self.Heff)
         new_bundle.traj_ovrlp = copy.deepcopy(self.traj_ovrlp)
@@ -91,6 +93,7 @@ class Bundle:
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Snuc    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -112,6 +115,7 @@ class Bundle:
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Snuc    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -139,6 +143,7 @@ class Bundle:
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Snuc    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -159,6 +164,7 @@ class Bundle:
         self.T       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.V       = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.S       = np.zeros((self.nalive, self.nalive), dtype=complex)
+        self.Snuc    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
@@ -252,12 +258,8 @@ class Bundle:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-        ntot = np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.traj_ovrlp),self.amplitudes()).real
-        if ntot > glbl.propagate['norm_thresh']:
-            raise ValueError('Wavefunction norm threshold exceeded')
-        else:
-            return ntot
+        return np.dot(np.dot(np.conj(self.amplitudes()),
+                      self.S),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -289,9 +291,10 @@ class Bundle:
         Currently only includes energy from alive trajectories
         """
         nalive  = len(self.alive)
-        pot_vec = np.array([self.traj[self.alive[i]].potential()
+        amp_vec = (np.conj(self.amplitudes()) * self.amplitudes()).real
+        pot_vec = np.array([amp_vec[i] * self.traj[self.alive[i]].potential()
                             for i in range(nalive)])
-        return sum(pot_vec)/nalive
+        return sum(pot_vec)
 
     @timings.timed
     def pot_quantum(self):
@@ -307,9 +310,10 @@ class Bundle:
     @timings.timed
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
-        nalive = len(self.alive)
-        ke_vec = np.array([np.dot(self.traj[self.alive[i]].p()**2,
-                           1./(2.* self.traj[self.alive[i]].masses()))
+        nalive   = len(self.alive)
+        inv_mass = 1 / (2. * self.traj[0].masses())
+        amp_vec  = (np.conj(self.amplitudes()) * self.amplitudes()).real
+        ke_vec   = np.array([amp_vec[i] * np.dot(self.traj[self.alive[i]].p()**2, inv_mass)
                            for i in range(nalive)])
         return sum(ke_vec)/nalive
 
@@ -417,11 +421,11 @@ class Bundle:
         # self.H -- if we need them
 
         if self.integrals.require_centroids:
-            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
                                               cent_list=self.cent)
         else:
-            (self.traj_ovrlp, self.T, self.V, self.S, self.Sdot,
+            (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive)
 
     #------------------------------------------------------------------------
@@ -433,25 +437,14 @@ class Bundle:
     def update_logs(self):
         """Updates the log files."""
 
-#        dia1      = self.traj[0].pes_data.diabat_pot
-#        argt1     = 2. * dia1[0,1] / (dia1[1,1] - dia1[0,0])
-#        theta1    = 0.5 * np.arctan(argt1)
+        np.set_printoptions(precision=8, linewidth=80, suppress=False)
 
-#        dia2      = self.traj[1].pes_data.diabat_pot
-#        argt2     = 2. * dia2[0,1] / (dia2[1,1] - dia2[0,0])
-#        theta2    = 0.5 * np.arctan(argt2)
-
-#        print("theta1, theta2: "+str(theta1)+' '+str(theta2))
-#        print("cos,sin1: "+str([np.cos(theta1),np.sin(theta1)]))
-#        print("adt_mat:  "+str(self.traj[0].pes_data.adt_mat[:,self.traj[0].state]))
-#        print("dat_mat1:  "+str(self.traj[0].pes_data.dat_mat[:,self.traj[0].state]))
-#        print("cos,sin2: "+str([np.cos(theta2),np.sin(theta2)]))
-#        print("adt_mat:  "+str(self.traj[1].pes_data.adt_mat[:,self.traj[1].state]))
-#        print("dat_mat2:  "+str(self.traj[1].pes_data.dat_mat[:,self.traj[1].state]))
-
-#        print("theta, traj1, traj2: "+str(self.integrals.theta(self.traj[0]))+" "+str(self.integrals.theta(self.traj[1])))
-
-#        print("time = "+str(self.time)+" electronic overlap="+str(self.integrals.elec_overlap(self.traj[0],self.traj[1])))
+#        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
+#        smat = np.array([[self.integrals.elec_overlap(self.traj[i],self.traj[j]) for i in range(self.nalive)] for j in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.2f}\n'.format(self.time))
+#            outfile.write(np.array2string(smat,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
@@ -488,6 +481,21 @@ class Bundle:
                 data.extend([self.traj[i].coup_dot_vel(j)
                              for j in range(self.nstates)])
                 fileio.print_traj_row(self.traj[i].label, 2, data)
+
+                # temporary writing of integral debugging
+#                filename='/tmp/schuurm/fmspy/theta.'+str(self.traj[i].label)
+#                with open(filename, 'a') as outfile:
+#                    outfile.write('\n'+str(self.time)+'  '+str(self.integrals.theta(self.traj[i])))
+#                filename='/tmp/schuurm/fmspy/hessian.'+str(self.traj[i].label)
+#                print("hesses="+str(self.traj[i].pes_data.diabat_deriv2))
+#                hess=self.traj[i].pes_data.diabat_deriv2[:,:,self.traj[i].state, self.traj[i].state]
+#                dderiv=self.traj[i].pes_data.diabat_deriv2[0,1]
+#                with open(filename, 'a') as outfile:
+#                    outfile.write('{:9.2f}\n'.format(self.time))
+#                    outfile.write(np.array2string(hess,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+#                    outfile.write(np.array2string(dderiv,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
             # print pes information relevant to the chosen interface
             if glbl.printing['print_es']:
@@ -549,6 +557,7 @@ class Bundle:
         if glbl.printing['print_matrices']:
             if self.integrals.basis != 'gaussian':
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp)
+            fileio.print_bund_mat(self.time, 'nuc_ovrlp.dat', self.Snuc)
             fileio.print_bund_mat(self.time, 's.dat', self.S)
             fileio.print_bund_mat(self.time, 'h.dat', self.T+self.V)
             fileio.print_bund_mat(self.time, 't.dat', self.T)
@@ -561,8 +570,8 @@ class Bundle:
             self.write_bundle(fileio.scr_path + '/last_step.dat','w')
 
         # wavepacket autocorrelation function
-        if glbl.propagate['auto'] and glbl.bundle0 is not None:
-            auto = self.overlap(glbl.bundle0)
+        if glbl.propagate['auto'] and glbl.variables['bundle0'] is not None:
+            auto = self.overlap(glbl.variables['bundle0'])
             data = [self.time, auto.real, auto.imag, abs(auto)]
             fileio.print_bund_row(8, data)
 

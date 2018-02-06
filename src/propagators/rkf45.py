@@ -59,7 +59,7 @@ def propagate_bundle(master, dt):
     ntraj = master.n_traj()
     kx = np.zeros((ntraj, rk_ordr, ncrd))
     kp = np.zeros((ntraj, rk_ordr, ncrd))
-    kg = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr))
 
     t = 0.
     if h is None:
@@ -82,8 +82,8 @@ def propagate_bundle(master, dt):
         dx_hi = np.zeros((master.nalive, ncrd))
         dp_lo = np.zeros((master.nalive, ncrd))
         dp_hi = np.zeros((master.nalive, ncrd))
-        dg_lo = np.zeros((master.nalive, ncrd))
-        dg_hi = np.zeros((master.nalive, ncrd))
+        dg_lo = np.zeros((master.nalive))
+        dg_hi = np.zeros((master.nalive))
         for i in range(ntraj):
             if master.traj[i].active:
                 dx_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kx[i], axis=0)
@@ -94,11 +94,14 @@ def propagate_bundle(master, dt):
         if propphase:
             for i in range(ntraj):
                 if master.traj[i].active:
-                    dg_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kg[i], axis=0)
-                    dg_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kg[i], axis=0)
+                    dg_lo[i] = np.sum(wgt_lo * kg[i])
+                    dg_hi[i] = np.sum(wgt_hi * kg[i])
 
-            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
-                          np.abs(dg_hi-dg_lo)))
+#            print("a="+str(np.abs(dx_hi-dx_lo).flatten()))
+#            print("b="+str(np.abs(dp_hi-dp_lo).flatten()))
+#            print("c="+str(np.abs(dg_hi-dg_lo)))
+
+            err = np.max(np.max(np.abs(dg_hi-dg_lo)), np.max((np.abs(dx_hi-dx_lo).flatten(), np.abs(dp_hi-dp_lo).flatten())))
         else:
             err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
@@ -127,7 +130,7 @@ def propagate_trajectory(traj, dt):
     ncrd = traj.dim
     kx = np.zeros((rk_ordr, ncrd))
     kp = np.zeros((rk_ordr, ncrd))
-    kg = np.zeros((rk_ordr, ncrd))
+    kg = np.zeros((rk_ordr))
 
     t = 0.
     if h_traj is None:
@@ -149,10 +152,12 @@ def propagate_trajectory(traj, dt):
         dp_hi = np.sum(wgt_hi[:,np.newaxis] * kp, axis=0)
 
         if propphase:
-            dg_lo = np.sum(wgt_lo[:,np.newaxis] * kg, axis=0)
-            dg_hi = np.sum(wgt_hi[:,np.newaxis] * kg, axis=0)
-            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
-                          np.abs(dg_hi-dg_lo)))
+            dg_lo = np.sum(wgt_lo * kg)
+            dg_hi = np.sum(wgt_hi * kg)
+#            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
+#                          np.abs(dg_hi-dg_lo)))
+            err = np.max(np.abs(dg_hi-dg_lo),np.max((np.abs(dx_hi-dx_lo).flatten(), np.abs(dp_hi-dp_lo).flatten())))
+
         else:
             err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo)))
 
@@ -186,4 +191,4 @@ def propagate_rk(traj, dt, rk, kxi, kpi, kgi):
         traj.update_p(traj.p() + np.sum(coeff[rk,:,np.newaxis]*kpi, axis=0))
         if propphase:
             traj.update_phase(traj.phase() +
-                              np.sum(coeff[rk,:,np.newaxis]*kgi, axis=0))
+                              np.sum(coeff[rk]*kgi))

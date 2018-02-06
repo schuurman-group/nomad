@@ -14,6 +14,8 @@ def readme():
 ext_modules=[
     Extension('src.integrals.nuclear_gaussian',
               sources=['src/integrals/nuclear_gaussian.pyx'], libraries=['m']),
+    Extension('src.integrals.nuclear_gaussian_ccs',
+              sources=['src/integrals/nuclear_gaussian_ccs.pyx'], libraries=['m']),
     Extension('src.integrals.nuclear_dirac',
               sources=['src/integrals/nuclear_dirac.pyx'], libraries=['m'])
 ]

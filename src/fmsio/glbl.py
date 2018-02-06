@@ -2,41 +2,51 @@
 Conversion factors and constants for FMSpy.
 """
 
-# convert fs to au
-fs2au    = 41.34137221718
-# convert bohr to angstrom
-bohr2ang = 0.529177249
-# convert mass in amu to au
-amu2au  = 1822.887
-# convert hartree to eV
-au2ev    = 27.21138505
-# convert hartree to cm-1
-au2cm    = 219474.63
-# floating point zero
-fpzero   = 1.e-10
-# t=0 bundle
-bundle0  = None
+constants = dict(
+  # convert fs to au
+  fs2au    = 41.34137221718,
+  # convert bohr to angstrom
+  bohr2ang = 0.529177249,
+  # convert mass in amu to au
+  amu2au  = 1822.887,
+  # convert hartree to eV
+  au2ev    = 27.21138505,
+  # convert hartree to cm-1
+  au2cm    = 219474.63,
+  # floating point zero
+  fpzero   = 1.e-10,
+)
+
+# contains global variables that are not user-specified
+variables = dict(
+  # t=0 bundle
+  bundle0  = None,
+  # surface representation: either adiabatic or diabatic
+  surface_rep = 'adiabatic'
+)
 
 # MPI variables
-mpi = dict( 
+mpi = dict(
     parallel               = False,
     comm                   = None,
     rank                   = 0,
-    nproc                  = 1)
+    nproc                  = 1
+           )
 
 # input related to initial conditions
 sampling = dict(
     restart                = False,
     init_sampling          = 'wigner',
     n_init_traj            = 1,
-    init_state             = 0,
-    init_states            = [-1],
+    init_state             = -1,
+    init_states            = [0],
     init_brightest         = False,
     restart_time           = -1,
     init_mode_min_olap     = 0.,
     seed                   = 0,
     virtual_basis          = False,
-    distrib_compression    = 1.0)
+    distrib_compression    = 1.0
+                )
 
 propagate = dict(
     n_states               = 1,
@@ -44,32 +54,35 @@ propagate = dict(
     default_time_step      = 10.,
     coupled_time_step      = 5.,
     integrals              = 'saddle_point',
+    integral_order          = 1,
     propagator             = 'velocity_verlet',
     energy_jump_toler      = 0.0001,
     pop_jump_toler         = 0.0001,
     pot_shift              = 0.,
     renorm                 = False,
     sinv_thrsh             = -1.0,
-    norm_thresh            = 10.,
+    norm_thresh            = 1.,
     auto                   = False,
     phase_prop             = True,
     sij_thresh             = 0.7,
     hij_coup_thresh        = 0.001,
-    matching_pursuit       = False)
+    matching_pursuit       = False
+                 )
 
 # Electronic structure information read from interface-specific
 # routines
 
 spawning = dict(
-    spawning               = 'forward_backward',
+    spawning               = 'optimal',
     spawn_pop_thresh       = 0.025,
     spawn_coup_thresh      = 0.02,
     spawn_olap_thresh      = 0.7,
-    continuous_min_overlap = 0.5)
+    continuous_min_overlap = 0.5
+                )
 
 interface = dict(
     # pertain to all interfaces
-    interface              = 'boson_model_diabatic',
+    interface              = 'vibronic',
     coupling_order         = 1,
 
     # parameters that apply to the COLUMBUS interface
@@ -79,7 +92,8 @@ interface = dict(
     # parameters that apply to vibronic interface
     opfile                 = 'fms.op',
     # highest polynomial order in vibronic expansion
-    ordr_max               = 1)
+    ordr_max               = 1
+                 )
 
 nuclear_basis = dict(
     use_atom_lib           = True,
@@ -93,30 +107,41 @@ nuclear_basis = dict(
     labels                 = [""],
     amplitudes             = [1.+0.j],
     widths                 = [0],
-    masses                 = [0])
+    masses                 = [0]
+                     )
 
 printing = dict(
     print_level            = 1,
     print_traj             = True,
     print_es               = True,
     print_matrices         = True,
-    print_chkpt            = True)
+    print_chkpt            = True
+                )
 
-# this is a list of valid dictionary names. groups of input need to be added to 
+# this is a list of valid dictionary names. groups of input need to be added to
 # this last (obvs)
-input_groups   = { 
-    'mpi'                  : mpi,
-    'sampling'             : sampling,
-    'propagate'            : propagate,
-    'spawning'             : spawning,
-    'nuclear_basis'        : nuclear_basis,
-    'interface'            : interface,
-    'printing'             : printing}
+input_groups = dict(
+    mpi                    = mpi,
+    sampling               = sampling,
+    propagate              = propagate,
+    spawning               = spawning,
+    nuclear_basis          = nuclear_basis,
+    interface              = interface,
+    printing               = printing
+                    )
 
 # lists keywords, the datatype of the keyword and the dimension
 # 0=scalar, 1=list, 2=nested list.
 # note that multi-dimensional keywords are python lists
 keyword_type = dict(
+    fs2au                  = [float,0], 
+    bohr2ang               = [float,0],
+    amu2au                 = [float,0],
+    au2ev                  = [float,0],
+    au2cm                  = [float,0],
+    fpzero                 = [float,0],
+    bundle0                = [None,0],
+    surf_rep               = [str,0],
     parallel               = [bool,0],
     comm                   = [None,0],
     rank                   = [int,0],
@@ -128,7 +153,7 @@ keyword_type = dict(
     init_states            = [int,1],
     init_brightest         = [bool,0],
     restart_time           = [float,0],
-    init_mode_min_olap     = [float,0.],
+    init_mode_min_olap     = [float,0],
     seed                   = [int,0],
     virtual_basis          = [bool,0],
     distrib_compression    = [float,0],
@@ -138,6 +163,7 @@ keyword_type = dict(
     default_time_step      = [float,0],
     coupled_time_step      = [float,0],
     integrals              = [str,0],
+    integral_order         = [int,0],
     propagator             = [str,0],
     energy_jump_toler      = [float,0],
     pop_jump_toler         = [float,0],
@@ -176,5 +202,5 @@ keyword_type = dict(
     print_traj             = [bool,0],
     print_es               = [bool,0],
     print_matrices         = [bool,0],
-    print_chkpt            = [bool,0])
-
+    print_chkpt            = [bool,0]
+                    )

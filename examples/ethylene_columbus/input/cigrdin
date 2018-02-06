@@ -1,14 +1,11 @@
  &input 
- nadcalc=3
- drt1=1,
- root1=1,
- drt2=1,
- root2=2,
  nmiter= 100, print=0, fresdd=1, 
  fresaa=1, fresvv=1, 
  mdir=0, 
  cdir=1, 
+ rtol=1e-6, dtol=1e-6,
  wndtol=1e-7,wnatol=1e-7,wnvtol=1e-7 
+  nadcalc=3
   samcflag=0
   assume_fc=1
  &end

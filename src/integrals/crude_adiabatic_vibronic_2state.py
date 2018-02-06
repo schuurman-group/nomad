@@ -6,7 +6,7 @@ This currently uses first-order saddle point.
 """
 import numpy as np
 import src.fmsio.glbl as glbl
-import src.integrals.nuclear_gaussian as nuclear
+import src.integrals.nuclear_gaussian_ccs as nuclear
 import src.interfaces.vibronic as vibronic 
 
 # Let FMS know if overlap matrix elements require PES info
@@ -21,8 +21,8 @@ hermitian = True
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
 
-# cache of theta values -- to ensure theta is smoothly varying
-adt_cache = dict()
+#cache previous values of theta, ensure continuity
+theta_cache = dict()
 
 # adiabatic-diabatic rotation matrix
 def rot_mat(theta):
@@ -50,35 +50,30 @@ def theta(traj):
         return 0.
 
     hmat    = traj.pes_data.diabat_pot
-    dat_mat = traj.pes_data.dat_mat
     h12     = hmat[0,1]
     de      = hmat[1,1]-hmat[0,0]
 
-    if abs(de) < glbl.fpzero:
+    if abs(de) < glbl.constants['fpzero']:
         sgn = np.sign(de)
         if sgn == 0.:
             sgn = 1
-        de = sgn * glbl.fpzero
+        de = sgn * glbl.constants['fpzero']
+    ang     = 0.5*np.arctan2(2.*h12,de)
 
-    ang     = 0.5*np.arctan(2.*h12/de)
-    adia_st = rot_mat(ang)
-
-    # confirm that this rotation results in correct state ordering
-    adia_eners = np.diag(np.dot(np.dot(adia_st, hmat),
-                                       np.transpose(adia_st)))
-    if np.linalg.norm(adia_eners-np.sort(adia_eners)) > glbl.fpzero:
-        # if we've swapped adiabatic states, rotate by pi/2
-        ang -= 0.5 * np.pi
-        adia_eners = np.diag(np.dot(np.dot(rot_mat(ang), hmat), 
-                                           np.transpose(rot_mat(ang))))
-
-    # ensure theta agrees with dat matrix
-    pi_mult  = [-2.,1.,0.,1.,2.]
-    dif_vec  = np.array([np.linalg.norm(dat_mat - rot_mat(ang+i*np.pi))
-                         for i in pi_mult])
-
-    if np.min(dif_vec) < glbl.fpzero:
-        ang += pi_mult[np.argmin(dif_vec)]*np.pi
+    # check the cached value and shift if necessary.
+    pi_mult  = [-2.,-1.,0.,1.,2.]
+    # if not in cache, return current value
+    if traj.label in theta_cache:
+        dif_vec  = [np.abs(ang + pi_mult[i]*np.pi - theta_cache[traj.label])
+                    for i in range(len(pi_mult))]
+        shft = dif_vec.index(min(dif_vec))
+        if shft != 2:
+            print("cache, new, shift="+str(theta_cache[traj.label])+","+str(ang)+","+str(ang+pi_mult[shft]*np.pi))
+        ang += pi_mult[shft]*np.pi
+       
+    theta_cache[traj.label] = ang
+    if str(traj.label) == "0":
+        print(str(ang))
 
     return ang
 
@@ -95,18 +90,18 @@ def dtheta(traj):
     dhmat     = traj.pes_data.diabat_deriv 
     h12       = hmat[0,1]
     de        = hmat[1,1] - hmat[0,0]
-    if abs(de) < glbl.fpzero:
+    if abs(de) < glbl.constants['fpzero']:
         sgn = np.sign(de)
         if sgn == 0.:
             sgn = 1
-        de = sgn * glbl.fpzero
+        de = sgn * glbl.constants['fpzero']
 
     arg       = 2. * h12 / de
-    if abs(arg) < glbl.fpzero:
+    if abs(arg) < glbl.constants['fpzero']:
         sgn = np.sign(arg)
         if sgn == 0.:
             sgn = 1
-        arg = sgn * glbl.fpzero
+        arg = sgn * glbl.constants['fpzero']
 
     dtheta_dq = np.array([((dhmat[q,0,1]*de - h12*(dhmat[q,1,1]-dhmat[q,0,0]))/de**2)/(1+arg**2)
                         for q in range(traj.dim)])
@@ -153,8 +148,8 @@ def elec_overlap(traj1, traj2):
 # (i.e. pseudospectral/collocation methods). 
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    nuc_ovrlp = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+    nuc_ovrlp = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
+                                traj2.widths(),traj2.x(),traj2.p())
 
     if nuc_only:
         return nuc_ovrlp
@@ -166,7 +161,7 @@ def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if Snuc is None:
-        return traj_overlap(traj1, traj2, nuc_only=nuc_only)
+        Snuc = traj_overlap(traj1, traj2, nuc_only=nuc_only)
 
     if nuc_only:
         return Snuc
@@ -178,12 +173,12 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
     if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.widths(),traj2.x(),traj2.p())
 
     # get the linear combinations corresponding to the adiabatic states
     nst   = traj1.nstates
-    h_mat = np.zeros((nst,nst),dtype=complex)
+    v_mat = np.zeros((nst,nst),dtype=complex)
 
     # roll through terms in the hamiltonian
     for i in range(vibronic.ham.nterms):
@@ -198,34 +193,26 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
             v_term *=  nuclear.prim_v_integral(vibronic.ham.order[i][q],
                        traj1.widths()[qi],traj1.x()[qi],traj1.p()[qi],
                        traj2.widths()[qi],traj2.x()[qi],traj2.p()[qi])            
-        h_mat[s1,s2] += v_term
+        v_mat[s1,s2] += v_term
         if s1 != s2:
-            h_mat[s2,s1] += v_term
+            v_mat[s2,s1] += v_term
 
-#    if traj1.label == traj2.label and traj1.label == 0:
-#        print("he_mat1 = ",str(traj1.pes_data.diabat_pot))
-#        print("he_mat2 = ",str(traj2.pes_data.diabat_pot))
-#        print("he mat= "+str(h_mat))
-#        print("phi1  = "+str(phi(traj1)))
-#        print("phi2  = "+str(phi(traj2)))
-#        print("Snuc  = "+str(Snuc))      
-
-    return np.dot(np.dot(phi(traj1), h_mat), phi(traj2)) * Snuc
+    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * Snuc
 
 # kinetic energy integral
 def ke_integral(traj1, traj2, centroid=None, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
     if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
     Selec = elec_overlap(traj1, traj2)
 
     # < chi | del^2 / dx^2 | chi'> 
-    ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                             traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+    ke = nuclear.deld2x(Snuc,traj1.widths(),traj1.x(),traj1.p(),
+                             traj2.widths(),traj2.x(),traj2.p())
    
     return -np.dot( ke, vibronic.kecoeff ) * Selec
 
@@ -234,23 +221,22 @@ def ke_integral(traj1, traj2, centroid=None, Snuc=None):
 def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only=False):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
     Selec = elec_overlap(traj1, traj2)
 
     # < chi | d / dx | chi'>
-    deldx = nuclear.deldx(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+    deldx = nuclear.deldx(Snuc,traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.widths(),traj2.x(),traj2.p())
     # < chi | d / dp | chi'>
-    deldp = nuclear.deldp(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+    deldp = nuclear.deldp(Snuc,traj1.widths(),traj1.x(),traj1.p(),
+                               traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
     sdot = ( np.dot(deldx, traj2.velocity()) 
-           + np.dot(deldp, traj2.force()) 
-           + 1j * traj2.phase_dot() * Snuc) * Selec
+           + np.dot(deldp, traj2.force())) * Selec
 								
     if nuc_only:
         return sdot

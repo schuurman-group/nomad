@@ -1,5 +1,5 @@
  &input
-  quadrup=0
+  quadrup=1
   lvlprt=1,
   moment=2 
   mofilen='mocoef' 

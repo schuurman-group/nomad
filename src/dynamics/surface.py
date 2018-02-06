@@ -146,7 +146,7 @@ def cached(label, geom):
         return False
 
     dg = np.linalg.norm(geom - pes_cache[label].geom)
-    if dg <= glbl.fpzero:
+    if dg <= glbl.constants['fpzero']:
         return True
 
     return False

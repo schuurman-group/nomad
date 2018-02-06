@@ -9,6 +9,7 @@ import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 
+
 def set_initial_coords(master):
     """Samples a v=0 Wigner distribution
     """
@@ -27,7 +28,7 @@ def set_initial_coords(master):
     m_vec = np.array(glbl.nuclear_basis['masses'],dtype=float)
     ndim  = len(x_ref)
 
-    # create template trajectory basis function 
+    # create template trajectory basis function
     template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
                                      width=w_vec, mass=m_vec, parent=0)
     template.update_x(x_ref)
@@ -54,21 +55,22 @@ def set_initial_coords(master):
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
-
-    ## If normal modes are being used, set the no. modes
-    ## equal to the number of active modes of the model
-    ## Hamiltonian and load the associated frequencies
-    #if coordtype == 'normal':
-    #    n_modes = ham.nmode_active
-    #    freqs = ham.freq
+        fileio.print_fms_logfile('string',['\n -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
     # equal to the total number of modes of the model
     # Hamiltonian and load only the active frequencies
     if coordtype == 'normal':
-        n_modes = ham.nmode_total
-        freqs = np.zeros(n_modes)
-        freqs[ham.mrange] = ham.freq
+        n_modes = len(w_vec)
+        # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for 
+        # vibronic hamiltonans is 1/2, assuming frequency weighted coords
+        freqs   = 2.* w_vec 
+        fileio.print_fms_logfile('string',['\n -- widths employed in coordinate sampling --\n'])
+
+    # write out frequencies 
+    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*glbl.constants['au2cm']) 
+                                                       for j in range(n_modes)]) 
+    fileio.print_fms_logfile('string',[fstr+'\n'])
 
     # loop over the number of initial trajectories
     max_try = 1000
@@ -80,7 +82,7 @@ def set_initial_coords(master):
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            if alpha > glbl.fpzero:
+            if alpha > glbl.constants['fpzero']:
                 sigma_x = (glbl.sampling['distrib_compression'] * 
                            np.sqrt(0.25 / alpha))
                 sigma_p = (glbl.sampling['distrib_compression'] *
@@ -124,7 +126,6 @@ def set_initial_coords(master):
         # Add the trajectory to the bundle
         master.add_trajectory(new_traj)
 
-    return
 
 def mode_overlap(alpha, dx, dp):
     """Returns the overlap of Gaussian primitives

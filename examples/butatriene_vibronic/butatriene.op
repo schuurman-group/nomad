@@ -34,7 +34,7 @@ end-parameter-section
 
 HAMILTONIAN-SECTION
 
-modes   | Q5 | Q8 | Q12 | Q14 | Q15
+modes   | Q5 | Q8 | Q12 | Q14 | Q15  
 
 0.5*omega_5        1^2   S1&1
 0.5*omega_8        2^2   S1&1

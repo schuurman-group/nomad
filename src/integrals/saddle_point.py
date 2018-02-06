@@ -19,7 +19,7 @@ overlap_requires_pes = False
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = True
+hermitian = False 
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -81,8 +81,8 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
         v = 2.*np.vdot(fij, interface.kecoeff *
-                       nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                          t2.phase(),t2.widths(),t2.x(),t2.p()))
+                       nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
+                                          t2.widths(),t2.x(),t2.p()))
 #                       nuclear.deldx(t1, t2, S=Snuc))
         # Scalar coupling
         if glbl.interface['coupling_order'] > 1:
@@ -104,8 +104,8 @@ def ke_integral(t1, t2, Snuc=None):
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        ke = nuclear.deld2x(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                 t2.phase(),t2.widths(),t2.x(),t2.p())
+        ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
+                                 t2.widths(),t2.x(),t2.p())
 
         return -np.dot(ke, interface.kecoeff)
 
@@ -120,10 +120,10 @@ def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        deldx = nuclear.deldx(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
-        deldp = nuclear.deldp(Snuc,t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+        deldx = nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
+                                   t2.widths(),t2.x(),t2.p())
+        deldp = nuclear.deldp(Snuc,t1.widths(),t1.x(),t1.p(),
+                                   t2.widths(),t2.x(),t2.p())
 
         sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
                 +1j * t2.phase_dot() * Snuc)

@@ -101,7 +101,7 @@ def fms_step_bundle(master, dt):
             if  time_step < min_time_step:
                 fileio.print_fms_logfile('general',
                                          ['minimum time step exceeded -- STOPPING.'])
-                raise ValueError('fms_step_bundle')
+                raise ValueError('Bundle minimum step exceeded.')
 
             # reset the beginning of the time step and go to beginning of loop
             #del master
@@ -150,7 +150,7 @@ def fms_step_trajectory(traj, init_time, dt):
             if  abs(time_step) < min_time_step:
                 fileio.print_fms_logfile('general',
                                          ['minimum time step exceeded -- STOPPING.'])
-                raise ValueError('fms_step_trajectory')
+                raise ValueError('Trajectory minimum step exceeded.')
 
             # reset the beginning of the time step and go to beginning of loop
             traj = traj0.copy()
@@ -184,6 +184,12 @@ def check_step_bundle(master0, master, time_step):
     dpop = abs(sum(master0.pop()) - sum(master.pop()))
     if dpop > glbl.propagate['pop_jump_toler']:
         return False, ' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
+    # this is largely what the above check is checking -- but is more direct. I would say 
+    # we should remove the above check...
+    dnorm = master.norm()
+    if abs(dnorm-1.) > glbl.propagate['norm_thresh']:
+        return False, 'Wfn norm threshold exceeded, |norm|-1. = {:8.4f}'.format(dnorm-1.)
+
     #  ... or energy conservation (only need to check traj which exist in
     # master0. If spawned, will be last entry(ies) in master
     for i in range(master0.n_traj()):

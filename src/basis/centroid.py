@@ -123,7 +123,7 @@ class Centroid:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: centroid.energy() called, ' +
                   'but pes_geom != centroid.x(). ID=' + str(self.label))
         return self.pes_data.potential[state] + glbl.propagate['pot_shift']
@@ -132,14 +132,14 @@ class Centroid:
         """Returns either a gradient or derivative coupling depending
            on the states in pstates.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label))
         return self.pes_data.deriv[:,state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling."""
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.fpzero:
+        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label))
         if 'scalar_coup' in self.pes_data.data_keys:

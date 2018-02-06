@@ -1,0 +1,80 @@
+# keywords related to initial conditions
+begin sampling-section
+    restart                = False
+    init_sampling          = wigner
+    n_init_traj            = 10 
+    init_states            = [] 
+    init_state             = 0
+    init_brightest         = False
+    restart_time           = 0.
+    init_mode_min_olap     = 0.5
+    seed                   = 1
+    virtual_basis          = True
+    distrib_compression    = 1.0
+end sampling-section
+
+# keywords related to numerical propagation of wave function
+begin propagate-section
+    n_states               = 2
+    matching_pursuit       = False
+    simulation_time        = 30 
+    default_time_step      = 0.02
+    coupled_time_step      = 0.01
+    integrals              = vibronic_diabatic
+#    propagator             = velocity_verlet 
+    propagator             = runge_kutta4 
+    energy_jump_toler      = 0.1
+    pop_jump_toler         = 0.01
+    pot_shift              = 0.
+    renorm                 = False 
+    sinv_thrsh             = -1.0
+    norm_thresh            = 1.0 
+    auto                   = True
+    phase_prop             = False 
+    sij_thresh             = 0.5
+    hij_coup_thresh        = 1.
+end propagate-section
+
+# keywords related to spawning of new basis functions
+begin spawning-section
+    spawning               = continuous
+    spawn_pop_thresh       = 1.
+    spawn_coup_thresh      = 1.
+    spawn_olap_thresh      = 0.7
+    continuous_min_overlap = 0.3
+end spawning-section
+
+# keywords related to the evlaution of the potential
+begin interface-section
+    interface              = vibronic
+    coupling_order         = 1
+    mem_per_core           = 1000.
+    coup_de_thresh         = 0.12
+    ordr_max               = 1
+    opfile                 = spin_boson4_weak.op 
+end interface-section
+
+# keywords related to the specification of the nuclear basis
+begin nuclear_basis-section
+    use_atom_lib          = False 
+    init_amp_overlap      = True
+    geometries            = [[]]
+    momenta               = [[]]
+    geomfile              = geometry.dat
+    hessian               = [[]]
+    hessfile              = ''
+    freqs                 = [0.01,1.33,2.67,4.00]
+    amplitudes            = []
+    widths                = [] 
+    masses                = []
+end nuclear_basis-section
+
+# keywords related generation of formatted output
+begin printing-section
+    print_level            = 5
+    print_traj             = True
+    print_es               = True
+    print_matrices         = True
+    print_chkpt            = True
+end printing-section
+

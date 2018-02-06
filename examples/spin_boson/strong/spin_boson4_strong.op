@@ -1,0 +1,67 @@
+##########################################################
+# 4D Spin Boson model 
+# Parameters taken from:
+# Stock paper
+# Martinez paper
+##########################################################
+
+PARAMETER-SECTION
+
+#frequencies
+omega_1      =   0.0100 , au 
+omega_2       =  1.3400 , au 
+omega_3      =   2.6700 , au
+omega_4       =  4.0000 , au
+
+# linear diagonal terms
+# delta = 1
+# alpha = 0.0900 weak coupling
+# alpha = 0.5625
+# delta[omega] = 1.33
+# J(w) = (pi/2) * alpha * omega * exp(-omega / omega_c)
+# Ci   = Sqrt[(2/pi) * delta[omega] * J(omega_i)]
+# omega_c = 2.5 * delta = 2.5
+# ki = sqrt(1.33 * 0.5625 * omega_i * exp(-omega_i/omega_c) )
+kappa1_1            =  -0.0863214, au 
+kappa2_1            =  -0.765859, au 
+kappa3_1            =  -0.828570, au
+kappa4_1            =  -0.777287, au
+
+kappa1_2            =  0.0863214, au 
+kappa2_2            =  0.765859, au 
+kappa3_2            =  0.828570, au
+kappa4_2            =  0.777287, au
+
+#constant coupling constants (kappa)
+delta         =  1., au
+
+end-parameter-section
+
+HAMILTONIAN-SECTION
+
+modes   | q1 | q2 | q3 | q4
+
+0.5*omega_1        1^2   S1&1
+0.5*omega_2        2^2   S1&1
+0.5*omega_3        3^2   S1&1
+0.5*omega_4        4^2   S1&1
+0.5*omega_1        1^2   S2&2
+0.5*omega_2        2^2   S2&2
+0.5*omega_3        3^2   S2&2
+0.5*omega_4        4^2   S2&2
+
+kappa1_1           1^1   S1&1
+kappa2_1           2^1   S1&1
+kappa3_1           3^1   S1&1
+kappa4_1           4^1   S1&1
+kappa1_2           1^1   S2&2
+kappa2_2           2^1   S2&2
+kappa3_2           3^1   S2&2
+kappa4_2           4^1   S2&2
+
+delta                    S1&2
+
+end-hamiltonian-section
+
+end-operator
+

@@ -4,6 +4,7 @@ Compute integrals over trajectories traveling on vibronic potentials
 import math
 import numpy as np
 import src.integrals.nuclear_gaussian as nuclear
+import src.interfaces.vibronic as vibronic
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -20,78 +21,80 @@ basis = 'gaussian'
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
-def traj_overlap(traj1, traj2, nuc_only=False, Snuc=None):
+def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(traj1, traj2, nuc_only, Snuc)
+    return s_integral(t1, t2, nuc_only, Snuc)
 
 # returns total overlap of trajectory basis function
-def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
+def s_integral(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
-    if traj1.state != traj2.state and not nuc_only:
+    if t1.state != t2.state and not nuc_only:
         return complex(0.,0.)
-
     else:
         if Snuc is None:
-            return nuclear.overlap(traj1, traj2)
+            return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
         else:
             return Snuc
 
 #
-def v_integral(traj1, traj2, centroid=None, Snuc=None):
+def v_integral(t1, t2, centroid=None, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
     if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+        Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                               t2.phase(),t2.widths(),t2.x(),t2.p())
 
-    states = np.sort(np.array([traj1.state, traj2.state]))
+    states = np.sort(np.array([t1.state, t2.state]))
     v_total = complex(0.,0.)
 
     # roll through terms in the hamiltonian
-    for i in range(ham.nterms):
+    for i in range(vibronic.ham.nterms):
 
-        if states == ham.stalbl[i,:]-1: 
+        if np.array_equal(states,vibronic.ham.stalbl[i,:]-1): 
             # adiabatic states in diabatic basis -- cross terms between orthogonal
             # diabatic states are zero
-            v_term = complex(1.,0.) * ham.coe[i]
-            for q in range(ham.nmode_active):
-                if ham.order[i,q] > 0:
-                    v_term *=  nuclear.prim_v_integral(ham.order[i,q],
-                               traj1.widths()[q],traj1.x()[q],traj1.p()[q],
-                               traj2.widths()[q],traj2.x()[q],traj2.p()[q])
-
+            [s1,s2] = vibronic.ham.stalbl[i,:]-1
+            v_term = complex(1.,0.) * vibronic.ham.coe[i]
+            for q in range(len(vibronic.ham.order[i])):
+                qi      =  vibronic.ham.mode[i][q]
+                v_term *=  nuclear.prim_v_integral(vibronic.ham.order[i][q],
+                           t1.widths()[qi],t1.x()[qi],t1.p()[qi],
+                           t2.widths()[qi],t2.x()[qi],t2.p()[qi])
             v_total += v_term
 
     return v_total * Snuc 
 
 
-def ke_integral(traj1, traj2, Snuc=None):
+def ke_integral(t1, t2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
-    if traj1.state != traj2.state:
-        return 0j
-
+    if t1.state != t2.state:
+        return complex(0.,0.) 
     else:
-
         if Snuc is None:
-            Snuc = nuclear.overlap(traj1, traj2)
+            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p()) 
 
-        ke = nuclear.deld2x(traj1, traj2, S=Snuc)
+        ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
+                                 t2.widths(),t2.x(),t2.p())
 
-        return -sum( ke * interface.kecoeff)
+        return -sum( ke * vibronic.kecoeff)
 
-def sdot_integral(traj1, traj2, Snuc=None):
+def sdot_integral(t1, t2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if traj1.state != traj2.state:
+    if t1.state != t2.state:
         return complex(0.,0.)
-
     else:
-
         if Snuc is None:
-            Snuc = nuclear.overlap(traj1, traj2)
-
-        sdot = (-np.dot( traj2.velocity(), nuclear.deldx(traj1,traj2,S=Snuc) )+
-                 np.dot( traj2.force(),    nuclear.deldp(traj1,traj2,S=Snuc) )+
-                 1.j * traj2.phase_dot() * Snuc)
+            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
+        t1_dx_t2 = nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
+                                      t2.widths(),t2.x(),t2.p())
+        t1_dp_t2 = nuclear.deldp(Snuc,t1.widths(),t1.x(),t1.p(),
+                                      t2.widths(),t2.x(),t2.p())
+        sdot = ( np.dot( t2.velocity(), t1_dx_t2) + 
+                 np.dot( t2.force(),    t1_dp_t2) + 
+                 1.j*t2.phase_dot()*Snuc )
 
         return sdot
