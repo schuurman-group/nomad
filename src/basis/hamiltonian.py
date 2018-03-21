@@ -18,6 +18,7 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.dynamics.timings as timings
 import src.fmsio.glbl as glbl
+import src.fmsio.fileio as fileio
 import src.utils.linalg as fms_linalg
 
 def ut_ind(index):
@@ -36,10 +37,9 @@ def sq_ind(index, n):
 @timings.timed
 def hamiltonian(traj_list, traj_alive, cent_list=None):
     """Builds the Hamiltonian matrix from a list of trajectories."""
-    ints = __import__('src.integrals.'+glbl.propagate['integrals'], fromlist=['a'])
 
     n_alive = len(traj_alive)
-    if ints.hermitian:
+    if glbl.integrals.hermitian:
         n_elem  = int(n_alive * (n_alive + 1) / 2)
     else:
         n_elem  = n_alive * n_alive
@@ -53,10 +53,12 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
     Sdot    = np.zeros((n_alive, n_alive), dtype=complex)
     Heff    = np.zeros((n_alive, n_alive), dtype=complex)
     t_ovrlp = np.zeros((n_alive, n_alive), dtype=complex)
+    Sdnuc   = np.zeros((n_alive, n_alive), dtype=complex)
+    Sdele   = np.zeros((n_alive, n_alive), dtype=complex)
 
     # now evaluate the hamiltonian matrix
     for ij in range(n_elem):
-        if ints.hermitian:
+        if glbl.integrals.hermitian:
             i, j = ut_ind(ij)
         else:
             i, j = sq_ind(ij, n_alive)
@@ -65,46 +67,55 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         jj = traj_alive[j]
 
         # nuclear overlap matrix (excluding electronic component)
-        Snuc[i,j] = ints.s_integral(traj_list[ii],traj_list[jj],nuc_only=True)
+        Snuc[i,j] = glbl.integrals.s_integral(traj_list[ii],traj_list[jj],nuc_only=True)
 
         # compute overlap of trajectories (different from S, which may or may
         # not involve integration in a gaussian basis
-        t_ovrlp[i,j] = ints.traj_overlap(traj_list[ii],traj_list[jj],Snuc=Snuc[i,j])
+        t_ovrlp[i,j] = glbl.integrals.traj_overlap(traj_list[ii],traj_list[jj],Snuc=Snuc[i,j])
 
         # overlap matrix (including electronic component)
-        S[i,j]    = ints.s_integral(traj_list[ii],traj_list[jj],Snuc=Snuc[i,j])
+        S[i,j]    = glbl.integrals.s_integral(traj_list[ii],traj_list[jj],Snuc=Snuc[i,j])
 
         # time-derivative of the overlap matrix (not hermitian in general)
-        Sdot[i,j] = ints.sdot_integral(traj_list[ii], 
+        Sdot[i,j] = glbl.integrals.sdot_integral(traj_list[ii], 
                                        traj_list[jj], Snuc=Snuc[i,j])
+        Sdnuc[i,j] = glbl.integrals.sdot_integral(traj_list[ii],
+                                       traj_list[jj], Snuc=Snuc[i,j],nuc_only=True)
+        Sdele[i,j] = glbl.integrals.sdot_integral(traj_list[ii],
+                                       traj_list[jj], Snuc=Snuc[i,j],e_only=True)
 
         # kinetic energy matrix
-        T[i,j]    = ints.ke_integral(traj_list[ii], 
+        T[i,j]    = glbl.integrals.ke_integral(traj_list[ii], 
                                      traj_list[jj], Snuc=Snuc[i,j])
 
         # potential energy matrix
-        if ints.require_centroids:
-            V[i,j] = ints.v_integral(traj_list[ii], traj_list[jj], 
+        if glbl.integrals.require_centroids:
+            V[i,j] = glbl.integrals.v_integral(traj_list[ii], traj_list[jj], 
                             centroid=cent_list[ii][jj], Snuc=Snuc[i,j])
         else:
-            V[i,j] = ints.v_integral(traj_list[ii], 
+            V[i,j] = glbl.integrals.v_integral(traj_list[ii], 
                                      traj_list[jj], Snuc=Snuc[i,j])
 
         # Hamiltonian matrix in non-orthogonal basis
         H[i,j] = T[i,j] + V[i,j]
 
         # if hermitian matrix, set (j,i) indices
-        if ints.hermitian and i!=j:
+        if glbl.integrals.hermitian and i!=j:
             Snuc[j,i]    = Snuc[i,j].conjugate()
             S[j,i]       = S[i,j].conjugate()
             t_ovrlp[j,i] = t_ovrlp[i,j].conjugate()
-            Sdot[j,i]    = ints.sdot_integral(traj_list[jj],
+            Sdot[j,i]    = glbl.integrals.sdot_integral(traj_list[jj],
                                               traj_list[ii], Snuc=Snuc[j,i])
+            Sdnuc[j,i] = glbl.integrals.sdot_integral(traj_list[jj],
+                                       traj_list[ii], Snuc=Snuc[j,i],nuc_only=True)
+            Sdele[j,i] = glbl.integrals.sdot_integral(traj_list[jj],
+                                       traj_list[ii], Snuc=Snuc[j,i],e_only=True)
+
             T[j,i]       = T[i,j].conjugate()
             V[j,i]       = V[i,j].conjugate()
             H[j,i]       = H[i,j].conjugate()
 
-    if ints.hermitian:
+    if glbl.integrals.hermitian:
         # compute the S^-1, needed to compute Heff
         timings.start('linalg.pinvh')
         Sinv = sp_linalg.pinvh(S)
@@ -117,5 +128,8 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
         timings.stop('hamiltonian.pseudo_inverse')
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
+    
+    fileio.print_bund_mat(0., 'sdot_nuc', Sdnuc)
+    fileio.print_bund_mat(0., 'sdot_ele', Sdele)
 
     return t_ovrlp, T, V, S, Snuc, Sdot, Heff

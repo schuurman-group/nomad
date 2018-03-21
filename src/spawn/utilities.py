@@ -5,8 +5,6 @@ import sys as sys
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.fmsio.fileio as fileio
-integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
-
 
 def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same
@@ -85,7 +83,7 @@ def overlap_with_bundle(traj, bundle):
             if traj.state != bundle.traj[i].state:
                 sij = 0j
             else:
-                sij = integrals.traj_overlap(traj, bundle.traj[i])
+                sij = glbl.integrals.traj_overlap(traj, bundle.traj[i])
             if abs(sij) > glbl.propagate['sij_thresh']:
                 t_overlap_bundle = True
                 break
@@ -103,7 +101,7 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
     for j in range(bundle.n_traj()):
         if bundle.traj[j].alive and j != overlap_traj:
             if overlap_state is None or bundle.traj[j].state == overlap_state:
-                max_sij = max(max_sij, abs(integrals.traj_overlap(
+                max_sij = max(max_sij, abs(glbl.integrals.traj_overlap(
                                                  bundle.traj[overlap_traj],
                                                  bundle.traj[j], nuc_only=True)))
 

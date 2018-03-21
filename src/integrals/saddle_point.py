@@ -9,8 +9,6 @@ import math
 import numpy as np
 import src.fmsio.glbl as glbl
 import src.integrals.nuclear_gaussian as nuclear
-interface = __import__('src.interfaces.' + glbl.interface['interface'],
-                       fromlist = ['a'])
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -80,7 +78,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     elif t1.state != t2.state:
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
-        v = 2.*np.vdot(fij, interface.kecoeff *
+        v = 2.*np.vdot(fij, glbl.pes.kecoeff *
                        nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
                                           t2.widths(),t2.x(),t2.p()))
 #                       nuclear.deldx(t1, t2, S=Snuc))
@@ -107,7 +105,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, interface.kecoeff)
+        return -np.dot(ke, glbl.pes.kecoeff)
 
 # time derivative of the overlap
 def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):

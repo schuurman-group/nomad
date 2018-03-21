@@ -10,13 +10,6 @@ import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
 
-
-# the dynamically loaded libraries (done once by init_bundle)
-pes       = None
-sampling  = None
-integrals = None
-
-
 #--------------------------------------------------------------------------
 #
 # Externally visible routines
@@ -24,37 +17,11 @@ integrals = None
 #--------------------------------------------------------------------------
 def init_bundle(master):
     """Initializes the trajectories."""
-    global pes, sampling, integrals
-
-    try:
-        pes      = __import__('src.interfaces.'+glbl.interface['interface'],
-                         fromlist=['NA'])
-    except ImportError:
-        print('Cannot import pes: src.interfaces.'+
-               str(glbl.interface['interface']))
-
-    try:
-        sampling = __import__('src.sampling.'+glbl.sampling['init_sampling'],
-                         fromlist=['NA'])
-    except ImportError:
-        print('Cannot import sampling: src.sampling.'+
-               str(glbl.sampling['init_sampling']))
-
-    try:
-        integrals = __import__('src.integrals.'+glbl.propagate['integrals'],
-                         fromlist=['NA'])
-    except ImportError:
-        print('Cannot import sampling: src.integrals.'+
-               str(glbl.propagate['integrals']))
-
 
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
-    pes.init_interface()
-
-    # initialize the surface module -- caller of the pes interface
-    surface.init_surface(glbl.interface['interface'])
+    glbl.pes.init_interface()
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
@@ -63,7 +30,7 @@ def init_bundle(master):
     else:
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
-        sampling.set_initial_coords(master)
+        glbl.distrib.set_initial_coords(master)
 
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
@@ -85,7 +52,7 @@ def init_bundle(master):
 
     # this is the bundle at time t=0.  Save in order to compute auto
     # correlation function
-    glbl.variables['bundle0'] = master.copy()
+    set_initial_bundle(master) 
 
     # write to the log files
     if glbl.mpi['rank'] == 0:
@@ -147,10 +114,10 @@ def set_initial_state(master):
     else:
         raise ValueError('Ambiguous initial state assignment.')
 
+    return
 
 def set_initial_amplitudes(master):
     """Sets the initial amplitudes."""
-    global integrals
 
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in fms.input
@@ -159,19 +126,19 @@ def set_initial_amplitudes(master):
         origin = make_origin_traj()
 
         # update all pes info for all trajectories and centroids (where necessary)
-        if integrals.overlap_requires_pes:
+        if glbl.integrals.overlap_requires_pes:
             surface.update_pes(master)
 
         # Calculate the initial expansion coefficients via projection onto
         # the initial wavefunction that we are sampling
         ovec = np.zeros(master.n_traj(), dtype=complex)
         for i in range(master.n_traj()):
-            ovec[i] = integrals.traj_overlap(master.traj[i], origin, nuc_only=True)
+            ovec[i] = glbl.integrals.traj_overlap(master.traj[i], origin, nuc_only=True)
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):
-                smat[i,j] = master.integrals.traj_overlap(master.traj[i],
-                                                          master.traj[j])
+                smat[i,j] = glbl.integrals.traj_overlap(master.traj[i],
+                                                        master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)
@@ -189,6 +156,23 @@ def set_initial_amplitudes(master):
     for i in range(master.n_traj()):
         master.traj[i].update_amplitude(glbl.nuclear_basis['amplitudes'][i])
 
+    return
+
+def set_initial_bundle(master):
+    """Sets the intial t=0 bundle in order to compute the autocorrelation 
+       function for subsequent time steps"""
+
+    glbl.variables['bundle0'] = master.copy()
+    #
+    # change the trajectory labels in this bundle to differentiate
+    # them from trajctory labels in the master bundle. This avoids
+    # cache collisions between trajetories in 'bundle0' and trajectories
+    # in 'master'
+    for i in range(glbl.variables['bundle0'].n_traj()):
+        new_label = str(glbl.variables['bundle0'].traj[i].label)+'_0'
+        glbl.variables['bundle0'].traj[i].label = new_label
+
+    return
 
 def virtual_basis(master):
     """Add virtual basis funcions.
@@ -225,7 +209,7 @@ def make_origin_traj():
     origin.update_p(p_vec)
     origin.state = 0
     # if we need pes data to evaluate overlaps, determine that now
-    if integrals.overlap_requires_pes:
+    if glbl.integrals.overlap_requires_pes:
         surface.update_pes_traj(origin)
 
     return origin

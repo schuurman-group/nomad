@@ -48,8 +48,7 @@ def init():
 def main():
     """Runs the main FMSpy routine."""
     # Create the collection of trajectories
-    master = bundle.Bundle(glbl.propagate['n_states'],
-                           glbl.propagate['integrals'])
+    master = bundle.Bundle(glbl.propagate['n_states'])
 
     # set the initial conditions for trajectories
     initialize.init_bundle(master)

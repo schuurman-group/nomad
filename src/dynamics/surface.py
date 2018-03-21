@@ -10,30 +10,17 @@ import src.fmsio.glbl as glbl
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
 
-
-pes        = None
 pes_cache  = dict()
-
-
-def init_surface(pes_interface):
-    """Initializes the potential energy surface."""
-    global pes
-    # create interface to appropriate surface
-    try:
-        pes = __import__('src.interfaces.' + pes_interface, fromlist=['NA'])
-    except ImportError:
-        print('INTERFACE FAIL: ' + pes_interface)
-
 
 def update_pes(master, update_centroids=None):
     """Updates the potential energy surface."""
-    global pes, pes_cache
+    global pes_cache
     success = True
 
     # this conditional checks to see if we actually need centroids,
     # even if propagator requests them
-    if update_centroids is None or not master.integrals.require_centroids:
-        update_centroids = master.integrals.require_centroids
+    if update_centroids is None or not glbl.integrals.require_centroids:
+        update_centroids = glbl.integrals.require_centroids
 
     if glbl.mpi['parallel']:
         # update electronic structure
@@ -63,9 +50,9 @@ def update_pes(master, update_centroids=None):
         local_results = []
         for i in range(len(exec_list)):
             if type(exec_list[i]) is trajectory.Trajectory:
-                pes_calc = pes.evaluate_trajectory(exec_list[i], master.time)
+                pes_calc = glbl.pes.evaluate_trajectory(exec_list[i], master.time)
             elif type(exec_list[i]) is centroid.Centroid:
-                pes_calc = pes.evaluate_centroid(exec_list[i], master.time)
+                pes_calc = glbl.pes.evaluate_centroid(exec_list[i], master.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
@@ -99,7 +86,7 @@ def update_pes(master, update_centroids=None):
         # iterate over trajectories..
         for i in range(master.n_traj()):
             if master.traj[i].active:
-                master.traj[i].update_pes_info(pes.evaluate_trajectory(
+                master.traj[i].update_pes_info(glbl.pes.evaluate_trajectory(
                                                master.traj[i], master.time))
 
         # ...and centroids if need be
@@ -111,7 +98,7 @@ def update_pes(master, update_centroids=None):
                 # if centroid not initialized, skip it
                     if master.cent[i][j] is not None:
                         master.cent[i][j].update_pes_info(
-                                          pes.evaluate_centroid(
+                                          glbl.pes.evaluate_centroid(
                                           master.cent[i][j], master.time))
                         master.cent[j][i] = master.cent[i][j]
 
@@ -123,12 +110,10 @@ def update_pes_traj(traj):
 
     Used during spawning.
     """
-    global pes
-
     results = None
 
     if glbl.mpi['rank'] == 0:
-        results = pes.evaluate_trajectory(traj)
+        results = glbl.pes.evaluate_trajectory(traj)
 
     if glbl.mpi['parallel']:
         results = glbl.mpi['comm'].bcast(results, root=0)

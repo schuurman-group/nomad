@@ -2,6 +2,12 @@
 Conversion factors and constants for FMSpy.
 """
 
+integrals = None
+pes = None
+distrib = None
+spawn = None
+integrator = None
+
 constants = dict(
   # convert fs to au
   fs2au    = 41.34137221718,

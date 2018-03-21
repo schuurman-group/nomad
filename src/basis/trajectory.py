@@ -51,11 +51,6 @@ class Trajectory:
         self.last_spawn = np.zeros(self.nstates)
         # time trajectory last left coupling region
         self.exit_time  = np.zeros(self.nstates)
-
-        # name of interface to get potential information
-        self.interface = __import__('src.interfaces.' +
-                               glbl.interface['interface'], fromlist = ['a'])
-
         # data structure to hold the pes data from the interface
         self.pes_data  = None
 
@@ -103,10 +98,10 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-        self.gamma = phase
-#        self.gamma = 0.5 * np.dot(self.x(), self.p())
-        if abs(self.gamma) > 2*np.pi:
-            self.gamma = self.gamma % 2*np.pi
+        self.gamma = 0.5 * np.dot(self.x(), self.p())
+#        self.gamma = phase
+#        if abs(self.gamma) > 2*np.pi:
+#            self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -221,7 +216,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() / (2. * self.masses()) )
+        return sum( self.p() * self.p() * glbl.pes.kecoeff )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -229,7 +224,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() / self.masses() 
+        return self.p() * (2. * glbl.pes.kecoeff)
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -242,8 +237,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    sum( self.widths() / (2. * self.masses()) ))
-#            return 0.5*(np.dot(self.force(),self.x())+np.dot(self.p(),self.p()))
+                    np.dot(self.widths(), glbl.pes.kecoeff) )
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""
@@ -329,8 +323,8 @@ class Trajectory:
 
         # create Surface object, if doesn't already exist
         if self.pes_data is None:
-            self.pes_data = self.interface.Surface(self.label, self.nstates,
-                                                   self.dim)
+            self.pes_data = glbl.pes.Surface(self.label, self.nstates,
+                                             self.dim)
 
         # potential energy -- nstates
         chkpt.readline()

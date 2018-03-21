@@ -56,10 +56,6 @@ class Centroid:
             self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
             self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
-        # name of interface to get potential information
-        self.interface = __import__('src.interfaces.' +
-                               glbl.interface['interface'], fromlist = ['a'])
-
         # data structure to hold the data from the interface
         self.pes_data  = None
 

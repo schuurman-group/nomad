@@ -4,7 +4,6 @@ Compute integrals over trajectories traveling on vibronic potentials
 import math
 import numpy as np
 import src.integrals.nuclear_gaussian as nuclear
-import src.interfaces.vibronic as vibronic
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -50,16 +49,16 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     v_total = complex(0.,0.)
 
     # roll through terms in the hamiltonian
-    for i in range(vibronic.ham.nterms):
+    for i in range(glbl.pes.ham.nterms):
 
-        if np.array_equal(states,vibronic.ham.stalbl[i,:]-1): 
+        if np.array_equal(states,glbl.pes.ham.stalbl[i,:]-1): 
             # adiabatic states in diabatic basis -- cross terms between orthogonal
             # diabatic states are zero
-            [s1,s2] = vibronic.ham.stalbl[i,:]-1
-            v_term = complex(1.,0.) * vibronic.ham.coe[i]
-            for q in range(len(vibronic.ham.order[i])):
-                qi      =  vibronic.ham.mode[i][q]
-                v_term *=  nuclear.prim_v_integral(vibronic.ham.order[i][q],
+            [s1,s2] = glbl.pes.ham.stalbl[i,:]-1
+            v_term = complex(1.,0.) * glbl.pes.ham.coe[i]
+            for q in range(len(glbl.pes.ham.order[i])):
+                qi      =  glbl.pes.ham.mode[i][q]
+                v_term *=  nuclear.prim_v_integral(glbl.pes.ham.order[i][q],
                            t1.widths()[qi],t1.x()[qi],t1.p()[qi],
                            t2.widths()[qi],t2.x()[qi],t2.p()[qi])
             v_total += v_term
@@ -79,7 +78,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
-        return -sum( ke * vibronic.kecoeff)
+        return -sum( ke * glbl.pes.kecoeff)
 
 def sdot_integral(t1, t2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""

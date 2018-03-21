@@ -15,8 +15,7 @@ from src.basis import hamiltonian as fms_ham
 
 class Bundle:
     """Class constructor for the Bundle object."""
-    def __init__(self, nstates, integral_type):
-        self.integral_type = integral_type
+    def __init__(self, nstates):
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -33,11 +32,11 @@ class Bundle:
         self.Sdot      = np.zeros((0, 0), dtype=complex)
         self.Heff      = np.zeros((0, 0), dtype=complex)
         self.traj_ovrlp= np.zeros((0, 0), dtype=complex)
-        try:
-            self.integrals=__import__('src.integrals.'+
-                                       self.integral_type,fromlist=['a'])
-        except ImportError:
-            print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
+#        try:
+#            self.integrals=__import__('src.integrals.'+
+#                                       self.integral_type,fromlist=['a'])
+#        except ImportError:
+#            print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
 
     @timings.timed
     def copy(self):
@@ -47,7 +46,7 @@ class Bundle:
         of a bundle with new references. Overriding deepcopy for
         significantly more work.
         """
-        new_bundle = Bundle(self.nstates, self.integral_type)
+        new_bundle = Bundle(self.nstates)
         new_bundle.time   = copy.copy(self.time)
         new_bundle.nalive = copy.copy(self.nalive)
         new_bundle.ndead  = copy.copy(self.ndead)
@@ -66,7 +65,8 @@ class Bundle:
             new_bundle.traj.append(traj_i)
 
         # copy the centroid matrix
-        if new_bundle.integrals.require_centroids:
+#        if new_bundle.integrals.require_centroids:
+        if glbl.integrals.require_centroids:
             for i in range(len(self.cent)):
                 new_bundle.cent.append([None for j in range(self.n_traj())])
                 for j in range(i):
@@ -97,7 +97,8 @@ class Bundle:
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
-        if self.integrals.require_centroids:
+#        if self.integrals.require_centroids:
+        if glbl.integrals.require_centroids:
             self.create_centroids()
 
     def add_trajectories(self, traj_list):
@@ -119,7 +120,8 @@ class Bundle:
         self.Sdot    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.Heff    = np.zeros((self.nalive, self.nalive), dtype=complex)
         self.traj_ovrlp = np.zeros((self.nalive, self.nalive), dtype=complex)
-        if self.integrals.require_centroids:
+#        if self.integrals.require_centroids:
+        if glbl.integrals.require_centroids:
             self.create_centroids()
 
     @timings.timed
@@ -213,7 +215,8 @@ class Bundle:
            NOT be computed if:
            a) the nuclear overlap between trajectories is below threshold
         """
-        if not self.integrals.require_centroids:
+#        if not self.integrals.require_centroids:
+        if not glbl.integrals.require_centroids:
             return False
         else:
             return True
@@ -291,10 +294,9 @@ class Bundle:
         Currently only includes energy from alive trajectories
         """
         nalive  = len(self.alive)
-        amp_vec = (np.conj(self.amplitudes()) * self.amplitudes()).real
-        pot_vec = np.array([amp_vec[i] * self.traj[self.alive[i]].potential()
+        pot_vec = np.array([self.traj[self.alive[i]].potential()
                             for i in range(nalive)])
-        return sum(pot_vec)
+        return sum(pot_vec)/nalive
 
     @timings.timed
     def pot_quantum(self):
@@ -311,9 +313,8 @@ class Bundle:
     def kin_classical(self):
         """Returns the classical kinetic energy of the bundle."""
         nalive   = len(self.alive)
-        inv_mass = 1 / (2. * self.traj[0].masses())
-        amp_vec  = (np.conj(self.amplitudes()) * self.amplitudes()).real
-        ke_vec   = np.array([amp_vec[i] * np.dot(self.traj[self.alive[i]].p()**2, inv_mass)
+        kecoef   = glbl.pes.kecoeff
+        ke_vec   = np.array([np.dot(self.traj[self.alive[i]].p()**2, kecoef)
                            for i in range(nalive)])
         return sum(ke_vec)/nalive
 
@@ -342,9 +343,12 @@ class Bundle:
             for j in range(other.nalive):
                 ii = self.alive[i]
                 jj = other.alive[j]
-                S += (self.integrals.traj_overlap(self.traj[ii], other.traj[jj]) *
+                S += (glbl.integrals.traj_overlap(self.traj[ii], other.traj[jj]) *
                       self.traj[ii].amplitude.conjugate() *
                       other.traj[jj].amplitude)
+#                S += (self.integrals.traj_overlap(self.traj[ii], other.traj[jj]) *
+#                      self.traj[ii].amplitude.conjugate() *
+#                      other.traj[jj].amplitude)
         return S
 
     def overlap_traj(self, traj):
@@ -352,8 +356,10 @@ class Bundle:
         amplitude on the trial trajectory is (1.,0.)"""
         ovrlp = 0j
         for i in range(self.nalive+self.ndead):
-            ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) *
+            ovrlp += (glbl.integrals.traj_overlap(traj,self.traj[i]) *
                       self.traj[i].amplitude)
+#            ovrlp += (self.integrals.traj_overlap(traj,self.traj[i]) *
+#                      self.traj[i].amplitude)
         return ovrlp
 
     #----------------------------------------------------------------------
@@ -377,7 +383,7 @@ class Bundle:
             return
 
         # n_traj includes living and dead -- this condition should never be satisfied
-        if self.n_traj() < dim_cent:
+       # if self.n_traj() < dim_cent:
             raise ValueError('n_traj() < dim_cent in bundle. Exiting...')
 
         # ...else we need to add more centroids
@@ -420,13 +426,20 @@ class Bundle:
         # make sure the centroids are up-to-date in order to evaluate
         # self.H -- if we need them
 
-        if self.integrals.require_centroids:
+#        if self.integrals.require_centroids:
+#            (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
+#             self.Heff) = fms_ham.hamiltonian(self.integrals, self.traj, self.alive,
+#                                              cent_list=self.cent)
+        if glbl.integrals.require_centroids:
             (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive,
                                               cent_list=self.cent)
         else:
+#            (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
+#             self.Heff) = fms_ham.hamiltonian(self.integrals, self.traj, self.alive)
             (self.traj_ovrlp, self.T, self.V, self.S, self.Snuc, self.Sdot,
              self.Heff) = fms_ham.hamiltonian(self.traj, self.alive)
+
 
     #------------------------------------------------------------------------
     #
@@ -439,12 +452,36 @@ class Bundle:
 
         np.set_printoptions(precision=8, linewidth=80, suppress=False)
 
-#        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
-#        smat = np.array([[self.integrals.elec_overlap(self.traj[i],self.traj[j]) for i in range(self.nalive)] for j in range(self.nalive)])
-#        with open(filename, 'a') as outfile:
-#            outfile.write('{:9.2f}\n'.format(self.time))
-#            outfile.write(np.array2string(smat,
-#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
+        smat = np.array([[glbl.integrals.elec_overlap(self.traj[j],self.traj[i]) for i in range(self.nalive)] for j in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.2f}\n'.format(self.time))
+            outfile.write(np.array2string(smat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+
+        filename='/tmp/schuurm/fmspy/sig.dat'
+        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],e_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.2f}\n'.format(self.time))
+            outfile.write(np.array2string(smat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+
+        filename='/tmp/schuurm/fmspy/tau.dat'
+        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],nuc_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.2f}\n'.format(self.time))
+            outfile.write(np.array2string(smat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+
+        filename='/tmp/schuurm/fmspy/theta.dat'
+        theta = np.array([glbl.integrals.theta(self.traj[i]) for i in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
+
+        filename='/tmp/schuurm/fmspy/theta_cache.dat'
+        theta = np.array([glbl.integrals.theta_cache[self.traj[i].label] for i in range(self.nalive)])
+        with open(filename, 'a') as outfile:
+            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
@@ -555,7 +592,8 @@ class Bundle:
 
         # bundle matrices
         if glbl.printing['print_matrices']:
-            if self.integrals.basis != 'gaussian':
+#            if self.integrals.basis != 'gaussian':
+            if glbl.integrals.basis != 'gaussian':
                 fileio.print_bund_mat(self.time, 't_ovrlp.dat', self.traj_ovrlp)
             fileio.print_bund_mat(self.time, 'nuc_ovrlp.dat', self.Snuc)
             fileio.print_bund_mat(self.time, 's.dat', self.S)

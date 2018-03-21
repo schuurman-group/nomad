@@ -13,10 +13,8 @@ import src.basis.matching_pursuit as mp
 
 def fms_time_step(master):
     """ Determine time step based on whether in coupling regime"""
-    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
-                            fromlist=['a'])
 
-    if spawning.in_coupled_regime(master):
+    if glbl.spawn.in_coupled_regime(master):
         return float(glbl.propagate['coupled_time_step'])
     else:
         # don't change back to default time step unless we're
@@ -31,10 +29,6 @@ def fms_time_step(master):
 
 def fms_step_bundle(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
-    integrator = __import__('src.propagators.'+glbl.propagate['propagator'],
-                            fromlist=['a'])
-    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
-                            fromlist=['a'])
 
     # save the bundle from previous step in case step rejected
     end_time      = master.time + dt
@@ -54,7 +48,7 @@ def fms_step_bundle(master, dt):
         # propagate amplitudes for 1/2 time step using x0
         master.update_amplitudes(0.5*dt, update_ham=False)
         # the propagators update the potential energy surface as need be.
-        integrator.propagate_bundle(master, time_step)
+        glbl.integrator.propagate_bundle(master, time_step)
         # propagate amplitudes for 1/2 time step using x1
         master.update_amplitudes(0.5*dt)
 
@@ -70,7 +64,7 @@ def fms_step_bundle(master, dt):
             # update the bundle time
             master.time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = spawning.spawn(master, time_step)
+            basis_grown  = glbl.spawn.spawn(master, time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
 
@@ -78,7 +72,7 @@ def fms_step_bundle(master, dt):
             # to get the electronic structure information at the associated
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
-            if basis_grown and master.integrals.require_centroids:
+            if basis_grown and glbl.integrals.require_centroids:
                 surface.update_pes(master)
 
             # update the Hamiltonian and associated matrices
@@ -117,9 +111,6 @@ def fms_step_trajectory(traj, init_time, dt):
     NOTE: fms_step_bundle and fms_step_trajectory could/should probably
     be integrated somehow...
     """
-    integrator = __import__('src.propagators.' + glbl.propagate['propagator'],
-                            fromlist=['a'])
-
     current_time = init_time
     end_time     = init_time + dt
     time_step    = dt
@@ -130,7 +121,7 @@ def fms_step_trajectory(traj, init_time, dt):
         traj0 = traj.copy()
 
         # propagate single trajectory
-        integrator.propagate_trajectory(traj, time_step)
+        glbl.integrator.propagate_trajectory(traj, time_step)
 
         # update current time
         proposed_time = current_time + time_step
@@ -173,11 +164,8 @@ def step_complete(current_time, final_time, dt):
 def check_step_bundle(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
-    spawning   = __import__('src.spawn.'+glbl.spawning['spawning'],
-                            fromlist=['a'])
-
     # if we're in the coupled regime and using default time step, reject
-    if spawning.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
+    if glbl.spawn.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
     # ...or if there's a numerical error in the simulation:
     #  norm conservation

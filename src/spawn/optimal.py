@@ -22,11 +22,8 @@ import src.basis.trajectory as trajectory
 import src.spawn.utilities as utils
 import src.dynamics.step as step
 import src.dynamics.surface as surface
-integrals = __import__('src.integrals.'+glbl.propagate['integrals'],fromlist=['a'])
-
 
 coup_hist = []
-
 
 def spawn(master, dt):
     """Propagates to the point of maximum coupling, spawns a new
@@ -120,7 +117,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
         adjust_success      = utils.adjust_child(parent, child_attempt,
                                                  parent.derivative(parent_state,
                                                                    child_state))
-        sij = abs(integrals.traj_overlap(parent, child_attempt, nuc_only=True))
+        sij = abs(glbl.integrals.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail

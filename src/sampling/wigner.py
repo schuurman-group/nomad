@@ -16,8 +16,7 @@ def set_initial_coords(master):
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.interface['interface'] == 'vibronic':
         coordtype = 'normal'
-        import src.interfaces.vibronic as interface
-        ham       = interface.ham
+        ham       = glbl.pes.ham
     else:
         coordtype = 'cart'
 
