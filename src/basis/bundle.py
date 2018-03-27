@@ -452,36 +452,36 @@ class Bundle:
 
         np.set_printoptions(precision=8, linewidth=80, suppress=False)
 
-        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
-        smat = np.array([[glbl.integrals.elec_overlap(self.traj[j],self.traj[i]) for i in range(self.nalive)] for j in range(self.nalive)])
-        with open(filename, 'a') as outfile:
-            outfile.write('{:9.2f}\n'.format(self.time))
-            outfile.write(np.array2string(smat,
-                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+#        filename='/tmp/schuurm/fmspy/elec_overlap.dat'
+#        smat = np.array([[glbl.integrals.elec_overlap(self.traj[j],self.traj[i]) for i in range(self.nalive)] for j in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.2f}\n'.format(self.time))
+#            outfile.write(np.array2string(smat,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
-        filename='/tmp/schuurm/fmspy/sig.dat'
-        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],e_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
-        with open(filename, 'a') as outfile:
-            outfile.write('{:9.2f}\n'.format(self.time))
-            outfile.write(np.array2string(smat,
-                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+#        filename='/tmp/schuurm/fmspy/sig.dat'
+#        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],e_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.2f}\n'.format(self.time))
+#            outfile.write(np.array2string(smat,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
-        filename='/tmp/schuurm/fmspy/tau.dat'
-        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],nuc_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
-        with open(filename, 'a') as outfile:
-            outfile.write('{:9.2f}\n'.format(self.time))
-            outfile.write(np.array2string(smat,
-                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+#        filename='/tmp/schuurm/fmspy/tau.dat'
+#        smat = np.array([[glbl.integrals.sdot_integral(self.traj[j],self.traj[i],nuc_only=True) for i in range(self.nalive)] for j in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.2f}\n'.format(self.time))
+#            outfile.write(np.array2string(smat,
+#                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
-        filename='/tmp/schuurm/fmspy/theta.dat'
-        theta = np.array([glbl.integrals.theta(self.traj[i]) for i in range(self.nalive)])
-        with open(filename, 'a') as outfile:
-            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
+#        filename='/tmp/schuurm/fmspy/theta.dat'
+#        theta = np.array([glbl.integrals.theta(self.traj[i]) for i in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
 
-        filename='/tmp/schuurm/fmspy/theta_cache.dat'
-        theta = np.array([glbl.integrals.theta_cache[self.traj[i].label] for i in range(self.nalive)])
-        with open(filename, 'a') as outfile:
-            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
+#        filename='/tmp/schuurm/fmspy/theta_cache.dat'
+#        theta = np.array([glbl.integrals.theta_cache[self.traj[i].label] for i in range(self.nalive)])
+#        with open(filename, 'a') as outfile:
+#            outfile.write('{:9.4f}{:15.8f}{:15.8f}{:15.8f}{:15.8f}\n'.format(self.time,theta[0],theta[1],theta[2],theta[3]))
 
         for i in range(self.n_traj()):
             if not self.traj[i].active:
