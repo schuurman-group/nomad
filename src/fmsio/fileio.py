@@ -169,35 +169,36 @@ def validate_input():
         glbl.integrals =__import__('src.integrals.'+
                                    glbl.propagate['integrals'],fromlist=['a'])
     except ImportError:
-        print('INTEGRALS INIT FAIL: src.integrals.'+glbl.propagate['integrals'])
+        print('Cannot import integrals: src.integrals.' + 
+                               str(glbl.propagate['integrals']))
 
     try:
-        glbl.pes = __import__('src.interfaces.'+glbl.interface['interface'],
-                               fromlist=['NA'])
+        glbl.pes = __import__('src.interfaces.' + 
+                               glbl.interface['interface'],fromlist=['NA'])
     except ImportError:
         print('Cannot import pes: src.interfaces.'+
-               str(glbl.interface['interface']))
+                               str(glbl.interface['interface']))
 
     try:
         glbl.distrib = __import__('src.sampling.'+glbl.sampling['init_sampling'],
-                         fromlist=['NA'])
+                                 fromlist=['NA'])
     except ImportError:
         print('Cannot import sampling: src.sampling.'+
-               str(glbl.sampling['init_sampling']))
+                               str(glbl.sampling['init_sampling']))
 
     try:
         glbl.spawn = __import__('src.spawn.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
         print('Cannot import spawning: src.spawn.'+
-               str(glbl.spawning['spawning']))
+                               str(glbl.spawning['spawning']))
 
     try:
         glbl.integrator = __import__('src.propagators.'+glbl.propagate['propagator'],
                                      fromlist=['a'])
     except ImportError:
         print('Cannot import propagator: src.propagators.'+
-               str(glbl.propagate['propagator']))
+                               str(glbl.propagate['propagator']))
 
 
     # if geomfile specified, it's contents overwrite variable settings in fms.input
