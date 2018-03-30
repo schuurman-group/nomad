@@ -4,8 +4,8 @@ Linear algebra library routines.
 
 import sys
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
 
 def pseudo_inverse(mat):
     """ Modified version of the scipy pinv function. Altered such that

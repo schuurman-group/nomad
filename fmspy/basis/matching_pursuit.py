@@ -6,10 +6,10 @@ The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
 import sys
 import numpy as np
 import copy
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.basis.bundle as bundle
-import src.utils.linalg as linalg
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
+import fmspy.basis.bundle as bundle
+import fmspy.utils.linalg as linalg
 
 
 selected = []

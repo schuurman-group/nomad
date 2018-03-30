@@ -6,9 +6,9 @@ execution of potential evaluations which is essential for ab initio PES.
 """
 from functools import partial
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.basis.trajectory as trajectory
-import src.basis.centroid as centroid
+import fmspy.fmsio.glbl as glbl
+import fmspy.basis.trajectory as trajectory
+import fmspy.basis.centroid as centroid
 
 pes_cache  = dict()
 

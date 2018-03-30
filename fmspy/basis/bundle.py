@@ -5,12 +5,12 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-from src.dynamics import timings
-from src.fmsio import glbl as glbl
-from src.fmsio import fileio as fileio
-from src.basis import trajectory as trajectory
-from src.basis import centroid as centroid
-from src.basis import hamiltonian as fms_ham
+from fmspy.dynamics import timings
+from fmspy.fmsio import glbl as glbl
+from fmspy.fmsio import fileio as fileio
+from fmspy.basis import trajectory as trajectory
+from fmspy.basis import centroid as centroid
+from fmspy.basis import hamiltonian as fms_ham
 
 
 class Bundle:
@@ -33,10 +33,10 @@ class Bundle:
         self.Heff      = np.zeros((0, 0), dtype=complex)
         self.traj_ovrlp= np.zeros((0, 0), dtype=complex)
 #        try:
-#            self.integrals=__import__('src.integrals.'+
+#            self.integrals=__import__('fmspy.integrals.'+
 #                                       self.integral_type,fromlist=['a'])
 #        except ImportError:
-#            print('BUNDLE INIT FAIL: src.integrals.'+self.integral_type)
+#            print('BUNDLE INIT FAIL: fmspy.integrals.'+self.integral_type)
 
     @timings.timed
     def copy(self):

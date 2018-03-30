@@ -30,9 +30,9 @@ step size sfac*dt. Otherwise, use sfac*dt for next step. Update
 position, momentum using x4, p4.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import fmspy.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.dynamics.surface as surface
 
 
 rk_ordr = 6

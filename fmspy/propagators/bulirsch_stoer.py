@@ -19,9 +19,9 @@ values of n.
 For more details, see http://apps.nrbook.com/fortran/index.html.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import fmspy.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.dynamics.surface as surface
 
 
 propphase = glbl.propagate['phase_prop']

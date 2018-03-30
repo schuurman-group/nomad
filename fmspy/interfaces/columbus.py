@@ -9,11 +9,11 @@ import pathlib
 import subprocess
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.atom_lib as atom_lib
-import src.basis.trajectory as trajectory
-import src.basis.centroid as centroid
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.atom_lib as atom_lib
+import fmspy.basis.trajectory as trajectory
+import fmspy.basis.centroid as centroid
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,

@@ -4,8 +4,8 @@ The Trajectory object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
 
 
 class Trajectory:

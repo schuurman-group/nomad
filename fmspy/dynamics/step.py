@@ -3,12 +3,12 @@ Routines for propagating a bundle forward by a time step.
 """
 import sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.bundle as bundle
-import src.basis.trajectory as trajectory
-import src.dynamics.surface as surface
-import src.basis.matching_pursuit as mp
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.bundle as bundle
+import fmspy.basis.trajectory as trajectory
+import fmspy.dynamics.surface as surface
+import fmspy.basis.matching_pursuit as mp
 
 
 def fms_time_step(master):

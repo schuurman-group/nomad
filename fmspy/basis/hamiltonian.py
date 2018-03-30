@@ -16,10 +16,10 @@ As a matter of course, this function also builds:
 import sys
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.utils.linalg as fms_linalg
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.utils.linalg as fms_linalg
 
 def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the

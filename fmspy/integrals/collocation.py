@@ -5,9 +5,9 @@ trajectory 1 and trajectory 2.
 import sys
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.integrals.nuclear_dirac as dirac 
-import src.integrals.nuclear_gaussian as gauss
+import fmspy.fmsio.glbl as glbl
+import fmspy.integrals.nuclear_dirac as dirac 
+import fmspy.integrals.nuclear_gaussian as gauss
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False

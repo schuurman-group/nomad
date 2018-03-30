@@ -3,8 +3,8 @@ General routines for all spawning algorithms.
 """
 import sys as sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
 
 def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same

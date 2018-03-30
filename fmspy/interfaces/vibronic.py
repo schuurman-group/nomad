@@ -5,8 +5,8 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
 
 kecoeff = None
 ham = None

@@ -9,9 +9,9 @@ import ast
 import shutil
 import traceback
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.basis.atom_lib as atom_lib
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
+import fmspy.basis.atom_lib as atom_lib
 
 
 # Make sure that we print entire arrays
@@ -166,38 +166,38 @@ def validate_input():
     """
     # set the integral definition
     try:
-        glbl.integrals =__import__('src.integrals.'+
+        glbl.integrals =__import__('fmspy.integrals.'+
                                    glbl.propagate['integrals'],fromlist=['a'])
     except ImportError:
-        print('Cannot import integrals: src.integrals.' + 
+        print('Cannot import integrals: fmspy.integrals.' +
                                str(glbl.propagate['integrals']))
 
     try:
-        glbl.pes = __import__('src.interfaces.' + 
+        glbl.pes = __import__('fmspy.interfaces.' +
                                glbl.interface['interface'],fromlist=['NA'])
     except ImportError:
-        print('Cannot import pes: src.interfaces.'+
+        print('Cannot import pes: fmspy.interfaces.'+
                                str(glbl.interface['interface']))
 
     try:
-        glbl.distrib = __import__('src.sampling.'+glbl.sampling['init_sampling'],
+        glbl.distrib = __import__('fmspy.sampling.'+glbl.sampling['init_sampling'],
                                  fromlist=['NA'])
     except ImportError:
-        print('Cannot import sampling: src.sampling.'+
+        print('Cannot import sampling: fmspy.sampling.'+
                                str(glbl.sampling['init_sampling']))
 
     try:
-        glbl.spawn = __import__('src.spawn.'+glbl.spawning['spawning'],
+        glbl.spawn = __import__('fmspy.spawn.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
-        print('Cannot import spawning: src.spawn.'+
+        print('Cannot import spawning: fmspy.spawn.'+
                                str(glbl.spawning['spawning']))
 
     try:
-        glbl.integrator = __import__('src.propagators.'+glbl.propagate['propagator'],
+        glbl.integrator = __import__('fmspy.propagators.'+glbl.propagate['propagator'],
                                      fromlist=['a'])
     except ImportError:
-        print('Cannot import propagator: src.propagators.'+
+        print('Cannot import propagator: fmspy.propagators.'+
                                str(glbl.propagate['propagator']))
 
 

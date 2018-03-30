@@ -7,12 +7,12 @@ import sys
 import random
 import numpy as np
 import mpi4py.MPI as MPI
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.bundle as bundle
-import src.dynamics.timings as timings
-import src.dynamics.initialize as initialize
-import src.dynamics.step as step
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.bundle as bundle
+import fmspy.dynamics.timings as timings
+import fmspy.dynamics.initialize as initialize
+import fmspy.dynamics.step as step
 
 
 def init():

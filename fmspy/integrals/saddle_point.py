@@ -7,8 +7,8 @@ This currently uses first-order saddle point.
 import sys
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.integrals.nuclear_gaussian as nuclear
+import fmspy.fmsio.glbl as glbl
+import fmspy.integrals.nuclear_gaussian as nuclear
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False

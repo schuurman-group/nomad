@@ -4,11 +4,11 @@ Routines for initializing dynamics calculations.
 import sys
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.trajectory as trajectory
-import src.basis.bundle as bundle
-import src.dynamics.surface as surface
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.trajectory as trajectory
+import fmspy.basis.bundle as bundle
+import fmspy.dynamics.surface as surface
 
 #--------------------------------------------------------------------------
 #

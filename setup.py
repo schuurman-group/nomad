@@ -13,11 +13,11 @@ def readme():
 
 
 ext_modules=[
-    Extension('src.integrals.nuclear_gaussian',
+    Extension('fmspy.integrals.nuclear_gaussian',
               sources=['fmspy/integrals/nuclear_gaussian.pyx'], libraries=['m']),
-    Extension('src.integrals.nuclear_gaussian_ccs',
+    Extension('fmspy.integrals.nuclear_gaussian_ccs',
               sources=['fmspy/integrals/nuclear_gaussian_ccs.pyx'], libraries=['m']),
-    Extension('src.integrals.nuclear_dirac',
+    Extension('fmspy.integrals.nuclear_dirac',
               sources=['fmspy/integrals/nuclear_dirac.pyx'], libraries=['m'])
 ]
 

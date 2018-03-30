@@ -13,11 +13,11 @@ parent(r,p,st,ti) ------------------------------------> child(r,p',st',ti)
    enforce constraint that classical energies be equal.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.dynamics.timings as timings
-import src.basis.trajectory as trajectory
-import src.spawn.utilities as utilities
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.dynamics.timings as timings
+import fmspy.basis.trajectory as trajectory
+import fmspy.spawn.utilities as utilities
 
 @timings.timed
 def spawn(master, dt):

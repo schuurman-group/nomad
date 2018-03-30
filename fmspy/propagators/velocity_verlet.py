@@ -6,9 +6,9 @@ Velocity Verlet:
   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import fmspy.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.dynamics.surface as surface
 
 
 propphase = glbl.propagate['phase_prop']

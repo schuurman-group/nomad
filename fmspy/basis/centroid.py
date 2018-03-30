@@ -4,8 +4,8 @@ The Centroid object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
+import fmspy.dynamics.timings as timings
+import fmspy.fmsio.glbl as glbl
 
 
 def cent_label(itraj_id, jtraj_id):

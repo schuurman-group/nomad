@@ -5,9 +5,9 @@ import sys
 import random
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.trajectory as trajectory
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.trajectory as trajectory
 
 
 def set_initial_coords(master):

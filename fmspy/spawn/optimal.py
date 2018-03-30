@@ -16,12 +16,12 @@ child(s',ti) <------------- child(s',ts)
 """
 import sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.trajectory as trajectory
-import src.spawn.utilities as utils
-import src.dynamics.step as step
-import src.dynamics.surface as surface
+import fmspy.fmsio.glbl as glbl
+import fmspy.fmsio.fileio as fileio
+import fmspy.basis.trajectory as trajectory
+import fmspy.spawn.utilities as utils
+import fmspy.dynamics.step as step
+import fmspy.dynamics.surface as surface
 
 coup_hist = []
 
