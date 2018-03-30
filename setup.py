@@ -44,6 +44,6 @@ setup(
     ext_modules = cythonize(ext_modules),
     entry_points={
             'console_scripts': [
-                  'fmspy = fmspy.__main__:main']
+                  'fmspy = fmspy.__main__:main_cli']
       }
       )

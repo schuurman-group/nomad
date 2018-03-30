@@ -75,7 +75,7 @@ def main():
     fileio.cleanup_end()
 
 
-if __name__ == '__main__':
+def main_cli():
     # parse command line arguments
     if '-mpi' in sys.argv:
         glbl.mpi['parallel'] = True
@@ -86,3 +86,7 @@ if __name__ == '__main__':
     sys.excepthook = fileio.cleanup_exc
     # run the main routine
     main()
+
+
+if __name__ == '__main__':
+    main_cli()
