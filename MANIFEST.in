@@ -1,2 +1,2 @@
-include README.md
-recursive-include *.pyx
+include README.rst
+recursive-include nomad *.pyx
