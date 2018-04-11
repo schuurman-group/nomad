@@ -1,6 +1,6 @@
-FMSpy
+nomad
 =====
-Full multiple spawning molecular dynamics in Python
+Nonadiabatic Multistate Adaptive Dynamics
 
 Created Nov. 11, 2015 -- M.S. Schuurman
 
