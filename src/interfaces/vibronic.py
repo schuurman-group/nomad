@@ -13,76 +13,6 @@ ham = None
 nsta = glbl.propagate['n_states']
 data_cache = dict()
 
-
-class Surface:
-    """Object containing potential energy surface data."""
-    def __init__(self, tag, n_states, t_dim):
-        # necessary for array allocation
-        self.tag      = tag
-        self.n_states = n_states
-        self.t_dim    = t_dim
-
-        # these are the standard quantities ALL interface_data objects return
-        self.data_keys = []
-        # the current geometry
-        self.geom      = np.zeros(t_dim)
-        # the potential energy (adiabatic or diabatic, depening on integral scheme)
-        self.potential = np.zeros(n_states)
-        # the derivative of the potentials. 
-        # For adiabatic surfaces, diagonal elements
-        # are the adiabatic gradients, of diagaonal are the derivative couplings
-        # For diabatic surfaces, just the derivative of the diabatic Hamiltonian
-        self.deriv     = np.zeros((t_dim, n_states, n_states))
-        # the second derivaative of the potentials
-        # For adiabatic surfaces, returns the hessians and the derivatives of the
-        # derivative couplings
-        # For diabatic propagation: second derivative of the diabatic Hamiltonian
-        self.deriv2    = np.zeros((t_dim, t_dim, n_states, n_states))
-        # return the coupling between the states
-        # For adiabatic surfaces, this is the derivative coupling
-        # For diabatic surfaces, this is the potential coupling divided by Delta E
-        self.coupling = np.zeros((t_dim, n_states, n_states))
-        # included for adiabatic coupling only
-        self.scalar_coup    = np.zeros((n_states, n_states))
-        # nonadiabatic coupling
-        self.nac            = np.zeros((t_dim, n_states, n_states))
-
-        # the following will potentially be cleaned up (removed) at a later date:
-        self.dat_mat        = np.zeros((n_states, n_states))
-        self.adt_mat        = np.zeros((n_states, n_states))
-        self.ddat_mat       = np.zeros((t_dim, n_states, n_states))
-        self.diabat_pot     = np.zeros((n_states, n_states))
-        self.diabat_deriv   = np.zeros((t_dim, n_states, n_states))
-        self.diabat_deriv2  = np.zeros((t_dim, t_dim, n_states, n_states))
-        self.adiabat_pot    = np.zeros(n_states)
-        self.adiabat_deriv  = np.zeros((t_dim, n_states))
-        self.adiabat_deriv2 = np.zeros((t_dim, t_dim, n_states))
-
-    def copy(self):
-        """Creates a copy of a Surface object."""
-        new_info = Surface(self.tag, self.n_states, self.t_dim)
-
-        new_info.data_keys     = copy.copy(self.data_keys)
-        new_info.geom          = copy.deepcopy(self.geom)
-        new_info.potential     = copy.deepcopy(self.potential)
-        new_info.deriv         = copy.deepcopy(self.deriv)
-        new_info.deriv2        = copy.deepcopy(self.deriv2)
-        new_info.coupling      = copy.deepcopy(self.coupling)
-        new_info.scalar_coup    = copy.deepcopy(self.scalar_coup)
-        new_info.nac           = copy.deepcopy(self.nac)
-
-        new_info.dat_mat        = copy.deepcopy(self.dat_mat)
-        new_info.adt_mat        = copy.deepcopy(self.dat_mat)
-        new_info.ddat_mat       = copy.deepcopy(self.ddat_mat)
-        new_info.diabat_pot     = copy.deepcopy(self.diabat_pot)
-        new_info.diabat_deriv   = copy.deepcopy(self.diabat_deriv)
-        new_info.diabat_deriv2  = copy.deepcopy(self.diabat_deriv2)
-        new_info.adiabat_pot    = copy.deepcopy(self.adiabat_pot)
-        new_info.adiabat_deriv  = copy.deepcopy(self.adiabat_deriv)
-        new_info.adiabat_deriv2 = copy.deepcopy(self.adiabat_deriv2)
-        return new_info
-
-
 class VibHam:
     """Object containing the vibronic Hamiltonian parameters."""
     def __init__(self):
@@ -268,7 +198,7 @@ def evaluate_trajectory(traj, t=None):
     label = traj.label
     geom  = traj.x()
 
-    # Calculation of the diabatic potential matrix
+     # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
 
     # Calculation of the nuclear derivatives of the diabatic potential
@@ -284,15 +214,12 @@ def evaluate_trajectory(traj, t=None):
 
     #** load the data into the pes object to pass to trajectory **
 
-    t_data           = Surface(label, nsta, ham.nmode_active)
-    t_data.geom      = geom
+    t_data           = Surface()
+    t_data.add_item('geom',geom)
 
-    t_data.diabat_pot     = diabpot
-    t_data.diabat_deriv   = diabderiv1
-    t_data.diabat_deriv2  = diabderiv2
-
-    t_data.data_keys     = ['geom','poten','deriv','deriv2','coupling','nac',
-                            'diabat_pot','diabat_deriv','diabat_deriv2']
+    t_data.add_item('diabat_pot',diabpot)
+    t_data.add_item('diabat_deriv',diabderiv1)
+    t_data.add_item('diabat_hessian',diabderiv2)
 
     if glbl.variables['surface_rep'] == 'adiabatic':
         # Calculation of the adiabatic potential vector and ADT matrix
@@ -316,36 +243,29 @@ def evaluate_trajectory(traj, t=None):
         sctmat, dbocderiv1 = calc_scts(adiabpot, datmat, diabderiv1,
                                    nactmat, adiabderiv1, diablap)
 
-        t_data.potential   = adiabpot
-        t_data.deriv       = [np.diag(adiabderiv1[m]) for m in
-                             range(ham.nmode_total)] + nactmat
-        t_data.deriv2      = adiabderiv2
-        t_data.coupling    = nactmat
-        t_data.nac         = nactmat
-        t_data.scalar_coup = 0.5*sctmat #account for the 1/2 prefactor in the EOMs
+        t_data.add_item('potential',adiabpot)
+        t_data.add_item('derivative', np.array([np.diag(adiabderiv1[m]) for m in
+                                      range(ham.nmode_total)] + nactmat))
+        t_data.add_item('hessian',adiabderiv2)
+        t_data.add_item('coupling',nactmat)
 
-        # adiabatic -> diabatic and diabatic -> adiabatic transformation matrices
-        t_data.dat_mat        = datmat
-        t_data.adt_mat        = datmat.T
-        t_data.adiabat_pot    = adiabpot
-        t_data.adiabat_deriv  = adiabderiv1
-        t_data.adiabat_deriv2 = adiabderiv2
-
-        t_data.data_keys.extend(['adiabat_pot','adiabat_deriv'])
+        # non-standard items
+        t_data.add_item('nac',nactmat)
+        t_data.add_item('scalar_coup',0.5*sctmat) #account for the 1/2 prefactor in the EOMs
+        t_data.add_item('dat_mat',datmat)
+        t_data.add_item('adt_mat',datmat.T)
+        t_data.add_item('adiabat_pot',adiabpot)
+        t_data.add_item('adiabat_deriv',adiabderiv1)
+        t_data.add_item('adiabat_deriv2',adiabderiv2)
 
     else:
-        # Calculation of the adiabatic potential vector and ADT matrix
-        adiabpot, datmat = calc_dat(label, diabpot)
-        # Calculation of the NACT matrix
-        nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
         # determine the effective diabatic coupling: Hij / (Ei - Ej)
         diab_effcoup     = calc_diabeffcoup(diabpot)
 
-        t_data.potential = np.array([diabpot[i,i] for i in range(nsta)])
-        t_data.deriv     = diabderiv1 
-        t_data.deriv2    = diabderiv2
-        t_data.coupling  = diab_effcoup
-        t_data.nac       = nactmat
+        t_data.add_item('potential',np.array([diabpot[i,i] for i in range(nsta)]))
+        t_data.add_item('derivative',diabderiv1)
+        t_data.add_item('hessian',diabderiv2)
+        t_data.add_item('coupling',diab_effcoup)
 
     data_cache[label] = t_data
     return t_data
@@ -456,7 +376,7 @@ def calc_dat(label, diabpot):
 
     if label in data_cache:
         # Ensure phase continuity from geometry to another
-        datmat *= np.sign(np.dot(datmat.T, data_cache[label].dat_mat).diagonal())
+        datmat *= np.sign(np.dot(datmat.T, data_cache[label].get_item('dat_mat').diagonal()))
     else:
         # Set phase convention that the greatest abs element in dat column
         # vector is positive

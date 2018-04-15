@@ -72,3 +72,31 @@ def print_set(set_struct, file_name, directory_name=None):
 
 return
 
+#
+#
+#
+def print_trajectory()
+"""Documentation to come"""
+
+    # trajectory output
+    arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
+    arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
+    tfile_names[tkeys[0]] = 'trajectory'
+    dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
+                             ''.join(arr2) + 'Phase'.rjust(acc1) +
+                             'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) +
+                             'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
+                             '\n')
+    dump_format[tkeys[0]] = ('{:12.4f}'+
+                             ''.join('{:12.6f}' for i in range(2*ncrd+5))+
+                             '\n')
+
+
+return
+
+
+
+
+
+
+

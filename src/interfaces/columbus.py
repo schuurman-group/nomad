@@ -9,11 +9,12 @@ import pathlib
 import subprocess
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.atom_lib as atom_lib
+import src.parse.glbl as glbl
+import src.parse.fileio as fileio
+import src.parse.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
+import src.data.surface as surface
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -59,50 +60,6 @@ max_l        = 1
 mrci_lvl     = 0
 # amount of memory per process, in MB
 mem_str      = ''
-
-
-class Surface:
-    """Object containing potential energy surface data."""
-    def __init__(self, tag, n_states, t_dim):
-        # necessary for array allocation
-        self.tag      = tag
-        self.n_states = n_states
-        self.t_dim    = t_dim
-
-        # these are the standard quantities ALL interface_data objects return
-        self.data_keys = []
-        self.geom      = np.zeros(t_dim)
-        self.potential = np.zeros(n_states)
-        self.deriv     = np.zeros((t_dim, n_states, n_states))
-        self.coupling  = np.zeros((t_dim, n_states, n_states))
-
-        # these are interface-specific quantities
-        # atomic populations
-        self.atom_pop  = np.zeros((int(t_dim/3),n_states))
-        # includes permanent (diagonal) and transition (off-diagonal) dipoles
-        self.dipoles   = np.zeros((3, n_states, n_states))
-        # second moments of the current states (3x3 tensor)
-        self.sec_moms  = np.zeros((3, 3, n_states))
-        # molecular orbitals
-        self.mos       = None
-
-    def copy(self):
-        """Creates a copy of a Surface object."""
-        new_info = Surface(self.tag, self.n_states, self.t_dim)
-
-        # required potential data
-        new_info.data_keys = copy.copy(self.data_keys)
-        new_info.geom      = copy.deepcopy(self.geom)
-        new_info.potential = copy.deepcopy(self.potential)
-        new_info.deriv     = copy.deepcopy(self.deriv)
-        new_info.coupling  = copy.deepcopy(self.coupling)
-
-        # interface-dependent potential data
-        new_info.atom_pop  = copy.deepcopy(self.atom_pop)
-        new_info.dipoles   = copy.deepcopy(self.dipoles)
-        new_info.sec_moms  = copy.deepcopy(self.sec_moms)
-        new_info.mos       = copy.deepcopy(self.mos)
-        return new_info
 
 
 #----------------------------------------------------------------
@@ -229,9 +186,8 @@ def evaluate_trajectory(traj, t=None):
               'id associated with centroid, label=' + str(label))
 
     # create surface object to hold potential information
-    col_surf      = Surface(label, nstates, n_cart)
-    col_surf.geom = traj.x()
-    col_surf.data_keys.append('geom')
+    col_surf      = surface.Surface()
+    col_surf.add_item('geom', traj.x())
 
     # write geometry to file
     write_col_geom(traj.x())
@@ -245,21 +201,19 @@ def evaluate_trajectory(traj, t=None):
 
     # run mcscf
     run_col_mcscf(traj, t)
-    col_surf.mos = pack_mocoef()
-    col_surf.data_keys.append('mos')
+    col_surf.add_item('mos',pack_mocoef())
 
     # run mrci, if necessary
-    col_surf.potential, col_surf.atom_pop = run_col_mrci(traj, ci_restart, t)
-    col_surf.data_keys.append('poten')
-    col_surf.data_keys.append('atom_pop')
+    potential, atom_pop = run_col_mrci(traj, ci_restart, t)
+    col_surf.add_item('potential', potential)
+    col_surf.add_item('atom_pop', atom_pop)
 
     # run properties, dipoles, etc.
     [perm_dipoles, sec_moms] = run_col_multipole(traj)
+    col_surf.add_item('sec_mom', sec_moms)
+    dipoles = np.zeros(3,nstates,nstates)
     for i in range(nstates):
-        col_surf.dipoles[:,i,i] = perm_dipoles[:,i]
-    col_surf.sec_moms = sec_moms
-    col_surf.data_keys.append('dipole')
-    col_surf.data_keys.append('sec_mom')
+        dipoles[:,i,i] = perm_dipoles[:,i]
 
     # run transition dipoles
     init_states = [0, state]
@@ -267,13 +221,14 @@ def evaluate_trajectory(traj, t=None):
         for j in range(nstates):
             if i != j or (j in init_states and j < i):
                 tr_dip = run_col_tdipole(label, i, j)
-                col_surf.dipoles[:,i,j] = tr_dip
-                col_surf.dipoles[:,j,i] = tr_dip
-    col_surf.data_keys.append('tr_dipole')
+                dipoles[:,i,j] = tr_dip
+                dipoles[:,j,i] = tr_dip
+    col_surf.add_item('dipole',dipoles)
 
     # compute gradient on current state
+    deriv = np.zeroes(n_cart, nstates, nstates)
     grads = run_col_gradient(traj, t)
-    col_surf.deriv[:, state, state] = grads
+    deriv[:,state,state] = grads
 
     # run coupling to other states
     nad_coup = run_col_coupling(traj, col_surf.potential, t)
@@ -281,12 +236,10 @@ def evaluate_trajectory(traj, t=None):
         if i != state:
             state_i = min(i,state)
             state_j = max(i,state)
-            col_surf.deriv[:, state_i, state_j] =  nad_coup[:, i]
-            col_surf.deriv[:, state_j, state_i] = -nad_coup[:, i]
-            col_surf.coupling[:, state_i, state_j] = nad_coup[:,i]
-            col_surf.coupling[:, state_j, state_i] = -nad_coup[:,i]
-    col_surf.data_keys.append('deriv')
-    col_surf.data_keys.append('coupling')
+            deriv[:, state_i, state_j] =  nad_coup[:, i]
+            deriv[:, state_j, state_i] = -nad_coup[:, i]
+    col_surf.add_item('derivative', deriv)
+    col_surf.add_item('coupling', deriv)
 
     # save restart files
     make_col_restart(traj)
@@ -310,7 +263,8 @@ def evaluate_centroid(Cent, t=None):
     state_j = max(Cent.pstates)
 
     # create surface object to hold potential information
-    col_surf      = Surface(label, nstates, n_cart)
+    col_surf      = surface.Surface()
+    col_surf.add_item('geom', Cent.x())
     col_surf.geom = Cent.x()
     col_surf.data_keys.append('geom')
 

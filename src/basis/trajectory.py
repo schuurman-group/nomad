@@ -52,7 +52,7 @@ class Trajectory:
         # time trajectory last left coupling region
         self.exit_time  = np.zeros(self.nstates)
         # data structure to hold the pes data from the interface
-        self.pes_data  = None
+        self.pes        = None
 
     @timings.timed
     def copy(self):
@@ -68,8 +68,8 @@ class Trajectory:
         new_traj.mom        = copy.deepcopy(self.mom)
         new_traj.last_spawn = copy.deepcopy(self.last_spawn)
         new_traj.exit_time  = copy.deepcopy(self.exit_time)
-        if self.pes_data is not None:
-            new_traj.pes_data = self.pes_data.copy()
+        if self.pes is not None:
+            new_traj.pes = self.pes.copy()
         return new_traj
 
     #-------------------------------------------------------------------
@@ -107,9 +107,9 @@ class Trajectory:
         """Updates the amplitude of the trajectory."""
         self.amplitude = amplitude
 
-    def update_pes_info(self, pes_info):
+    def update_pes_info(self, new_pes):
         """Updates information about the potential energy surface."""
-        self.pes_data = pes_info.copy()
+        self.pes = new_pes.copy()
 
     #-----------------------------------------------------------------------
     #
@@ -147,62 +147,62 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.potential[state] + glbl.propagate['pot_shift']
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('potential')[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.deriv[:, state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('derivative')[:, state_i, state_j]
 
     def hessian(self, state_i):
         """Returns the hessian of the potential on state state_i
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
-            print('WARNING: trajectory.derivative() called, ' +
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+            print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.deriv2[:, :, state_i]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('hessian')[:, :, state_i]
 
     def coupling(self, state_i, state_j):
         """Returns the coupling between surfaces state_i and state_j
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
-            print('WARNING: trajectory.derivative() called, ' +
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+            print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.coupling[:, state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('coupling')[:, state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
            block (self.state,c_state)."""
-        if 'scalar_coup' not in self.pes_data.data_keys:
+        if 'scalar_coup' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.scalar_coup[state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('scalar_coup')[state_i, state_j]
 
     def nact(self, state_i, state_j):
         """Returns the derivative coupling between adiabatic states
            block (self.state,c_state)."""
-        if 'nac' not in self.pes_data.data_keys:
+        if 'nac' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.nact() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes_data.geom))
-        return self.pes_data.nac[:,state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
+        return self.pes.get_item('nact')[:,state_i, state_j]
 
 
     #------------------------------------------------------------------------
@@ -265,93 +265,4 @@ class Trajectory:
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""
         return self.state == j_state
-
-    #--------------------------------------------------------------------------
-    #
-    # routines to write/read trajectory from a file stream
-    #
-    #--------------------------------------------------------------------------
-    def write_trajectory(self, chkpt):
-        """Writes trajectory information to a file stream."""
-        np.set_printoptions(precision=8, linewidth=80, suppress=False)
-        chkpt.write('     {:5s}            alive\n'.format(str(self.alive)))
-        chkpt.write('{:10d}            nstates\n'.format(self.nstates))
-        chkpt.write('{:10d}            traj ID\n'.format(self.label))
-        chkpt.write('{:10d}            state\n'.format(self.state))
-        chkpt.write('{:10d}            parent ID\n'.format(self.parent))
-        chkpt.write('{:10.2f}            dead time\n'.format(self.deadtime))
-        chkpt.write('{:16.12f}      phase\n'.format(self.gamma))
-        chkpt.write('{:16.12f}         amplitude\n'.format(self.amplitude))
-        chkpt.write('# potential energy -- nstates\n')
-        energies = np.array([self.energy(i) for i in range(self.nstates)])
-        energies.tofile(chkpt, ' ', '%14.10f')
-        chkpt.write('\n# exit coupling region\n')
-        self.exit_time.tofile(chkpt, ' ', '%8.2f')
-        chkpt.write('\n# last spawn\n')
-        self.last_spawn.tofile(chkpt, ' ', '%8.2f')
-        chkpt.write('\n# position\n')
-        self.x().tofile(chkpt, ' ', '%12.8f')
-        chkpt.write('\n# momentum\n')
-        self.p().tofile(chkpt, ' ', '%12.8f')
-
-        # Writes out gradient
-        chkpt.write('\n# gradient state = {:4d}\n'.format(self.state))
-        self.derivative(self.state,self.state).tofile(chkpt, ' ', '%16.10e')
-
-        # write out the coupling
-        for i in range(self.nstates):
-            if i != self.state:
-                chkpt.write('# coupling state = {:4d}\n'.format(i))
-                self.derivative(self.state,i).tofile(chkpt, ' ', '%16.10e')
-                chkpt.write('\n')
-
-
-    def read_trajectory(self, chkpt):
-        """Reads the trajectory information from a file.
-
-        This assumes the trajectory invoking this function has been
-        initially correctly and can hold all the information.
-        """
-        self.alive     = bool(chkpt.readline().split()[0])
-        self.nstates   = int(chkpt.readline().split()[0])
-        self.label     = int(chkpt.readline().split()[0])
-        self.state     = int(chkpt.readline().split()[0])
-        self.parent    = int(chkpt.readline().split()[0])
-        self.deadtime  = float(chkpt.readline().split()[0])
-        self.gamma     = float(chkpt.readline().split()[0])
-        self.amplitude = complex(chkpt.readline().split()[0])
-
-        # create Surface object, if doesn't already exist
-        if self.pes_data is None:
-            self.pes_data = glbl.pes.Surface(self.label, self.nstates,
-                                             self.dim)
-
-        # potential energy -- nstates
-        chkpt.readline()
-        self.pes_data.potential = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        # exit coupling region
-        chkpt.readline()
-        self.exit_time = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        # last spawn
-        chkpt.readline()
-        self.last_spawn = np.fromstring(chkpt.readline(), sep=' ', dtype=float)
-        # position
-        chkpt.readline()
-        self.update_x(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
-        # momentum
-        chkpt.readline()
-        self.update_p(np.fromstring(chkpt.readline(), sep=' ', dtype=float))
-
-        # read gradients
-        chkpt.readline()
-        self.pes_data.deriv[:,self.state,self.state] = np.fromstring(chkpt.readline(),
-                                                                     sep=' ', dtype=float)
-
-        # read couplings
-        for i in range(self.nstates):
-            if i != self.state:
-                chkpt.readline()
-                self.pes_data.deriv[:,self.state,i] = np.fromstring(chkpt.readline(),
-                                                                    sep=' ', dtype=float)
-                self.pes_data.deriv[:,i,self.state] = -self.pes_data.deriv[:,self.state,i]
 

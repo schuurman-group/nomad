@@ -9,6 +9,8 @@ import src.fmsio.fileio as fileio
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
 import src.dynamics.surface as surface
+import src.data.checkpoint as chkpt
+import src.data.printing as printing
 
 #--------------------------------------------------------------------------
 #
@@ -25,7 +27,7 @@ def init_bundle(master):
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
-        init_restart(master)
+        chkpt.read(glbl.sampling['restart_time'], master)
 
     else:
         # first generate the initial nuclear coordinates and momenta
@@ -56,10 +58,11 @@ def init_bundle(master):
 
     # write to the log files
     if glbl.mpi['rank'] == 0:
-        master.update_logs()
+        chkpt.create(master)
+        chkpt.write(master)
 
-    fileio.print_fms_logfile('t_step', [master.time, glbl.propagate['default_time_step'],
-                                        master.nalive])
+    printing.print_logfile('t_step', [master.time, glbl.propagate['default_time_step'],
+                                      master.nalive])
 
     return master.time
 
@@ -69,16 +72,6 @@ def init_bundle(master):
 # Private routines
 #
 #----------------------------------------------------------------------------
-def init_restart(master):
-    """Initializes a restart."""
-    if glbl.sampling['restart_time'] == -1.:
-        fname = fileio.home_path+'/last_step.dat'
-    else:
-        fname = fileio.home_path+'/checkpoint.dat'
-
-    master.read_bundle(fname, glbl.sampling['restart_time'])
-
-
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
 
