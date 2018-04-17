@@ -6,9 +6,9 @@ Velocity Verlet:
   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import src.parse.glbl as glbl
+import src.utils.timings as timings
+import src.dynamics.evaluate as evaluate
 
 
 propphase = glbl.propagate['phase_prop']
@@ -24,7 +24,7 @@ def propagate_bundle(master, dt):
 
     # update electronic structure for all trajectories
     # and centroids (where necessary)
-    surface.update_pes(master)
+    evaluate.update_pes(master)
 
     # finish update of momentum and phase
     for i in range(master.n_traj()):
@@ -39,7 +39,7 @@ def propagate_trajectory(traj, dt):
     propagate_position(traj, dt)
 
     # update electronic structure
-    surface.update_pes_traj(traj)
+    evaluate.update_pes_traj(traj)
 
     # momentum/phase update
     propagate_momentum(traj, dt)

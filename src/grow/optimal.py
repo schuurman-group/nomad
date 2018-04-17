@@ -16,12 +16,12 @@ child(s',ti) <------------- child(s',ts)
 """
 import sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
 import src.basis.trajectory as trajectory
-import src.spawn.utilities as utils
+import src.grow.utilities as utils
 import src.dynamics.step as step
-import src.dynamics.surface as surface
+import src.dynamics.evaluate as evaluate
 
 coup_hist = []
 
@@ -77,7 +77,7 @@ def spawn(master, dt):
                     # backwards in time until we reach the current time
                     child_spawn = child.copy()
                     # need electronic structure at current geometry -- on correct state
-                    surface.update_pes_traj(child)
+                    evaluate.update_pes_traj(child)
                     spawn_backward(child, spawn_time, current_time, -dt)
                     bundle_overlap = utils.overlap_with_bundle(child, master)
                     if not bundle_overlap:
@@ -87,7 +87,7 @@ def spawn(master, dt):
                         utils.write_spawn_log(current_time, spawn_time, exit_time,
                                                   parent_spawn, child_spawn)
                     else:
-                        fileio.print_fms_logfile('spawn_bad_step',
+                        log.print_message('spawn_bad_step',
                                                  ['overlap with bundle too large'])
 
     # let caller known if the basis has been changed
@@ -106,7 +106,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
     child_at_spawn  = None
 
     coup = np.zeros(3)
-    fileio.print_fms_logfile('spawn_start',
+    log.print_message('spawn_start',
                              [parent.label, parent_state, child_state])
 
     while True:
@@ -123,14 +123,14 @@ def spawn_forward(parent, child_state, initial_time, dt):
         # spawn from previous step, or we exit with a fail
         if np.all(coup[0] < coup[1:]):
             sp_str = 'no [decreasing coupling]'
-            fileio.print_fms_logfile('spawn_step',
+            log.print_message('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
 
             if child_created:
-                fileio.print_fms_logfile('spawn_success', [spawn_time])
+                log.print_message('spawn_success', [spawn_time])
                 child_at_spawn.exit_time[parent_state] = current_time
             else:
-                fileio.print_fms_logfile('spawn_failure', [current_time])
+                log.print_message('spawn_failure', [current_time])
 
             # exit, we're done trying to spawn
             exit_time = current_time
@@ -156,7 +156,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
                 child_at_spawn.label                    = parent.label
                 sp_str                                  = 'yes'
 
-            fileio.print_fms_logfile('spawn_step',
+            log.print_message('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
 
             step.fms_step_trajectory(parent, current_time, dt)
@@ -174,7 +174,7 @@ def spawn_backward(child, current_time, end_time, dt):
     for i in range(nstep):
         step.fms_step_trajectory(child, back_time, dt)
         back_time = back_time + dt
-        fileio.print_fms_logfile('spawn_back', [back_time])
+        log.print_message('spawn_back', [back_time])
 
 
 def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):

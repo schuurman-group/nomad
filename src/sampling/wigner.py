@@ -5,8 +5,8 @@ import sys
 import random
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
 import src.basis.trajectory as trajectory
 
 
@@ -14,9 +14,9 @@ def set_initial_coords(master):
     """Samples a v=0 Wigner distribution
     """
     # Set the coordinate type: Cartesian or normal mode coordinates
-    if glbl.interface['interface'] == 'vibronic':
+    if glbl.iface_params['interface'] == 'vibronic':
         coordtype = 'normal'
-        ham       = glbl.pes.ham
+        ham       = glbl.interface.ham
     else:
         coordtype = 'cart'
 
@@ -54,7 +54,7 @@ def set_initial_coords(master):
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
-        fileio.print_fms_logfile('string',['\n -- frequencies from hessian.dat --\n'])
+        log.print_message('string',['\n -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
     # equal to the total number of modes of the model
@@ -64,12 +64,12 @@ def set_initial_coords(master):
         # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for 
         # vibronic hamiltonans is 1/2, assuming frequency weighted coords
         freqs   = 2.* w_vec 
-        fileio.print_fms_logfile('string',['\n -- widths employed in coordinate sampling --\n'])
+        log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies 
     fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*glbl.constants['au2cm']) 
                                                        for j in range(n_modes)]) 
-    fileio.print_fms_logfile('string',[fstr+'\n'])
+    log.print_message('string',[fstr+'\n'])
 
     # loop over the number of initial trajectories
     max_try = 1000

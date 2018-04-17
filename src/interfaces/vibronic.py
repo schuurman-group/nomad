@@ -5,8 +5,9 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
+import src.archive.surface as surface
 
 kecoeff = None
 ham = None
@@ -142,7 +143,7 @@ def init_interface():
 
     # if 'geometry.dat' present, read info from there, else, from inputfile
     if glbl.nuclear_basis['geomfile'] != '':
-        ham.rdgeomfile(fileio.home_path + '/geometry.dat')
+        ham.rdgeomfile(glbl.home_path + '/geometry.dat')
     else:
         ham.nmode_total = len(glbl.nuclear_basis['geometries'][0])
         ham.mlbl_total  = glbl.nuclear_basis['labels']
@@ -150,7 +151,7 @@ def init_interface():
     # I propose discontinuing 'freq.dat' file. This can be entered in
     # input file. Need way to differentiate between active/inactive modes
     # I presume
-    #ham.rdfreqfile(fileio.home_path + '/freq.dat')
+    #ham.rdfreqfile(glbl.home_path + '/freq.dat')
     ham.nmode_active = len(glbl.nuclear_basis['freqs'])
     ham.mlbl_active  = ham.mlbl_total
     ham.freq         = np.array(glbl.nuclear_basis['freqs'])
@@ -158,7 +159,7 @@ def init_interface():
         ham.freqmap[ham.mlbl_active[i]] = ham.freq[i]
 
     # operator file will always be a separate file
-    ham.rdoperfile(fileio.home_path + '/' + glbl.interface['opfile'])
+    ham.rdoperfile(glbl.home_path + '/' + glbl.iface_params['opfile'])
 
     # KE operator coefficients, mass- and frequency-scaled normal mode
     # coordinates, a_i = 0.5*omega_i
@@ -166,29 +167,29 @@ def init_interface():
     kecoeff[ham.mrange] = 0.5*ham.freq
 
     # Ouput some information about the Hamiltonian
-    fileio.print_fms_logfile('string', ['*'*72])
-    fileio.print_fms_logfile('string',
+    log.print_message('string', ['*'*72])
+    log.print_message('string',
                              ['* Vibronic Coupling Hamiltonian Information'])
-    fileio.print_fms_logfile('string', ['*'*72])
-    fileio.print_fms_logfile('string',
-                             ['Operator file: ' + glbl.interface['opfile']])
-    fileio.print_fms_logfile('string',
+    log.print_message('string', ['*'*72])
+    log.print_message('string',
+                             ['Operator file: ' + glbl.iface_params['opfile']])
+    log.print_message('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
     string = 'Total no. modes: ' + str(ham.nmode_total)
-    fileio.print_fms_logfile('string', [string])
+    log.print_message('string', [string])
 
     string = 'No. active modes: ' + str(ham.nmode_active)
-    fileio.print_fms_logfile('string', [string])
+    log.print_message('string', [string])
 
-    fileio.print_fms_logfile('string', ['Active mode labels:'])
+    log.print_message('string', ['Active mode labels:'])
     for i in range(ham.nmode_active):
         string = str(i+1) + ' ' + ham.mlbl_active[i]
-        fileio.print_fms_logfile('string', [string])
+        log.print_message('string', [string])
 
-    fileio.print_fms_logfile('string', ['Active mode frequencies (a.u.):'])
+    log.print_message('string', ['Active mode frequencies (a.u.):'])
     for i in range(ham.nmode_active):
         string = str(i+1) + ' ' + str(ham.freq[i])
-        fileio.print_fms_logfile('string', [string])
+        log.print_message('string', [string])
 
 
 def evaluate_trajectory(traj, t=None):
@@ -214,12 +215,12 @@ def evaluate_trajectory(traj, t=None):
 
     #** load the data into the pes object to pass to trajectory **
 
-    t_data           = Surface()
-    t_data.add_item('geom',geom)
+    t_data = surface.Surface()
+    t_data.add_data('geom',geom)
 
-    t_data.add_item('diabat_pot',diabpot)
-    t_data.add_item('diabat_deriv',diabderiv1)
-    t_data.add_item('diabat_hessian',diabderiv2)
+    t_data.add_data('diabat_pot',diabpot)
+    t_data.add_data('diabat_deriv',diabderiv1)
+    t_data.add_data('diabat_hessian',diabderiv2)
 
     if glbl.variables['surface_rep'] == 'adiabatic':
         # Calculation of the adiabatic potential vector and ADT matrix
@@ -243,29 +244,26 @@ def evaluate_trajectory(traj, t=None):
         sctmat, dbocderiv1 = calc_scts(adiabpot, datmat, diabderiv1,
                                    nactmat, adiabderiv1, diablap)
 
-        t_data.add_item('potential',adiabpot)
-        t_data.add_item('derivative', np.array([np.diag(adiabderiv1[m]) for m in
+        t_data.add_data('potential',adiabpot)
+        t_data.add_data('derivative', np.array([np.diag(adiabderiv1[m]) for m in
                                       range(ham.nmode_total)] + nactmat))
-        t_data.add_item('hessian',adiabderiv2)
-        t_data.add_item('coupling',nactmat)
+        t_data.add_data('hessian',adiabderiv2)
+        t_data.add_data('coupling',nactmat)
 
         # non-standard items
-        t_data.add_item('nac',nactmat)
-        t_data.add_item('scalar_coup',0.5*sctmat) #account for the 1/2 prefactor in the EOMs
-        t_data.add_item('dat_mat',datmat)
-        t_data.add_item('adt_mat',datmat.T)
-        t_data.add_item('adiabat_pot',adiabpot)
-        t_data.add_item('adiabat_deriv',adiabderiv1)
-        t_data.add_item('adiabat_deriv2',adiabderiv2)
+        t_data.add_data('nac',nactmat)
+        t_data.add_data('scalar_coup',0.5*sctmat) #account for the 1/2 prefactor in the EOMs
+        t_data.add_data('dat_mat',datmat)
+        t_data.add_data('adt_mat',datmat.T)
 
     else:
         # determine the effective diabatic coupling: Hij / (Ei - Ej)
         diab_effcoup     = calc_diabeffcoup(diabpot)
 
-        t_data.add_item('potential',np.array([diabpot[i,i] for i in range(nsta)]))
-        t_data.add_item('derivative',diabderiv1)
-        t_data.add_item('hessian',diabderiv2)
-        t_data.add_item('coupling',diab_effcoup)
+        t_data.add_data('potential',np.array([diabpot[i,i] for i in range(nsta)]))
+        t_data.add_data('derivative',diabderiv1)
+        t_data.add_data('hessian',diabderiv2)
+        t_data.add_data('coupling',diab_effcoup)
 
     data_cache[label] = t_data
     return t_data
@@ -376,7 +374,7 @@ def calc_dat(label, diabpot):
 
     if label in data_cache:
         # Ensure phase continuity from geometry to another
-        datmat *= np.sign(np.dot(datmat.T, data_cache[label].get_item('dat_mat').diagonal()))
+        datmat *= np.sign(np.dot(datmat.T, data_cache[label].get_data('dat_mat').diagonal()))
     else:
         # Set phase convention that the greatest abs element in dat column
         # vector is positive

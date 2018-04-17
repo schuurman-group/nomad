@@ -16,10 +16,10 @@ As a matter of course, this function also builds:
 import sys
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
 import src.utils.linalg as fms_linalg
+import src.utils.timings as timings
+
 
 def ut_ind(index):
     """Gets the (i,j) index of an upper triangular matrix from the
@@ -129,7 +129,7 @@ def hamiltonian(traj_list, traj_alive, cent_list=None):
 
     Heff = np.dot( Sinv, H - 1j * Sdot )
     
-    fileio.print_bund_mat(0., 'sdot_nuc', Sdnuc)
-    fileio.print_bund_mat(0., 'sdot_ele', Sdele)
+#    fileio.print_bund_mat(0., 'sdot_nuc', Sdnuc)
+#    fileio.print_bund_mat(0., 'sdot_ele', Sdele)
 
     return t_ovrlp, T, V, S, Snuc, Sdot, Heff

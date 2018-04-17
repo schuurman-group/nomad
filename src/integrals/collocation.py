@@ -5,7 +5,7 @@ trajectory 1 and trajectory 2.
 import sys
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
+import src.parse.glbl as glbl
 import src.integrals.nuclear_dirac as dirac 
 import src.integrals.nuclear_gaussian as gauss
 
@@ -64,7 +64,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
-        v = np.dot(fij, 2.*glbl.pes.kecoeff*
+        v = np.dot(fij, 2.*glbl.interface.kecoeff*
                           dirac.deldx(Snuc,traj1.x(), 
                           traj2.phase(),traj2.widths(),traj2.x(),traj2.p()))
         return v * Snuc
@@ -86,7 +86,7 @@ def ke_integral(traj1, traj2, Snuc=None):
         ke = dirac.deld2x(Snuc,traj1.x(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-        return -sum(ke * glbl.pes.kecoeff)
+        return -sum(ke * glbl.interface.kecoeff)
 
 #evaulate the time derivative of the overlap
 def sdot_integral(traj1, traj2, Snuc=None):

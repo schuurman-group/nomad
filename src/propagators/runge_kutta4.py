@@ -11,9 +11,9 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
   ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import src.parse.glbl as glbl
+import src.utils.timings as timings
+import src.dynamics.evaluate as evaluate
 
 
 rk_ordr = 4
@@ -39,7 +39,7 @@ def propagate_bundle(master, dt):
 
         # update the PES to evaluate new gradients
         if rk < rk_ordr - 1:
-            surface.update_pes(tmpbundle, update_centroids=False)
+            evaluate.update_pes(tmpbundle, update_centroids=False)
 
     # update to the final position
     for i in range(ntraj):
@@ -51,7 +51,7 @@ def propagate_bundle(master, dt):
             if propphase:
                 master.traj[i].update_phase(master.traj[i].phase() +
                                             np.sum(wgt[:,np.newaxis]*kg[i], axis=0))
-    surface.update_pes(master)
+    evaluate.update_pes(master)
 
 
 @timings.timed
@@ -68,14 +68,14 @@ def propagate_trajectory(traj, dt):
 
         # update the PES to evaluate new gradients
         if rk < rk_ordr - 1:
-            surface.update_pes_traj(tmptraj)
+            evaluate.update_pes_traj(tmptraj)
 
     # update to the final position
     traj.update_x(traj.x() + np.sum(wgt[:,np.newaxis]*kx, axis=0))
     traj.update_p(traj.p() + np.sum(wgt[:,np.newaxis]*kp, axis=0))
     if propphase:
         traj.update_phase(traj.phase() + np.sum(wgt[:,np.newaxis]*kg, axis=0))
-    surface.update_pes_traj(traj)
+    evaluate.update_pes_traj(traj)
 
 
 def propagate_rk(traj, dt, rk, kxi, kpi, kgi):

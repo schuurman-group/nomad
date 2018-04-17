@@ -5,7 +5,7 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
+import src.parse.glbl as glbl
 import src.integrals.nuclear_gaussian_ccs as nuclear
 
 # Let FMS know if overlap matrix elements require PES info
@@ -73,12 +73,12 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
 
     # adiabatic states in diabatic basis -- cross terms between orthogonal
     # diabatic states are zero
-    for i in range(glbl.pes.ham.nterms):
-        [s1,s2] = glbl.pes.ham.stalbl[i,:]-1
-        v_term = complex(1.,0.) * glbl.pes.ham.coe[i]
-        for q in range(len(glbl.pes.ham.order[i])):
-            qi      =  glbl.pes.ham.mode[i][q]
-            v_term *=  nuclear.prim_v_integral(glbl.pes.ham.order[i][q],
+    for i in range(glbl.interface.ham.nterms):
+        [s1,s2] = glbl.interface.ham.stalbl[i,:]-1
+        v_term = complex(1.,0.) * glbl.interface.ham.coe[i]
+        for q in range(len(glbl.interface.ham.order[i])):
+            qi      =  glbl.interface.ham.mode[i][q]
+            v_term *=  nuclear.prim_v_integral(glbl.interface.ham.order[i][q],
                        traj1.widths()[qi],traj1.x()[qi],traj1.p()[qi],
                        traj2.widths()[qi],traj2.x()[qi],traj2.p()[qi])
         v_mat[s1,s2] += v_term
@@ -100,7 +100,7 @@ def ke_integral(traj1, traj2, centroid=None, Snuc=None):
     ke = nuclear.deld2x(Snuc,traj1.widths(),traj1.x(),traj1.p(),
                              traj2.widths(),traj2.x(),traj2.p())
 
-    return -np.dot(glbl.pes.kecoeff,ke)*elec_overlap(traj1,traj2)
+    return -np.dot(glbl.interface.kecoeff,ke)*elec_overlap(traj1,traj2)
 
     
 # time derivative of the overlap
@@ -180,7 +180,7 @@ def theta(traj):
     if traj.nstates == 1:
         return 0.
 
-    hmat    = traj.pes_data.diabat_pot
+    hmat    = traj.pes.get_data('diabat_pot')
     h12     = hmat[0,1]
     de      = hmat[es,es]-hmat[gs,gs]
 
@@ -215,8 +215,8 @@ def dtheta(traj):
     if traj.nstates == 1:
         return np.zeros((traj.dim), dtype=float)
 
-    hmat      = traj.pes_data.diabat_pot
-    dhmat     = traj.pes_data.diabat_deriv
+    hmat      = traj.pes.get_data('diabat_pot')
+    dhmat     = traj.pes.get_data('diabat_deriv')
     h12       = hmat[0,1]
     de        = hmat[es,es] - hmat[gs,gs]
     if abs(de) < glbl.constants['fpzero']:

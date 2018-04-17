@@ -5,16 +5,14 @@ import sys
 import os
 import copy
 import shutil
-import pathlib
 import subprocess
 import math
 import numpy as np
 import src.parse.glbl as glbl
-import src.parse.fileio as fileio
-import src.parse.atom_lib as atom_lib
+import src.basis.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
-import src.data.surface as surface
+import src.archive.surface as surface
 
 # KE operator coefficients a_i:
 # T = sum_i a_i p_i^2,
@@ -109,10 +107,10 @@ def init_interface():
 
     # setup working directories
     # input and restart are shared
-    input_path    = fileio.scr_path + '/input'
-    restart_path  = fileio.scr_path + '/restart'
+    input_path    = glbl.scr_path + '/input'
+    restart_path  = glbl.scr_path + '/restart'
     # ...but each process has it's own work directory
-    work_path     = fileio.scr_path + '/work.'+str(glbl.mpi['rank'])
+    work_path     = glbl.scr_path + '/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -155,8 +153,8 @@ def init_interface():
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(int(glbl.interface['mem_per_core']))
-    coup_de_thresh = float(glbl.interface['coup_de_thresh'])
+    mem_str = str(int(glbl.iface_params['mem_per_core']))
+    coup_de_thresh = float(glbl.iface_params['coup_de_thresh'])
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
     if n_cistates < int(glbl.propagate['n_states']):
@@ -187,7 +185,7 @@ def evaluate_trajectory(traj, t=None):
 
     # create surface object to hold potential information
     col_surf      = surface.Surface()
-    col_surf.add_item('geom', traj.x())
+    col_surf.add_data('geom', traj.x())
 
     # write geometry to file
     write_col_geom(traj.x())
@@ -201,16 +199,16 @@ def evaluate_trajectory(traj, t=None):
 
     # run mcscf
     run_col_mcscf(traj, t)
-    col_surf.add_item('mos',pack_mocoef())
+    col_surf.add_data('mos',pack_mocoef())
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(traj, ci_restart, t)
-    col_surf.add_item('potential', potential)
-    col_surf.add_item('atom_pop', atom_pop)
+    col_surf.add_data('potential', potential)
+    col_surf.add_data('atom_pop', atom_pop)
 
     # run properties, dipoles, etc.
     [perm_dipoles, sec_moms] = run_col_multipole(traj)
-    col_surf.add_item('sec_mom', sec_moms)
+    col_surf.add_data('sec_mom', sec_moms)
     dipoles = np.zeros(3,nstates,nstates)
     for i in range(nstates):
         dipoles[:,i,i] = perm_dipoles[:,i]
@@ -223,7 +221,7 @@ def evaluate_trajectory(traj, t=None):
                 tr_dip = run_col_tdipole(label, i, j)
                 dipoles[:,i,j] = tr_dip
                 dipoles[:,j,i] = tr_dip
-    col_surf.add_item('dipole',dipoles)
+    col_surf.add_data('dipole',dipoles)
 
     # compute gradient on current state
     deriv = np.zeroes(n_cart, nstates, nstates)
@@ -238,8 +236,8 @@ def evaluate_trajectory(traj, t=None):
             state_j = max(i,state)
             deriv[:, state_i, state_j] =  nad_coup[:, i]
             deriv[:, state_j, state_i] = -nad_coup[:, i]
-    col_surf.add_item('derivative', deriv)
-    col_surf.add_item('coupling', deriv)
+    col_surf.add_data('derivative', deriv)
+    col_surf.add_data('coupling', deriv)
 
     # save restart files
     make_col_restart(traj)
@@ -264,7 +262,7 @@ def evaluate_centroid(Cent, t=None):
 
     # create surface object to hold potential information
     col_surf      = surface.Surface()
-    col_surf.add_item('geom', Cent.x())
+    col_surf.add_data('geom', Cent.x())
     col_surf.geom = Cent.x()
     col_surf.data_keys.append('geom')
 
@@ -1067,7 +1065,7 @@ def append_log(label, listing_file, time):
         tstr = str(time)
 
     # open the running log for this process
-    log_file = open(fileio.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
+    log_file = open(glbl.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(" time="+tstr+" trajectory="+str(label)+
                    ": "+str(listing_file)+" summary -------------\n")

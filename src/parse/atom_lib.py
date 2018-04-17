@@ -1,7 +1,7 @@
 """
 A library containing atom widths, atomic numbers, etc.
 """
-import src.fmsio.glbl as glbl
+import src.parse.glbl as glbl
 
 
 atom_name  = ['H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',

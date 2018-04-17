@@ -4,8 +4,8 @@ The Centroid object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
+import src.utils.timings as timings
+import src.parse.glbl as glbl
 
 
 def cent_label(itraj_id, jtraj_id):
@@ -57,7 +57,7 @@ class Centroid:
             self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
         # data structure to hold the data from the interface
-        self.pes_data  = None
+        self.pes  = None
 
     @timings.timed
     def copy(self):
@@ -66,8 +66,8 @@ class Centroid:
                             dim=self.dim, width=self.width,label=self.label)
         new_cent.pos = copy.deepcopy(self.pos)
         new_cent.mom = copy.deepcopy(self.mom)
-        if self.pes_data is not None:
-            new_cent.pes_data = self.pes_data.copy()
+        if self.pes is not None:
+            new_cent.pes = self.pes.copy()
         return new_cent
 
     #----------------------------------------------------------------------
@@ -87,9 +87,9 @@ class Centroid:
         wid_j    = traj_j.widths()
         self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
-    def update_pes_info(self, pes_info):
+    def update_pes_info(self, new_pes):
         """Updates information about the potential energy surface."""
-        self.pes_data = pes_info.copy()
+        self.pes = new_pes.copy()
 
     #-----------------------------------------------------------------------
     #
@@ -119,28 +119,42 @@ class Centroid:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
-            print('WARNING: centroid.energy() called, ' +
-                  'but pes_geom != centroid.x(). ID=' + str(self.label))
-        return self.pes_data.potential[state] + glbl.propagate['pot_shift']
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+            print('WARNING: trajectory.energy() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
-        """Returns either a gradient or derivative coupling depending
-           on the states in pstates.
+        """Returns the derivative with ket state = rstate.
+
+        Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
-        return self.pes_data.deriv[:,state_i, state_j]
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('derivative')[:, state_i, state_j]
+
+    def hessian(self, state_i):
+        """Returns the hessian of the potential on state state_i
+        """
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+            print('WARNING: trajectory.hessian() called, ' +
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('hessian')[:, :, state_i]
 
     def scalar_coup(self, state_i, state_j):
-        """Returns the scalar coupling."""
-        if np.linalg.norm(self.pes_data.geom - self.x()) > glbl.constants['fpzero']:
+        """Returns the scalar coupling for Hamiltonian
+           block (self.state,c_state)."""
+        if 'scalar_coup' not in self.pes.avail_data():
+            return 0.
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.scalar_coup() called, ' +
-                  'but pes_geom != trajectory.x(). ID=' + str(self.label))
-        if 'scalar_coup' in self.pes_data.data_keys:
-            return self.pes_data.scalar_coup[state_i, state_j]
-        return 0.
+                  'but pes_geom != trajectory.x(). ID=' + str(self.label)+
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('scalar_coup')[state_i, state_j]
 
     #------------------------------------------------------------------------
     #
@@ -189,7 +203,7 @@ class Centroid:
         # F.p/m
         coup = self.coup_dot_vel()
         # G
-        if glbl.interface['coupling_order'] > 1:
+        if glbl.iface_params['coupling_order'] > 1:
             coup += self.scalar_coup(pstates[0], pstates[1])
         return coup
 

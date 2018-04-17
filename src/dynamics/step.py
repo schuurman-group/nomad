@@ -3,31 +3,25 @@ Routines for propagating a bundle forward by a time step.
 """
 import sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
 import src.basis.bundle as bundle
 import src.basis.trajectory as trajectory
-import src.dynamics.surface as surface
+import src.dynamics.evaluate as evaluate
 import src.basis.matching_pursuit as mp
 
 
-def fms_time_step(master):
+def time_step(master):
     """ Determine time step based on whether in coupling regime"""
 
-    if glbl.spawn.in_coupled_regime(master):
+    if glbl.grow.in_coupled_regime(master):
         return float(glbl.propagate['coupled_time_step'])
+
     else:
-        # don't change back to default time step unless we're
-        # back on a multiple of the default time step, otherwise
-        # the log updates get out of sync. This should be fixed more
-        # cleanly
-        if not fileio.update_logs(master):
-            return float(glbl.propagate['coupled_time_step'])
-        else:
-            return float(glbl.propagate['default_time_step'])
+        return float(glbl.propagate['default_time_step'])
 
 
-def fms_step_bundle(master, dt):
+def step_bundle(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
 
     # save the bundle from previous step in case step rejected
@@ -64,7 +58,7 @@ def fms_step_bundle(master, dt):
             # update the bundle time
             master.time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = glbl.spawn.spawn(master, time_step)
+            basis_grown  = glbl.grow.spawn(master, time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
 
@@ -73,7 +67,7 @@ def fms_step_bundle(master, dt):
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
             if basis_grown and glbl.integrals.require_centroids:
-                surface.update_pes(master)
+                evaluate.update_pes(master)
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
@@ -85,16 +79,15 @@ def fms_step_bundle(master, dt):
                 mp.reexpress_basis(master)
 
             # update the running log
-            fileio.print_fms_logfile('t_step',
-                                     [master.time, time_step, master.nalive])
+            log.print_message('t_step',[master.time, time_step, master.nalive])
+
         else:
             # recall -- this time trying to propagate to the failed step
             time_step *= 0.5
-            fileio.print_fms_logfile('new_step', [error_msg, time_step])
+            log.print_message('new_step', [error_msg, time_step])
 
             if  time_step < min_time_step:
-                fileio.print_fms_logfile('general',
-                                         ['minimum time step exceeded -- STOPPING.'])
+                log.print_message('general',['minimum time step exceeded -- STOPPING.'])
                 raise ValueError('Bundle minimum step exceeded.')
 
             # reset the beginning of the time step and go to beginning of loop
@@ -104,7 +97,7 @@ def fms_step_bundle(master, dt):
     return master
 
 
-def fms_step_trajectory(traj, init_time, dt):
+def step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.
 
     Used to backward/forward propagate a trajectory during spawning.
@@ -139,8 +132,8 @@ def fms_step_trajectory(traj, init_time, dt):
             time_step *= 0.5
 
             if  abs(time_step) < min_time_step:
-                fileio.print_fms_logfile('general',
-                                         ['minimum time step exceeded -- STOPPING.'])
+                log.print_message('general',
+                                  ['minimum time step exceeded -- STOPPING.'])
                 raise ValueError('Trajectory minimum step exceeded.')
 
             # reset the beginning of the time step and go to beginning of loop
@@ -160,12 +153,14 @@ def step_complete(current_time, final_time, dt):
     else:
         return current_time <= final_time
 
-
+#
+#
+#
 def check_step_bundle(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
     # if we're in the coupled regime and using default time step, reject
-    if glbl.spawn.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
+    if glbl.grow.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
@@ -191,7 +186,9 @@ def check_step_bundle(master0, master, time_step):
                 return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
     return True, ' success'
 
-
+#
+#
+#
 def check_step_trajectory(traj0, traj):
     """Checks if we should reject a macro step because we're in a
     coupling region.

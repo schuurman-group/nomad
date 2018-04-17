@@ -30,9 +30,9 @@ step size sfac*dt. Otherwise, use sfac*dt for next step. Update
 position, momentum using x4, p4.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import src.parse.glbl as glbl
+import src.utils.timings as timings
+import src.dynamics.evaluate as evaluate
 
 
 rk_ordr = 6
@@ -75,7 +75,7 @@ def propagate_bundle(master, dt):
 
             # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
-                surface.update_pes(tmpbundle, update_centroids=False)
+                evaluate.update_pes(tmpbundle, update_centroids=False)
 
         # calculate the 4th and 5th order changes and the error
         dx_lo = np.zeros((master.nalive, ncrd))
@@ -120,7 +120,7 @@ def propagate_bundle(master, dt):
                     if propphase:
                         master.traj[i].update_phase(master.traj[i].phase() +
                                                     dg_lo[i])
-            surface.update_pes(master, update_centroids=(abs(t)>=abs(dt)))
+            evaluate.update_pes(master, update_centroids=(abs(t)>=abs(dt)))
 
 
 @timings.timed
@@ -143,7 +143,7 @@ def propagate_trajectory(traj, dt):
 
             # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
-                surface.update_pes_traj(tmptraj)
+                evaluate.update_pes_traj(tmptraj)
 
         # calculate the 4th and 5th order changes and the error
         dx_lo = np.sum(wgt_lo[:,np.newaxis] * kx, axis=0)
@@ -173,7 +173,7 @@ def propagate_trajectory(traj, dt):
             traj.update_p(traj.p() + dp_lo)
             if propphase:
                 traj.update_phase(traj.phase() + dg_lo)
-            surface.update_pes_traj(traj)
+            evaluate.update_pes_traj(traj)
 
 
 def propagate_rk(traj, dt, rk, kxi, kpi, kgi):

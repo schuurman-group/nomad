@@ -3,10 +3,12 @@ Conversion factors and constants for FMSpy.
 """
 
 integrals = None
-pes = None
+interface = None
 distrib = None
 spawn = None
 integrator = None
+scr_path = ''
+home_path = ''
 
 constants = dict(
   # convert fs to au
@@ -47,7 +49,7 @@ sampling = dict(
     init_state             = -1,
     init_states            = [0],
     init_brightest         = False,
-    restart_time           = -1,
+    restart_time           = None,
     init_mode_min_olap     = 0.,
     seed                   = 0,
     virtual_basis          = False,
@@ -86,7 +88,7 @@ spawning = dict(
     continuous_min_overlap = 0.5
                 )
 
-interface = dict(
+iface_params = dict(
     # pertain to all interfaces
     interface              = 'vibronic',
     coupling_order         = 1,
@@ -96,7 +98,7 @@ interface = dict(
     coup_de_thresh         = 100.,
 
     # parameters that apply to vibronic interface
-    opfile                 = 'fms.op',
+    opfile                 = 'vibronic.op',
     # highest polynomial order in vibronic expansion
     ordr_max               = 1
                  )
@@ -132,7 +134,7 @@ input_groups = dict(
     propagate              = propagate,
     spawning               = spawning,
     nuclear_basis          = nuclear_basis,
-    interface              = interface,
+    iface_params           = iface_params,
     printing               = printing
                     )
 

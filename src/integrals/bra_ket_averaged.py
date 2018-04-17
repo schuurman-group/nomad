@@ -5,7 +5,7 @@ traveling on adiabataic potentials
 import sys
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
+import src.parse.glbl as glbl
 import src.integrals.nuclear_gaussian as nuclear
 
 # Let FMS know if overlap matrix elements require PES info
@@ -108,10 +108,10 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
 
-        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), glbl.pes.kecoeff *
+        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), glbl.interface.kecoeff *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), glbl.pes.kecoeff *
+        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), glbl.interface.kecoeff *
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())
@@ -130,7 +130,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, glbl.pes.kecoeff)
+        return -np.dot(ke, glbl.interface.kecoeff)
 
 
 def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):

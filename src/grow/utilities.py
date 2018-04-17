@@ -3,8 +3,8 @@ General routines for all spawning algorithms.
 """
 import sys as sys
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
 
 def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same
@@ -116,4 +116,4 @@ def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     data.extend([parent.kinetic(), child.kinetic(), parent.potential(),
                  child.potential()])
     data.extend([parent.classical(), child.classical()])
-    fileio.print_bund_row(2, data)
+    log.print_spawn_log(data)

@@ -7,13 +7,15 @@ import sys
 import random
 import numpy as np
 import mpi4py.MPI as MPI
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.files as files
+import src.parse.log as log
+import src.archive.checkpoint as chkpt
 import src.basis.bundle as bundle
-import src.dynamics.timings as timings
-import src.dynamics.initialize as initialize
+import src.basis.initialize as initialize
 import src.dynamics.step as step
-
+import src.utils.timings as timings
+import src.utils.cleanup as cleanup
 
 def init():
     """Initializes the FMSpy inputs.
@@ -36,14 +38,13 @@ def init():
     # read in options/variables pertaining to the running
     # of the dynamics, pass the starting time of the simluation
     # a nd the end time
-    fileio.read_input_file()
+    files.read_input()
 
     # initialize random number generator
     random.seed(glbl.sampling['seed'])
 
-    # initialize the trajectory and bundle output files
-    fileio.init_fms_output()
-
+    # initialize the running calculation log
+    log.init_logfile('nomad.log')
 
 def main():
     """Runs the main FMSpy routine."""
@@ -57,22 +58,22 @@ def main():
         # set the time step --> top level time step should always
         # be default time step. fms_step_bundle will decide if/how
         # dt should be shortened for numerics
-        time_step = step.fms_time_step(master)
+        time_step = step.time_step(master)
 
         # take an fms dynamics step
-        master = step.fms_step_bundle(master, time_step)
+        master = step.step_bundle(master, time_step)
 
         # if no more live trajectories, simulation is complete
         if master.nalive == 0:
             break
 
         # determine whether it is necessary to update the output logs
-        if fileio.update_logs(master) and glbl.mpi['rank'] == 0:
+        if glbl.mpi['rank'] == 0:
             # update the fms output files, as well as checkpoint, if necessary
-            master.update_logs()
+            chkpt.write(master)
 
     # clean up, stop the global timer and write logs
-    fileio.cleanup_end()
+    cleanup.cleanup_end()
 
 
 if __name__ == '__main__':
@@ -83,6 +84,6 @@ if __name__ == '__main__':
     # initialize
     init()
     # if an error occurs, cleanup and report the error
-    sys.excepthook = fileio.cleanup_exc
+    sys.excepthook = cleanup.cleanup_exc
     # run the main routine
     main()

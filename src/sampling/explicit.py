@@ -2,8 +2,7 @@
 Sample a specific geometry or set of geometries.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
 import src.basis.trajectory as trajectory
 
 

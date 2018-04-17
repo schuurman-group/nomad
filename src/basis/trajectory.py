@@ -4,8 +4,8 @@ The Trajectory object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
+import src.utils.timings as timings
+import src.parse.glbl as glbl
 
 
 class Trajectory:
@@ -147,62 +147,62 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('potential')[state] + glbl.propagate['pot_shift']
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('derivative')[:, state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('derivative')[:, state_i, state_j]
 
     def hessian(self, state_i):
         """Returns the hessian of the potential on state state_i
         """
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('hessian')[:, :, state_i]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('hessian')[:, :, state_i]
 
     def coupling(self, state_i, state_j):
         """Returns the coupling between surfaces state_i and state_j
         """
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('coupling')[:, state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('coupling')[:, state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('scalar_coup')[state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('scalar_coup')[state_i, state_j]
 
     def nact(self, state_i, state_j):
         """Returns the derivative coupling between adiabatic states
            block (self.state,c_state)."""
         if 'nac' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_item('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
             print('WARNING: trajectory.nact() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
-                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_item('geom')))
-        return self.pes.get_item('nact')[:,state_i, state_j]
+                  '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
+        return self.pes.get_data('nact')[:,state_i, state_j]
 
 
     #------------------------------------------------------------------------
@@ -216,7 +216,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() * glbl.pes.kecoeff )
+        return sum( self.p() * self.p() * glbl.interface.kecoeff )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -224,7 +224,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() * (2. * glbl.pes.kecoeff)
+        return self.p() * (2. * glbl.interface.kecoeff)
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -237,7 +237,7 @@ class Trajectory:
             return 0.
         else:
             return (self.kinetic() - self.potential() -
-                    np.dot(self.widths(), glbl.pes.kecoeff) )
+                    np.dot(self.widths(), glbl.interface.kecoeff) )
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""
@@ -258,7 +258,7 @@ class Trajectory:
             # F.p/m
             coup = self.coup_dot_vel(j_state)
             # G
-            if glbl.interface['coupling_order'] > 1:
+            if glbl.iface_params['coupling_order'] > 1:
                 coup += self.scalar_coup(self.state, j_state)
             return coup
 

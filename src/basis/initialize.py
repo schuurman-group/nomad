@@ -4,13 +4,12 @@ Routines for initializing dynamics calculations.
 import sys
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
+import src.parse.glbl as glbl
+import src.parse.log as log
 import src.basis.trajectory as trajectory
 import src.basis.bundle as bundle
-import src.dynamics.surface as surface
-import src.data.checkpoint as chkpt
-import src.data.printing as printing
+import src.dynamics.evaluate as evaluate
+import src.archive.checkpoint as chkpt
 
 #--------------------------------------------------------------------------
 #
@@ -23,11 +22,11 @@ def init_bundle(master):
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
-    glbl.pes.init_interface()
+    glbl.interface.init_interface()
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
-        chkpt.read(glbl.sampling['restart_time'], master)
+        chkpt.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
 
     else:
         # first generate the initial nuclear coordinates and momenta
@@ -46,7 +45,7 @@ def init_bundle(master):
             virtual_basis(master)
 
     # update all pes info for all trajectories and centroids (where necessary)
-    surface.update_pes(master)
+    evaluate.update_pes(master)
     # compute the hamiltonian matrix...
     master.update_matrices()
     # so that we may appropriately renormalize to unity
@@ -56,12 +55,11 @@ def init_bundle(master):
     # correlation function
     set_initial_bundle(master) 
 
-    # write to the log files
+    # write the bundle to the archive 
     if glbl.mpi['rank'] == 0:
-        chkpt.create(master)
-        chkpt.write(master)
+        chkpt.write(master,file_name='chkpt.hdf5')
 
-    printing.print_logfile('t_step', [master.time, glbl.propagate['default_time_step'],
+    log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])
 
     return master.time
@@ -82,7 +80,7 @@ def set_initial_state(master):
         for i in range(master.n_traj()):
             master.traj[i].state = 0
             # compute transition dipoles
-            surface.update_pes_traj(master.traj[i])
+            evaluate.update_pes_traj(master.traj[i])
 
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
@@ -92,8 +90,8 @@ def set_initial_state(master):
                                'tr_dipole not in pes_data.data_keys')
             tdip = np.array([np.linalg.norm(master.traj[i].pes_data.dipoles[:,0,j])
                              for j in range(1, glbl.propagate['n_states'])])
-            fileio.print_fms_logfile('general',
-                                    ['Initializing trajectory '+str(i)+
+            log.print_logfile('general',
+                                     ['Initializing trajectory '+str(i)+
                                      ' to state '+str(np.argmax(tdip)+1)+
                                      ' | tr. dipople array='+np.array2string(tdip, \
                                        formatter={'float_kind':lambda x: "%.4f" % x})])
@@ -113,14 +111,14 @@ def set_initial_amplitudes(master):
     """Sets the initial amplitudes."""
 
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
-    # set in fms.input
+    # set in nomad.input
     if glbl.nuclear_basis['init_amp_overlap']:
 
         origin = make_origin_traj()
 
         # update all pes info for all trajectories and centroids (where necessary)
         if glbl.integrals.overlap_requires_pes:
-            surface.update_pes(master)
+            evaluate.update_pes(master)
 
         # Calculate the initial expansion coefficients via projection onto
         # the initial wavefunction that we are sampling
@@ -141,7 +139,7 @@ def set_initial_amplitudes(master):
     # amplitudes with "zeros" as necesary
     if len(glbl.nuclear_basis['amplitudes']) < master.n_traj():
         dif = master.n_traj() - len(glbl.nuclear_basis['amplitudes'])
-        fileio.print_fms_logfile('warning',['appending '+str(dif)+
+        log.print_message('warning',['appending '+str(dif)+
                                  ' values of 0+0j to amplitudes'])
         glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])
 
@@ -203,6 +201,6 @@ def make_origin_traj():
     origin.state = 0
     # if we need pes data to evaluate overlaps, determine that now
     if glbl.integrals.overlap_requires_pes:
-        surface.update_pes_traj(origin)
+        evaluate.update_pes_traj(origin)
 
     return origin

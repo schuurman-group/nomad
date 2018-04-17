@@ -7,7 +7,7 @@ This currently uses first-order saddle point.
 import sys
 import math
 import numpy as np
-import src.fmsio.glbl as glbl
+import src.parse.glbl as glbl
 import src.integrals.nuclear_gaussian as nuclear
 
 # Let FMS know if overlap matrix elements require PES info
@@ -54,7 +54,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Adiabatic energy
         v = t1.energy(t1.state)
         # DBOC
-        if glbl.interface['coupling_order'] == 3:
+        if glbl.iface_params['coupling_order'] == 3:
             v += t1.scalar_coup(t1.state, t2.state)
         return v
 
@@ -69,7 +69,7 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
         # Adiabatic energy
         v = centroid.energy(t1.state) * Snuc
         # DBOC
-        if glbl.interface['coupling_order'] == 3:
+        if glbl.iface_params['coupling_order'] == 3:
             v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 
@@ -78,12 +78,12 @@ def v_integral(t1, t2, centroid=None, Snuc=None):
     elif t1.state != t2.state:
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
-        v = 2.*np.vdot(fij, glbl.pes.kecoeff *
+        v = 2.*np.vdot(fij, glbl.interface.kecoeff *
                        nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
                                           t2.widths(),t2.x(),t2.p()))
 #                       nuclear.deldx(t1, t2, S=Snuc))
         # Scalar coupling
-        if glbl.interface['coupling_order'] > 1:
+        if glbl.iface_params['coupling_order'] > 1:
             v += centroid.scalar_coup(t1.state, t2.state) * Snuc
         return v
 
@@ -105,7 +105,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, glbl.pes.kecoeff)
+        return -np.dot(ke, glbl.interface.kecoeff)
 
 # time derivative of the overlap
 def sdot_integral(t1, t2, Snuc=None, e_only=False, nuc_only=False):

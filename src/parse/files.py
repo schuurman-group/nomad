@@ -9,39 +9,26 @@ import ast
 import shutil
 import traceback
 import numpy as np
-import src.dynamics.timings as timings
-import src.fmsio.glbl as glbl
-import src.basis.atom_lib as atom_lib
+import src.utils.timings as timings
+import src.parse.glbl as glbl
+import src.parse.atom_lib as atom_lib
 
-
-# Make sure that we print entire arrays
-np.set_printoptions(threshold = np.inf)
-
-home_path   = ''
-scr_path    = ''
-dump_header = dict()
-dump_format = dict()
-log_format  = dict()
-
-
-def read_input_file():
-    """Reads the fms.input files.
+def read_input():
+    """Reads the nomad.input files.
 
     This file contains variables related to the running of the
     dynamics simulation.
     """
-    global scr_path, home_path
-
     # save the name of directory where program is called from
-    home_path = os.getcwd()
+    glbl.home_path = os.getcwd()
 
-    # set a sensible default for scr_path
-    scr_path = os.environ['TMPDIR']
-    if os.path.exists(scr_path) and glbl.mpi['rank']==0:
-        shutil.rmtree(scr_path)
-        os.makedirs(scr_path)
+    # set a sensible default for glbl.scr_path
+    glbl.scr_path = os.environ['TMPDIR']
+    if os.path.exists(glbl.scr_path) and glbl.mpi['rank']==0:
+        shutil.rmtree(glbl.scr_path)
+        os.makedirs(glbl.scr_path)
 
-    # Read fms.input. Valid sections are:
+    # Read nomad.input. Valid sections are:
     #   initial_conditions
     #   propagation
     #   spawning
@@ -49,20 +36,20 @@ def read_input_file():
     #   geometry
     #   printing
 
-    # Read fms.input. Small enough to gulp the whole thing
-    with open('fms.input', 'r') as infile:
-        fms_input = infile.readlines()
+    # Read nomad.input. Small enough to gulp the whole thing
+    with open('nomad.input', 'r') as infile:
+        nomad_input = infile.readlines()
 
     # remove comment lines
-    fms_input = [item for item in fms_input if
+    nmoad_input = [item for item in nomad_input if
                  not item.startswith('#') and not item.startswith('!')]
 
     sec_strings = list(glbl.input_groups)
 
     current_line = 0
     # look for begining of input section
-    while current_line < len(fms_input):
-        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),fms_input[current_line])
+    while current_line < len(nomad_input):
+        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),nomad_input[current_line])
                      for i in range(len(sec_strings))]
         if all([v is None for v in sec_start]):
             current_line+=1
@@ -70,12 +57,68 @@ def read_input_file():
             section = next(item for item in sec_start
                            if item is not None).string
             section = section.replace('-section','').replace('begin','').strip()
-            current_line = parse_section(fms_input, current_line, section)
+            current_line = parse_section(nomad_input, current_line, section)
 
     # ensure that input is internally consistent
-    validate_input()
+    validate()
 
+#
+#
+#
+def read_geometry(geom_file):
+    """Reads position and momenta from an xyz file"""
+    geoms = []
+    moms  = []
 
+    with open(geom_file, 'r') as gfile:
+        gm_file = gfile.readlines()
+
+    # parse file for number of atoms/dof, dimension of coordinates
+    # and number of geometries
+    ncrd    = int(gm_file[0].strip().split()[0])
+    crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
+    ngeoms  = int(len(gm_file)/(ncrd+2))
+
+    # read in the atom/crd labels -- assumes atoms are same for each
+    # geometry in the list
+    labels = []
+    for i in range(2,ncrd+2):
+        labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
+
+    # loop over geoms, load positions and momenta into arrays
+    for i in range(ngeoms):
+        geom = []
+        mom  = []
+
+        # delete first and comment lines
+        del gm_file[0:2]
+        for j in range(ncrd):
+            line = gm_file[0].strip().split()
+            geom.extend([float(line[k]) for k in range(1,crd_dim+1)])
+            mom.extend([float(line[k]) for k in range(crd_dim+1,2*crd_dim+1)])
+            del gm_file[0]
+
+        geoms.append(geom)
+        moms.append(mom)
+
+    return labels,geoms,moms
+
+#
+#
+#
+def read_hessian(hess_file):
+    """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
+    return np.loadtxt(str(hess_file), dtype=float)
+
+###################################################################
+#
+# Below functions should not be called outside the module
+#
+#------------------------------------------------------------------
+
+#
+#
+#
 def parse_section(kword_array, line_start, section):
     """Reads a namelist style input, returns results in dictionary.
 
@@ -150,7 +193,27 @@ def parse_section(kword_array, line_start, section):
     return current_line
 
 
-def validate_input():
+#
+#
+#
+def check_boolean(chk_str):
+    """Routine to check if string is boolean.
+
+    Accepts 'true','TRUE','True', etc. and if so, return True or False.
+    """
+
+    bool_str = str(chk_str).strip().lower()
+    if bool_str == 'true':
+        return True
+    elif bool_str == 'false':
+        return False
+    else:
+        return chk_str
+
+#
+#
+#
+def validate():
     """Ensures that input values are internally consistent.
 
     Currently there are multiple ways to set variables in the nuclear
@@ -162,15 +225,15 @@ def validate_input():
         glbl.integrals =__import__('src.integrals.'+
                                    glbl.propagate['integrals'],fromlist=['a'])
     except ImportError:
-        print('Cannot import integrals: src.integrals.' + 
+        print('Cannot import integrals: src.integrals.' +
                                str(glbl.propagate['integrals']))
 
     try:
-        glbl.pes = __import__('src.interfaces.' + 
-                               glbl.interface['interface'],fromlist=['NA'])
+        glbl.interface = __import__('src.interfaces.' +
+                               glbl.iface_params['interface'],fromlist=['NA'])
     except ImportError:
         print('Cannot import pes: src.interfaces.'+
-                               str(glbl.interface['interface']))
+                               str(glbl.iface_params['interface']))
 
     try:
         glbl.distrib = __import__('src.sampling.'+glbl.sampling['init_sampling'],
@@ -180,10 +243,10 @@ def validate_input():
                                str(glbl.sampling['init_sampling']))
 
     try:
-        glbl.spawn = __import__('src.spawn.'+glbl.spawning['spawning'],
+        glbl.grow = __import__('src.grow.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
-        print('Cannot import spawning: src.spawn.'+
+        print('Cannot import spawning: src.grow.'+
                                str(glbl.spawning['spawning']))
 
     try:
@@ -194,18 +257,18 @@ def validate_input():
                                str(glbl.propagate['propagator']))
 
 
-    # if geomfile specified, it's contents overwrite variable settings in fms.input
+    # if geomfile specified, it's contents overwrite variable settings in nomad.input
     if os.path.isfile(glbl.nuclear_basis['geomfile']):
         (labels, geoms, moms)            = read_geometry(glbl.nuclear_basis['geomfile'])
         glbl.nuclear_basis['labels']     = labels
         glbl.nuclear_basis['geometries'] = geoms
         glbl.nuclear_basis['momenta']    = moms
 
-    # if hessfile is specified, its contents overwrite variable settings from fms.input
+    # if hessfile is specified, its contents overwrite variable settings from nomad.input
     if os.path.isfile(glbl.nuclear_basis['hessfile']):
         glbl.nuclear_basis['hessian']    = read_hessian(glbl.nuclear_basis['hessfile'])
 
-    # if use_atom_lib, atom_lib values overwrite variables settings from fms.input
+    # if use_atom_lib, atom_lib values overwrite variables settings from nomad.input
     if glbl.nuclear_basis['use_atom_lib']:
         wlst  = []
         mlst  = []
@@ -217,9 +280,9 @@ def validate_input():
         glbl.nuclear_basis['masses'] = mlst
 
     # set mass array here if using vibronic interface
-    if glbl.interface['interface'] == 'vibronic':
+    if glbl.iface_params['interface'] == 'vibronic':
         n_usr_freq = len(glbl.nuclear_basis['freqs'])
-       
+
         # automatically set the "mass" of the coordinates to be 1/omega
         # the coefficient on p^2 -> 0.5 omega == 0.5 / m. Any user set masses
         # will override the default
@@ -254,156 +317,9 @@ def validate_input():
         glbl.variables['surface_rep'] = 'diabatic'
     else:
         glbl.variables['surface_rep'] = 'adiabatic'
- 
+
     # check array lengths
     #ngeom   = len(glbl.nuclear_basis['geometries'])
     #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
+    return
 
-#
-#
-#
-def check_boolean(chk_str):
-    """Routine to check if string is boolean.
-
-    Accepts 'true','TRUE','True', etc. and if so, return True or False.
-    """
-
-    bool_str = str(chk_str).strip().lower()
-    if bool_str == 'true':
-        return True
-    elif bool_str == 'false':
-        return False
-    else:
-        return chk_str
-
-
-#----------------------------------------------------------------------------
-#
-# Read geometry.dat and hessian.dat files
-#
-#----------------------------------------------------------------------------
-def read_geometry(geom_file):
-    """Reads position and momenta from an xyz file"""
-    geoms = []
-    moms  = []
-
-    with open(geom_file, 'r') as gfile:
-        gm_file = gfile.readlines()
-
-    # parse file for number of atoms/dof, dimension of coordinates
-    # and number of geometries
-    ncrd    = int(gm_file[0].strip().split()[0])
-    crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
-    ngeoms  = int(len(gm_file)/(ncrd+2))
-
-    # read in the atom/crd labels -- assumes atoms are same for each
-    # geometry in the list
-    labels = []
-    for i in range(2,ncrd+2):
-        labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
-
-    # loop over geoms, load positions and momenta into arrays
-    for i in range(ngeoms):
-        geom = []
-        mom  = []
-
-        # delete first and comment lines
-        del gm_file[0:2]
-        for j in range(ncrd):
-            line = gm_file[0].strip().split()
-            geom.extend([float(line[k]) for k in range(1,crd_dim+1)])
-            mom.extend([float(line[k]) for k in range(crd_dim+1,2*crd_dim+1)])
-            del gm_file[0]
-
-        geoms.append(geom)
-        moms.append(mom)
-
-    return labels,geoms,moms
-
-
-def read_hessian(hess_file):
-    """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
-    return np.loadtxt(str(hess_file), dtype=float)
-
-
-#----------------------------------------------------------------------------
-#
-# FMS summary output file
-#
-#----------------------------------------------------------------------------
-def cleanup_end():
-    """Cleans up the FMS log file if calculation completed."""
-    # simulation ended
-    print_fms_logfile('complete', [])
-
-    # print timing information
-    timings.stop('global', cumulative=True)
-    t_table = timings.print_timings()
-    print_fms_logfile('timings', [t_table])
-
-    # copy output files
-    copy_output()
-
-
-def cleanup_exc(etyp, val, tb):
-    """Cleans up the FMS log file if an exception occurs."""
-    # print exception
-    exception = ''.join(traceback.format_exception(etyp, val, tb))
-    print_fms_logfile('error', [rm_timer(exception)])
-
-    # stop remaining timers
-    for timer in timings.active_stack[:0:-1]:
-        timings.stop(timer.name)
-
-    # print timing information
-    timings.stop('global', cumulative=True)
-    t_table = timings.print_timings()
-    print_fms_logfile('timings', [t_table])
-
-    # copy output files
-    copy_output()
-
-    # abort other processes if running in parallel
-    if glbl.mpi['parallel']:
-        glbl.mpi['comm'].Abort(1)
-
-
-def copy_output():
-    """Copies output files to current working directory."""
-    # move trajectory summary files to an output directory in the home area
-    odir = home_path + '/output'
-    if os.path.exists(odir):
-        shutil.rmtree(odir)
-    os.makedirs(odir)
-
-    # move trajectory files
-    for key, fname in tfile_names.items():
-        for tfile in glob.glob(scr_path + '/' + fname + '.*'):
-            if not os.path.isdir(tfile):
-                shutil.move(tfile, odir)
-
-    # move bundle files
-    for key, fname in bfile_names.items():
-        try:
-            shutil.move(scr_path + '/' + fname, odir)
-        except IOError:
-            pass
-
-    # move chkpt file
-    try:
-        shutil.move(scr_path + '/last_step.dat', odir)
-    except IOError:
-        pass
-
-
-def rm_timer(exc):
-    """Removes the timer lines from an Exception traceback."""
-    tb = exc.split('\n')
-    regex = re.compile('.*timings\.py.*in (hooked|_run_func)')
-    i = 0
-    while i < len(tb):
-        if re.match(regex, tb[i]):
-            tb = tb[:i] + tb[i+2:]
-        else:
-            i += 1
-    return '\n'.join(tb)

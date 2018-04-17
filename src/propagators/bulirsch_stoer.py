@@ -19,9 +19,9 @@ values of n.
 For more details, see http://apps.nrbook.com/fortran/index.html.
 """
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.dynamics.timings as timings
-import src.dynamics.surface as surface
+import src.parse.glbl as glbl
+import src.utils.timings as timings
+import src.dynamics.evaluate as evaluate
 
 
 propphase = glbl.propagate['phase_prop']
@@ -82,7 +82,7 @@ def propagate_bundle(master, dt):
                     if tmpbundle.traj[i].active:
                         mm_step(tmpbundle.traj[i], hstep/nstep[k], x0[i],
                                 x1[i], p0[i], p1[i], g0[i], g1[i], n)
-                surface.update_pes(tmpbundle, update_centroids=False)
+                evaluate.update_pes(tmpbundle, update_centroids=False)
 
             # compute the modified midpoint estimate
             for i in range(ntraj):
@@ -123,7 +123,7 @@ def propagate_bundle(master, dt):
                                 master.traj[i].update_p(pnew[i])
                                 if propphase:
                                     master.traj[i].update_phase(gnew[i])
-                        surface.update_pes(master,
+                        evaluate.update_pes(master,
                                            update_centroids=(abs(t)>=abs(dt)))
                         break
 
@@ -159,7 +159,7 @@ def propagate_trajectory(traj, dt):
             # step through n modified midpoint steps
             for n in range(nstep[k]):
                 mm_step(tmptraj, hstep/nstep[k], x0, x1, p0, p1, g0, g1, n)
-                surface.update_pes_traj(tmptraj)
+                evaluate.update_pes_traj(tmptraj)
 
             # compute the modified midpoint estimate
             x1 = 0.5*(x1 + x0 + hstep/nstep[k]*tmptraj.velocity())
@@ -193,7 +193,7 @@ def propagate_trajectory(traj, dt):
                         if propphase:
                             gnew = np.sum(Tg, axis=0)
                             traj.update_phase(gnew)
-                        surface.update_pes_traj(traj)
+                        evaluate.update_pes_traj(traj)
                         break
 
 
