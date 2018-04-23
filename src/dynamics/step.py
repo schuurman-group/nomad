@@ -1,16 +1,16 @@
 """
-Routines for propagating a bundle forward by a time step.
+Routines for propagating a wavefunction forward by a time step.
 """
 import sys
 import numpy as np
 import src.parse.glbl as glbl
 import src.parse.log as log
-import src.basis.bundle as bundle
-import src.basis.trajectory as trajectory
 import src.dynamics.evaluate as evaluate
 import src.basis.matching_pursuit as mp
 
-
+#
+#
+#
 def time_step(master):
     """ Determine time step based on whether in coupling regime"""
 
@@ -20,42 +20,48 @@ def time_step(master):
     else:
         return float(glbl.propagate['default_time_step'])
 
-
-def step_bundle(master, dt):
+#
+#
+#
+def step_wavefunction(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
 
-    # save the bundle from previous step in case step rejected
+    # save the wavefunction from previous step in case step rejected
     end_time      = master.time + dt
     time_step     = dt
     min_time_step = dt / 2.**5
 
     while not step_complete(master.time, end_time, dt):
-        # save the bundle from previous step in case step rejected
+        # save the wavefunction from previous step in case step rejected
         #try:
         #    del master0
         #except NameError:
         #    pass
         master0 = master.copy()
 
-        # propagate each trajectory in the bundle
+        # propagate each trajectory in the wavefunction 
         time_step = min(time_step, end_time-master.time)
+
         # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*dt, update_ham=False)
+        master.update_amplitudes(0.5*dt, glbl.master_matrices)
+
         # the propagators update the potential energy surface as need be.
-        glbl.integrator.propagate_bundle(master, time_step)
+        glbl.integrator.propagate_wfn(master, time_step)
+
         # propagate amplitudes for 1/2 time step using x1
-        master.update_amplitudes(0.5*dt)
+        glbl.master_matrices.build(master, glbl.integrals)
+        master.update_amplitudes(0.5*dt, glbl.master_matrices)
 
         # Renormalization
         if glbl.propagate['renorm'] == 1:
             master.renormalize()
 
         # check time_step is fine, energy/amplitude conserved
-        accept, error_msg = check_step_bundle(master0, master, time_step)
+        accept, error_msg = check_step_wfn(master0, master, time_step)
 
         # if everything is ok..
         if accept:
-            # update the bundle time
+            # update the wavefunction time
             master.time += time_step
             # spawn new basis functions if necessary
             basis_grown  = glbl.grow.spawn(master, time_step)
@@ -71,7 +77,7 @@ def step_bundle(master, dt):
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 master.update_matrices()
+                 glbl.master_matrices(master, glbl.integrals)
 
             # re-expression of the basis using the matching pursuit
             # algorithm
@@ -101,7 +107,7 @@ def step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.
 
     Used to backward/forward propagate a trajectory during spawning.
-    NOTE: fms_step_bundle and fms_step_trajectory could/should probably
+    NOTE: fms_step_wavefunction and fms_step_trajectory could/should probably
     be integrated somehow...
     """
     current_time = init_time
@@ -110,7 +116,7 @@ def step_trajectory(traj, init_time, dt):
     min_time_step = abs(dt / 2.**5)
 
     while not step_complete(current_time, end_time, time_step):
-        # save the bundle from previous step in case step rejected
+        # save the wavefunction from previous step in case step rejected
         traj0 = traj.copy()
 
         # propagate single trajectory
@@ -156,17 +162,20 @@ def step_complete(current_time, final_time, dt):
 #
 #
 #
-def check_step_bundle(master0, master, time_step):
+def check_step_wfn(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
+
     # if we're in the coupled regime and using default time step, reject
     if glbl.grow.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
+
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
     dpop = abs(sum(master0.pop()) - sum(master.pop()))
     if dpop > glbl.propagate['pop_jump_toler']:
-        return False, ' jump in bundle population, delta[pop] = {:8.4f}'.format(dpop)
+        return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
+
     # this is largely what the above check is checking -- but is more direct. I would say 
     # we should remove the above check...
     dnorm = master.norm()

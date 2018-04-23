@@ -5,6 +5,7 @@ import sys
 import random
 import numpy as np
 import scipy.linalg as sp_linalg
+import src.utils.constants as constants
 import src.parse.glbl as glbl
 import src.parse.log as log
 import src.basis.trajectory as trajectory
@@ -67,7 +68,7 @@ def set_initial_coords(master):
         log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies 
-    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*glbl.constants['au2cm']) 
+    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm) 
                                                        for j in range(n_modes)]) 
     log.print_message('string',[fstr+'\n'])
 
@@ -81,7 +82,7 @@ def set_initial_coords(master):
         p_sample  = np.zeros(n_modes)
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
-            if alpha > glbl.constants['fpzero']:
+            if alpha > constants.fpzero:
                 sigma_x = (glbl.sampling['distrib_compression'] * 
                            np.sqrt(0.25 / alpha))
                 sigma_p = (glbl.sampling['distrib_compression'] *

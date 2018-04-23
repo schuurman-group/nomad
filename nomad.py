@@ -10,8 +10,8 @@ import mpi4py.MPI as MPI
 import src.parse.glbl as glbl
 import src.parse.files as files
 import src.parse.log as log
-import src.archive.checkpoint as chkpt
-import src.basis.bundle as bundle
+import src.archive.checkpoint as checkpoint
+import src.basis.wavefunction as wavefunction
 import src.basis.initialize as initialize
 import src.dynamics.step as step
 import src.utils.timings as timings
@@ -49,19 +49,19 @@ def init():
 def main():
     """Runs the main FMSpy routine."""
     # Create the collection of trajectories
-    master = bundle.Bundle(glbl.propagate['n_states'])
+    master = wavefunction.Wavefunction()
 
     # set the initial conditions for trajectories
-    initialize.init_bundle(master)
+    initialize.init_wavefunction(master)
 
     while master.time < glbl.propagate['simulation_time']:
         # set the time step --> top level time step should always
-        # be default time step. fms_step_bundle will decide if/how
+        # be default time step. fms_step_wfn will decide if/how
         # dt should be shortened for numerics
         time_step = step.time_step(master)
 
         # take an fms dynamics step
-        master = step.step_bundle(master, time_step)
+        master = step.step_wavefunction(master, time_step)
 
         # if no more live trajectories, simulation is complete
         if master.nalive == 0:
@@ -70,7 +70,8 @@ def main():
         # determine whether it is necessary to update the output logs
         if glbl.mpi['rank'] == 0:
             # update the fms output files, as well as checkpoint, if necessary
-            chkpt.write(master)
+            checkpoint.write(master)
+            checkpoint.write(glbl.master_mat, master.time)
 
     # clean up, stop the global timer and write logs
     cleanup.cleanup_end()

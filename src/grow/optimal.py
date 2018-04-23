@@ -40,7 +40,7 @@ def spawn(master, dt):
     if len(coup_hist) < master.n_traj():
         n_add = master.n_traj() - len(coup_hist)
         for i in range(n_add):
-            coup_hist.append(np.zeros((master.nstates, 3)))
+            coup_hist.append(np.zeros((glbl.propagate['n_states'], 3)))
 
     #--------------- iterate over all trajectories in bundle ---------------------
     for i in range(master.n_traj()):
@@ -48,7 +48,7 @@ def spawn(master, dt):
         if not master.traj[i].alive:
             continue
 
-        for st in range(master.nstates):
+        for st in range(glbl.propagate['n_states']):
             # can only spawn to different electronic states
             if master.traj[i].state == st:
                 continue
@@ -211,7 +211,7 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
 def in_coupled_regime(bundle):
     """Checks if we are in spawning regime."""
     for i in range(bundle.n_traj()):
-        for st in range(bundle.nstates):
+        for st in range(glbl.propagate['n_states']):
             if st != bundle.traj[i].state:
                 if abs(bundle.traj[i].eff_coup(st)) > glbl.spawning['spawn_coup_thresh']:
                     return True

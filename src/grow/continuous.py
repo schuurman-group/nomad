@@ -30,7 +30,7 @@ def spawn(master, dt):
             continue
 
         parent = master.traj[i]
-        for st in range(master.nstates):
+        for st in range(glbl.propagate['n_states']):
             # don't check overlap with basis functions on same state
             if st == parent.state:
                 continue

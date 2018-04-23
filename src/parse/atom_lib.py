@@ -1,7 +1,7 @@
 """
 A library containing atom widths, atomic numbers, etc.
 """
-import src.parse.glbl as glbl
+import src.utils.constants as constants
 
 
 atom_name  = ['H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',
@@ -27,7 +27,7 @@ def atom_data(atom_sym):
 
     if valid_atom(atom_sym):
         index = atom_name.index(atom_sym)
-        return atom_width[index],atom_mass[index]*glbl.constants['amu2au'],atom_anum[index]
+        return atom_width[index],atom_mass[index]*constants.amu2au,atom_anum[index]
 
     else:
         raise KeyError('Atom: '+str(atom_sym)+' not found in library')

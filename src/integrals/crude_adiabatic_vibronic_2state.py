@@ -5,11 +5,9 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
+import src.utils.constants as constants
 import src.parse.glbl as glbl
 import src.integrals.nuclear_gaussian_ccs as nuclear
-
-# Let FMS know if overlap matrix elements require PES info
-overlap_requires_pes = True
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False 
@@ -28,44 +26,53 @@ theta_cache = dict()
 gs = 0 
 es = 1 
 
+#
+#
+#
 def elec_overlap(traj1, traj2):
-    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+    """ Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
 
     return complex( np.dot(phi(traj1),phi(traj2)), 0.)
 
+#
+#
+#
+def nuc_overlap(traj1, traj2):
+    """ Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
+
+    return nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
+                           traj2.widths(),traj2.x(),traj2.p())
+
+#
 # returns the overlap between two trajectories (differs from s_integral in that
 # the bra and ket functions for the s_integral may be different
 # (i.e. pseudospectral/collocation methods). 
-def traj_overlap(traj1, traj2, nuc_only=False, Snuc=None):
+#
+def traj_overlap(traj1, traj2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
-    if nuc_only:
-        return Snuc 
-    else:
-        return Snuc * elec_overlap(traj1, traj2)
 
-# total overlap of trajectory basis function
-def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
-    """ Returns < Psi | Psi' >, the overlap of the nuclear
-    component of the wave function only"""
-    if Snuc is None:
-        Snuc = traj_overlap(traj1, traj2, nuc_only=nuc_only)
-
-    if nuc_only:
-        return Snuc
-    else:
-        return Snuc * elec_overlap(traj1, traj2) 
+    return s_integral(traj1, traj2, nuc_ovrlp)
 
 #
-def v_integral(traj1, traj2, centroid=None, Snuc=None):
+# total overlap of trajectory basis function
+#
+def s_integral(traj1, traj2, nuc_ovrlp=None):
+    """ Returns < Psi | Psi' >, the overlap of the nuclear
+    component of the wave function only"""
+
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(traj1, traj2)
+
+    return elec_overlap(traj1, traj2) * nuc_ovrlp
+
+#
+#
+#
+def v_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(traj1, traj2)
 
     # get the linear combinations corresponding to the adiabatic states
     nst   = traj1.nstates
@@ -86,43 +93,45 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
     # Fill in the upper-triangle
     v_mat += (v_mat.T - np.diag(v_mat.diagonal()))
 
-    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * Snuc
+    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp 
 
+#
 # kinetic energy integral
-def ke_integral(traj1, traj2, centroid=None, Snuc=None):
+#
+def ke_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(traj1, traj2)
 
     # < chi | del^2 / dx^2 | chi'> 
-    ke = nuclear.deld2x(Snuc,traj1.widths(),traj1.x(),traj1.p(),
-                             traj2.widths(),traj2.x(),traj2.p())
+    ke = nuclear.deld2x(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
+                                  traj2.widths(),traj2.x(),traj2.p())
 
     return -np.dot(glbl.interface.kecoeff,ke)*elec_overlap(traj1,traj2)
-
     
-# time derivative of the overlap
-def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only=False):
-    """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
+#
+# sdot integral
+#
+def sdot_integral(traj1, traj2, nuc_ovrlp=None, nuc_only=None, e_only=None):
+    """Returns kinetic energy integral over trajectories."""
+    # evaluate just the nuclear component (for re-use)
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(traj1, traj2)
 
     # overlap of electronic functions
-    Selec = elec_overlap(traj1, traj2)
+    elec_ovrlp = elec_overlap(traj1, traj2)
 
     # < chi | d / dx | chi'>
-    deldx = nuclear.deldx(Snuc,traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
+    deldx = nuclear.deldx(elec_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
+                                     traj2.widths(),traj2.x(),traj2.p())
     # < chi | d / dp | chi'>
-    deldp = nuclear.deldp(Snuc,traj1.widths(),traj1.x(),traj1.p(),
-                               traj2.widths(),traj2.x(),traj2.p())
+    deldp = nuclear.deldp(elec_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
+                                     traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
     sdot = ( np.dot(deldx, traj2.velocity()) 
-           + np.dot(deldp, traj2.force())) * Selec
+           + np.dot(deldp, traj2.force())) * elec_ovrlp
 								
     if nuc_only:
         return sdot
@@ -141,8 +150,9 @@ def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only
 
     return sdot
 
-
+#
 # adiabatic-diabatic rotation matrix
+#
 def rot_mat(theta):
     """ Returns the adiabatic-diabatic rotation matrix for a given value of
         theta"""
@@ -155,7 +165,9 @@ def rot_mat(theta):
         return np.array([[-np.sin(theta), np.cos(theta)],
                          [ np.cos(theta), np.sin(theta)]])
 
+#
 # derivative of the adiabatic-diabatic rotation matrix
+#
 def drot_mat(theta):
     """ Returns the derivative adiabatic-diabatic rotation matrix with respect
         to theta"""
@@ -168,7 +180,9 @@ def drot_mat(theta):
         return np.array([[-np.cos(theta), -np.sin(theta)],
                          [-np.sin(theta),  np.cos(theta)]])
 
+#
 # compute the diabatic-adiabatic rotation angle theta
+#
 def theta(traj):
     """ Returns to the adiabatic-diabatic rotation angle theta. Choose theta
         to be consistent with diabatic-adiabatic transformation matrix, which
@@ -205,7 +219,9 @@ def theta(traj):
 
     return ang
 
+#
 # compute the derivative of the diabatic-adiabatic rotation angle theta
+#
 def dtheta(traj):
     """ Returns to the derivative adiabatic-diabatic rotation angle theta with
         respect to the internal coordinates."""
@@ -237,7 +253,9 @@ def dtheta(traj):
 
     return dtheta_dq
 
+#
 # return the diabatic-adiabatic transformation matrix
+#
 def phi(traj):
     """Returns the transformation matrix using the rotation angle. 
        Should be indentical to the dat_mat in the vibronic interface"""
@@ -251,7 +269,9 @@ def phi(traj):
 
     return phi_mat[:,traj.state]
 
+#
 # return the derivatie of the diabatic-adiabatic transformation matrix
+#
 def dphi(traj):
     """Returns the derivative transformation matrix using the rotation angle."""
 
@@ -266,4 +286,5 @@ def dphi(traj):
     dphi_dq = np.array([dphi_mat[i,traj.state]*dangle for i in range(traj.nstates)])
 
     return dphi_dq
+
 

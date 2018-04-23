@@ -4,6 +4,7 @@ basis function, assumes bra is also product of frozen gaussians
 """
 import operator, functools
 import numpy as np
+import utils.constants
 
 print('WARNING: Using uncompiled Python module for Gaussian integrals. '
       'For optimal performance, compile Cython module using '
@@ -66,7 +67,7 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
     a   = a1 + a2
     b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
 
-    if np.absolute(b) < glbl.constants['fpzero']:
+    if np.absolute(b) < constants.fpzero:
         if N % 2 != 0:
             return 0.
         else:

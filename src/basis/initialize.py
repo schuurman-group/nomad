@@ -7,16 +7,16 @@ import scipy.linalg as sp_linalg
 import src.parse.glbl as glbl
 import src.parse.log as log
 import src.basis.trajectory as trajectory
-import src.basis.bundle as bundle
+import src.basis.wavefunction as wavefunction
 import src.dynamics.evaluate as evaluate
-import src.archive.checkpoint as chkpt
+import src.archive.checkpoint as checkpoint 
 
 #--------------------------------------------------------------------------
 #
 # Externally visible routines
 #
 #--------------------------------------------------------------------------
-def init_bundle(master):
+def init_wavefunction(master):
     """Initializes the trajectories."""
 
     # initialize the interface we'll be using the determine the
@@ -26,7 +26,14 @@ def init_bundle(master):
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
-        chkpt.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
+        checkpoint.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
+        checkpoint.read(glbl.master_mat, 'chkpt.hdf5', glbl.sampling['restart_time'])
+        if glbl.sampling['restart_time'] != 0.
+            master0 = wavefunction.Wavefunction(master.nstates)
+            checkpoint.read(master0, 'chkpt.hdf5', 0.)
+            save_initial_wavefunction(master0)
+        else:
+            save_initial_wavefunction(master) 
 
     else:
         # first generate the initial nuclear coordinates and momenta
@@ -37,27 +44,27 @@ def init_bundle(master):
         # require evaluation of electronic structure
         set_initial_state(master)
 
+        # once phase space position and states of the basis functions
+        # are set, update the potential information
+        evaluate.update_pes(master)
+
         # set the initial amplitudes of the basis functions
         set_initial_amplitudes(master)
 
-        # add virtual basis functions, if desired (i.e. virtual basis = true)
-        if glbl.sampling['virtual_basis'] and not glbl.sampling['restart']:
-            virtual_basis(master)
+        # compute the hamiltonian matrix...
+        glbl.master_mat.build(master, glbl.master_int)
 
-    # update all pes info for all trajectories and centroids (where necessary)
-    evaluate.update_pes(master)
-    # compute the hamiltonian matrix...
-    master.update_matrices()
-    # so that we may appropriately renormalize to unity
-    master.renormalize()
+        # so that we may appropriately renormalize to unity
+        master.renormalize()
 
-    # this is the bundle at time t=0.  Save in order to compute auto
-    # correlation function
-    set_initial_bundle(master) 
+        # this is the bundle at time t=0.  Save in order to compute auto
+        # correlation function
+        save_initial_wavefunction(master) 
 
     # write the bundle to the archive 
     if glbl.mpi['rank'] == 0:
-        chkpt.write(master,file_name='chkpt.hdf5')
+        checkpoint.write(master, file_name='chkpt.hdf5')
+        checkpoint.write(glbl.master_mat, time=master.time, file_name='chkpt.hdf5')
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])
@@ -116,10 +123,6 @@ def set_initial_amplitudes(master):
 
         origin = make_origin_traj()
 
-        # update all pes info for all trajectories and centroids (where necessary)
-        if glbl.integrals.overlap_requires_pes:
-            evaluate.update_pes(master)
-
         # Calculate the initial expansion coefficients via projection onto
         # the initial wavefunction that we are sampling
         ovec = np.zeros(master.n_traj(), dtype=complex)
@@ -149,7 +152,7 @@ def set_initial_amplitudes(master):
 
     return
 
-def set_initial_bundle(master):
+def save_initial_wavefunction(master):
     """Sets the intial t=0 bundle in order to compute the autocorrelation 
        function for subsequent time steps"""
 
@@ -173,7 +176,7 @@ def virtual_basis(master):
     amplitude.
     """
     for i in range(master.n_traj()):
-        for j in range(master.nstates):
+        for j in range(glbl.propagate['n_states']):
             if j == master.traj[i].state:
                 continue
 

@@ -6,21 +6,22 @@ execution of potential evaluations which is essential for ab initio PES.
 """
 from functools import partial
 import numpy as np
+import src.utils.constants as constants
 import src.parse.glbl as glbl
 import src.basis.trajectory as trajectory
-import src.basis.centroid as centroid
+import src.integrals.centroid as centroid
 
 pes_cache  = dict()
 
-def update_pes(master, update_centroids=None):
+def update_pes(master, update_integrals=True):
     """Updates the potential energy surface."""
     global pes_cache
     success = True
 
     # this conditional checks to see if we actually need centroids,
     # even if propagator requests them
-    if update_centroids is None or not glbl.integrals.require_centroids:
-        update_centroids = glbl.integrals.require_centroids
+    if update_integrals:
+        glbl.integrals.update()
 
     if glbl.mpi['parallel']:
         # update electronic structure
@@ -33,16 +34,14 @@ def update_pes(master, update_centroids=None):
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(master.traj[i])
 
-        if update_centroids:
-            # update the geometries
-            master.update_centroids()
+        if update_integrals and glbl.integrals.require_centroids:
             # now update electronic structure in a controled way to allow for
             # parallelization
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if master.centroid_required(master.traj[i],master.traj[j]) and not \
-                                           cached(master.cent[i][j].label,
-                                                  master.cent[i][j].x()):
+                    if glbl.integrals.centroid_required[i][j] and not \
+                                             cached(integrals.centroid[i][j].label,
+                                                    integrals.centroid[i][j].x()):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                             exec_list.append(master.cent[i][j])
@@ -72,12 +71,13 @@ def update_pes(master, update_centroids=None):
                 master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
 
         # and centroids
-        if update_centroids:
+        if update_integrals and glbl.integrals.require_centroids:
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if master.cent[i][j].label in pes_cache:
-                        master.cent[i][j].update_pes_info(pes_cache[master.cent[i][j].label])
-                        master.cent[j][i] = master.cent[i][j]
+                    c_label = glbl.integrals.centroid[i][j].label
+                    if c_label in pes_cache:
+                        glbl.integrals.centroid[i][j].update_pes_info(c_label)
+                        glbl.integrals.centroid[j][i] = glbl.integrals.centroid[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -90,21 +90,22 @@ def update_pes(master, update_centroids=None):
                                                master.traj[i], master.time))
 
         # ...and centroids if need be
-        if update_centroids:
-            # update the geometries
-            master.update_centroids()
+        if update_integrals and glbl.integrals.require_centroids::
+            
             for i in range(master.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it
-                    if master.cent[i][j] is not None:
-                        master.cent[i][j].update_pes_info(
+                    if glbl.integrals.centroid_required[i][j]:
+                        glbl.integrals.centroid[i][j].update_pes_info(
                                           glbl.interface.evaluate_centroid(
-                                          master.cent[i][j], master.time))
-                        master.cent[j][i] = master.cent[i][j]
+                                          glbl.integrals.centroid[i][j], master.time))
+                        glbl.integrals.centroid[j][i] = glbl.integrals.centroid[i][j]
 
     return success
 
-
+#
+#
+#
 def update_pes_traj(traj):
     """Updates a single trajectory
 
@@ -121,7 +122,9 @@ def update_pes_traj(traj):
 
     traj.update_pes_info(results)
 
-
+#
+#
+#
 def cached(label, geom):
     """Returns True if the surface in the cache corresponds to the current
     trajectory (don't recompute the surface)."""
@@ -131,7 +134,7 @@ def cached(label, geom):
         return False
 
     dg = np.linalg.norm(geom - pes_cache[label].geom)
-    if dg <= glbl.constants['fpzero']:
+    if dg <= constants.fpzero:
         return True
 
     return False

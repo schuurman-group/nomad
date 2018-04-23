@@ -15,15 +15,13 @@ import src.parse.glbl as glbl
 import src.utils.timings as timings
 import src.dynamics.evaluate as evaluate
 
-
 rk_ordr = 4
 coeff = np.array([0.5, 0.5, 1.])
 wgt = np.array([1./6., 1./3., 1./3., 1./6.])
 propphase = glbl.propagate['phase_prop']
 
-
 @timings.timed
-def propagate_bundle(master, dt):
+def propagate_wfn(master, dt):
     """Propagates the Bundle object with RK4."""
     ncrd = master.traj[0].dim
     ntraj = master.n_traj()
@@ -32,14 +30,14 @@ def propagate_bundle(master, dt):
     kg = np.zeros((ntraj, rk_ordr, ncrd))
 
     for rk in range(rk_ordr):
-        tmpbundle = master.copy()
+        tmp_wfn = master.copy()
         for i in range(ntraj):
-            if tmpbundle.traj[i].active:
-                propagate_rk(tmpbundle.traj[i], dt, rk, kx[i], kp[i], kg[i])
+            if tmp_wfn.traj[i].active:
+                propagate_rk(tmp_wfn.traj[i], dt, rk, kx[i], kp[i], kg[i])
 
         # update the PES to evaluate new gradients
         if rk < rk_ordr - 1:
-            evaluate.update_pes(tmpbundle, update_centroids=False)
+            evaluate.update_pes(tmp_wfn, update_integrals=False)
 
     # update to the final position
     for i in range(ntraj):

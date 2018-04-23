@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import math
 import numpy as np
+import src.utils.constants as constants
 import src.parse.glbl as glbl
 import src.basis.atom_lib as atom_lib
 import src.basis.trajectory as trajectory
@@ -89,7 +90,7 @@ def init_interface():
             raise ValueError('Atom: '+str(a_sym[i])+' not found in library')
 
     # masses are au -- columbus geom reads mass in amu
-    a_mass  = [a_data[i][1]/glbl.constants['amu2au'] for i in range(natm)]
+    a_mass  = [a_data[i][1]/constants.amu2au for i in range(natm)]
     a_num   = [a_data[i][2] for i in range(natm)]
 
     # set coefficient for kinetic energy determination
@@ -186,6 +187,7 @@ def evaluate_trajectory(traj, t=None):
     # create surface object to hold potential information
     col_surf      = surface.Surface()
     col_surf.add_data('geom', traj.x())
+    col_surf.add_data('momentum',traj.p())
 
     # write geometry to file
     write_col_geom(traj.x())
@@ -262,9 +264,9 @@ def evaluate_centroid(Cent, t=None):
 
     # create surface object to hold potential information
     col_surf      = surface.Surface()
+
     col_surf.add_data('geom', Cent.x())
-    col_surf.geom = Cent.x()
-    col_surf.data_keys.append('geom')
+    col_surf.add_data('momentum', Cent.p())
 
     # write geometry to file
     write_col_geom(Cent.x())
@@ -278,24 +280,22 @@ def evaluate_centroid(Cent, t=None):
 
     # run mcscf
     run_col_mcscf(Cent, t)
-    col_surf.mos = pack_mocoef()
-    col_surf.data_keys.append('mos')
+    col_surf.add_data('mos',pack_mocoef())
 
     # run mrci, if necessary
-    col_surf.potential, col_surf.atom_pop = run_col_mrci(Cent, ci_restart, t)
-    col_surf.data_keys.append('poten')
-    col_surf.data_keys.append('atom_pop')
+    potential, atom_pop = run_col_mrci(Cent, ci_restart, t)
+    col_surf.add_data('potential', potential)
+    col_surf.add_data('atom_pop', atom_pop)
 
+    deriv = np.zeros((Cent.dim, nstates, nstates)
     if state_i != state_j:
         # run coupling to other states
         nad_coup = run_col_coupling(Cent, col_surf.potential, t)
-        col_surf.deriv[:,state_i, state_j] =  nad_coup[:,state_j]
-        col_surf.deriv[:,state_j, state_i] = -nad_coup[:,state_j]
-        col_surf.coupling[:, state_i, state_j] = nad_coup[:,state_j]
-        col_surf.coupling[:, state_j, state_i] = -nad_coup[:,state_j]
+        deriv[:,state_i, state_j] =  nad_coup[:,state_j]
+        deriv[:,state_j, state_i] = -nad_coup[:,state_j]
 
-    col_surf.data_keys.append('deriv')
-    col_surf.data_keys.append('coupling')
+    col_surf.add_data('derivative') = deriv
+    col_surf.add_data('coupling')   = deriv
 
     # save restart files
     make_col_restart(Cent)

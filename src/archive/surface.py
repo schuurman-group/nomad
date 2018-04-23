@@ -6,7 +6,7 @@ import copy
 
 class Surface:
     """Object containing potential energy surface data."""
-    standard_objs = ['geom','potential','derivative','hessian','coupling']
+    standard_objs = ['geom','momentum','potential','derivative','hessian','coupling']
     optional_objs = ['mos','dipoles','atom_pop','sec_mom',
                      'diabat_pot','diabat_deriv','diabat_hessian',
                      'adt_mat','dat_mat','nac','scalar_coup']
@@ -44,7 +44,7 @@ class Surface:
         if key in self.data:
             return self.data[key]
         else:
-            sys.exit('trying to get_item '+str(key)+' from Surface: item no present')
+            sys.exit('(get_data('+str(key)+') from Surface: datum not present')
         return
 
     #

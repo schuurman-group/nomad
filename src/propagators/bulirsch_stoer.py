@@ -23,7 +23,6 @@ import src.parse.glbl as glbl
 import src.utils.timings as timings
 import src.dynamics.evaluate as evaluate
 
-
 propphase = glbl.propagate['phase_prop']
 
 maxattempt = 8
@@ -48,10 +47,10 @@ kmax_traj = np.copy(kopt)
 
 
 @timings.timed
-def propagate_bundle(master, dt):
+def propagate_wfn(master, dt):
     """Propagates the Bundle object with BS."""
     global h
-    ncrd = master.traj[0].dim
+    ncrd  = master.traj[0].dim
     ntraj = master.n_traj()
 
     t = 0.
@@ -67,7 +66,7 @@ def propagate_bundle(master, dt):
         Tg = np.zeros((kmax, ntraj, ncrd))
 
         for k in range(kmax):
-            tmpbundle = master.copy()
+            tmp_wfn = master.copy()
 
             x0 = np.zeros((ntraj, ncrd))
             p0 = np.zeros((ntraj, ncrd))
@@ -79,21 +78,21 @@ def propagate_bundle(master, dt):
             # step through n modified midpoint steps
             for n in range(nstep[k]):
                 for i in range(ntraj):
-                    if tmpbundle.traj[i].active:
-                        mm_step(tmpbundle.traj[i], hstep/nstep[k], x0[i],
+                    if tmp_wfn.traj[i].active:
+                        mm_step(tmp_wfn.traj[i], hstep/nstep[k], x0[i],
                                 x1[i], p0[i], p1[i], g0[i], g1[i], n)
-                evaluate.update_pes(tmpbundle, update_centroids=False)
+                evaluate.update_pes(tmp_wfn, update_integrals=False)
 
             # compute the modified midpoint estimate
             for i in range(ntraj):
                 if master.traj[i].active:
                     x1[i] = 0.5*(x1[i] + x0[i] +
-                                 hstep/nstep[k]*tmpbundle.traj[i].velocity())
+                                 hstep/nstep[k]*tmp_wfn.traj[i].velocity())
                     p1[i] = 0.5*(p1[i] + p0[i] +
-                                 hstep/nstep[k]*tmpbundle.traj[i].force())
+                                 hstep/nstep[k]*tmp_wfn.traj[i].force())
                     if propphase:
                         g1[i] = 0.5*(g1[i] + g0[i] +
-                                     hstep/nstep[k]*tmpbundle.traj[i].phase_dot())
+                                     hstep/nstep[k]*tmp_wfn.traj[i].phase_dot())
 
             # extrapolate from modified midpoint results
             poly_extrapolate(k, (hstep/nstep[k])**2, tsav, x1, p1, g1, Tx, Tp, Tg)
@@ -124,7 +123,7 @@ def propagate_bundle(master, dt):
                                 if propphase:
                                     master.traj[i].update_phase(gnew[i])
                         evaluate.update_pes(master,
-                                           update_centroids=(abs(t)>=abs(dt)))
+                                           update_integrals=(abs(t)>=abs(dt)))
                         break
 
 

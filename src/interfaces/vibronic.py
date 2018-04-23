@@ -5,6 +5,7 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
+import src.utils.constants as constants
 import src.parse.glbl as glbl
 import src.parse.log as log
 import src.archive.surface as surface
@@ -198,6 +199,7 @@ def evaluate_trajectory(traj, t=None):
 
     label = traj.label
     geom  = traj.x()
+    momt  = traj.p()
 
      # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
@@ -217,6 +219,7 @@ def evaluate_trajectory(traj, t=None):
 
     t_data = surface.Surface()
     t_data.add_data('geom',geom)
+    t_data.add_data('momentum',momt)
 
     t_data.add_data('diabat_pot',diabpot)
     t_data.add_data('diabat_deriv',diabderiv1)
@@ -294,9 +297,9 @@ def conv(val_list):
         if val_list[2] == 'au':
             return float(val_list[0])
         elif val_list[2] == 'ev':
-            return float(val_list[0]) / glbl.constants['au2ev']
+            return float(val_list[0]) / constants.au2ev
         elif val_list[2] == 'cm':
-            return float(val_list[0]) / glbl.constants['au2cm']
+            return float(val_list[0]) / constants.au2cm
         else:
             raise ValueError('Unknown units:', val_list[2])
     else:
@@ -472,7 +475,7 @@ def calc_diabeffcoup(diabpot):
     """
     eff_coup = np.zeros((1, nsta, nsta))
 
-    demat = np.array([[max([glbl.constants['fpzero'],diabpot[i,i]-diabpot[j,j]],key=abs) 
+    demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs) 
                            for i in range(nsta)] for j in range(nsta)])
     eff_coup[0] = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
 

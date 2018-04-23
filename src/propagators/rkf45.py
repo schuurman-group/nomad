@@ -52,7 +52,7 @@ h_traj = None
 
 
 @timings.timed
-def propagate_bundle(master, dt):
+def propagate_wfn(master, dt):
     """Propagates the Bundle object with RKF45."""
     global h
     ncrd = master.traj[0].dim
@@ -67,15 +67,15 @@ def propagate_bundle(master, dt):
     while abs(t) < abs(dt):
         hstep = np.sign(dt) * min(abs(h), abs(dt - t))
         for rk in range(rk_ordr):
-            tmpbundle = master.copy()
+            tmp_wfn = master.copy()
             for i in range(ntraj):
-                if tmpbundle.traj[i].active:
-                    propagate_rk(tmpbundle.traj[i], hstep, rk,
+                if tmp_wfn.traj[i].active:
+                    propagate_rk(tmp_wfn.traj[i], hstep, rk,
                                  kx[i], kp[i], kg[i])
 
             # update the PES to evaluate new gradients
             if rk < rk_ordr - 1:
-                evaluate.update_pes(tmpbundle, update_centroids=False)
+                evaluate.update_pes(tmp_wfn, update_integrals=False)
 
         # calculate the 4th and 5th order changes and the error
         dx_lo = np.zeros((master.nalive, ncrd))
@@ -120,7 +120,7 @@ def propagate_bundle(master, dt):
                     if propphase:
                         master.traj[i].update_phase(master.traj[i].phase() +
                                                     dg_lo[i])
-            evaluate.update_pes(master, update_centroids=(abs(t)>=abs(dt)))
+            evaluate.update_pes(master, update_integrals=(abs(t)>=abs(dt)))
 
 
 @timings.timed

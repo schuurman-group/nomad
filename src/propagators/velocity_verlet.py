@@ -10,12 +10,10 @@ import src.parse.glbl as glbl
 import src.utils.timings as timings
 import src.dynamics.evaluate as evaluate
 
-
 propphase = glbl.propagate['phase_prop']
 
-
 @timings.timed
-def propagate_bundle(master, dt):
+def propagate_wfn(master, dt):
     """Propagates the Bundle object with VV."""
     # update position
     for i in range(master.n_traj()):

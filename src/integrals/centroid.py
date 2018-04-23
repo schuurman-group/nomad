@@ -5,8 +5,7 @@ import sys
 import copy
 import numpy as np
 import src.utils.timings as timings
-import src.parse.glbl as glbl
-
+import src.utils.constants as constants
 
 def cent_label(itraj_id, jtraj_id):
     """return the centroid id for centroid between traj_i, traj_j"""
@@ -17,13 +16,13 @@ def cent_label(itraj_id, jtraj_id):
 
 class Centroid:
     """Class constructor for the Centroid object."""
-    def __init__(self, traj_i=None, traj_j=None, nstates=0, pstates=[-1,-1],
+    def __init__(self, traj_i=None, traj_j=None, nstates=0, states=[-1,-1],
                  dim=0, width=None, label=-1):
         if traj_i is None or traj_j is None:
             # total number of states
             self.nstates = int(nstates)
             # parent states
-            self.pstates = pstates
+            self.states = states
             # dimensionality of the centroid
             self.dim     = int(dim)
             # widths of gaussians for each dimension
@@ -32,19 +31,19 @@ class Centroid:
             else:
                 self.width = np.asarray(width)
             # unique identifier for centroid
-            self.label     = label
+            self.label   = label
             # current position of the centroid
             self.pos     = np.zeros(self.dim)
             # current momentum of the centroid
             self.mom     = np.zeros(self.dim)
             # labels of parent trajectories
-            self.parent  = np.zeros(2, dtype=int)
+            self.parents = np.zeros(2, dtype=int)
         else:
             idi          = max(traj_i.label, traj_j.label)
             idj          = min(traj_i.label, traj_j.label)
-            self.parent  = np.array([idj, idi], dtype=int)
+            self.parents = np.array([idj, idi], dtype=int)
             self.nstates = max(traj_i.nstates,traj_j.nstates)
-            self.pstates = [traj_i.state, traj_j.state]
+            self.states  = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
             self.label     = -((idi * (idi - 1) // 2) + idj + 1)
             # now update the position in phase space of the centroid
@@ -62,7 +61,7 @@ class Centroid:
     @timings.timed
     def copy(self):
         """Copys a Centroid object with new references."""
-        new_cent = Centroid(nstates=self.nstates, pstates=self.pstates,
+        new_cent = Centroid(nstates=self.nstates, states=self.states,
                             dim=self.dim, width=self.width,label=self.label)
         new_cent.pos = copy.deepcopy(self.pos)
         new_cent.mom = copy.deepcopy(self.mom)
@@ -119,7 +118,7 @@ class Centroid:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -130,7 +129,7 @@ class Centroid:
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -139,7 +138,7 @@ class Centroid:
     def hessian(self, state_i):
         """Returns the hessian of the potential on state state_i
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -150,7 +149,7 @@ class Centroid:
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -163,7 +162,7 @@ class Centroid:
     #------------------------------------------------------------------------
     def potential(self):
         """Returns classical potential energy of the centroid."""
-        return 0.5 * (self.energy(self.pstate[0]) + self.energy(self.pstate[1]))
+        return 0.5 * (self.energy(self.states[0]) + self.energy(self.states[1]))
 
     def kinetic(self):
         """Returns classical kinetic energy of the centroid."""
@@ -181,20 +180,20 @@ class Centroid:
         """Returns the gradient of the centroid state."""
         if not same_state():
             return np.zeros(self.dim)
-        return -self.derivative(self.pstates[0], self.pstates[1])
+        return -self.derivative(self.states[0], self.states[1])
 
     def coupling_norm(self):
         """Returns the norm of the coupling vector."""
         if self.same_state():
             return 0.
-        return np.linalg.norm(self.derivative(self.pstates[0], self.pstates[1]))
+        return np.linalg.norm(self.derivative(self.states[0], self.states[1]))
 
     def coup_dot_vel(self):
         """Returns the coupling dotted with the velocity."""
         if self.same_state():
             return 0.
         return np.dot( self.velocity(),
-                       self.derivative(self.pstates[0], self.pstates[1]) )
+                       self.derivative(self.states[0], self.states[1]) )
 
     def eff_coup(self):
         """Returns the effective coupling."""
@@ -204,10 +203,10 @@ class Centroid:
         coup = self.coup_dot_vel()
         # G
         if glbl.iface_params['coupling_order'] > 1:
-            coup += self.scalar_coup(pstates[0], pstates[1])
+            coup += self.scalar_coup(states[0], states[1])
         return coup
 
     def same_state(self):
         """Determines if both trajectories are on the same state."""
-        return self.pstate[0] == self.pstate[1]
+        return self.states[0] == self.states[1]
 

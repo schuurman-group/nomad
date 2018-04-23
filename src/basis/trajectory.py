@@ -5,8 +5,7 @@ import sys
 import copy
 import numpy as np
 import src.utils.timings as timings
-import src.parse.glbl as glbl
-
+import src.utils.constants as constants
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
@@ -147,7 +146,7 @@ class Trajectory:
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -158,7 +157,7 @@ class Trajectory:
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -167,7 +166,7 @@ class Trajectory:
     def hessian(self, state_i):
         """Returns the hessian of the potential on state state_i
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -176,7 +175,7 @@ class Trajectory:
     def coupling(self, state_i, state_j):
         """Returns the coupling between surfaces state_i and state_j
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -187,7 +186,7 @@ class Trajectory:
            block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -198,7 +197,7 @@ class Trajectory:
            block (self.state,c_state)."""
         if 'nac' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*glbl.constants['fpzero']:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.nact() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
@@ -233,11 +232,8 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        if not glbl.propagate['phase_prop']:
-            return 0.
-        else:
-            return (self.kinetic() - self.potential() -
-                    np.dot(self.widths(), glbl.interface.kecoeff) )
+        return (self.kinetic() - self.potential() -
+                np.dot(self.widths(), glbl.interface.kecoeff) )
 
     def coupling_norm(self, j_state):
         """Returns the norm of the coupling vector."""

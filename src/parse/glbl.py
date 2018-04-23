@@ -2,28 +2,15 @@
 Conversion factors and constants for FMSpy.
 """
 
-integrals = None
 interface = None
 distrib = None
 spawn = None
 integrator = None
+master_mat = None
+master_int = None
+
 scr_path = ''
 home_path = ''
-
-constants = dict(
-  # convert fs to au
-  fs2au    = 41.34137221718,
-  # convert bohr to angstrom
-  bohr2ang = 0.529177249,
-  # convert mass in amu to au
-  amu2au  = 1822.887,
-  # convert hartree to eV
-  au2ev    = 27.21138505,
-  # convert hartree to cm-1
-  au2cm    = 219474.63,
-  # floating point zero
-  fpzero   = 1.e-10,
-)
 
 # contains global variables that are not user-specified
 variables = dict(
@@ -142,12 +129,6 @@ input_groups = dict(
 # 0=scalar, 1=list, 2=nested list.
 # note that multi-dimensional keywords are python lists
 keyword_type = dict(
-    fs2au                  = [float,0], 
-    bohr2ang               = [float,0],
-    amu2au                 = [float,0],
-    au2ev                  = [float,0],
-    au2cm                  = [float,0],
-    fpzero                 = [float,0],
     bundle0                = [None,0],
     surf_rep               = [str,0],
     parallel               = [bool,0],

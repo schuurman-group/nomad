@@ -113,12 +113,6 @@ def print_header():
         logfile.write('\n fms simulation keywords\n' +
                    ' ----------------------------------------\n')
 
-        logfile.write("\n ** constants **\n")
-        log_str = ''
-        for k,v in glbl.constants.items():
-            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-        logfile.write(log_str+'\n')
-
         logfile.write("\n ** global variables **\n")
         log_str = ''
         for k,v in glbl.variables.items():

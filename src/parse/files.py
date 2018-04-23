@@ -12,6 +12,8 @@ import numpy as np
 import src.utils.timings as timings
 import src.parse.glbl as glbl
 import src.parse.atom_lib as atom_lib
+import src.integrals.integral as integral
+import src.basis.matrices as matrices
 
 def read_input():
     """Reads the nomad.input files.
@@ -221,12 +223,15 @@ def validate():
     entries in glbl is consistent, regardless of how input specified.
     """
     # set the integral definition
-    try:
-        glbl.integrals =__import__('src.integrals.'+
-                                   glbl.propagate['integrals'],fromlist=['a'])
-    except ImportError:
-        print('Cannot import integrals: src.integrals.' +
-                               str(glbl.propagate['integrals']))
+#    try:
+#        glbl.integrals =__import__('src.integrals.'+
+#                                   glbl.propagate['integrals'],fromlist=['a'])
+#    except ImportError:
+#        print('Cannot import integrals: src.integrals.' +
+#                               str(glbl.propagate['integrals']))
+
+    glbl.master_int = integral.Integral(glbl.propagate['integrals']) 
+    glbl.master_mat = matrices.Matrices()
 
     try:
         glbl.interface = __import__('src.interfaces.' +
@@ -278,7 +283,7 @@ def validate():
             mlst.append(mass)
         glbl.nuclear_basis['widths'] = wlst
         glbl.nuclear_basis['masses'] = mlst
-
+#
     # set mass array here if using vibronic interface
     if glbl.iface_params['interface'] == 'vibronic':
         n_usr_freq = len(glbl.nuclear_basis['freqs'])
