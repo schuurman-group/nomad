@@ -19,40 +19,42 @@ class Integral:
         self.hermitian         = self.ints.hermitian
         self.require_centroids = self.ints.require_centroids
 
-        def elec_overlap_wrap(elec_overlap):
-            def wrapper(*args, **kwargs):
-                return elec_overlap(*args, **kwargs)               
-            return wrapper
+    def elec_overlap_wrap(elec_overlap):
+        def wrapper(*args, **kwargs):
+            return elec_overlap(*args, **kwargs)               
+        return wrapper
 
-        def nuc_overlap_wrap(nuc_overlap):
-            def wrapper(*args, **kwargs):
-                return nuc_overlap(*args, **kwargs)
-            return wrapper
+    def nuc_overlap_wrap(nuc_overlap):
+        def wrapper(*args, **kwargs):
+            return nuc_overlap(*args, **kwargs)
+        return wrapper
 
-        def traj_overlap_wrap(traj_overlap):
-            def wrapper(*args, **kwargs):
-                return traj_overlap(*args, **kwargs)
-            return wrapper
+    def traj_overlap_wrap(traj_overlap):
+        def wrapper(*args, **kwargs):
+            return traj_overlap(*args, **kwargs)
+        return wrapper
 
-        def s_integral_wrap(s_integral):
-            def wrapper(*args, **kwargs):
-                return s_integral(*args, **kwargs)
-            return wrapper
+    def s_integral_wrap(s_integral):
+        def wrapper(*args, **kwargs):
+            return s_integral(*args, **kwargs)
+        return wrapper
 
-        def t_integral_wrap(t_integral):
-            def wrapper(*args, **kwargs):
-                return t_integral(*args, **kwargs)
-            return wrapper
+    def t_integral_wrap(t_integral):
+        def wrapper(*args, **kwargs):
+            return t_integral(*args, **kwargs)
+        return wrapper
 
-        def v_integral_wrap(v_integral):
-            def wrapper(*args, **kwargs):
-                return v_integral(*args, **kwargs)
-            return wrapper
+    def v_integral_wrap(v_integral, *args, **kwargs):
+        if self.require_centroids:
+            args.append(self.centroid)
+        def wrapper(*args, **kwargs):
+            return v_integral(*args, **kwargs)
+        return wrapper
 
-        def sdot_integral_wrap(sdot_integral):
-            def wrapper(*args, **kwargs):
-                return sdot_integral(*args, **kwargs)
-            return wrapper
+    def sdot_integral_wrap(sdot_integral):
+        def wrapper(*args, **kwargs):
+            return sdot_integral(*args, **kwargs)
+        return wrapper
 
     #
     #

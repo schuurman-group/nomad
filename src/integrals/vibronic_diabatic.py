@@ -38,7 +38,7 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
             return Snuc
 
 #
-def v_integral(t1, t2, centroid=None, Snuc=None):
+def v_integral(t1, t2, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
     if Snuc is None:

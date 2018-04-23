@@ -22,25 +22,25 @@ import src.utils.timings as timings
 class Matrices:
     """Builds the Hamiltonian and associated matrices given a wavefunction and
        an Integral object"""
-      
-    self.T      = np.empty(shape=(0, 0)) 
-    self.V      = np.empty(shape=(0, 0))
-    self.H      = np.empty(shape=(0, 0))
-    self.S_traj = np.empty(shape=(0, 0))
-    self.S_nuc  = np.empty(shape=(0, 0))
-    self.S      = np.empty(shape=(0, 0))
-    self.Sinv   = np.empty(shape=(0, 0))
-    self.Sdot   = np.empty(shape=(0, 0))
-    self.Heff   = np.empty(shape=(0, 0))
+    def __init__(self):      
+        self.T      = np.empty(shape=(0, 0)) 
+        self.V      = np.empty(shape=(0, 0))
+        self.H      = np.empty(shape=(0, 0))
+        self.S_traj = np.empty(shape=(0, 0))
+        self.S_nuc  = np.empty(shape=(0, 0))
+        self.S      = np.empty(shape=(0, 0))
+        self.Sinv   = np.empty(shape=(0, 0))
+        self.Sdot   = np.empty(shape=(0, 0))
+        self.Heff   = np.empty(shape=(0, 0))
 
-    # temporary debugging business
-    self.Sdnuc = np.empty(shape=(0, 0))
-    self.Sdele = np.empty(shape=(0, 0))
+        # temporary debugging business
+        self.Sdnuc = np.empty(shape=(0, 0))
+        self.Sdele = np.empty(shape=(0, 0))
 
-    # provide this dictionary to point to member matrices
-    self.mat_lst = {"T":self.T, "V":self.V, "H":self.H, "S_traj":self.S_traj,
-                    "S_nuc":self.S_nuc, "S":self.S, "Sinv":self.Sinv, "Sdot", self.Sdot,
-                    "Heff":self.Heff, "Sdnuc":self.Sdnuc, "Sdele", self.Sdele}
+        # provide this dictionary to point to member matrices
+        self.mat_lst = {"T":self.T, "V":self.V, "H":self.H, "S_traj":self.S_traj,
+                        "S_nuc":self.S_nuc, "S":self.S, "Sinv":self.Sinv, "Sdot", self.Sdot,
+                        "Heff":self.Heff, "Sdnuc":self.Sdnuc, "Sdele", self.Sdele}
 
     #
     #

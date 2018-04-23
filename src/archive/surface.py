@@ -6,12 +6,13 @@ import copy
 
 class Surface:
     """Object containing potential energy surface data."""
-    standard_objs = ['geom','momentum','potential','derivative','hessian','coupling']
-    optional_objs = ['mos','dipoles','atom_pop','sec_mom',
-                     'diabat_pot','diabat_deriv','diabat_hessian',
-                     'adt_mat','dat_mat','nac','scalar_coup']
-
     def __init__(self):
+        """Object containing potential energy surface data."""
+        standard_objs = ['geom','momentum','potential','derivative','hessian','coupling']
+        optional_objs = ['mos','dipoles','atom_pop','sec_mom',
+                         'diabat_pot','diabat_deriv','diabat_hessian',
+                         'adt_mat','dat_mat','nac','scalar_coup']
+
         # these are the standard quantities ALL interface_data objects return
         self.data     = dict()
 
