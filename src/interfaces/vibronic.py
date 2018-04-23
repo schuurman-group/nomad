@@ -195,7 +195,7 @@ def init_interface():
 
 def evaluate_trajectory(traj, t=None):
     """Evaluates the trajectory."""
-    global data_cache
+    global nsta, data_cache
 
     label = traj.label
     geom  = traj.x()
@@ -251,7 +251,11 @@ def evaluate_trajectory(traj, t=None):
         t_data.add_data('derivative', np.array([np.diag(adiabderiv1[m]) for m in
                                       range(ham.nmode_total)] + nactmat))
         t_data.add_data('hessian',adiabderiv2)
-        t_data.add_data('coupling',nactmat)
+
+        coup = np.array([[np.dot(momt,nactmat[:,i,j]) for i in range(nsta)] 
+                                                      for j in range(nsta)])
+        coup -= np.diag(coup.diagonal())
+        t_data.add_data('coupling',coup)
 
         # non-standard items
         t_data.add_data('nac',nactmat)
@@ -473,11 +477,10 @@ def calc_diabeffcoup(diabpot):
     """Calculates the effective diabatic coupling between diabatic states i, j via
        eff_coup = Hij / (H[i,i] - H[j,j])
     """
-    eff_coup = np.zeros((1, nsta, nsta))
 
     demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs) 
                            for i in range(nsta)] for j in range(nsta)])
-    eff_coup[0] = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
+    eff_coup = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
 
     return eff_coup
 

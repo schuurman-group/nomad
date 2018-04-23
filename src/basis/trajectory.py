@@ -25,6 +25,12 @@ class Trajectory:
             self.mass = np.zeros(dim)
         else:
             self.mass = np.array(mass)
+       # the prefactor on the kinetic energy term: default to 1/2M
+        if len(np.nonzero(self.mass)) == len(self.mass):
+            self.kecoef = 0.5 / self.mass   
+        else:
+            self.kecoef = np.zeros(dim)
+
         # unique identifier for trajectory
         self.label        = label
         # trajectory that spawned this one:
@@ -79,6 +85,30 @@ class Trajectory:
     def dead(self, time, uncoupled_thresh):
         """Returns true if the trajectory is dead."""
         return self.deadtime != -1 and (time - self.deadtime) > uncoupled_thresh
+
+    #--------------------------------------------------------------------
+    #
+    # reset key parameters, i.e. don't access variables directly 
+    #
+    #---------------------------------------------------------------------
+    def set_mass(self, m_vec):
+        """Set the mass vector and update kinetic energy coefficient"""
+        self.mass   = m_vec
+
+        return
+
+    def set_width(self, w_vec):
+        """Set the width vector"""
+        self.width = w_vec
+
+        return
+
+    def set_kecoef(self, ke_vec):
+        """Set the definition of the kinetic eneryg operator"""
+        self.keocef = ke_vec
+
+        return
+   
 
     #----------------------------------------------------------------------
     #
@@ -150,7 +180,8 @@ class Trajectory:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+#        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+        return self.pes.get_data('potential')[state]
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
@@ -215,7 +246,7 @@ class Trajectory:
 
     def kinetic(self):
         """Returns classical kinetic energy of the trajectory."""
-        return sum( self.p() * self.p() * glbl.interface.kecoeff )
+        return sum( self.p() * self.p() * self.kecoef )
 
     def classical(self):
         """Returns the classical energy of the trajectory."""
@@ -223,7 +254,7 @@ class Trajectory:
 
     def velocity(self):
         """Returns the velocity of the trajectory."""
-        return self.p() * (2. * glbl.interface.kecoeff)
+        return self.p() * (2. * self.kecoef)
 
     def force(self):
         """Returns the gradient of the trajectory state."""
@@ -233,30 +264,7 @@ class Trajectory:
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
         return (self.kinetic() - self.potential() -
-                np.dot(self.widths(), glbl.interface.kecoeff) )
-
-    def coupling_norm(self, j_state):
-        """Returns the norm of the coupling vector."""
-        return np.linalg.norm(self.coupling(self.state, j_state))
-
-    def coup_dot_vel(self, j_state):
-        """Returns the coupling dotted with the velocity."""
-        if glbl.variables['surface_rep'] == 'diabatic':
-            return 0.
-        else:
-            return np.dot(self.velocity(), self.coupling(self.state, j_state))
-
-    def eff_coup(self, j_state):
-        """Returns the effective coupling."""
-        if glbl.variables['surface_rep'] == 'diabatic':
-            return self.coupling_norm(j_state)
-        else:
-            # F.p/m
-            coup = self.coup_dot_vel(j_state)
-            # G
-            if glbl.iface_params['coupling_order'] > 1:
-                coup += self.scalar_coup(self.state, j_state)
-            return coup
+                np.dot(self.widths(), self.kecoef) )
 
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""

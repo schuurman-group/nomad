@@ -213,7 +213,7 @@ class Wavefunction:
     def kin_classical(self):
         """Returns the classical kinetic energy of the wfn."""
         nalive   = len(self.alive)
-        kecoef   = glbl.interface.kecoeff
+        kecoef   = self.traj[0].kecoef # horrible. messy. 
         ke_vec   = np.array([np.dot(self.traj[self.alive[i]].p()**2, kecoef)
                            for i in range(nalive)])
         return sum(ke_vec)/nalive

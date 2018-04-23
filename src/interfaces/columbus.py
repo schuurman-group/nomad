@@ -239,7 +239,15 @@ def evaluate_trajectory(traj, t=None):
             deriv[:, state_i, state_j] =  nad_coup[:, i]
             deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.add_data('derivative', deriv)
-    col_surf.add_data('coupling', deriv)
+
+    # effective coupling is the nad projected onto velocity
+    coup = np.zeros((nstates, nstates),dtype='float')
+    for i in range(nstates):
+        if i == traj.state:
+            continue
+        coup[traj.state,i] = np.dot(traj.p(), nad_coup[:,i]
+        coup[i,traj.state] = coup[traj.state,i]
+    col_surf.add_data('coupling', coup)
 
     # save restart files
     make_col_restart(traj)

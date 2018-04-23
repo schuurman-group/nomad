@@ -54,7 +54,7 @@ def spawn(master, dt):
                 continue
 
             # compute magnitude of coupling to state j
-            coup = master.traj[i].eff_coup(st)
+            coup = abs(master.traj[i].coupling(master.traj[i].state, st))
             coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
             coup_hist[i][st,0] = coup
 
@@ -111,7 +111,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
 
     while True:
         coup                = np.roll(coup,1)
-        coup[0]             = abs(parent.eff_coup(child_state))
+        coup[0]             = abs(parent.coupling(parent_state, child_state))
         child_attempt       = parent.copy()
         child_attempt.state = child_state
         adjust_success      = utils.adjust_child(parent, child_attempt,
@@ -192,7 +192,7 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
         return False
 
     # there is insufficient coupling
-    if abs(traj.eff_coup(spawn_state)) < glbl.spawning['spawn_coup_thresh']:
+    if abs(traj.coupling(traj.state, spawn_state)) < glbl.spawning['spawn_coup_thresh']:
         return False
 
     # if coupling is decreasing
@@ -213,7 +213,7 @@ def in_coupled_regime(bundle):
     for i in range(bundle.n_traj()):
         for st in range(glbl.propagate['n_states']):
             if st != bundle.traj[i].state:
-                if abs(bundle.traj[i].eff_coup(st)) > glbl.spawning['spawn_coup_thresh']:
+                if abs(bundle.traj[i].coupling(bundle.traj[i].state, st)) > glbl.spawning['spawn_coup_thresh']:
                     return True
 
     return False

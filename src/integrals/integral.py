@@ -146,7 +146,7 @@ class Integral:
     #
     def update(self, wfn):
 
-        self.ints.require_centroids:
+        if self.ints.require_centroids:
             self.update_centroids(wfn)
 
         return
@@ -175,7 +175,7 @@ class Integral:
         self.centroid[ij[0]][ij[1]] = new_cent
         self.centroid[ij[1]][ij[0]] = new_cent
 
-    return
+        return
 
 
 
