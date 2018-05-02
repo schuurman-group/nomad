@@ -19,100 +19,71 @@ class Integral:
         self.hermitian         = self.ints.hermitian
         self.require_centroids = self.ints.require_centroids
 
-    def elec_overlap_wrap(elec_overlap):
-        def wrapper(*args, **kwargs):
-            return elec_overlap(*args, **kwargs)               
-        return wrapper
-
-    def nuc_overlap_wrap(nuc_overlap):
-        def wrapper(*args, **kwargs):
-            return nuc_overlap(*args, **kwargs)
-        return wrapper
-
-    def traj_overlap_wrap(traj_overlap):
-        def wrapper(*args, **kwargs):
-            return traj_overlap(*args, **kwargs)
-        return wrapper
-
-    def s_integral_wrap(s_integral):
-        def wrapper(*args, **kwargs):
-            return s_integral(*args, **kwargs)
-        return wrapper
-
-    def t_integral_wrap(t_integral):
-        def wrapper(*args, **kwargs):
-            return t_integral(*args, **kwargs)
-        return wrapper
-
-    def v_integral_wrap(v_integral, *args, **kwargs):
-        if self.require_centroids:
-            args.append(self.centroid)
-        def wrapper(*args, **kwargs):
-            return v_integral(*args, **kwargs)
-        return wrapper
-
-    def sdot_integral_wrap(sdot_integral):
-        def wrapper(*args, **kwargs):
-            return sdot_integral(*args, **kwargs)
-        return wrapper
-
     #
     #
     #
-    @elec_overlap_wrap
+    @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict()
+        return self.ints.elec_overlap(*args, **kwargs)
 
-        return self.ints.elec_overlap(*args[1:], **kwargs)
-
     #
     #
     #
-    @nuc_overlap_wrap
+    @timings.timed
     def nuc_overlap(self, bra_traj, ket_traj):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict()
+        return self.ints.nuc_overlap(*args, **kwargs)
 
-        integral = self.ints.nuc_overlap(*args[1:], **kwargs)
-
-        return integral
 
     #
     #
     #
-    @traj_overlap_wrap
+    @timings.timed
     def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        return self.ints.traj_overlap(*args, **kwargs)
 
-        return self.ints.traj_overlap(*args[1:], **kwargs)
-
     #
     #
     #
-    @s_integral_wrap
+    @timings.timed
     def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        return self.ints.s_integral(*args, **kwargs)    
 
-        return self.ints.s_integral(*args[1:], **kwargs)    
-
     #
     #
     #
-    @t_integral_wrap
+    @timings.timed
     def t_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        return self.ints.t_integral(*args, **kwargs)
 
-        return self.ints.t_integral(*args[1:], **kwargs)
-
     #
     #
     #
-    @v_integral_wrap
+    @timings.timed
     def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        args   = [bra_traj, ket_traj]
+        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        if self.require_centroids:
+            args.append(self.centroid[bra_traj.label][ket_traj.label])
+        return self.ints.v_integral(*args, **kwargs)
 
-        return self.ints.v_integral(*args[1:], **kwargs)
-
     #
     #
     #
-    @sdot_integral_wrap
+    @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
-
-        return self.ints.sdot_integral(*args[1:], **kwargs)
+        args   = [bra_traj, ket_traj]
+        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        return self.ints.sdot_integral(*args, **kwargs)
 
     #
     #
@@ -161,7 +132,7 @@ class Integral:
            if necessary in order to accomodate data"""
 
         # minimum dimension required to hold this centroid
-        ij           = cent.parents
+        ij           = new_cent.parents
         new_dim_cent = max(ij)
         dim_cent     = len(self.centroid)
 

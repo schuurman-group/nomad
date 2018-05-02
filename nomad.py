@@ -49,7 +49,7 @@ def init():
 def main():
     """Runs the main FMSpy routine."""
     # Create the collection of trajectories
-    master = wavefunction.Wavefunction()
+    master = wavefunction.Wavefunction(glbl.propagate['n_states'])
 
     # set the initial conditions for trajectories
     initialize.init_wavefunction(master)

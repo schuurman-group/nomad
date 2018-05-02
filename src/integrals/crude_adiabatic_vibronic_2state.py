@@ -98,7 +98,7 @@ def v_integral(traj1, traj2, nuc_ovrlp=None):
 #
 # kinetic energy integral
 #
-def ke_integral(traj1, traj2, nuc_ovrlp=None):
+def t_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
     if nuc_ovrlp is None:
@@ -113,7 +113,7 @@ def ke_integral(traj1, traj2, nuc_ovrlp=None):
 #
 # sdot integral
 #
-def sdot_integral(traj1, traj2, nuc_ovrlp=None, nuc_only=None, e_only=None):
+def sdot_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
     if nuc_ovrlp is None:
@@ -133,18 +133,12 @@ def sdot_integral(traj1, traj2, nuc_ovrlp=None, nuc_only=None, e_only=None):
     sdot = ( np.dot(deldx, traj2.velocity()) 
            + np.dot(deldp, traj2.force())) * elec_ovrlp
 								
-    if nuc_only:
-        return sdot
-
     phi1  = phi(traj1)
     dphi2 = dphi(traj2)
 
     # the derivative coupling
     deriv_coup = np.array([np.dot(phi1, dphi2[:,q]) for q in range(traj2.dim)])
-    e_coup     = np.dot(deriv_coup, traj2.velocity()) * Snuc
-
-    if e_only:
-        return e_coup
+    e_coup     = np.dot(deriv_coup, traj2.velocity()) * nuc_ovrlp 
 
     sdot += e_coup
 
@@ -198,11 +192,11 @@ def theta(traj):
     h12     = hmat[0,1]
     de      = hmat[es,es]-hmat[gs,gs]
 
-    if abs(de) < glbl.constants['fpzero']:
+    if abs(de) < constants.fpzero:
         sgn = np.sign(de)
         if sgn == 0.:
             sgn = 1
-        de = sgn * glbl.constants['fpzero']
+        de = sgn * constants.fpzero
     ang     = 0.5*np.arctan2(2.*h12,de)
 
     # check the cached value and shift if necessary.
@@ -235,18 +229,18 @@ def dtheta(traj):
     dhmat     = traj.pes.get_data('diabat_deriv')
     h12       = hmat[0,1]
     de        = hmat[es,es] - hmat[gs,gs]
-    if abs(de) < glbl.constants['fpzero']:
+    if abs(de) < constants.fpzero:
         sgn = np.sign(de)
         if sgn == 0.:
             sgn = 1
-        de = sgn * glbl.constants['fpzero']
+        de = sgn * constants.fpzero
 
     arg       = 2. * h12 / de
-    if abs(arg) < glbl.constants['fpzero']:
+    if abs(arg) < constants.fpzero:
         sgn = np.sign(arg)
         if sgn == 0.:
             sgn = 1
-        arg = sgn * glbl.constants['fpzero']
+        arg = sgn * constants.fpzero
 
     dtheta_dq = np.array([((dhmat[q,0,1]*de - h12*(dhmat[q,es,es]-dhmat[q,gs,gs]))/de**2)/(1+arg**2)
                         for q in range(traj.dim)])

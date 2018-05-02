@@ -6,7 +6,7 @@ import numpy as np
 import src.parse.glbl as glbl
 import src.parse.log as log
 import src.dynamics.evaluate as evaluate
-import src.basis.matching_pursuit as mp
+#import src.basis.matching_pursuit as mp
 
 #
 #
@@ -43,14 +43,15 @@ def step_wavefunction(master, dt):
         time_step = min(time_step, end_time-master.time)
 
         # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*dt, glbl.master_matrices)
+        master.update_amplitudes(0.5*dt)
 
         # the propagators update the potential energy surface as need be.
         glbl.integrator.propagate_wfn(master, time_step)
 
         # propagate amplitudes for 1/2 time step using x1
-        glbl.master_matrices.build(master, glbl.integrals)
-        master.update_amplitudes(0.5*dt, glbl.master_matrices)
+        glbl.master_mat.build(master, glbl.integrals)
+        master.update_matrices(glbl.master_mat)
+        master.update_amplitudes(0.5*dt)
 
         # Renormalization
         if glbl.propagate['renorm'] == 1:
@@ -77,12 +78,12 @@ def step_wavefunction(master, dt):
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.master_matrices(master, glbl.integrals)
+                 glbl.master_mat(master, glbl.integrals)
 
             # re-expression of the basis using the matching pursuit
             # algorithm
-            if glbl.propagate['matching_pursuit'] == 1:
-                mp.reexpress_basis(master)
+#            if glbl.propagate['matching_pursuit'] == 1:
+#                mp.reexpress_basis(master)
 
             # update the running log
             log.print_message('t_step',[master.time, time_step, master.nalive])

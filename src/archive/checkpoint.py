@@ -9,7 +9,7 @@ import src.integrals.integral as integral
 import src.basis.matrices as matrices
 import src.basis.wavefunction as wavefunction
 import src.basis.trajectory as trajectory
-import src.basis.centroid as centroid
+import src.integrals.centroid as centroid
 import src.archive.surface as surface
 
 chkpt_file = ''
@@ -139,15 +139,15 @@ def create(file_name, wfn):
     chkpt = h5py.File(file_name, "w", libver='latest')
 
     chkpt.create_group('wavefunction')
-    ckhpt['wavefunction'].attrs['current_time'] = 0
+    chkpt['wavefunction'].attrs['current_time'] = 0
     chkpt['wavefunction'].attrs['n_rows']       = 0
 
     chkpt.create_group('integral')
-    ckhpt['integral'].attrs['current_time']     = 0
+    chkpt['integral'].attrs['current_time']     = 0
     chkpt['integral'].attrs['n_rows']           = 0
 
     chkpt.create_group('matrices')
-    ckhpt['matrices'].attrs['current_time']     = 0
+    chkpt['matrices'].attrs['current_time']     = 0
     chkpt['matrices'].attrs['n_rows']           = 0
 
     traj0 = wfn.traj[0]
@@ -455,13 +455,13 @@ def read_integral(chkpt, integral, time):
                 continue
 
             c_grp = 'integral/'+label
-            c_row = get_time_index(chkpt[c_grp, time)
+            c_row = get_time_index(chkpt[c_grp], time)
  
             if c_row is None:
                 continue
 
             new_cent = integral.Centroid(nstates=nstates, dim=dim, width=widths)
-            read_centroid(chkpt, new_cent, c_grp, c_row_
+            read_centroid(chkpt, new_cent, c_grp, c_row)
             integral.add_centroid(new_cent)       
 
     return

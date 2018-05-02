@@ -28,7 +28,7 @@ def init_wavefunction(master):
     if glbl.sampling['restart']:
         checkpoint.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
         checkpoint.read(glbl.master_mat, 'chkpt.hdf5', glbl.sampling['restart_time'])
-        if glbl.sampling['restart_time'] != 0.
+        if glbl.sampling['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction(master.nstates)
             checkpoint.read(master0, 'chkpt.hdf5', 0.)
             save_initial_wavefunction(master0)
@@ -53,6 +53,7 @@ def init_wavefunction(master):
 
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)
+        master.update_matrices(glbl.master_mat)
 
         # so that we may appropriately renormalize to unity
         master.renormalize()

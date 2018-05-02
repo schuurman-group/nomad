@@ -6,6 +6,7 @@ import copy
 import numpy as np
 import scipy.linalg as sp_linalg
 import src.utils.timings as timings
+import src.basis.matrices as matrices
 
 class Wavefunction:
     """Class constructor for the Wavefunction object."""
@@ -18,6 +19,7 @@ class Wavefunction:
         self.traj      = []
         self.alive     = []
         self.active    = []
+        self.matrices  = None 
 
     @timings.timed
     def copy(self):
@@ -28,10 +30,11 @@ class Wavefunction:
         significantly more work.
         """
         new_wfn = Wavefunction(self.nstates)
-        new_wfn.time   = copy.copy(self.time)
-        new_wfn.nalive = copy.copy(self.nalive)
-        new_wfn.ndead  = copy.copy(self.ndead)
-        new_wfn.alive  = copy.deepcopy(self.alive)
+        new_wfn.time     = copy.copy(self.time)
+        new_wfn.nalive   = copy.copy(self.nalive)
+        new_wfn.ndead    = copy.copy(self.ndead)
+        new_wfn.alive    = copy.deepcopy(self.alive)
+        new_wfn.matrices = self.matrices.copy()
 
         # copy the trajectory array
         for i in range(self.n_traj()):
@@ -93,13 +96,19 @@ class Wavefunction:
         self.ndead           = self.ndead - 1
 
     @timings.timed
-    def update_amplitudes(self, dt, matrices, Ct=None):
+    def update_matrices(self, matrices):
+        """Documentation to come"""
+        self.matrices = matrices
+
+        return
+
+
+    @timings.timed
+    def update_amplitudes(self, dt, Ct=None):
         """Updates the amplitudes of the trajectory in the wfn.
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
 
-        # if no vector of amplitudes are supplied (to propagate),
-        # propagate the current amplitudes
         if Ct is None:
             old_amp = self.amplitudes()
         else:
@@ -107,7 +116,7 @@ class Wavefunction:
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
-        B = -1j * matrices.Heff * dt
+        B = -1j * self.matrices.Heff * dt
 
         if self.nalive < 150:
             # Eigen-decomposition
@@ -153,7 +162,7 @@ class Wavefunction:
         i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.traj_ovrlp[i,j] *
+            mulliken += abs(self.matrices.S_traj[i,j] *
                             self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -162,7 +171,7 @@ class Wavefunction:
     def norm(self):
         """Returns the norm of the wavefunction """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.S),self.amplitudes()).real
+                      self.matrices.S),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -178,7 +187,7 @@ class Wavefunction:
                 jj = self.alive[j]
                 if self.traj[jj].state != state:
                     continue
-                popij = (self.traj_ovrlp[i,j]  *
+                popij = (self.matrices.S_traj[i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
@@ -204,7 +213,7 @@ class Wavefunction:
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.V), self.amplitudes()).real
+                             self.matrices.V), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.V)),self.amplitudes()).real
@@ -222,7 +231,7 @@ class Wavefunction:
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the wfn."""
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.T), self.amplitudes()).real
+                             self.matrices.T), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.T)),self.amplitudes()).real

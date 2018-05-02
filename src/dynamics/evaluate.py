@@ -21,7 +21,7 @@ def update_pes(master, update_integrals=True):
     # this conditional checks to see if we actually need centroids,
     # even if propagator requests them
     if update_integrals:
-        glbl.integrals.update()
+        glbl.master_int.update(master)
 
     if glbl.mpi['parallel']:
         # update electronic structure
@@ -34,12 +34,12 @@ def update_pes(master, update_integrals=True):
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(master.traj[i])
 
-        if update_integrals and glbl.integrals.require_centroids:
+        if update_integrals and glbl.master_int.require_centroids:
             # now update electronic structure in a controled way to allow for
             # parallelization
             for i in range(master.n_traj()):
                 for j in range(i):
-                    if glbl.integrals.centroid_required[i][j] and not \
+                    if glbl.master_int.centroid_required[i][j] and not \
                                              cached(integrals.centroid[i][j].label,
                                                     integrals.centroid[i][j].x()):
                         n_total += 1
@@ -71,13 +71,13 @@ def update_pes(master, update_integrals=True):
                 master.traj[i].update_pes_info(pes_cache[master.traj[i].label])
 
         # and centroids
-        if update_integrals and glbl.integrals.require_centroids:
+        if update_integrals and glbl.master_int.require_centroids:
             for i in range(master.n_traj()):
                 for j in range(i):
-                    c_label = glbl.integrals.centroid[i][j].label
+                    c_label = glbl.master_int.centroid[i][j].label
                     if c_label in pes_cache:
-                        glbl.integrals.centroid[i][j].update_pes_info(c_label)
-                        glbl.integrals.centroid[j][i] = glbl.integrals.centroid[i][j]
+                        glbl.master_int.centroid[i][j].update_pes_info(c_label)
+                        glbl.master_int.centroid[j][i] = glbl.master_int.centroid[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -90,16 +90,16 @@ def update_pes(master, update_integrals=True):
                                                master.traj[i], master.time))
 
         # ...and centroids if need be
-        if update_integrals and glbl.integrals.require_centroids::
+        if update_integrals and glbl.master_int.require_centroids:
             
             for i in range(master.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it
-                    if glbl.integrals.centroid_required[i][j]:
-                        glbl.integrals.centroid[i][j].update_pes_info(
+                    if glbl.master_int.centroid_required[i][j]:
+                        glbl.master_int.centroid[i][j].update_pes_info(
                                           glbl.interface.evaluate_centroid(
-                                          glbl.integrals.centroid[i][j], master.time))
-                        glbl.integrals.centroid[j][i] = glbl.integrals.centroid[i][j]
+                                          glbl.master_int.centroid[i][j], master.time))
+                        glbl.master_int.centroid[j][i] = glbl.master_int.centroid[i][j]
 
     return success
 

@@ -122,7 +122,7 @@ class Centroid:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+        return self.pes.get_data('potential')[state]
 
     def derivative(self, state_i, state_j):
         """Returns the derivative with ket state = rstate.
@@ -181,30 +181,6 @@ class Centroid:
         if not same_state():
             return np.zeros(self.dim)
         return -self.derivative(self.states[0], self.states[1])
-
-    def coupling_norm(self):
-        """Returns the norm of the coupling vector."""
-        if self.same_state():
-            return 0.
-        return np.linalg.norm(self.derivative(self.states[0], self.states[1]))
-
-    def coup_dot_vel(self):
-        """Returns the coupling dotted with the velocity."""
-        if self.same_state():
-            return 0.
-        return np.dot( self.velocity(),
-                       self.derivative(self.states[0], self.states[1]) )
-
-    def eff_coup(self):
-        """Returns the effective coupling."""
-        if self.same_state():
-            return 0.
-        # F.p/m
-        coup = self.coup_dot_vel()
-        # G
-        if glbl.iface_params['coupling_order'] > 1:
-            coup += self.scalar_coup(states[0], states[1])
-        return coup
 
     def same_state(self):
         """Determines if both trajectories are on the same state."""
