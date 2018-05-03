@@ -29,11 +29,11 @@ def init_wavefunction(master):
         checkpoint.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
         checkpoint.read(glbl.master_mat, 'chkpt.hdf5', glbl.sampling['restart_time'])
         if glbl.sampling['restart_time'] != 0.:
-            master0 = wavefunction.Wavefunction(master.nstates)
+            master0 = wavefunction.Wavefunction()
             checkpoint.read(master0, 'chkpt.hdf5', 0.)
             save_initial_wavefunction(master0)
         else:
-            save_initial_wavefunction(master) 
+            save_initial_wavefunction(master)
 
     else:
         # first generate the initial nuclear coordinates and momenta
@@ -65,7 +65,8 @@ def init_wavefunction(master):
     # write the bundle to the archive 
     if glbl.mpi['rank'] == 0:
         checkpoint.write(master, file_name='chkpt.hdf5')
-        checkpoint.write(glbl.master_mat, time=master.time, file_name='chkpt.hdf5')
+        checkpoint.write(glbl.master_mat, time=master.time)
+        checkpoint.write(glbl.master_int, time=master.time)
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])

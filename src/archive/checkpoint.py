@@ -30,6 +30,7 @@ def write(data_obj, file_name=None, time=None):
     # bundle definitions
     if not os.path.isfile(chkpt_file):
         if isinstance(data_obj, wavefunction.Wavefunction):
+            print("creating chkpt file...")
             create(chkpt_file, data_obj)
         else:
             sys.exit('chkpt file must be created with wavefunction object. Exiting..')
@@ -196,13 +197,15 @@ def write_wavefunction(chkpt, wfn, time):
         else:
             d_shape   = (new_size,) +  wfn_data[data_label].shape
             max_shape = (None,) + wfn_data[data_label].shape
-            d_type    = b_data[data_label].dtype
+            d_type    = wfn_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = wfn_data[data_label]
 
     # now step through and write trajectories
     for i in range(n_traj):
         write_trajectory(chkpt, wfn.traj[i], time)
+
+    chkpt['wavefunction'].attrs['current_time'] = current_row
 
     return
 
@@ -213,6 +216,8 @@ def write_integral(chkpt, integral, time):
     """Documentation to come"""
 
     int_data = package_integral(integral, time)
+    n_rows   = default_blk_size(time)
+    resize   = False
 
     # update the current row index (same for all data sets)
     current_row = chkpt['integral'].attrs['current_time'] + 1
@@ -237,7 +242,7 @@ def write_integral(chkpt, integral, time):
         else:
             d_shape   = (new_size,) +  int_data[data_label].shape
             max_shape = (None,) + int_data[data_label].shape
-            d_type    = b_data[data_label].dtype
+            d_type    = int_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = int_data[data_label]
 
@@ -256,7 +261,7 @@ def write_integral(chkpt, integral, time):
 def write_matrices(chkpt, matrices, time):
     """Documentation to come"""
     # open the trajectory file
-    m_data  = package_marices(matrices, time)
+    m_data  = package_matrices(matrices, time)
     n_rows  = default_blk_size(time)
     resize  = False
 
@@ -407,12 +412,13 @@ def read_wavefunction(chkpt, wfn, time):
     masses  = chkpt['simulation'].attrs['masses']
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt['wavefunction'], time)
+    read_row = get_time_index(chkpt, 'wavefunction/time', time)
     if read_row is None:
         sys.exit('time='+str(time)+' requested, but not in checkpoint file')
  
     # dimensions of these objects are not time-dependent 
-    wfn.time = chkpt['wavefunction/time'][read_row]
+    wfn.nstates = nstates
+    wfn.time    = chkpt['wavefunction/time'][read_row]
     
     for label in chkpt['wavefunction']:
 
@@ -420,7 +426,7 @@ def read_wavefunction(chkpt, wfn, time):
             continue
 
         t_grp = 'wavefunction/'+label
-        t_row = get_time_index(chkpt[t_grp], time)
+        t_row = get_time_index(chkpt, t_grp+'/time', time)
 
         if t_row is None:
             continue
@@ -444,7 +450,7 @@ def read_integral(chkpt, integral, time):
     masses  = chkpt['simulation'].attrs['masses']
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt['integral'], time)
+    read_row = get_time_index(chkpt, 'integral/time', time)
     if read_row is None:
         sys.exit('time='+str(time)+' requested, but not in checkpoint file')
 
@@ -455,7 +461,7 @@ def read_integral(chkpt, integral, time):
                 continue
 
             c_grp = 'integral/'+label
-            c_row = get_time_index(chkpt[c_grp], time)
+            c_row = get_time_index(chkpt, c_grp+'/time', time)
  
             if c_row is None:
                 continue
@@ -472,7 +478,7 @@ def read_integral(chkpt, integral, time):
 def read_matrices(chkpt, matrices, time):
     """Documentation to come"""
 
-    read_row = get_time_index(chkpt['matrices'], time)
+    read_row = get_time_index(chkpt, 'matrices/time', time)
     if read_row is None:
         sys.exit('time='+str(time)+' requested, but not in checkpoint file')
 
@@ -534,13 +540,13 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
 #
 #
 #
-def get_time_index(grp, time):
+def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
 
-    time_vals = grp['time'][:]
+    time_vals = chkpt[grp_name][:]
     
     if time is None:
-        return grp.attrs['current_time']
+        return chkpt[grp_name].attrs['current_time']
 
     dt       = np.absolute(time_vals - time)
     read_row = np.argmin(dt)
@@ -592,7 +598,7 @@ def package_matrices(matrices, time):
     mat_data['time'] = np.array([time],dtype='float')
 
     # dimensions of these objects are time-dependent
-    for typ,mat in matrices.mat_lst.items():
+    for typ,mat in matrices.mat.items():
         mat_data[typ] = mat
 
     return mat_data

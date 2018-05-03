@@ -210,7 +210,7 @@ class Trajectory:
             print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-        return self.pes.get_data('coupling')[:, state_i, state_j]
+        return self.pes.get_data('coupling')[state_i, state_j]
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian

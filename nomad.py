@@ -49,7 +49,7 @@ def init():
 def main():
     """Runs the main FMSpy routine."""
     # Create the collection of trajectories
-    master = wavefunction.Wavefunction(glbl.propagate['n_states'])
+    master = wavefunction.Wavefunction()
 
     # set the initial conditions for trajectories
     initialize.init_wavefunction(master)
@@ -70,8 +70,9 @@ def main():
         # determine whether it is necessary to update the output logs
         if glbl.mpi['rank'] == 0:
             # update the fms output files, as well as checkpoint, if necessary
-            checkpoint.write(master)
-            checkpoint.write(glbl.master_mat, master.time)
+            checkpoint.write(master, time=master.time)
+            checkpoint.write(glbl.master_mat, time=master.time)
+            checkpoint.write(glbl.master_int, time=master.time)
 
     # clean up, stop the global timer and write logs
     cleanup.cleanup_end()

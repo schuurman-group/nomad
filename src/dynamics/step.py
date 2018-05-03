@@ -49,7 +49,7 @@ def step_wavefunction(master, dt):
         glbl.integrator.propagate_wfn(master, time_step)
 
         # propagate amplitudes for 1/2 time step using x1
-        glbl.master_mat.build(master, glbl.integrals)
+        glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)
         master.update_amplitudes(0.5*dt)
 

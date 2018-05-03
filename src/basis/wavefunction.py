@@ -7,11 +7,11 @@ import numpy as np
 import scipy.linalg as sp_linalg
 import src.utils.timings as timings
 import src.basis.matrices as matrices
+import src.integrals.integral as integral
 
 class Wavefunction:
     """Class constructor for the Wavefunction object."""
-    def __init__(self, nstates):
-        self.nstates   = nstates
+    def __init__(self):
         self.time      = 0.
         self.nalive    = 0
         self.nactive   = 0
@@ -19,7 +19,7 @@ class Wavefunction:
         self.traj      = []
         self.alive     = []
         self.active    = []
-        self.matrices  = None 
+        self.matrices  = matrices.Matrices() 
 
     @timings.timed
     def copy(self):
@@ -29,17 +29,17 @@ class Wavefunction:
         of a wfn with new references. Overriding deepcopy for
         significantly more work.
         """
-        new_wfn = Wavefunction(self.nstates)
+        new_wfn = Wavefunction()
         new_wfn.time     = copy.copy(self.time)
         new_wfn.nalive   = copy.copy(self.nalive)
         new_wfn.ndead    = copy.copy(self.ndead)
         new_wfn.alive    = copy.deepcopy(self.alive)
+        new_wfn.active   = copy.deepcopy(self.active)
         new_wfn.matrices = self.matrices.copy()
 
         # copy the trajectory array
         for i in range(self.n_traj()):
-            traj_i = self.traj[i].copy()
-            new_wfn.traj.append(traj_i)
+            new_wfn.traj.append(self.traj[i].copy())
 
         return new_wfn
 
@@ -96,9 +96,9 @@ class Wavefunction:
         self.ndead           = self.ndead - 1
 
     @timings.timed
-    def update_matrices(self, matrices):
+    def update_matrices(self, mats):
         """Documentation to come"""
-        self.matrices = matrices
+        self.matrices = mats.copy()
 
         return
 
@@ -116,7 +116,7 @@ class Wavefunction:
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
-        B = -1j * self.matrices.Heff * dt
+        B = -1j * self.matrices.mat['Heff'] * dt
 
         if self.nalive < 150:
             # Eigen-decomposition
@@ -162,7 +162,7 @@ class Wavefunction:
         i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.matrices.S_traj[i,j] *
+            mulliken += abs(self.matrices.mat['S_traj'][i,j] *
                             self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -171,12 +171,12 @@ class Wavefunction:
     def norm(self):
         """Returns the norm of the wavefunction """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.matrices.S),self.amplitudes()).real
+                      self.matrices.mat['S']),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
         """Returns the populations on each of the states."""
-        pop    = np.zeros(self.nstates, dtype=complex)
+        pop    = np.zeros(self.traj[0].nstates, dtype=complex)
         nalive = len(self.alive)
 
         # live contribution
@@ -187,7 +187,7 @@ class Wavefunction:
                 jj = self.alive[j]
                 if self.traj[jj].state != state:
                     continue
-                popij = (self.matrices.S_traj[i,j]  *
+                popij = (self.matrices.mat['S_traj'][i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
@@ -213,7 +213,7 @@ class Wavefunction:
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.V), self.amplitudes()).real
+                             self.matrices.mat['V']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.V)),self.amplitudes()).real
@@ -231,7 +231,7 @@ class Wavefunction:
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the wfn."""
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.T), self.amplitudes()).real
+                             self.matrices.mat['T']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.T)),self.amplitudes()).real

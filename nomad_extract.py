@@ -6,22 +6,23 @@ import os
 import sys
 import random
 import numpy as np
-import src.archive.checkpoint as chkpt
+import src.archive.checkpoint as checkpoint
 import src.archive.printing as printing
-import src.basis.bundle as bundle
+import src.basis.wavefunction as wavefunction
+import src.basis.matrices as matrices
+import src.integrals.integral as integral
 
-bundle0 = None
+wfn0 = None
+ints = None
 
 #
 #
 #
 def main():
     """Runs the main FMSpy routine."""
+    global wfn0, ints
 
     chkpt_file, time, data = process_arguments(sys.argv)
-
-    # create a bundle object to hold data
-    master = bundle.Bundle()
 
     # set the read time: here, there are 3 options:
     # time = None, -1, t, where these return: data
@@ -32,30 +33,35 @@ def main():
     if time is not None and time != -1:
         read_time = time
 
-    # read bundle for the case of a single time
-    chkpt.read(master, chkpt_file, read_time)
+    # create an integral object in case we need to evaluate
+    # integrals (i.e. autocorrelation function)
+    ints = integral.Integral(data['-integrals'])
 
-    # we need to the t=0 bundle if auto-correlation 
-    # function requested
-    if data['-auto']:
-        bundle0 = bundle.Bundle()
-        chkpt.read(bundle0, chkpt_file, 0.)
+    # read t=0 wfn to determine autocorrelation function
+    wfn0 = wavefunction.Wavefunction() 
+    checkpoint.read(wfn0, chkpt_file, 0.)
 
     # get printing machine ready
-    ncrd    = master.traj[0].dim
-    nstates = master.traj[0].nstates
+    wfn     = wavefunction.Wavefunction()
+    mat     = matrices.Matrices()
+    ncrd    = wfn0.traj[0].dim
+    nstates = wfn0.traj[0].nstates
     printing.generate_data_formats(ncrd, nst)
 
     # if we want all times, run through all the data
     if time is None:
-        tvals = chkpt.time_steps(chkpt_file)
+        tvals = checkpoint.time_steps('wavefunction',chkpt_file)
         for i in range(len(tvals)):
-            chkpt.read(master,chkpt_file,tvals[i])
-            extract_data(master, data)
+            checkpoint.read(wfn, chkpt_file, tvals[i])
+            checkpoint.read(mat, chkpt_file, tvals[i])
+            extract_data(wfn, mat, data)
 
     # else, print data from current bundle
     else:
-        extract_data(master, data)
+        # read bundle for the case of a single time
+        checkpoint.read(wfn, chkpt_file, read_time)
+        checkpoint.read(mat, chkpt_file, read_time)
+        extract_data(wfn, mat, data)
 
     return
 
@@ -70,7 +76,8 @@ def process_arguments(args):
 
     # a list of valid arguments and the default values
     data_lst = {'-all':False,      '-energy':False,       '-pop':False, '-auto':False,          
-                '-matrices':False, '-trajectories':False, '-interface_data':False}
+                '-matrices':False, '-trajectories':False, '-interface_data':False, 
+                '-integrals':'bra_ket_averaged'}
 
     # this defaults to extracting data at all times
     time = None
@@ -107,97 +114,97 @@ def process_arguments(args):
 #
 #
 #
-def extract_data(bund, dlst):
+def extract_data(wfn, mat, dlst):
     """Documentation to come"""
 
     if '-all' in dlst or '-energy' in dlst:
-        extract_energy(bund)
+        extract_energy(wfn)
 
     if '-all' in dlst or '-pop' in dlst:
-        extract_pop(bund)
+        extract_pop(wfn)
 
     if '-all' in dlst or '-auto' in dlst:
-        extract_auto(bund)
+        extract_auto(wfn)
 
     if '-all' in dlst or '-matrices' in dlst:
-        extract_matrices(bund)
+        extract_matrices(wfn, mat)
     
     if '-all' in dlst or '-trajectories' in dlst:
-        extract_trajectories(bund)
+        extract_trajectories(wfn)
 
     if '-all' in dlst or '-interface_data' in dlst:
-        extract_interface_data(bund)
+        extract_interface_data(wfn)
 
     return
 
 #
 #
 #
-def extract_energy(bund):
+def extract_energy(wfn):
     """Documentation to come"""
     
-    prnt_data = [bund.time]
-    prnt_data.append(bund.pot_quantum(),   bund.kin_quantum(),   bund.tot_quantum(),
-                     bund.pot_classical(), bund.kin_classical(), bund.tot_classical())
+    prnt_data = [wfn.time]
+    prnt_data.append(wfn.pot_quantum(),   wfn.kin_quantum(),   wfn.tot_quantum(),
+                     wfn.pot_classical(), wfn.kin_classical(), wfn.tot_classical())
 
-    printing.print_bund_row('energy', prnt_data)
-
-    return
-
-#
-#
-#
-def extract_pop(bund):
-    """Documentation to come"""
-
-    prnt_data = [bund.time]
-    prnt_data.extend(bund.pop())
-    prnt_data.append(bund.norm())
-
-    printing.print_bund_row('pop', prnt_data)
+    printing.print_wfn_row('energy', prnt_data)
 
     return
 
 #
 #
 #
-def extract_auto(bund):
+def extract_pop(wfn):
     """Documentation to come"""
-    global bundle0
 
-    b_overlap = bundle0.overlap(bund)
-    prnt_data = [bund.time, b_overlap.imag, b_overlap.real, np.absolute(b_overlap)]
+    prnt_data = [wfn.time]
+    prnt_data.extend(wfn.pop())
+    prnt_data.append(wfn.norm())
+
+    printing.print_wfn_row('pop', prnt_data)
+
+    return
+
+#
+#
+#
+def extract_auto(wfn):
+    """Documentation to come"""
+    global wfn0, ints
+
+    wfn_overlap = ints.wfn_overlap(wfn0, wfn)
+    prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.absolute(wfn_overlap)]
  
-    printing.print_bund_row('auto', prnt_data)
+    printing.print_wfn_row('auto', prnt_data)
  
     return
 
 #
 #
 #
-def extract_matrices(bund):
+def extract_matrices(wfn, mat):
     """Documentation to come"""
 
-    printing.print_bund_mat(bund.time, 's', bund.S)
-    printing.print_bund_mat(bund.time, 'sdot', bund.Sdot)
-    printing.print_bund_mat(bund.time, 'h', bund.H)
-    printing.print_bund_mat(bund.time, 'heff', bund.Heff)
-    printing.print_bund_mat(bund.time, 't_overlap', bund.traj_ovrlp)
+    printing.print_wfn_mat(wfn.time, 's', mat.mat['S'])
+    printing.print_wfn_mat(wfn.time, 'sdot', mat.mat['Sdot'])
+    printing.print_wfn_mat(wfn.time, 'h', mat.mat['H'])
+    printing.print_wfn_mat(wfn.time, 'heff', mat.mat['Heff'])
+    printing.print_wfn_mat(wfn.time, 't_overlap', mat.mat['S_traj'])
 
     return
 
 #
 #
 #
-def extract_trajectories(bund):
+def extract_trajectories(wfn):
     """Documentation to come"""
 
-    for i in range(bund.nalive):
-        traj = bund.traj[alive[i]]
+    for i in range(wfn.nalive):
+        traj = wfn.traj[alive[i]]
         label = traj.label
 
         # print trajectory file        
-        prnt_data = [bund.time]
+        prnt_data = [wfn.time]
         prnt_data.extend(traj.x())
         prnt_data.extend(traj.p())
         prnt_data.extend([traj.phase(), traj.amplitude.real, traj.amplitude.imag, 
@@ -205,23 +212,23 @@ def extract_trajectories(bund):
         printing.print_traj_row(label, 'traj', prnt_data)
 
         # print potential energies
-        prnt_data = [bund.time]
+        prnt_data = [wfn.time]
         prnt_data.extend([traj.energy(i) for i in range(traj.nstates)])
         printing.print_traj_row(label, 'traj', prnt_data)
 
         # print gradients
-        prnt_data = [bund.time]
+        prnt_data = [wfn.time]
         prnt_data.extend(traj.derivative(traj.state,traj.state))
         printing.print_traj_row(label, 'grad', prnt_data)
 
         # print coupling
-        prnt_data = [bund.time]
+        prnt_data = [wfn.time]
         prnt_data.extend([traj.coupling_norm(i) for i in range(traj.nstates)])
         prnt_data.extend([traj.coup_dot_vel(i) for i in range(traj.nstates)])
         printing.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-        printing_print_traj_mat(bund.time, 'hessian', traj.hessian(traj.state))
+        printing_print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
     return
 
@@ -229,7 +236,7 @@ def extract_trajectories(bund):
 #
 #
 #
-def extract_interface_data(bund):
+def extract_interface_data(wfn):
     """Documentation to come"""
 
    
