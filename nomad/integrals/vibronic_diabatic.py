@@ -1,9 +1,8 @@
 """
 Compute integrals over trajectories traveling on vibronic potentials
 """
-import math
 import numpy as np
-import src.integrals.nuclear_gaussian as nuclear
+import nomad.integrals.nuclear_gaussian as nuclear
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -14,17 +13,15 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = True
 
-# Returns functional form of bra function ('dirac_delta', 'gaussian')
+# functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
-# returns the overlap between two trajectories (differs from s_integral in that
-# the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods). 
+ 
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     return s_integral(t1, t2, nuc_only, Snuc)
 
-# returns total overlap of trajectory basis function
+
 def s_integral(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
@@ -37,7 +34,7 @@ def s_integral(t1, t2, nuc_only=False, Snuc=None):
         else:
             return Snuc
 
-#
+
 def v_integral(t1, t2, Snuc=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
@@ -79,6 +76,7 @@ def ke_integral(t1, t2, Snuc=None):
                                  t2.widths(),t2.x(),t2.p())
 
         return -sum( ke * t1.kecoef)
+
 
 def sdot_integral(t1, t2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""

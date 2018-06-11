@@ -5,10 +5,10 @@ import sys
 import random
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.basis.trajectory as trajectory
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.basis.trajectory as trajectory
 
 
 def set_initial_coords(master):
@@ -139,4 +139,3 @@ def mode_overlap(alpha, dx, dp):
     """
     return abs(np.exp((-4.*alpha*dx**2 + 4.*1j*dx*dp -
                        (1./alpha)*dp**2) / 8.))
-

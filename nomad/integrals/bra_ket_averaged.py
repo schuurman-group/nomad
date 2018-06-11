@@ -5,8 +5,8 @@ traveling on adiabataic potentials
 import sys
 import math
 import numpy as np
-import src.parse.glbl as glbl
-import src.integrals.nuclear_gaussian as nuclear
+import nomad.parse.glbl as glbl
+import nomad.integrals.nuclear_gaussian as nuclear
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -17,9 +17,7 @@ hermitian = True
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
-#
-#
-#
+
 def elec_overlap(t1, t2):
     """ Returns < Psi | Psi' >, the nuclear overlap integral of two trajectories"""
     if t1.state == t2.state:
@@ -27,29 +25,22 @@ def elec_overlap(t1, t2):
     else:
         return 0.
 
-#
-#
-#
+
 def nuc_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
     return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
-#
-#
-#
+
 def traj_overlap(t1, t2, nuc_ovrlp=None):
     """Returns < Psi | Psi' >, the overlap integral of two trajectories.
 
     The bra and ket functions for the s_integral may be different
     (i.e. pseudospectral/collocation methods).
     """
-
     return s_integral(t1, t2, nuc_ovrlp)
 
-#
-#
-#
+
 def s_integral(t1, t2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
@@ -59,9 +50,7 @@ def s_integral(t1, t2, nuc_ovrlp=None):
 
     return elec_overlap(t1, t2) * nuc_ovrlp
 
-#
-#
-#
+
 def v_integral(t1, t2, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories.
 
@@ -73,7 +62,6 @@ def v_integral(t1, t2, nuc_ovrlp=None):
     else:
         Sij = nuc_ovrlp
     Sji = Sij.conjugate()
-
 
     if glbl.propagate['integral_order'] > 2:
         raise ValueError('Integral_order > 2 not implemented for bra_ket_averaged')
@@ -119,7 +107,6 @@ def v_integral(t1, t2, nuc_ovrlp=None):
     else:
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
-
         vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), t1.kecoef *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
@@ -128,12 +115,9 @@ def v_integral(t1, t2, nuc_ovrlp=None):
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())
 
-#
-#
-#
+
 def t_integral(t1, t2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
-
     if t1.state != t2.state:
         return 0j
 
@@ -146,12 +130,9 @@ def t_integral(t1, t2, nuc_ovrlp=None):
 
         return -np.dot(ke, t1.kecoef)
 
-#
-#
-#
+
 def sdot_integral(t1, t2, nuc_ovrlp=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-
     if t1.state != t2.state:
         return 0j
 

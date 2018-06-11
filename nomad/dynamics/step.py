@@ -82,8 +82,8 @@ def step_wavefunction(master, dt):
 
             # re-expression of the basis using the matching pursuit
             # algorithm
-#            if glbl.propagate['matching_pursuit'] == 1:
-#                mp.reexpress_basis(master)
+            #if glbl.propagate['matching_pursuit'] == 1:
+            #    mp.reexpress_basis(master)
 
             # update the running log
             log.print_message('t_step',[master.time, time_step, master.nalive])
@@ -160,9 +160,7 @@ def step_complete(current_time, final_time, dt):
     else:
         return current_time <= final_time
 
-#
-#
-#
+
 def check_step_wfn(master0, master, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
@@ -196,9 +194,7 @@ def check_step_wfn(master0, master, time_step):
                 return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
     return True, ' success'
 
-#
-#
-#
+
 def check_step_trajectory(traj0, traj):
     """Checks if we should reject a macro step because we're in a
     coupling region.

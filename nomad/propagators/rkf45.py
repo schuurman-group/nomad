@@ -30,9 +30,9 @@ step size sfac*dt. Otherwise, use sfac*dt for next step. Update
 position, momentum using x4, p4.
 """
 import numpy as np
-import src.parse.glbl as glbl
-import src.utils.timings as timings
-import src.dynamics.evaluate as evaluate
+import nomad.parse.glbl as glbl
+import nomad.utils.timings as timings
+import nomad.dynamics.evaluate as evaluate
 
 
 rk_ordr = 6
@@ -97,9 +97,9 @@ def propagate_wfn(master, dt):
                     dg_lo[i] = np.sum(wgt_lo * kg[i])
                     dg_hi[i] = np.sum(wgt_hi * kg[i])
 
-#            print("a="+str(np.abs(dx_hi-dx_lo).flatten()))
-#            print("b="+str(np.abs(dp_hi-dp_lo).flatten()))
-#            print("c="+str(np.abs(dg_hi-dg_lo)))
+            #print("a="+str(np.abs(dx_hi-dx_lo).flatten()))
+            #print("b="+str(np.abs(dp_hi-dp_lo).flatten()))
+            #print("c="+str(np.abs(dg_hi-dg_lo)))
 
             err = np.max(np.max(np.abs(dg_hi-dg_lo)), np.max((np.abs(dx_hi-dx_lo).flatten(), np.abs(dp_hi-dp_lo).flatten())))
         else:
@@ -154,8 +154,8 @@ def propagate_trajectory(traj, dt):
         if propphase:
             dg_lo = np.sum(wgt_lo * kg)
             dg_hi = np.sum(wgt_hi * kg)
-#            err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
-#                          np.abs(dg_hi-dg_lo)))
+            #err = np.max((np.abs(dx_hi-dx_lo), np.abs(dp_hi-dp_lo),
+            #              np.abs(dg_hi-dg_lo)))
             err = np.max(np.abs(dg_hi-dg_lo),np.max((np.abs(dx_hi-dx_lo).flatten(), np.abs(dp_hi-dp_lo).flatten())))
 
         else:

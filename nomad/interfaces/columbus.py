@@ -6,7 +6,6 @@ import os
 import copy
 import shutil
 import subprocess
-import math
 import numpy as np
 import src.utils.constants as constants
 import src.parse.glbl as glbl
@@ -1206,7 +1205,7 @@ def ang_mom_dalton(infile):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
                     nprim  = int(line.split()[1])
-                    n_line = math.ceil(float(line.split()[2])/3.)
+                    n_line = np.ceil(float(line.split()[2])/3.)
                     for l in range(nprim * n_line):
                         line = daltaoin.readline()
     return max_l

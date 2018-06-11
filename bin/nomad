@@ -1,24 +1,24 @@
 #!/usr/bin/env python
 """
-Main module used to initiate and run FMSpy.
+The main nomad driver.
 """
 import os
 import sys
 import random
 import numpy as np
 import mpi4py.MPI as MPI
-import src.parse.glbl as glbl
-import src.parse.files as files
-import src.parse.log as log
-import src.archive.checkpoint as checkpoint
-import src.basis.wavefunction as wavefunction
-import src.basis.initialize as initialize
-import src.dynamics.step as step
-import src.utils.timings as timings
-import src.utils.cleanup as cleanup
+import nomad.parse.glbl as glbl
+import nomad.parse.files as files
+import nomad.parse.log as log
+import nomad.archive.checkpoint as checkpoint
+import nomad.basis.wavefunction as wavefunction
+import nomad.basis.initialize as initialize
+import nomad.dynamics.step as step
+import nomad.utils.timings as timings
+import nomad.utils.cleanup as cleanup
 
 def init():
-    """Initializes the FMSpy inputs.
+    """Initializes the nomad inputs.
 
     This must be separate from main so that an error which occurs
     before the input file is created will be written to stdout.

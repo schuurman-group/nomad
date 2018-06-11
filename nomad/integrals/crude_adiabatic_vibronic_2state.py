@@ -5,9 +5,9 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.integrals.nuclear_gaussian_ccs as nuclear
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.integrals.nuclear_gaussian_ccs as nuclear
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False 
@@ -26,36 +26,26 @@ theta_cache = dict()
 gs = 0 
 es = 1 
 
-#
-#
-#
+
 def elec_overlap(traj1, traj2):
     """ Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
 
     return complex( np.dot(phi(traj1),phi(traj2)), 0.)
 
-#
-#
-#
+
 def nuc_overlap(traj1, traj2):
     """ Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
 
     return nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
                            traj2.widths(),traj2.x(),traj2.p())
 
-#
-# returns the overlap between two trajectories (differs from s_integral in that
-# the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods). 
-#
+
 def traj_overlap(traj1, traj2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
 
     return s_integral(traj1, traj2, nuc_ovrlp)
 
-#
-# total overlap of trajectory basis function
-#
+
 def s_integral(traj1, traj2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
@@ -65,9 +55,7 @@ def s_integral(traj1, traj2, nuc_ovrlp=None):
 
     return elec_overlap(traj1, traj2) * nuc_ovrlp
 
-#
-#
-#
+
 def v_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
@@ -95,9 +83,7 @@ def v_integral(traj1, traj2, nuc_ovrlp=None):
 
     return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp 
 
-#
-# kinetic energy integral
-#
+
 def t_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
@@ -110,9 +96,7 @@ def t_integral(traj1, traj2, nuc_ovrlp=None):
 
     return -np.dot(traj1.kecoef,ke)*elec_overlap(traj1,traj2)
     
-#
-# sdot integral
-#
+
 def sdot_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
@@ -140,13 +124,9 @@ def sdot_integral(traj1, traj2, nuc_ovrlp=None):
     deriv_coup = np.array([np.dot(phi1, dphi2[:,q]) for q in range(traj2.dim)])
     e_coup     = np.dot(deriv_coup, traj2.velocity()) * nuc_ovrlp 
 
-    sdot += e_coup
+    return sdot + e_coup
 
-    return sdot
 
-#
-# adiabatic-diabatic rotation matrix
-#
 def rot_mat(theta):
     """ Returns the adiabatic-diabatic rotation matrix for a given value of
         theta"""
@@ -159,9 +139,7 @@ def rot_mat(theta):
         return np.array([[-np.sin(theta), np.cos(theta)],
                          [ np.cos(theta), np.sin(theta)]])
 
-#
-# derivative of the adiabatic-diabatic rotation matrix
-#
+
 def drot_mat(theta):
     """ Returns the derivative adiabatic-diabatic rotation matrix with respect
         to theta"""
@@ -174,9 +152,7 @@ def drot_mat(theta):
         return np.array([[-np.cos(theta), -np.sin(theta)],
                          [-np.sin(theta),  np.cos(theta)]])
 
-#
-# compute the diabatic-adiabatic rotation angle theta
-#
+
 def theta(traj):
     """ Returns to the adiabatic-diabatic rotation angle theta. Choose theta
         to be consistent with diabatic-adiabatic transformation matrix, which
@@ -213,9 +189,7 @@ def theta(traj):
 
     return ang
 
-#
-# compute the derivative of the diabatic-adiabatic rotation angle theta
-#
+
 def dtheta(traj):
     """ Returns to the derivative adiabatic-diabatic rotation angle theta with
         respect to the internal coordinates."""
@@ -247,9 +221,7 @@ def dtheta(traj):
 
     return dtheta_dq
 
-#
-# return the diabatic-adiabatic transformation matrix
-#
+
 def phi(traj):
     """Returns the transformation matrix using the rotation angle. 
        Should be indentical to the dat_mat in the vibronic interface"""
@@ -263,9 +235,7 @@ def phi(traj):
 
     return phi_mat[:,traj.state]
 
-#
-# return the derivatie of the diabatic-adiabatic transformation matrix
-#
+
 def dphi(traj):
     """Returns the derivative transformation matrix using the rotation angle."""
 
@@ -280,5 +250,3 @@ def dphi(traj):
     dphi_dq = np.array([dphi_mat[i,traj.state]*dangle for i in range(traj.nstates)])
 
     return dphi_dq
-
-

@@ -4,7 +4,7 @@ basis function, assumes bra is also product of frozen gaussians
 """
 import operator, functools
 import numpy as np
-import utils.constants
+import nomad.utils.constants
 
 print('WARNING: Using uncompiled Python module for Gaussian integrals. '
       'For optimal performance, compile Cython module using '

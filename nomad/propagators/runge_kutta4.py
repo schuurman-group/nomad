@@ -11,14 +11,16 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
   ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
-import src.parse.glbl as glbl
-import src.utils.timings as timings
-import src.dynamics.evaluate as evaluate
+import nomad.parse.glbl as glbl
+import nomad.utils.timings as timings
+import nomad.dynamics.evaluate as evaluate
+
 
 rk_ordr = 4
 coeff = np.array([0.5, 0.5, 1.])
 wgt = np.array([1./6., 1./3., 1./3., 1./6.])
 propphase = glbl.propagate['phase_prop']
+
 
 @timings.timed
 def propagate_wfn(master, dt):

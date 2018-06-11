@@ -5,14 +5,15 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.archive.surface as surface
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.archive.surface as surface
 
 ham = None
 nsta = glbl.propagate['n_states']
 data_cache = dict()
+
 
 class VibHam:
     """Object containing the vibronic Hamiltonian parameters."""
@@ -210,7 +211,6 @@ def evaluate_trajectory(traj, t=None):
     diablap = calc_diablap(geom)
 
     #** load the data into the pes object to pass to trajectory **
-
     t_data = surface.Surface()
     t_data.add_data('geom',geom)
     t_data.add_data('momentum',momt)
@@ -268,6 +268,7 @@ def evaluate_trajectory(traj, t=None):
 
     data_cache[label] = t_data
     return t_data
+
 
 def evaluate_centroid(traj, t=None):
     """Evaluates the centroid.
@@ -383,6 +384,7 @@ def calc_dat(label, diabpot):
                                  np.argmax(np.abs(datmat), axis=0)])
     return adiabpot, datmat
 
+
 def calc_ddat(label, q, diabpot, dat_mat):
     """Returns the derviative of the diabatic to adiabatic transformation 
        matrix via numerical differentiation"""
@@ -390,6 +392,7 @@ def calc_ddat(label, q, diabpot, dat_mat):
     dx = 0.001
 
     return ddat_mat
+
 
 def calc_diabderiv1(q):
     """Calculates the 1st derivatives of the elements of the diabatic
@@ -417,6 +420,7 @@ def calc_diabderiv1(q):
                                [np.diag(diabderiv1[m].diagonal()) for m in
                                 ham.mrange])
     return diabderiv1
+  
 
 def calc_diabderiv2(q):
     """Calculates the 2nd derivatives of the elements of the diabatic
@@ -467,11 +471,11 @@ def calc_diabderiv2(q):
 
     return diabderiv2
 
+
 def calc_diabeffcoup(diabpot):
     """Calculates the effective diabatic coupling between diabatic states i, j via
        eff_coup = Hij / (H[i,i] - H[j,j])
     """
-
     demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs) 
                            for i in range(nsta)] for j in range(nsta)])
     eff_coup = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
@@ -500,6 +504,7 @@ def calc_nacts(adiabpot, datmat, diabderiv1):
     nactmat -= [np.diag(nactmat[m].diagonal()) for m in range(ham.nmode_total)]
     return nactmat
 
+
 def calc_adiabderiv1(datmat, diabderiv1):
     """Calculates the gradients of the adiabatic potentials.
 
@@ -511,6 +516,7 @@ def calc_adiabderiv1(datmat, diabderiv1):
         adiabderiv1[m] = np.dot(np.dot(datmat.T, diabderiv1[m]),
                                 datmat).diagonal()
     return adiabderiv1
+
 
 def calc_adiabderiv2(datmat, diabderiv2):
     """Calculates the hessians of the adiabatic potentials.
@@ -555,6 +561,7 @@ def calc_diablap(q):
     # Fill in the upper-triangle
     diablap += diablap.T - np.diag(diablap.diagonal())
     return diablap
+
 
 def calc_scts(adiabpot, datmat, diabderiv1, nactmat, adiabderiv1, diablap):
     """Calculates the scalar coupling terms.

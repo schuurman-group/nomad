@@ -1,11 +1,11 @@
 """
 Linear algebra library routines.
 """
-
 import sys
 import numpy as np
-import src.utils.timings as timings
-import src.parse.glbl as glbl
+import nomad.utils.timings as timings
+import nomad.parse.glbl as glbl
+
 
 def pseudo_inverse(mat):
     """ Modified version of the scipy pinv function. Altered such that
@@ -46,6 +46,7 @@ def pseudo_inverse(mat):
 
     return invmat, cond
 
+  
 def pseudo_inverse2(mat):
     """ Modified version of the scipy pinv function. Altered such that
     the the cutoff for singular values can be set to a hard
@@ -72,10 +73,10 @@ def pseudo_inverse2(mat):
     cutoff = 1e-10
     for i in range(min(dim1, dim2)):
          s[i] = 1./(s[i] + 1e-7*np.exp(-s[i] * 1e7))
-#        if s[i] > cutoff:
-#            s[i] = 1./s[i]
-#        else:
-#            s[i] = s + 1e-7*np.exp(-s * 1e7)
+         #if s[i] > cutoff:
+         #    s[i] = 1./s[i]
+         #else:
+         #    s[i] = s + 1e-7*np.exp(-s * 1e7)
 
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
                                                   np.transpose(u)))

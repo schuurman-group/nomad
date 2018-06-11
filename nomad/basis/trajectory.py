@@ -4,8 +4,9 @@ The Trajectory object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.utils.timings as timings
-import src.utils.constants as constants
+import nomad.utils.timings as timings
+import nomad.utils.constants as constants
+
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
@@ -127,9 +128,9 @@ class Trajectory:
     def update_phase(self, phase):
         """Updates the nuclear phase."""
         self.gamma = 0.5 * np.dot(self.x(), self.p())
-#        self.gamma = phase
-#        if abs(self.gamma) > 2*np.pi:
-#            self.gamma = self.gamma % 2*np.pi
+        #self.gamma = phase
+        #if abs(self.gamma) > 2*np.pi:
+        #    self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
@@ -179,7 +180,7 @@ class Trajectory:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-#        return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+        #return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
         return self.pes.get_data('potential')[state]
 
     def derivative(self, state_i, state_j):
@@ -268,4 +269,3 @@ class Trajectory:
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""
         return self.state == j_state
-

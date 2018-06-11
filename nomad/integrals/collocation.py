@@ -5,9 +5,9 @@ trajectory 1 and trajectory 2.
 import sys
 import math
 import numpy as np
-import src.parse.glbl as glbl
-import src.integrals.nuclear_dirac as dirac 
-import src.integrals.nuclear_gaussian as gauss
+import nomad.parse.glbl as glbl
+import nomad.integrals.nuclear_dirac as dirac 
+import nomad.integrals.nuclear_gaussian as gauss
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -15,12 +15,10 @@ require_centroids = False
 # Determines the Hamiltonian symmetry
 hermitian = False
 
-# Returns functional form of bra function ('dirac_delta', 'gaussian')
+# functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'dirac_delta'
 
-# returns the overlap between two trajectories (differs from s_integral in that
-# the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods). 
+ 
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     if traj1.state != traj2.state and not nuc_only:
@@ -29,8 +27,7 @@ def traj_overlap(traj1, traj2, nuc_only=False):
         return gauss.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                              traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-# returns total overlap of trajectory basis function using a 
-# dirac delta test function
+
 def s_integral(traj1, traj2, nuc_only=False, Snuc=None):
     """ Returns < chi | Psi' >, the overlap integral under the pseudospectral
     projection."""
@@ -69,7 +66,7 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         print('ERROR in v_integral -- argument disagreement')
         return 0j 
 
-# evaluate the kinetic energy integral
+
 def ke_integral(traj1, traj2, Snuc=None):
     """ Returns < delta(R-R1) | T | g2 > """
     if traj1.state != traj2.state:
@@ -85,7 +82,7 @@ def ke_integral(traj1, traj2, Snuc=None):
 
         return -sum(ke * traj1.kecoef)
 
-#evaulate the time derivative of the overlap
+
 def sdot_integral(traj1, traj2, Snuc=None):
     """ Returns < delta(R-R1) | d/dt g2 >
 

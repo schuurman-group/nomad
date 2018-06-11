@@ -5,10 +5,9 @@ potentials
 This currently uses first-order saddle point.
 """
 import sys
-import math
 import numpy as np
-import src.parse.glbl as glbl
-import src.integrals.nuclear_gaussian as nuclear
+import nomad.parse.glbl as glbl
+import nomad.integrals.nuclear_gaussian as nuclear
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
@@ -19,34 +18,26 @@ hermitian = False
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
-#
-#
-#
+
 def elec_overlap(t1, t2):
     """ Returns < phi | phi' >, the electronic overlap integral of two trajectories"""
     t1.state == t2.state:
         return 1.
     else:
         return 0.
-#
-#
-#
+
+
 def nuc_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
     return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
-#
-# the bra and ket functions for the s_integral may be different
-# (i.e. pseudospectral/collocation methods).
-#
+
 def traj_overlap(t1, t2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp)
 
-#
-# returns total overlap of trajectory basis function
-#
+
 def s_integral(t1, t2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
@@ -55,12 +46,9 @@ def s_integral(t1, t2, nuc_ovrlp=None):
 
     return elec_overlap(t1,t2) * nuc_ovrlp
 
-#
-#
-#
+
 def v_integral(t1, t2, centroid, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
-
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
     if t1.label == t2.label:
@@ -101,12 +89,9 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
         print('ERROR in v_integral -- argument disagreement')
         return 0j
 
-#
-# kinetic energy integral
-#
+
 def t_integral(t1, t2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
-
     if t1.state != t2.state:
         return 0j
 
@@ -119,12 +104,9 @@ def t_integral(t1, t2, nuc_ovrlp=None):
 
         return -np.dot(ke, t1.kecoef)
 
-#
-# time derivative of the overlap
-#
+
 def sdot_integral(t1, t2, nuc_ovrlp=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-
     if t1.state != t2.state:
         return 0j
 
@@ -141,5 +123,3 @@ def sdot_integral(t1, t2, nuc_ovrlp=None):
                 +1j * t2.phase_dot() * Snuc)
 
         return sdot
-
-

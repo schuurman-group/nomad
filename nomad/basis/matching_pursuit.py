@@ -6,10 +6,10 @@ The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
 import sys
 import numpy as np
 import copy
-import src.utils.timings as timings
-import src.parse.glbl as glbl
-import src.basis.bundle as bundle
-import src.utils.linalg as linalg
+import nomad.utils.timings as timings
+import nomad.parse.glbl as glbl
+import nomad.basis.bundle as bundle
+import nomad.utils.linalg as linalg
 
 
 selected = []
