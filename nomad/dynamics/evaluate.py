@@ -6,10 +6,10 @@ execution of potential evaluations which is essential for ab initio PES.
 """
 from functools import partial
 import numpy as np
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.basis.trajectory as trajectory
-import src.integrals.centroid as centroid
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.basis.trajectory as trajectory
+import nomad.integrals.centroid as centroid
 
 pes_cache  = dict()
 
@@ -91,7 +91,7 @@ def update_pes(master, update_integrals=True):
 
         # ...and centroids if need be
         if update_integrals and glbl.master_int.require_centroids:
-            
+
             for i in range(master.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it

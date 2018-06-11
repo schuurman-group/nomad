@@ -4,8 +4,8 @@ The Centroid object and its associated functions.
 import sys
 import copy
 import numpy as np
-import src.utils.timings as timings
-import src.utils.constants as constants
+import nomad.utils.timings as timings
+import nomad.utils.constants as constants
 
 def cent_label(itraj_id, jtraj_id):
     """return the centroid id for centroid between traj_i, traj_j"""

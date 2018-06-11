@@ -17,17 +17,15 @@ import sys
 import numpy as np
 import copy as copy
 import scipy.linalg as sp_linalg
-import src.utils.linalg as fms_linalg
-import src.utils.timings as timings
+import nomad.utils.linalg as fms_linalg
+import nomad.utils.timings as timings
+
 
 class Matrices:
-    """Builds the Hamiltonian and associated matrices given a wavefunction and
-       an Integral object"""
-    def __init__(self):      
-
-        # provide this dictionary to point to member matrices
-        self.mat_dict = {"t":     np.empty(shape=(0, 0)), 
-                         "v":     np.empty(shape=(0, 0)), 
+    """Object containing the Hamiltonian and associated matrices."""
+    def __init__(self):
+        self.mat_dict = {"t":     np.empty(shape=(0, 0)),
+                         "v":     np.empty(shape=(0, 0)),
                          "h":     np.empty(shape=(0, 0)),
                          "s_traj":np.empty(shape=(0, 0)),
                          "s_nuc": np.empty(shape=(0, 0)),
@@ -36,20 +34,11 @@ class Matrices:
                          "sdot":  np.empty(shape=(0, 0)),
                          "heff":  np.empty(shape=(0, 0)),}
 
-    #
-    #
-    #
     def set(self, name, matrix):
-        """set the matrices in the current matrix object equal
-           to the passed matrix object"""
+        """Sets the matrices in the current matrix object equal
+        to the passed matrix object"""
+        self.mat_dict[name] = copy.deepcopy(matrix)
 
-        self.mat_dict[name] = copy.deepcopy(matrix)        
-     
-        return
-
-    #
-    #
-    #
     def copy(self):
         """Documentation to come"""
         new_matrices = Matrices()
@@ -58,14 +47,10 @@ class Matrices:
             new_matrices.set(typ, matrix)
 
         return new_matrices
-   
-    #
-    #
-    #
+
     @timings.timed
     def build(self, wfn, integrals):
         """Builds the Hamiltonian matrix from a list of trajectories."""
-
         n_alive = wfn.nalive
 
         if integrals.hermitian:
@@ -90,18 +75,18 @@ class Matrices:
                 i, j = self.ut_ind(ij)
             else:
                 i, j = self.sq_ind(ij, n_alive)
-    
+
             ii = wfn.alive[i]
             jj = wfn.alive[j]
 
             # nuclear overlap matrix (excluding electronic component)
             self.mat_dict['s_nuc'][i,j]  = integrals.nuc_overlap(wfn.traj[ii],wfn.traj[jj])
-    
+
             # compute overlap of trajectories (different from S, which may or may
             # not involve integration in a gaussian basis
             self.mat_dict['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj],
                                                                   nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
-    
+
             # overlap matrix (including electronic component)
             self.mat_dict['s'][i,j]      = integrals.s_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
@@ -111,11 +96,11 @@ class Matrices:
                                                                    nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
 
             # kinetic energy matrix
-            self.mat_dict['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj], 
+            self.mat_dict['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
 
             # potential energy matrix
-            self.mat_dict['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj], 
+            self.mat_dict['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
 
             # Hamiltonian matrix in non-orthogonal basis
@@ -136,7 +121,7 @@ class Matrices:
             # compute the S^-1, needed to compute Heff
             timings.start('linalg.pinvh')
             self.mat_dict['sinv'] = sp_linalg.pinvh(self.mat_dict['s'])
-#            Sinv, cond = fms_linalg.pseudo_inverse2(S)
+            #Sinv, cond = fms_linalg.pseudo_inverse2(S)
             timings.stop('linalg.pinvh')
         else:
             # compute the S^-1, needed to compute Heff
@@ -145,10 +130,7 @@ class Matrices:
             timings.stop('hamiltonian.pseudo_inverse')
 
         self.mat_dict['heff'] = np.dot( self.mat_dict['sinv'], self.mat_dict['h'] - 1j * self.mat_dict['sdot'] )
-    
-    #
-    #
-    #
+
     def ut_ind(self,index):
         """Gets the (i,j) index of an upper triangular matrix from the
         sequential matrix index 'index'"""
@@ -157,12 +139,7 @@ class Matrices:
             i += 1
         return index - i*(i-1)//2, i-1
 
-    #
-    #
-    #
     def sq_ind(self,index, n):
         """Gets the (i,j) index of a square matrix from the
         sequential matrix index 'index'"""
         return index // n, index % n
-
-

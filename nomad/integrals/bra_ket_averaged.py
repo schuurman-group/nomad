@@ -94,8 +94,8 @@ def v_integral(t1, t2, nuc_ovrlp=None):
                     vij += 0.5 * ((2.*o1_ij[k]*o1_ij[l] -
                                    xcen[k]*o1_ij[l] - xcen[l]*o1_ij[k] -
                                    o1_ij[k]*t1.x()[l] - o1_ij[l]*t1.x()[k] +
-                                   (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) * 
-                                  t1.hessian(state)[k,l]) 
+                                   (t1.x()[k]*xcen[l] + t1.x()[l]*xcen[k])*Sij) *
+                                  t1.hessian(state)[k,l])
                     vji += 0.5 * ((2.*o1_ji[k]*o1_ji[l] -
                                    xcen[k]*o1_ji[l] - xcen[l]*o1_ji[k] -
                                    o1_ji[k]*t2.x()[l] - o1_ji[l]*t2.x()[k] +

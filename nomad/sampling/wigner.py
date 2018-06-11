@@ -12,8 +12,7 @@ import nomad.basis.trajectory as trajectory
 
 
 def set_initial_coords(master):
-    """Samples a v=0 Wigner distribution
-    """
+    """Samples a v=0 Wigner distribution."""
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.iface_params['interface'] == 'vibronic':
         coordtype = 'normal'
@@ -30,8 +29,8 @@ def set_initial_coords(master):
 
     # create template trajectory basis function
     template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
-                                     width=w_vec, 
-                                     mass=m_vec, 
+                                     width=w_vec,
+                                     mass=m_vec,
                                      parent=0,
                                      kecoef=glbl.kecoef)
     template.update_x(x_ref)
@@ -65,14 +64,14 @@ def set_initial_coords(master):
     # Hamiltonian and load only the active frequencies
     if coordtype == 'normal':
         n_modes = len(w_vec)
-        # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for 
+        # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for
         # vibronic hamiltonans is 1/2, assuming frequency weighted coords
-        freqs   = 2.* w_vec 
+        freqs   = 2.* w_vec
         log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
-    # write out frequencies 
-    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm) 
-                                                       for j in range(n_modes)]) 
+    # write out frequencies
+    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm)
+                                                       for j in range(n_modes)])
     log.print_message('string',[fstr+'\n'])
 
     # loop over the number of initial trajectories
@@ -86,7 +85,7 @@ def set_initial_coords(master):
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             if alpha > constants.fpzero:
-                sigma_x = (glbl.sampling['distrib_compression'] * 
+                sigma_x = (glbl.sampling['distrib_compression'] *
                            np.sqrt(0.25 / alpha))
                 sigma_p = (glbl.sampling['distrib_compression'] *
                            np.sqrt(alpha))

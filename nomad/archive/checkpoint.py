@@ -4,43 +4,32 @@ Routines for reading input files and writing log files.
 import sys
 import os
 import h5py
-import numpy as np 
-import src.integrals.integral as integral
-import src.basis.matrices as matrices
-import src.basis.wavefunction as wavefunction
-import src.basis.trajectory as trajectory
-import src.integrals.centroid as centroid
-import src.archive.surface as surface
+import numpy as np
+import nomad.integrals.integral as integral
+import nomad.basis.matrices as matrices
+import nomad.basis.wavefunction as wavefunction
+import nomad.basis.trajectory as trajectory
+import nomad.integrals.centroid as centroid
+import nomad.archive.surface as surface
+
 
 chkpt_file = ''
 
-#
-#
-#
+
 def archive_simulation(wfn, integrals=None, time=None, file_name=None):
     """Documentation to come"""
-
     write(wfn, file_name=file_name, time=time)
     if integrals is not None:
         write(integrals, file_name=file_name, time=time)
 
-    return
 
-#
-#
-#
 def retrieve_simulation(wfn, integrals=None, time=None, file_name=None):
     """Dochumentation to come"""
-
     read(wfn, file_name=file_name, time=time)
     if integrals is not None:
         read(integrals, file_name=file_name, time=time)
 
-    return
 
-#
-#
-#
 def write(data_obj, file_name=None, time=None):
     """Documentation to come"""
     global chkpt_file
@@ -50,13 +39,13 @@ def write(data_obj, file_name=None, time=None):
         chkpt_file = file_name.strip()
 
     # if this is the first time we're writing to the archive,
-    # create the bundle data set and record the time-independent 
+    # create the bundle data set and record the time-independent
     # bundle definitions
     if not os.path.isfile(chkpt_file):
         if isinstance(data_obj, wavefunction.Wavefunction):
             create(chkpt_file, data_obj)
         else:
-            sys.exit('chkpt file must be created with wavefunction object. Exiting..')
+            raise TypeError('chkpt file must be created with wavefunction object.')
 
     # open checkpoint file
     chkpt = h5py.File(chkpt_file, "a", libver='latest')
@@ -73,25 +62,23 @@ def write(data_obj, file_name=None, time=None):
 
     elif isinstance(data_obj, integral.Integral):
         write_integral(chkpt, data_obj, time)
-
     else:
-        sys.exit('data_obj: '+str(data_obj)+' is not recognized by checkpoint.write')
+        raise TypeError('data_obj: '+str(data_obj)+' is not recognized by checkpoint.write')
 
     chkpt.close()
 
-    return
 
-#
-# called when an old checkpoint file is used to populate the
-# contents of a bundle, if no time given, read last bundle
-#
 def read(data_obj, file_name, time=None):
-    """Documentation to come"""
+    """Reads the checkpoint file.
+
+    Called when an old checkpoint file is used to populate the
+    contents of a bundle, if no time given, read last bundle.
+    """
     global chkpt_file
-    
+
     # string name of checkpoint file
     chkpt_file = file_name.strip()
-  
+
     # open chkpoint file
     chkpt = h5py.File(chkpt_file, "r", libver='latest')
 
@@ -102,20 +89,14 @@ def read(data_obj, file_name, time=None):
     # if this is an integral objects, it's going to want to load the centroid data
     # from file
     elif isinstance(data_obj, integral.Integral):
-
         read_integral(chkpt, data_obj, time)
-
     else:
-        sys.exit('data_obj: '+str(data_obj)+' is not recognized by checkpoint.read')
+        raise TypeError('data_obj: '+str(data_obj)+' is not recognized by checkpoint.read')
 
     # close checkpoint file
     chkpt.close()
 
-    return
 
-#
-#
-#
 def time_steps(grp_name, file_name=None):
     """Documentation to come"""
     global chkpt_file
@@ -139,7 +120,7 @@ def time_steps(grp_name, file_name=None):
         steps = chkpt[grp_name+'/time'][:current_row, 0]
     #else abort
     else:
-        sys.exit('grp_name: '+str(grp_name)+' not present in checkpoint file')
+        raise ValueError('grp_name: '+str(grp_name)+' not present in checkpoint file')
 
     chkpt.close()
 
@@ -150,13 +131,9 @@ def time_steps(grp_name, file_name=None):
 #
 # Should not be called outside the module
 #
-
-#
-# called when a new checkpoint file is created
-#
+#------------------------------------------------------------------------------------
 def create(file_name, wfn):
-    """Documentation to come"""
-
+    """Creates a new checkpoint file."""
     # create chkpoint file
     chkpt = h5py.File(file_name, "w", libver='latest')
 
@@ -179,14 +156,9 @@ def create(file_name, wfn):
     # close following initialization
     chkpt.close()
 
-    return
 
-#
-#
-#
 def write_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
-
     wfn_data  = package_wfn(wfn)
     n_traj    = wfn.n_traj()
     n_blk     = default_blk_size(time)
@@ -225,14 +197,9 @@ def write_wavefunction(chkpt, wfn, time):
 
     chkpt['wavefunction'].attrs['current_row'] = current_row
 
-    return
 
-#
-#
-#
 def write_integral(chkpt, integral, time):
     """Documentation to come"""
-
     int_data = package_integral(integral, time)
     n_blk    = default_blk_size(time)
     resize   = False
@@ -273,14 +240,9 @@ def write_integral(chkpt, integral, time):
 
     chkpt['integral'].attrs['current_row'] = current_row
 
-    return
 
-#
-#
-#
 def write_trajectory(chkpt, traj, time):
     """Documentation to come"""
-
     # open the trajectory file
     t_data  = package_trajectory(traj, time)
     t_label = str(traj.label)
@@ -291,7 +253,7 @@ def write_trajectory(chkpt, traj, time):
     # time information to existing datasets
     t_grp = 'wavefunction/'+t_label
     print("writing trajectory: "+str(t_grp))
- 
+
     if t_grp in chkpt:
 
         current_row = chkpt[t_grp].attrs['current_row'] + 1
@@ -309,9 +271,9 @@ def write_trajectory(chkpt, traj, time):
                 chkpt[dset].resize(d_shape)
 
             chkpt[dset][current_row] = t_data[data_label]
- 
+
         chkpt[t_grp].attrs['current_row'] += 1
-       
+
     # if this is the first time we're trying to write this trajectory,
     # create a new data group, and new data sets with reasonble default sizes
     else:
@@ -320,7 +282,7 @@ def write_trajectory(chkpt, traj, time):
         current_row                       = 0
         chkpt[t_grp].attrs['current_row'] = current_row
         chkpt[t_grp].attrs['n_rows']      = n_blk
- 
+
         n_rows = chkpt[t_grp].attrs['n_rows']
 
         # store surface information from trajectory
@@ -332,14 +294,9 @@ def write_trajectory(chkpt, traj, time):
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
 
-    return
 
-#
-#
-#
 def write_centroid(chkpt, cent, time):
     """Documentation to come"""
-
     # open the trajectory file
     c_data  = package_centroid(traj, time)
     c_label = str(cent.label)
@@ -390,14 +347,9 @@ def write_centroid(chkpt, cent, time):
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = c_data[data_label]
 
-    return
 
-#
-#
-#
 def read_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
-
     nstates = chkpt['simulation'].attrs['nstates']
     dim     = chkpt['simulation'].attrs['dim']
     widths  = chkpt['simulation'].attrs['widths']
@@ -409,9 +361,9 @@ def read_wavefunction(chkpt, wfn, time):
     read_row = get_time_index(chkpt, 'wavefunction', time)
 
     if read_row is None:
-        sys.exit('time='+str(time)+' requested, but not in checkpoint file')
- 
-    # dimensions of these objects are not time-dependent 
+        raise ValueError('time='+str(time)+' requested, but not in checkpoint file')
+
+    # dimensions of these objects are not time-dependent
     wfn.nstates = nstates
     wfn.time    = chkpt['wavefunction/time'][read_row,0]
 
@@ -426,7 +378,7 @@ def read_wavefunction(chkpt, wfn, time):
         if t_row is None:
             continue
 
-        new_traj = trajectory.Trajectory(nstates, dim, 
+        new_traj = trajectory.Trajectory(nstates, dim,
                                          width=widths,
                                          mass=masses,
                                          label=label,
@@ -434,14 +386,9 @@ def read_wavefunction(chkpt, wfn, time):
         read_trajectory(chkpt, new_traj, t_grp, t_row)
         wfn.add_trajectory(new_traj.copy())
 
-    return
 
-#
-#
-#
 def read_integral(chkpt, integral, time):
     """Documentation to come"""
-
     nstates = chkpt['simulation'].attrs['nstates']
     dim     = chkpt['simulation'].attrs['dim']
     widths  = chkpt['simulation'].attrs['widths']
@@ -451,7 +398,7 @@ def read_integral(chkpt, integral, time):
     read_row = get_time_index(chkpt, 'integral', time)
 
     if read_row is None:
-        sys.exit('time='+str(time)+' requested, but not in checkpoint file')
+        raise ValueError('time='+str(time)+' requested, but not in checkpoint file')
 
     if integral.require_centroids:
         for label in chkpt['integral']:
@@ -461,25 +408,20 @@ def read_integral(chkpt, integral, time):
 
             c_grp = 'integral/'+label
             c_row = get_time_index(chkpt, c_grp, time)
- 
+
             if c_row is None:
                 continue
 
             new_cent = integral.Centroid(nstates=nstates, dim=dim, width=widths)
             read_centroid(chkpt, new_cent, c_grp, c_row)
-            integral.add_centroid(new_cent)       
+            integral.add_centroid(new_cent)
 
-    return
 
-#
-#
-#
 def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
-
     # populate the surface object in the trajectory
     pes = surface.Surface()
-    for data_label in chkpt[t_grp].keys():  
+    for data_label in chkpt[t_grp].keys():
         if data_label == 'time' or data_label == 'global':
             continue
         dset = chkpt[t_grp+'/'+data_label]
@@ -498,14 +440,9 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     new_traj.update_x(new_traj.pes.get_data('geom'))
     new_traj.update_p(new_traj.pes.get_data('momentum'))
 
-    return
 
-#
-#
-#
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
-
     # populate the surface object in the trajectory
     pes = surface.Surface()
     for data_label in chkpt[c_grp].keys():
@@ -517,8 +454,8 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     # set information about the trajectory itself
     parent = [0.,0.]
     states = [0.,0.]
-    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/global'][c_row] 
-    
+    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/global'][c_row]
+
     new_cent.parents = int(parent)
     new_cent.states  = int(states)
 
@@ -526,16 +463,11 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     new_cent.update_x(new_cent.pes.get_data('geom'))
     new_cent.update_p(new_cent.pes.get_data('momentum'))
 
-    return
 
-#
-#
-#
 def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
-
     time_vals = time_steps(grp_name)
- 
+
     if time is None:
         return chkpt[grp_name].attrs['current_row']
 
@@ -563,72 +495,54 @@ def get_time_index(chkpt, grp_name, time):
         read_row = None
 
     return read_row
-     
-#
-#
-#
-def package_wfn(wfn): 
+
+
+def package_wfn(wfn):
     """Documentation to come"""
-
-    wfn_data = dict()
-
-    # dimensions of these objects are not time-dependent 
-    wfn_data['time']  = np.array([wfn.time], dtype='float')
-    wfn_data['pop']   = np.array(wfn.pop())
-    wfn_data['energy']= np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
-                                  wfn.pot_classical(), wfn.kin_classical()])
+    # dimensions of these objects are not time-dependent
+    wfn_data = dict(
+        time   = np.array([wfn.time], dtype='float')
+        pop    = np.array(wfn.pop())
+        energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
+                           wfn.pot_classical(), wfn.kin_classical()])
+                    )
 
     return wfn_data
 
-#
-#
-#
+
 def package_integral(integral, time):
     """Documentation to come"""
-
-    int_data = dict()
-
-    int_data['time'] = np.array([time],dtype='float')
-
+    int_data = dict(
+        time = np.array([time],dtype='float')
+                    )
     return int_data
 
-#
-#
-#
+
 def package_trajectory(traj, time):
     """Documentation to come"""
-
-    traj_data = dict()
-
-    # not an element in a trajectory, but necessary to 
+    # time is not an element in a trajectory, but necessary to
     # uniquely tag everything
-    traj_data['time']  = np.array([time],dtype='float')
-
-    # store information about the trajectory itself
-    traj_data['global'] = np.concatenate(
+    traj_data = dict(
+        time   = np.array([time],dtype='float')
+        global = np.concatenate(
                   (np.array([traj.parent,   traj.state,  traj.gamma,
                              traj.amplitude.real, traj.amplitude.imag]),
                    traj.last_spawn))
+                     )
 
-    # last, store everything about the surface
+    # store everything about the surface
     for obj in traj.pes.avail_data():
         traj_data[obj] = traj.pes.get_data(obj)
 
     return traj_data
 
-#
-#
-#
+
 def package_centroid(cent, time):
     """Documentation to come"""
-
-    cent_data = dict()
-
-    # not an element in a trajectory, but necessary to 
-    # uniquely tag everything
-    cent_data['time']  = np.array([time],dtype='float')
-
-    cent_data['global'] = np.concatenate((traj.parents, traj.states))
+    cent_data = dict(
+        time   = np.array([time],dtype='float')
+        global = np.concatenate((traj.parents, traj.states))
+                     )
 
     # last, store everything about the surface
     for obj in cent.pes.avail_data():
@@ -636,13 +550,9 @@ def package_centroid(cent, time):
 
     return cent_data
 
-#
-#
-#
+
 def default_blk_size(time):
     """Documentation to come"""
-
-#    return int(1.1 * (glbl.propagate['simulation_time']-time) / 
-#                      glbl.propagate['default_time_step'])
-
+    #return int(1.1 * (glbl.propagate['simulation_time']-time) /
+    #                   glbl.propagate['default_time_step'])
     return 500

@@ -8,16 +8,16 @@ import nomad.parse.glbl as glbl
 
 
 def pseudo_inverse(mat):
-    """ Modified version of the scipy pinv function. Altered such that
-    the the cutoff for singular values can be set to a hard
-    value. Note that by default the scipy cutoff of 1e-15*sigma_max is
-    taken."""
+    """Modified version of the scipy pinv function.
 
+    Altered such that the the cutoff for singular values can be set to
+    a hard value. Note that by default the scipy cutoff of
+    1e-15*sigma_max is taken."""
     dim1, dim2 = mat.shape
-    
+
     invmat = np.zeros((dim1, dim2), dtype=complex)
     cmat=np.conjugate(mat)
-    
+
     # SVD of the overlap matrix
     u, s, vt = np.linalg.svd(cmat, full_matrices=True)
 
@@ -42,17 +42,17 @@ def pseudo_inverse(mat):
         else:
             s[i] = 0.
     invmat = np.dot(np.transpose(vt), np.multiply(s[:, np.newaxis],
-                                                  np.transpose(u)))    
+                                                  np.transpose(u)))
 
     return invmat, cond
 
-  
-def pseudo_inverse2(mat):
-    """ Modified version of the scipy pinv function. Altered such that
-    the the cutoff for singular values can be set to a hard
-    value. Note that by default the scipy cutoff of 1e-15*sigma_max is
-    taken."""
 
+def pseudo_inverse2(mat):
+    """Modified version of the scipy pinv function.
+
+    Altered such that the the cutoff for singular values can be set to
+    a hard value. Note that by default the scipy cutoff of
+    1e-15*sigma_max is taken."""
     dim1, dim2 = mat.shape
 
     invmat = np.zeros((dim1, dim2), dtype=complex)

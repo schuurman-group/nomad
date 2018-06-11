@@ -10,10 +10,10 @@ import nomad.parse.glbl as glbl
 import nomad.integrals.nuclear_gaussian_ccs as nuclear
 
 # Let propagator know if we need data at centroids to propagate
-require_centroids = False 
+require_centroids = False
 
 # Determines the Hamiltonian symmetry
-hermitian = True 
+hermitian = True
 
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
@@ -23,8 +23,8 @@ theta_cache = dict()
 
 # this is mostly to allow for consistent conventions: which
 # diabat is the "excited" state, which is "ground" state.
-gs = 0 
-es = 1 
+gs = 0
+es = 1
 
 
 def elec_overlap(traj1, traj2):
@@ -81,7 +81,7 @@ def v_integral(traj1, traj2, nuc_ovrlp=None):
     # Fill in the upper-triangle
     v_mat += (v_mat.T - np.diag(v_mat.diagonal()))
 
-    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp 
+    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp
 
 
 def t_integral(traj1, traj2, nuc_ovrlp=None):
@@ -90,12 +90,12 @@ def t_integral(traj1, traj2, nuc_ovrlp=None):
     if nuc_ovrlp is None:
         nuc_ovrlp = nuc_overlap(traj1, traj2)
 
-    # < chi | del^2 / dx^2 | chi'> 
+    # < chi | del^2 / dx^2 | chi'>
     ke = nuclear.deld2x(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
                                   traj2.widths(),traj2.x(),traj2.p())
 
     return -np.dot(traj1.kecoef,ke)*elec_overlap(traj1,traj2)
-    
+
 
 def sdot_integral(traj1, traj2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
@@ -114,15 +114,15 @@ def sdot_integral(traj1, traj2, nuc_ovrlp=None):
                                      traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
-    sdot = ( np.dot(deldx, traj2.velocity()) 
+    sdot = ( np.dot(deldx, traj2.velocity())
            + np.dot(deldp, traj2.force())) * elec_ovrlp
-								
+
     phi1  = phi(traj1)
     dphi2 = dphi(traj2)
 
     # the derivative coupling
     deriv_coup = np.array([np.dot(phi1, dphi2[:,q]) for q in range(traj2.dim)])
-    e_coup     = np.dot(deriv_coup, traj2.velocity()) * nuc_ovrlp 
+    e_coup     = np.dot(deriv_coup, traj2.velocity()) * nuc_ovrlp
 
     return sdot + e_coup
 
@@ -223,7 +223,7 @@ def dtheta(traj):
 
 
 def phi(traj):
-    """Returns the transformation matrix using the rotation angle. 
+    """Returns the transformation matrix using the rotation angle.
        Should be indentical to the dat_mat in the vibronic interface"""
 
     # can also run the trivial case of a single state

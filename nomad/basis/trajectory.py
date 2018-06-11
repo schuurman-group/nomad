@@ -28,7 +28,7 @@ class Trajectory:
             self.mass = np.array(mass)
        # the prefactor on the kinetic energy term: default to 1/2M
         if len(np.nonzero(self.mass)) == len(self.mass) and kecoef is None:
-            self.kecoef = 0.5 / self.mass   
+            self.kecoef = 0.5 / self.mass
         else:
             self.kecoef = kecoef
 
@@ -89,26 +89,20 @@ class Trajectory:
 
     #--------------------------------------------------------------------
     #
-    # reset key parameters, i.e. don't access variables directly 
+    # reset key parameters, i.e. don't access variables directly
     #
     #---------------------------------------------------------------------
     def set_mass(self, m_vec):
         """Set the mass vector and update kinetic energy coefficient"""
         self.mass   = m_vec
 
-        return
-
     def set_width(self, w_vec):
         """Set the width vector"""
         self.width = w_vec
 
-        return
-
     def set_kecoef(self, ke_vec):
         """Set the definition of the kinetic eneryg operator"""
         self.kecoef = ke_vec
-
-        return
 
     #----------------------------------------------------------------------
     #
@@ -195,8 +189,7 @@ class Trajectory:
         return self.pes.get_data('derivative')[:, state_i, state_j]
 
     def hessian(self, state_i):
-        """Returns the hessian of the potential on state state_i
-        """
+        """Returns the hessian of the potential on state state_i."""
         if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
@@ -204,8 +197,7 @@ class Trajectory:
         return self.pes.get_data('hessian')[:, :, state_i]
 
     def coupling(self, state_i, state_j):
-        """Returns the coupling between surfaces state_i and state_j
-        """
+        """Returns the coupling between surfaces state_i and state_j."""
         if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
@@ -214,7 +206,7 @@ class Trajectory:
 
     def scalar_coup(self, state_i, state_j):
         """Returns the scalar coupling for Hamiltonian
-           block (self.state,c_state)."""
+        block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes.avail_data():
             return 0.
         if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
@@ -225,7 +217,7 @@ class Trajectory:
 
     def nact(self, state_i, state_j):
         """Returns the derivative coupling between adiabatic states
-           block (self.state,c_state)."""
+        block (self.state,c_state)."""
         if 'nac' not in self.pes.avail_data():
             return 0.
         if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
@@ -233,7 +225,6 @@ class Trajectory:
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         return self.pes.get_data('nact')[:,state_i, state_j]
-
 
     #------------------------------------------------------------------------
     #

@@ -9,11 +9,12 @@ import ast
 import shutil
 import traceback
 import numpy as np
-import src.utils.timings as timings
-import src.parse.glbl as glbl
-import src.parse.atom_lib as atom_lib
-import src.integrals.integral as integral
-import src.basis.matrices as matrices
+import nomad.utils.timings as timings
+import nomad.parse.glbl as glbl
+import nomad.parse.atom_lib as atom_lib
+import nomad.integrals.integral as integral
+import nomad.basis.matrices as matrices
+
 
 def read_input():
     """Reads the nomad.input files.
@@ -64,9 +65,7 @@ def read_input():
     # ensure that input is internally consistent
     validate()
 
-#
-#
-#
+
 def read_geometry(geom_file):
     """Reads position and momenta from an xyz file"""
     geoms = []
@@ -105,28 +104,21 @@ def read_geometry(geom_file):
 
     return labels,geoms,moms
 
-#
-#
-#
+
 def read_hessian(hess_file):
     """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
     return np.loadtxt(str(hess_file), dtype=float)
 
-###################################################################
+
+#------------------------------------------------------------------
 #
 # Below functions should not be called outside the module
-#
-#------------------------------------------------------------------
-
-#
-#
 #
 def parse_section(kword_array, line_start, section):
     """Reads a namelist style input, returns results in dictionary.
 
     Set keywords in the appropriate keyword dictionary by parsing
     input array."""
-
     current_line = line_start + 1
     while (current_line < len(kword_array) and
            re.search('end '+section+'-section',kword_array[current_line]) is None):
@@ -195,15 +187,11 @@ def parse_section(kword_array, line_start, section):
     return current_line
 
 
-#
-#
-#
 def check_boolean(chk_str):
     """Routine to check if string is boolean.
 
     Accepts 'true','TRUE','True', etc. and if so, return True or False.
     """
-
     bool_str = str(chk_str).strip().lower()
     if bool_str == 'true':
         return True
@@ -212,9 +200,7 @@ def check_boolean(chk_str):
     else:
         return chk_str
 
-#
-#
-#
+
 def validate():
     """Ensures that input values are internally consistent.
 
@@ -223,44 +209,43 @@ def validate():
     entries in glbl is consistent, regardless of how input specified.
     """
     # set the integral definition
-#    try:
-#        glbl.integrals =__import__('src.integrals.'+
-#                                   glbl.propagate['integrals'],fromlist=['a'])
-#    except ImportError:
-#        print('Cannot import integrals: src.integrals.' +
-#                               str(glbl.propagate['integrals']))
+    #try:
+    #    glbl.integrals =__import__('nomad.integrals.'+
+    #                               glbl.propagate['integrals'],fromlist=['a'])
+    #except ImportError:
+    #    print('Cannot import integrals: nomad.integrals.' +
+    #          str(glbl.propagate['integrals']))
 
-    glbl.master_int = integral.Integral(glbl.propagate['integrals']) 
+    glbl.master_int = integral.Integral(glbl.propagate['integrals'])
     glbl.master_mat = matrices.Matrices()
 
     try:
-        glbl.interface = __import__('src.interfaces.' +
+        glbl.interface = __import__('nomad.interfaces.' +
                                glbl.iface_params['interface'],fromlist=['NA'])
     except ImportError:
-        print('Cannot import pes: src.interfaces.'+
+        print('Cannot import pes: nomad.interfaces.'+
                                str(glbl.iface_params['interface']))
 
     try:
-        glbl.distrib = __import__('src.sampling.'+glbl.sampling['init_sampling'],
+        glbl.distrib = __import__('nomad.sampling.'+glbl.sampling['init_sampling'],
                                  fromlist=['NA'])
     except ImportError:
-        print('Cannot import sampling: src.sampling.'+
+        print('Cannot import sampling: nomad.sampling.'+
                                str(glbl.sampling['init_sampling']))
 
     try:
-        glbl.grow = __import__('src.grow.'+glbl.spawning['spawning'],
+        glbl.grow = __import__('nomad.grow.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
-        print('Cannot import spawning: src.grow.'+
+        print('Cannot import spawning: nomad.grow.'+
                                str(glbl.spawning['spawning']))
 
     try:
-        glbl.integrator = __import__('src.propagators.'+glbl.propagate['propagator'],
+        glbl.integrator = __import__('nomad.propagators.'+glbl.propagate['propagator'],
                                      fromlist=['a'])
     except ImportError:
-        print('Cannot import propagator: src.propagators.'+
+        print('Cannot import propagator: nomad.propagators.'+
                                str(glbl.propagate['propagator']))
-
 
     # if geomfile specified, it's contents overwrite variable settings in nomad.input
     if os.path.isfile(glbl.nuclear_basis['geomfile']):
@@ -283,7 +268,7 @@ def validate():
             mlst.append(mass)
         glbl.nuclear_basis['widths'] = wlst
         glbl.nuclear_basis['masses'] = mlst
-#
+
     # set mass array here if using vibronic interface
     if glbl.iface_params['interface'] == 'vibronic':
         n_usr_freq = len(glbl.nuclear_basis['freqs'])
@@ -295,9 +280,9 @@ def validate():
             pass
         else:
             glbl.nuclear_basis['masses'] = [1. for i in range(n_usr_freq)]
-#        else all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
-#            glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in 
-#                                             range(len(n_usr_freq)]
+        #else all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
+        #    glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in
+        #                                     range(len(n_usr_freq)]
 
         # set the widths to automatically be 1/2 (i.e. assumes frequency-weighted coordinates.
         # Any user set widths will override the default
@@ -334,5 +319,3 @@ def validate():
     # check array lengths
     #ngeom   = len(glbl.nuclear_basis['geometries'])
     #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
-    return
-

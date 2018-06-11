@@ -24,7 +24,7 @@ ext_modules=[
 
 setup(
     name='nomad',
-    version='0.1',
+    version='0.2',
     description='Nonadiabatic Multi-state Adaptive Dynamics',
     long_description=readme(),
     keywords='quantum molecular dynamics excited state nonadiabatic chemistry',
@@ -32,7 +32,7 @@ setup(
     author='Michael S. Schuurman',
     license='LGPL-3.0',
     packages=find_packages(),
-    scripts=['bin/nomad'],
+    scripts=['bin/nomad, bin/nomad_extract'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

@@ -3,9 +3,10 @@ General routines for all spawning algorithms.
 """
 import sys as sys
 import numpy as np
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.parse.log as log
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+
 
 def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same
@@ -93,11 +94,12 @@ def overlap_with_bundle(traj, bundle):
 
 
 def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
-    """return the maximum overlap between the nuclear component of
-       traj_i, and other trajectories in the bundle. If overlap_state
-       is specified, only consider overlap with trajectories on state
-       overlap_state"""
+    """Returns the maximum overlap between the nuclear component of
+    traj_i, and other trajectories in the bundle.
 
+    If overlap_state is specified, only consider overlap with
+    trajectories on state overlap_state.
+    """
     max_sij = 0.
     for j in range(bundle.n_traj()):
         if bundle.traj[j].alive and j != overlap_traj:

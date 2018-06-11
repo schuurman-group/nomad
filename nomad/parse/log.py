@@ -2,21 +2,14 @@
 Routines for reading input files and writing log files.
 """
 import os
-import src.parse.glbl as glbl
+import nomad.parse.glbl as glbl
+
 
 log_file = ''
 log_format  = dict()
 print_level = dict()
 
-#------------------------------------------------------------------------------------
-#
-# Public Functions
-#
-#------------------------------------------------------------------------------------
 
-#
-#
-#
 def init_logfile(file_name):
     """Documentation to come"""
     global log_file
@@ -30,11 +23,7 @@ def init_logfile(file_name):
     # print the log file header, including values of all variables
     print_header()
 
-    return
 
-#
-#
-#
 def print_message(otype, data):
     """Prints a string to the log file."""
     global log_format, print_level, log_file
@@ -49,14 +38,14 @@ def print_message(otype, data):
 
     return
 
-#
-# temporary hack
-#
 def print_spawn_log(data):
-    """Documentation to come"""
+    """Print the spawn log.
+
+    This is apparently a 'temporary hack'.
+    """
     file_name    = 'spawn.log'
     fwid1        = 12
-    fwid2        = 16    
+    fwid2        = 16
     lenst        = 7
     spawn_format = ('{:12.4f}{:12.4f}{:12.4f}{:7d}{:7d}{:7d}{:7d}' +
                     '{:12.8f}{:12.8f}{:12.8f}{:12.8f}' +
@@ -79,17 +68,12 @@ def print_spawn_log(data):
                 outfile.write(spawn_header)
                 outfile.write(spawn_format.format(*data))
 
-    return
 
 #-----------------------------------------------------------------------------------
 #
 # Private Functions
 #
 #-----------------------------------------------------------------------------------
-
-#
-#
-#
 def print_header():
     """Documentation to come"""
     global log_file
@@ -130,11 +114,7 @@ def print_header():
                          ' propagation\n' +
                          ' ***********\n\n')
 
-    return
 
-#
-#
-#
 def generate_formats():
     """Documentation to come"""
     global log_format, print_level
@@ -174,4 +154,3 @@ def generate_formats():
     print_level['complete']       = 0
     print_level['error']          = 0
     print_level['timings']        = 0
-

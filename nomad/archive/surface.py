@@ -1,8 +1,9 @@
 """
 A class object to contain information about a potential energy surface
 """
-import sys 
+import sys
 import copy
+
 
 class Surface:
     """Object containing potential energy surface data."""
@@ -14,51 +15,30 @@ class Surface:
                          'adt_mat','dat_mat','nac','scalar_coup']
 
         # these are the standard quantities ALL interface_data objects return
-        self.data     = dict()
+        self.data = dict()
 
-    #
-    #
-    #
     def rm_data(self, key):
         """Adds new item to dictionary"""
         del self.data[key]
 
-        return
-
-    #
-    #
-    #
     def add_data(self, key, value):
         """Adds new item to dictionary"""
         if key in self.standard_objs + self.optional_objs:
             self.data[key] = value
         else:
-            sys.exit('Cannot add key='+str(key)+" to Surface instance: invalid key")
+            raise KeyError('Cannot add key='+str(key)+' to Surface instance: invalid key')
 
-        return
-
-    #
-    #
-    #
     def get_data(self, key):
         """Adds new item to dictionary"""
         if key in self.data:
             return self.data[key]
         else:
-            sys.exit('(get_data('+str(key)+') from Surface: datum not present')
-        return
+            raise ValueError('(get_data('+str(key)+') from Surface: datum not present')
 
-    #
-    #
-    #
     def avail_data(self):
         """Adds new item to dictionary"""
         return self.data.keys()
 
-
-    #
-    #
-    #
     def copy(self):
         """Creates a copy of a Surface object."""
         new_surface = Surface()

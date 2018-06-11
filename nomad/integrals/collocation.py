@@ -6,7 +6,7 @@ import sys
 import math
 import numpy as np
 import nomad.parse.glbl as glbl
-import nomad.integrals.nuclear_dirac as dirac 
+import nomad.integrals.nuclear_dirac as dirac
 import nomad.integrals.nuclear_gaussian as gauss
 
 # Let propagator know if we need data at centroids to propagate
@@ -18,7 +18,7 @@ hermitian = False
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'dirac_delta'
 
- 
+
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     if traj1.state != traj2.state and not nuc_only:
@@ -59,12 +59,12 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
         v = np.dot(fij, 2.*traj1.kecoef*
-                          dirac.deldx(Snuc,traj1.x(), 
+                          dirac.deldx(Snuc,traj1.x(),
                           traj2.phase(),traj2.widths(),traj2.x(),traj2.p()))
         return v * Snuc
     else:
         print('ERROR in v_integral -- argument disagreement')
-        return 0j 
+        return 0j
 
 
 def ke_integral(traj1, traj2, Snuc=None):
@@ -91,16 +91,16 @@ def sdot_integral(traj1, traj2, Snuc=None):
     of traj1 and traj2. This isn't ideal, but will do for now.
     """
     if traj1.state != traj2.state:
-        return 0j 
+        return 0j
     else:
         if Snuc is None:
             Snuc = dirac.overlap(traj1.x(),
                                  traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
-        sdot = (np.dot(traj2.velocity(), 
+        sdot = (np.dot(traj2.velocity(),
                        dirac.deldx(Snuc,traj1.x(),
                           traj2.phase(),traj2.widths(),traj2.x(),traj2.p())) +
-                np.dot(traj2.force(), 
+                np.dot(traj2.force(),
                        dirac.deldp(Snuc,traj1.x(),
                           traj2.phase(),traj2.widths(),traj2.x(),traj2.p())) +
                 1j * traj2.phase_dot() * Snuc)

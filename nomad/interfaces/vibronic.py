@@ -10,6 +10,7 @@ import nomad.parse.glbl as glbl
 import nomad.parse.log as log
 import nomad.archive.surface as surface
 
+
 ham = None
 nsta = glbl.propagate['n_states']
 data_cache = dict()
@@ -202,7 +203,7 @@ def evaluate_trajectory(traj, t=None):
     # Calculation of the nuclear derivatives of the diabatic potential
     diabderiv1 = calc_diabderiv1(geom)
 
-    # Calculatoin of the hessian matrix for each sub-block of the diabatic potential 
+    # Calculatoin of the hessian matrix for each sub-block of the diabatic potential
     # matrix
     diabderiv2 = calc_diabderiv2(geom)
 
@@ -226,7 +227,7 @@ def evaluate_trajectory(traj, t=None):
         # Calculation of the NACT matrix
         nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
 
-        # Calculation of the gradients (for diagonal elements) and derivative 
+        # Calculation of the gradients (for diagonal elements) and derivative
         # couplings (off-diagonal elements)
         adiabderiv1 = calc_adiabderiv1(datmat, diabderiv1)
 
@@ -246,7 +247,7 @@ def evaluate_trajectory(traj, t=None):
                                       range(ham.nmode_total)] + nactmat))
         t_data.add_data('hessian',adiabderiv2)
 
-        coup = np.array([[np.dot(momt,nactmat[:,i,j]) for i in range(nsta)] 
+        coup = np.array([[np.dot(momt,nactmat[:,i,j]) for i in range(nsta)]
                                                       for j in range(nsta)])
         coup -= np.diag(coup.diagonal())
         t_data.add_data('coupling',coup)
@@ -282,7 +283,6 @@ def evaluate_centroid(traj, t=None):
 #
 # Private functions (called only within the module)
 #
-#----------------------------------------------------------------------
 def conv(val_list):
     """Takes a list and converts it into atomic units.
 
@@ -386,7 +386,7 @@ def calc_dat(label, diabpot):
 
 
 def calc_ddat(label, q, diabpot, dat_mat):
-    """Returns the derviative of the diabatic to adiabatic transformation 
+    """Returns the derviative of the diabatic to adiabatic transformation
        matrix via numerical differentiation"""
     ddat_mat = np.zeros((ham.nmode_total,nsta,nsta))
     dx = 0.001
@@ -420,7 +420,7 @@ def calc_diabderiv1(q):
                                [np.diag(diabderiv1[m].diagonal()) for m in
                                 ham.mrange])
     return diabderiv1
-  
+
 
 def calc_diabderiv2(q):
     """Calculates the 2nd derivatives of the elements of the diabatic
@@ -476,7 +476,7 @@ def calc_diabeffcoup(diabpot):
     """Calculates the effective diabatic coupling between diabatic states i, j via
        eff_coup = Hij / (H[i,i] - H[j,j])
     """
-    demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs) 
+    demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs)
                            for i in range(nsta)] for j in range(nsta)])
     eff_coup = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
 
@@ -521,7 +521,7 @@ def calc_adiabderiv1(datmat, diabderiv1):
 def calc_adiabderiv2(datmat, diabderiv2):
     """Calculates the hessians of the adiabatic potentials.
 
-    Equation used: d^2/dXidXj V_ii = (S{d^2/dXidXj W}S^T)_ii 
+    Equation used: d^2/dXidXj V_ii = (S{d^2/dXidXj W}S^T)_ii
     """
     # Get the diagonal elements of the matrix
     adiabderiv2 = np.zeros((ham.nmode_total, ham.nmode_total, nsta))

@@ -16,7 +16,7 @@ hermitian = True
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
- 
+
 def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     return s_integral(t1, t2, nuc_only, Snuc)
@@ -48,7 +48,7 @@ def v_integral(t1, t2, Snuc=None):
     # roll through terms in the hamiltonian
     for i in range(glbl.interface.ham.nterms):
 
-        if np.array_equal(states,glbl.interface.ham.stalbl[i,:]-1): 
+        if np.array_equal(states,glbl.interface.ham.stalbl[i,:]-1):
             # adiabatic states in diabatic basis -- cross terms between orthogonal
             # diabatic states are zero
             [s1,s2] = glbl.interface.ham.stalbl[i,:]-1
@@ -60,17 +60,17 @@ def v_integral(t1, t2, Snuc=None):
                            t2.widths()[qi],t2.x()[qi],t2.p()[qi])
             v_total += v_term
 
-    return v_total * Snuc 
+    return v_total * Snuc
 
 
 def ke_integral(t1, t2, Snuc=None):
     """Returns kinetic energy integral over trajectories."""
     if t1.state != t2.state:
-        return complex(0.,0.) 
+        return complex(0.,0.)
     else:
         if Snuc is None:
             Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p()) 
+                                   t2.phase(),t2.widths(),t2.x(),t2.p())
 
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
@@ -90,8 +90,8 @@ def sdot_integral(t1, t2, Snuc=None):
                                       t2.widths(),t2.x(),t2.p())
         t1_dp_t2 = nuclear.deldp(Snuc,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
-        sdot = ( np.dot( t2.velocity(), t1_dx_t2) + 
-                 np.dot( t2.force(),    t1_dp_t2) + 
+        sdot = ( np.dot( t2.velocity(), t1_dx_t2) +
+                 np.dot( t2.force(),    t1_dp_t2) +
                  1.j*t2.phase_dot()*Snuc )
 
         return sdot

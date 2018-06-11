@@ -16,12 +16,12 @@ child(s',ti) <------------- child(s',ts)
 """
 import sys
 import numpy as np
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.basis.trajectory as trajectory
-import src.grow.utilities as utils
-import src.dynamics.step as step
-import src.dynamics.evaluate as evaluate
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.basis.trajectory as trajectory
+import nomad.grow.utilities as utils
+import nomad.dynamics.step as step
+import nomad.dynamics.evaluate as evaluate
 
 coup_hist = []
 

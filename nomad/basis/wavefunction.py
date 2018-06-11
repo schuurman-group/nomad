@@ -5,9 +5,10 @@ import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.utils.timings as timings
-import src.basis.matrices as matrices
-import src.integrals.integral as integral
+import nomad.utils.timings as timings
+import nomad.basis.matrices as matrices
+import nomad.integrals.integral as integral
+
 
 class Wavefunction:
     """Class constructor for the Wavefunction object."""
@@ -19,7 +20,7 @@ class Wavefunction:
         self.traj      = []
         self.alive     = []
         self.active    = []
-        self.matrices  = matrices.Matrices() 
+        self.matrices  = matrices.Matrices()
 
     @timings.timed
     def copy(self):
@@ -99,9 +100,6 @@ class Wavefunction:
     def update_matrices(self, mats):
         """Documentation to come"""
         self.matrices = mats.copy()
-
-        return
-
 
     @timings.timed
     def update_amplitudes(self, dt, Ct=None):
@@ -222,7 +220,7 @@ class Wavefunction:
     def kin_classical(self):
         """Returns the classical kinetic energy of the wfn."""
         nalive   = len(self.alive)
-        kecoef   = self.traj[0].kecoef # horrible. messy. 
+        kecoef   = self.traj[0].kecoef # horrible. messy.
         ke_vec   = np.array([np.dot(self.traj[self.alive[i]].p()**2, kecoef)
                            for i in range(nalive)])
         return sum(ke_vec)/nalive

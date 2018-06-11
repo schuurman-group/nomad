@@ -13,7 +13,7 @@ import nomad.integrals.nuclear_gaussian as nuclear
 require_centroids = True
 
 # Determines the Hamiltonian symmetry
-hermitian = False 
+hermitian = False
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -66,7 +66,7 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
     # state (this also requires the centroid be present)
     elif t1.state == t2.state:
         # Adiabatic energy
-        v = centroid.energy(t1.state) * nuc_ovrlp 
+        v = centroid.energy(t1.state) * nuc_ovrlp
         # DBOC
         if glbl.iface_params['coupling_order'] == 3:
             v += centroid.scalar_coup(t1.state, t2.state) * Snuc

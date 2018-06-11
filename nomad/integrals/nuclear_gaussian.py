@@ -90,7 +90,7 @@ def ordr1_vec(a1, x1, p1, a2, x2, p2):
     a   = a1 + a2
     b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
     v_int = b / (2 * a)
-    
+
     return v_int
 
 def ordr2_vec(a1, x1, p1, a2, x2, p2):

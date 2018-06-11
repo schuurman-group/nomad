@@ -17,6 +17,7 @@ import nomad.dynamics.step as step
 import nomad.utils.timings as timings
 import nomad.utils.cleanup as cleanup
 
+
 def init():
     """Initializes the nomad inputs.
 
@@ -46,6 +47,7 @@ def init():
     # initialize the running calculation log
     log.init_logfile('nomad.log')
 
+
 def main():
     """Runs the main FMSpy routine."""
     # Create the collection of trajectories
@@ -70,7 +72,7 @@ def main():
         # determine whether it is necessary to update the output logs
         if glbl.mpi['rank'] == 0:
             # update the checkpoint, if necessary
-            checkpoint.archive_simulation(master, integrals=glbl.master_int, 
+            checkpoint.archive_simulation(master, integrals=glbl.master_int,
                                           time=master.time)
 
     # clean up, stop the global timer and write logs

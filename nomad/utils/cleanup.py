@@ -2,10 +2,10 @@ import os
 import re
 import shutil
 import traceback
-import src.utils.timings as timings
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.archive.printing as printing
+import nomad.utils.timings as timings
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.archive.printing as printing
 
 #----------------------------------------------------------------------------
 #

@@ -7,12 +7,12 @@ import copy
 import shutil
 import subprocess
 import numpy as np
-import src.utils.constants as constants
-import src.parse.glbl as glbl
-import src.basis.atom_lib as atom_lib
-import src.basis.trajectory as trajectory
-import src.basis.centroid as centroid
-import src.archive.surface as surface
+import nomad.utils.constants as constants
+import nomad.parse.glbl as glbl
+import nomad.basis.atom_lib as atom_lib
+import nomad.basis.trajectory as trajectory
+import nomad.basis.centroid as centroid
+import nomad.archive.surface as surface
 
 # path to columbus executables
 columbus_path = ''

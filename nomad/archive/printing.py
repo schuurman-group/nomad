@@ -4,9 +4,10 @@ Routines for reading input files and writing log files.
 import os
 import shutil
 import numpy as np
-import src.parse.glbl as glbl
-
+import nomad.parse.glbl as glbl
 np.set_printoptions(threshold = np.inf)
+
+
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
                'dipole', 'tr_dipole', 'secm', 'apop']
 bkeys       = ['pop', 'energy', 'auto']
@@ -15,11 +16,7 @@ dump_format = dict()
 tfile_names = dict()
 bfile_names = dict()
 
-#
-# This is only called by "extract" -- these files not created/written due during the
-# dynamics run, takes as arguments the number of dimenisons of the trajectory and
-# the number of states
-#
+
 def generate_data_formats(ncrd, nst):
     """Initialized all the output format descriptors."""
     global dump_header, dump_format, tfile_names, bfile_names
@@ -145,11 +142,7 @@ def generate_data_formats(ncrd, nst):
     bfile_names['heff']      = 'heff.dat'
     bfile_names['t_overlap'] = 't_overlap.dat'
 
-    return
 
-#
-#
-#
 def print_traj_row(label, key, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -163,9 +156,7 @@ def print_traj_row(label, key, data):
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[key].format(*data))
 
-#
-#
-#
+
 def print_traj_mat(time, key, mat):
     """Prints a matrix to file with a time label."""
     filename = tfile_names[key]
@@ -175,9 +166,7 @@ def print_traj_mat(time, key, mat):
         outfile.write(np.array2string(mat,
                       formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
-#
-#
-#
+
 def print_wfn_row(key, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
@@ -195,9 +184,7 @@ def print_wfn_row(key, data):
         with open(filename, 'a') as outfile:
             outfile.write(dump_format[key].format(*data))
 
-#
-#
-#
+
 def print_wfn_mat(time, key, mat):
     """Prints a matrix to file with a time label."""
     filename = bfile_names[key]
@@ -208,7 +195,6 @@ def print_wfn_mat(time, key, mat):
                       formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
 
-#################################################################################
 #################################################################################
 #
 # THIS SHOUDL BE DELETED: nomad should not move files around....
@@ -239,6 +225,3 @@ def copy_output():
         shutil.move(glbl.scr_path + '/ckhpt.hdf5', odir)
     except IOError:
         pass
-
-    return
-

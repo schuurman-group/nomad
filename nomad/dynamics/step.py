@@ -3,29 +3,23 @@ Routines for propagating a wavefunction forward by a time step.
 """
 import sys
 import numpy as np
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.dynamics.evaluate as evaluate
-#import src.basis.matching_pursuit as mp
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.dynamics.evaluate as evaluate
+#import nomad.basis.matching_pursuit as mp
 
-#
-#
-#
+
 def time_step(master):
     """ Determine time step based on whether in coupling regime"""
-
     if glbl.grow.in_coupled_regime(master):
         return float(glbl.propagate['coupled_time_step'])
 
     else:
         return float(glbl.propagate['default_time_step'])
 
-#
-#
-#
+
 def step_wavefunction(master, dt):
     """Propagates the wave packet using a run-time selected propagator."""
-
     # save the wavefunction from previous step in case step rejected
     end_time      = master.time + dt
     time_step     = dt
@@ -39,7 +33,7 @@ def step_wavefunction(master, dt):
         #    pass
         master0 = master.copy()
 
-        # propagate each trajectory in the wavefunction 
+        # propagate each trajectory in the wavefunction
         time_step = min(time_step, end_time-master.time)
 
         # propagate amplitudes for 1/2 time step using x0
@@ -175,7 +169,7 @@ def check_step_wfn(master0, master, time_step):
     if dpop > glbl.propagate['pop_jump_toler']:
         return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
 
-    # this is largely what the above check is checking -- but is more direct. I would say 
+    # this is largely what the above check is checking -- but is more direct. I would say
     # we should remove the above check...
     dnorm = master.norm()
     if abs(dnorm-1.) > glbl.propagate['norm_thresh']:

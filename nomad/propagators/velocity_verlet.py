@@ -10,7 +10,9 @@ import nomad.parse.glbl as glbl
 import nomad.utils.timings as timings
 import nomad.dynamics.evaluate as evaluate
 
+
 propphase = glbl.propagate['phase_prop']
+
 
 @timings.timed
 def propagate_wfn(master, dt):
@@ -53,7 +55,7 @@ def propagate_position(traj, dt):
     f0 = traj.force()
     m  = traj.masses()
 
-    # phase_dot needs to be called before position update to avoid errors that 
+    # phase_dot needs to be called before position update to avoid errors that
     # (correctly) state that surface information does not correspond
     # to current geometry [since phase_dot depends on the value of the
     # potential energy]
@@ -76,6 +78,7 @@ def propagate_position(traj, dt):
 
     # half update p and phase
     traj.update_p(p0 + 0.5 * f0 * dt)
+
 
 def propagate_momentum(traj, dt):
     """Finish the phase and momentum update using forces and velocities at

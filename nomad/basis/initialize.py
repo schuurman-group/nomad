@@ -4,21 +4,16 @@ Routines for initializing dynamics calculations.
 import sys
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.basis.trajectory as trajectory
-import src.basis.wavefunction as wavefunction
-import src.dynamics.evaluate as evaluate
-import src.archive.checkpoint as checkpoint 
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.basis.trajectory as trajectory
+import nomad.basis.wavefunction as wavefunction
+import nomad.dynamics.evaluate as evaluate
+import nomad.archive.checkpoint as checkpoint
 
-#--------------------------------------------------------------------------
-#
-# Externally visible routines
-#
-#--------------------------------------------------------------------------
+
 def init_wavefunction(master):
     """Initializes the trajectories."""
-
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
@@ -26,7 +21,7 @@ def init_wavefunction(master):
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
-        checkpoint.retrive_simulation(master, integrals=glbl.master_int, 
+        checkpoint.retrive_simulation(master, integrals=glbl.master_int,
                                       time=glbl.sampling['restart_time'], file_name='chkpt.hdf5')
         if glbl.sampling['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
@@ -34,7 +29,6 @@ def init_wavefunction(master):
             save_initial_wavefunction(master0)
         else:
             save_initial_wavefunction(master)
-
     else:
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
@@ -60,11 +54,11 @@ def init_wavefunction(master):
 
         # this is the bundle at time t=0.  Save in order to compute auto
         # correlation function
-        save_initial_wavefunction(master) 
+        save_initial_wavefunction(master)
 
-    # write the bundle to the archive 
+    # write the bundle to the archive
     if glbl.mpi['rank'] == 0:
-        checkpoint.archive_simulation(master, integrals=glbl.master_int, 
+        checkpoint.archive_simulation(master, integrals=glbl.master_int,
                                       time=master.time, file_name='chkpt.hdf5')
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
@@ -80,7 +74,6 @@ def init_wavefunction(master):
 #----------------------------------------------------------------------------
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
-
     # initialize to the state with largest transition dipole moment
     if glbl.sampling['init_brightest']:
 
@@ -113,11 +106,9 @@ def set_initial_state(master):
     else:
         raise ValueError('Ambiguous initial state assignment.')
 
-    return
 
 def set_initial_amplitudes(master):
     """Sets the initial amplitudes."""
-
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in nomad.input
     if glbl.nuclear_basis['init_amp_overlap']:
@@ -151,14 +142,11 @@ def set_initial_amplitudes(master):
     for i in range(master.n_traj()):
         master.traj[i].update_amplitude(glbl.nuclear_basis['amplitudes'][i])
 
-    return
 
 def save_initial_wavefunction(master):
-    """Sets the intial t=0 bundle in order to compute the autocorrelation 
-       function for subsequent time steps"""
-
+    """Sets the intial t=0 bundle in order to compute the autocorrelation
+    function for subsequent time steps"""
     glbl.variables['bundle0'] = master.copy()
-    #
     # change the trajectory labels in this bundle to differentiate
     # them from trajctory labels in the master bundle. This avoids
     # cache collisions between trajetories in 'bundle0' and trajectories
@@ -167,7 +155,6 @@ def save_initial_wavefunction(master):
         new_label = str(glbl.variables['bundle0'].traj[i].label)+'_0'
         glbl.variables['bundle0'].traj[i].label = new_label
 
-    return
 
 def virtual_basis(master):
     """Add virtual basis funcions.
@@ -198,7 +185,7 @@ def make_origin_traj():
     p_vec = np.array(glbl.nuclear_basis['momenta'][0])
 
     origin = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
-                                   width=w_vec, mass=m_vec, parent=0, 
+                                   width=w_vec, mass=m_vec, parent=0,
                                    kecoef=glbl.kecoef)
 
     origin.update_x(x_vec)

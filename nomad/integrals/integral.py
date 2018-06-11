@@ -1,9 +1,13 @@
+"""
+Routines for computing integrals.
+"""
 import sys
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import src.utils.timings as timings
-import src.integrals.centroid as centroid
+import nomad.utils.timings as timings
+import nomad.integrals.centroid as centroid
+
 
 class Integral:
     """Class constructor for the Bundle object."""
@@ -12,85 +16,58 @@ class Integral:
         self.centroid = []
         self.centroid_required = []
         try:
-            self.ints =__import__('src.integrals.'+str(self.type),fromlist=['a'])
+            self.ints =__import__('nomad.integrals.'+str(self.type),fromlist=['a'])
         except ImportError:
-            print('Cannot import integrals: src.integrals.'+str(self.type))
+            print('Cannot import integrals: nomad.integrals.'+str(self.type))
 
         self.hermitian         = self.ints.hermitian
         self.require_centroids = self.ints.require_centroids
 
-    #
-    #
-    #
     @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict()
-        return self.ints.elec_overlap(*args, **kwargs)
+        """Calculates the electronic overlap."""
+        return self.ints.elec_overlap(bra_traj, ket_traj)
 
-    #
-    #
-    #
     @timings.timed
     def nuc_overlap(self, bra_traj, ket_traj):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict()
-        return self.ints.nuc_overlap(*args, **kwargs)
+        """Calculates the nuclear overlap."""
+        return self.ints.nuc_overlap(bra_traj, ket_traj)
 
 
-    #
-    #
-    #
     @timings.timed
     def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
-        return self.ints.traj_overlap(*args, **kwargs)
+        """Calculates the trajectory overlap."""
+        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
-    #
-    #
-    #
     @timings.timed
     def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
-        return self.ints.s_integral(*args, **kwargs)    
+        """Calculates the overlap integral between two trajectories."""
+        return self.ints.s_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
-    #
-    #
-    #
     @timings.timed
     def t_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
-        return self.ints.t_integral(*args, **kwargs)
+        """Calculates the kinetic energy integral between two trajectories."""
+        return self.ints.t_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
-    #
-    #
-    #
     @timings.timed
     def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
+        """Calculates the potential energy integral between two
+        trajectories."""
         if self.require_centroids:
             args.append(self.centroid[bra_traj.label][ket_traj.label])
-        return self.ints.v_integral(*args, **kwargs)
+            return self.ints.v_integral(bra_traj, ket_traj,
+                                        self.centroid[bra_traj.label][ket_traj.label],
+                                        nuc_ovrlp=nuc_ovrlp)
+        else:
+            return self.ints.v_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
-    #
-    #
-    #
     @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
-        args   = [bra_traj, ket_traj]
-        kwargs = dict(nuc_ovrlp = nuc_ovrlp)
-        return self.ints.sdot_integral(*args, **kwargs)
+        """Calculates the time derivative of the nuclear overlap."""
+        return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
-    #
-    #
-    #
     def wfn_overlap(self, bra_wfn, ket_wfn):
-        """Documentation to come"""
-
+        """Calculates the overall wavefunction overlap."""
         S = 0.
         for i in range(bra_wfn.nalive):
             for j in range(ket_wfn.nalive):
@@ -101,12 +78,11 @@ class Integral:
                                         ket_wfn.traj[jj].amplitude)
         return S
 
-    #
-    #
-    #
     def wfn_project(self, bra_traj, ket_wfn):
-        """Returns the overlap of the wfn with a trajectory (assumes the
-        amplitude on the trial trajectory is (1.,0.)"""
+        """Returns the overlap of the wfn with a trajectory.
+
+        Assumes the amplitude on the trial trajectory is (1.,0.)
+        """
         proj = 0j
 
         for i in range(ket_wfn.nalive + ket_wfn.ndead):
@@ -114,23 +90,16 @@ class Integral:
 
         return proj
 
-    #
-    #
-    #
     def update(self, wfn):
-
+        """Updates the wavefunction information if required."""
         if self.ints.require_centroids:
             self.update_centroids(wfn)
 
-        return
-
-    #
-    #
-    #
     def add_centroid(self, new_cent):
-        """places the centroid in a centroid array -- increases the array
-           if necessary in order to accomodate data"""
+        """Places the centroid in a centroid array.
 
+        Increases the array size if necessary in order to accomodate data.
+        """
         # minimum dimension required to hold this centroid
         ij           = new_cent.parents
         new_dim_cent = max(ij)
@@ -148,14 +117,10 @@ class Integral:
         self.centroid[ij[0]][ij[1]] = new_cent
         self.centroid[ij[1]][ij[0]] = new_cent
 
-        return
-
-
-
-#------------------------------------------------------
-#
-#  Private Functions
-#
+    #------------------------------------------------------
+    #
+    #  Private Methods
+    #
     @timings.timed
     def update_centroids(self, wfn):
         """Increases the centroid 'matrix' to account for new basis functions.
@@ -195,16 +160,9 @@ class Integral:
                     self.centroid[i][j].update_x(wfn.traj[i],wfn.traj[j])
                     self.centroid[i][j].update_p(wfn.traj[i],wfn.traj[j])
                     self.centroid[j][i] = self.centroid[i][j]
-                self.centroid_required[i][j] = self.isRequired(wfn.traj[i],wfn.traj[j])
-                self.centroid_required[i][j] = self.isRequired(wfn.traj[j],wfn.traj[i])
- 
-        return
+                self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
+                self.centroid_required[i][j] = self.is_required(wfn.traj[j],wfn.traj[i])
 
-    #
-    #
-    #
-    def isRequired(traj1, traj2):
+    def is_required(traj1, traj2):
         """Documentation to come"""
-        return (traj1.alive and traj2.alive) 
-
-
+        return traj1.alive and traj2.alive

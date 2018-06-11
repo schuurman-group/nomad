@@ -13,11 +13,12 @@ parent(r,p,st,ti) ------------------------------------> child(r,p',st',ti)
    enforce constraint that classical energies be equal.
 """
 import numpy as np
-import src.parse.glbl as glbl
-import src.parse.log as log
-import src.utils.timings as timings
-import src.basis.trajectory as trajectory
-import src.grow.utilities as utilities
+import nomad.parse.glbl as glbl
+import nomad.parse.log as log
+import nomad.utils.timings as timings
+import nomad.basis.trajectory as trajectory
+import nomad.grow.utilities as utilities
+
 
 @timings.timed
 def spawn(master, dt):
@@ -54,12 +55,12 @@ def spawn(master, dt):
                 # try to set up the child
                 if not success:
                     pass
-#                    log.print_message('spawn_bad_step',
-#                                             ['cannot adjust kinetic energy of child'])
+                    #log.print_message('spawn_bad_step',
+                    #                         ['cannot adjust kinetic energy of child'])
                 elif abs(sij) < glbl.spawning['spawn_olap_thresh']:
                     pass
-#                    log.print_message('spawn_bad_step',
-#                                             ['child-parent overlap too small'])
+                    #log.print_message('spawn_bad_step',
+                    #                         ['child-parent overlap too small'])
                 else:
                     child_created = True
                     spawn_time = current_time
@@ -83,11 +84,10 @@ def spawn(master, dt):
                         log.print_message('spawn_bad_step', [err_msg])
     return basis_grown
 
+
 def in_coupled_regime(bundle):
     """Checks if we are in spawning regime. Since we are always spawning,
-       this function always returns False for continuous spawning -- no 
+       this function always returns False for continuous spawning -- no
        need to change timestep to spawn."""
- 
-    return False 
 
-
+    return False
