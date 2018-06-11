@@ -306,6 +306,14 @@ def validate():
         else:
             glbl.nuclear_basis['widths'] = [0.5 for i in range(n_usr_freq)]
 
+    # set the kinetic energy coefficient
+    if glbl.iface_params['interface'] == 'vibronic':
+        # KE operator coefficients, mass- and frequency-scaled normal mode
+        # coordinates, a_i = 0.5*omega_i
+        glbl.kecoef = 0.5 * np.array(glbl.nuclear_basis['freqs'])
+    else:
+        glbl.kecoef = 0.5 / np.array(glbl.nuclear_basis['masses'])
+
     # subsequent code will ONLY use the 'init_states' array. If that array hasn't
     # been set, using the value of 'init_state' to create it
     if glbl.sampling['init_state'] != -1:

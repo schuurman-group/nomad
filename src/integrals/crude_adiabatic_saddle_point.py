@@ -99,7 +99,7 @@ def ke_integral(traj1, traj2, centroid=None, Snuc=None):
     ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                              traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
    
-    return -sum( ke * vibronic.kecoeff) * Selec
+    return -sum( ke * traj1.kecoef) * Selec
 
     
 # time derivative of the overlap

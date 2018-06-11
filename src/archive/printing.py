@@ -31,7 +31,9 @@ def generate_data_formats(ncrd, nst):
     acc1  = 12
     acc2  = 16
 
-    # ----------------- dump formats (trajectory files) -----------------
+    # ******************* dump formats *******************************
+
+    # ----------------- trajectory data --------------------------------
     # trajectory output
     arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
     arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
@@ -54,7 +56,7 @@ def generate_data_formats(ncrd, nst):
 
     # gradients
     arr1 = ['            x' + str(i+1) for i in range(ncrd)]
-    tfile_names[tkeys[2]] = 'gradient'
+    tfile_names[tkeys[2]] = 'grad'
     dump_header[tkeys[2]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format[tkeys[2]] = ('{0:>12.4f}' +
                              ''.join('{' + str(i) + ':14.8f}'
@@ -63,12 +65,14 @@ def generate_data_formats(ncrd, nst):
     # coupling
     arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
     arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nst)]
-    tfile_names[tkeys[3]] = 'coupling'
+    tfile_names[tkeys[3]] = 'coup'
     dump_header[tkeys[3]] = ('Time'.rjust(acc1) + ''.join(arr1) +
                              ''.join(arr2) + '\n')
     dump_format[tkeys[3]] = ('{:12.4f}' +
                              ''.join('{:12.5f}' for i in range(2*nst)) + '\n')
 
+
+    # ---------------------- interface data --------------------------------
     # permanent dipoles
     arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
             for i in range(nst) for j in range(ncart)]
@@ -105,7 +109,7 @@ def generate_data_formats(ncrd, nst):
                              ''.join('{:10.5f}'
                                      for i in range(nst*natm)) + '\n')
 
-    # ----------------- dump formats (bundle files) -----------------
+    # ----------------- dump formats (wavefunction files) -----------------
 
     # adiabatic state populations
     arr1 = ['     state.' + str(i) for i in range(nst)]
@@ -174,11 +178,15 @@ def print_traj_mat(time, key, mat):
 #
 #
 #
-def print_bund_row(key, data):
+def print_wfn_row(key, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
     file 'filename'."""
     filename = bfile_names[key]
 
+    print("key="+str(key))
+    print("header="+str(dump_header[key]))
+    print("format="+str(dump_format[key]))
+    print("data="+str(data))
     if not os.path.isfile(filename):
         with open(filename, 'x') as outfile:
             outfile.write(dump_header[key])
@@ -190,7 +198,7 @@ def print_bund_row(key, data):
 #
 #
 #
-def print_bund_mat(time, key, mat):
+def print_wfn_mat(time, key, mat):
     """Prints a matrix to file with a time label."""
     filename = bfile_names[key]
 

@@ -10,7 +10,6 @@ import src.parse.glbl as glbl
 import src.parse.log as log
 import src.archive.surface as surface
 
-kecoeff = None
 ham = None
 nsta = glbl.propagate['n_states']
 data_cache = dict()
@@ -137,7 +136,7 @@ def init_interface():
     As such, we must read the labels in geometry.dat followed by
     freq.dat file BEFORE reading the operator file.
     """
-    global kecoeff, ham
+    global ham
 
     # Read in geometry labels, frequency and operator files
     ham = VibHam()
@@ -161,11 +160,6 @@ def init_interface():
 
     # operator file will always be a separate file
     ham.rdoperfile(glbl.home_path + '/' + glbl.iface_params['opfile'])
-
-    # KE operator coefficients, mass- and frequency-scaled normal mode
-    # coordinates, a_i = 0.5*omega_i
-    kecoeff = np.zeros(ham.nmode_total)
-    kecoeff[ham.mrange] = 0.5*ham.freq
 
     # Ouput some information about the Hamiltonian
     log.print_message('string', ['*'*72])

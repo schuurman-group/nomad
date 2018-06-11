@@ -15,11 +15,6 @@ import src.basis.trajectory as trajectory
 import src.basis.centroid as centroid
 import src.archive.surface as surface
 
-# KE operator coefficients a_i:
-# T = sum_i a_i p_i^2,
-# where p_i is the momentum operator
-kecoeff = None
-
 # path to columbus executables
 columbus_path = ''
 # set to true if we want to compute electronic structure properties
@@ -71,7 +66,6 @@ def init_interface():
     global columbus_path, input_path, work_path, restart_path, log_file
     global a_sym, a_num, a_mass, n_atoms, n_cart, p_dim, coup_de_thresh
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
-    global kecoeff
 
     # KE operator coefficients: Unscaled Cartesian coordinates,
     # a_i = 1/2m_i
@@ -92,9 +86,6 @@ def init_interface():
     # masses are au -- columbus geom reads mass in amu
     a_mass  = [a_data[i][1]/constants.amu2au for i in range(natm)]
     a_num   = [a_data[i][2] for i in range(natm)]
-
-    # set coefficient for kinetic energy determination
-    kecoeff = 1./(2. * np.array(glbl.nuclear_basis['masses'], dtype=float))
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)

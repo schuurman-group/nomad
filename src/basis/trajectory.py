@@ -10,7 +10,7 @@ import src.utils.constants as constants
 class Trajectory:
     """Class constructor for the Trajectory object."""
     def __init__(self, nstates, dim, width=None, mass=None,
-                 label=0, parent=0):
+                 label=0, parent=0, kecoef=None):
         # total number of states
         self.nstates = int(nstates)
         # dimensionality of the trajectory
@@ -26,10 +26,10 @@ class Trajectory:
         else:
             self.mass = np.array(mass)
        # the prefactor on the kinetic energy term: default to 1/2M
-        if len(np.nonzero(self.mass)) == len(self.mass):
+        if len(np.nonzero(self.mass)) == len(self.mass) and kecoef is None:
             self.kecoef = 0.5 / self.mass   
         else:
-            self.kecoef = np.zeros(dim)
+            self.kecoef = kecoef
 
         # unique identifier for trajectory
         self.label        = label
@@ -62,8 +62,8 @@ class Trajectory:
     @timings.timed
     def copy(self):
         """Copys a Trajectory object with new references."""
-        new_traj = Trajectory(self.nstates, self.dim, self.width, self.mass,
-                              self.label, self.parent)
+        new_traj = Trajectory(self.nstates, self.dim, width=self.width, mass=self.mass,
+                              label=self.label, parent=self.parent, kecoef=self.kecoef)
         new_traj.state      = copy.copy(self.state)
         new_traj.alive      = copy.copy(self.alive)
         new_traj.amplitude  = copy.copy(self.amplitude)
@@ -105,10 +105,9 @@ class Trajectory:
 
     def set_kecoef(self, ke_vec):
         """Set the definition of the kinetic eneryg operator"""
-        self.keocef = ke_vec
+        self.kecoef = ke_vec
 
         return
-   
 
     #----------------------------------------------------------------------
     #

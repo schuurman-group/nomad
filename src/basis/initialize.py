@@ -26,11 +26,11 @@ def init_wavefunction(master):
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
-        checkpoint.read(master, 'chkpt.hdf5', glbl.sampling['restart_time'])
-        checkpoint.read(glbl.master_mat, 'chkpt.hdf5', glbl.sampling['restart_time'])
+        checkpoint.retrive_simulation(master, integrals=glbl.master_int, 
+                                      time=glbl.sampling['restart_time'], file_name='chkpt.hdf5')
         if glbl.sampling['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
-            checkpoint.read(master0, 'chkpt.hdf5', 0.)
+            checkpoint.retrive_simulation(master0, integrals=None, time=0., file_name='chkpt.hdf5')
             save_initial_wavefunction(master0)
         else:
             save_initial_wavefunction(master)
@@ -64,9 +64,8 @@ def init_wavefunction(master):
 
     # write the bundle to the archive 
     if glbl.mpi['rank'] == 0:
-        checkpoint.write(master, file_name='chkpt.hdf5')
-        checkpoint.write(glbl.master_mat, time=master.time)
-        checkpoint.write(glbl.master_int, time=master.time)
+        checkpoint.archive_simulation(master, integrals=glbl.master_int, 
+                                      time=master.time, file_name='chkpt.hdf5')
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])
@@ -199,7 +198,8 @@ def make_origin_traj():
     p_vec = np.array(glbl.nuclear_basis['momenta'][0])
 
     origin = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
-                                   width=w_vec, mass=m_vec, parent=0)
+                                   width=w_vec, mass=m_vec, parent=0, 
+                                   kecoef=glbl.kecoef)
 
     origin.update_x(x_vec)
     origin.update_p(p_vec)

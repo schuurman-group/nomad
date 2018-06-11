@@ -17,6 +17,30 @@ chkpt_file = ''
 #
 #
 #
+def archive_simulation(wfn, integrals=None, time=None, file_name=None):
+    """Documentation to come"""
+
+    write(wfn, file_name=file_name, time=time)
+    if integrals is not None:
+        write(integrals, file_name=file_name, time=time)
+
+    return
+
+#
+#
+#
+def retrieve_simulation(wfn, integrals=None, time=None, file_name=None):
+    """Dochumentation to come"""
+
+    read(wfn, file_name=file_name, time=time)
+    if integrals is not None:
+        read(integrals, file_name=file_name, time=time)
+
+    return
+
+#
+#
+#
 def write(data_obj, file_name=None, time=None):
     """Documentation to come"""
     global chkpt_file
@@ -30,7 +54,6 @@ def write(data_obj, file_name=None, time=None):
     # bundle definitions
     if not os.path.isfile(chkpt_file):
         if isinstance(data_obj, wavefunction.Wavefunction):
-            print("creating chkpt file...")
             create(chkpt_file, data_obj)
         else:
             sys.exit('chkpt file must be created with wavefunction object. Exiting..')
@@ -50,9 +73,6 @@ def write(data_obj, file_name=None, time=None):
 
     elif isinstance(data_obj, integral.Integral):
         write_integral(chkpt, data_obj, time)
-
-    elif isinstance(data_obj, matrices.Matrices):
-        write_matrices(chkpt, data_obj, time)
 
     else:
         sys.exit('data_obj: '+str(data_obj)+' is not recognized by checkpoint.write')
@@ -83,12 +103,7 @@ def read(data_obj, file_name, time=None):
     # from file
     elif isinstance(data_obj, integral.Integral):
 
-        read_integral(chkpt, data_obj, t_index)
-
-    # load matrices from file
-    elif isinstance(data_obj, matrices.Matrices):
-
-        read_matrices(chkpt, data_obj, t_index)
+        read_integral(chkpt, data_obj, time)
 
     else:
         sys.exit('data_obj: '+str(data_obj)+' is not recognized by checkpoint.read')
@@ -112,10 +127,16 @@ def time_steps(grp_name, file_name=None):
     # open chkpoint file
     chkpt = h5py.File(chkpt_file, "r", libver='latest')
 
+    print("grp_name="+str(grp_name))
     # if the group name is in the checkpoint file, return
     # the associated time array
-    if grp_name in chkpt.keys():
-        steps = chkpt[grp_name+'/time'][:]
+    if grp_name in chkpt:
+        if 'current_row' in chkpt[grp_name].attrs:
+            current_row = chkpt[grp_name].attrs['current_row']+1
+        else:
+            current_row = len(chkpt[grp_name+'/time'][:])
+        print("current_row, time steps="+str(current_row))
+        steps = chkpt[grp_name+'/time'][:current_row, 0]
     #else abort
     else:
         sys.exit('grp_name: '+str(grp_name)+' not present in checkpoint file')
@@ -140,23 +161,20 @@ def create(file_name, wfn):
     chkpt = h5py.File(file_name, "w", libver='latest')
 
     chkpt.create_group('wavefunction')
-    chkpt['wavefunction'].attrs['current_time'] = 0
-    chkpt['wavefunction'].attrs['n_rows']       = 0
+    chkpt['wavefunction'].attrs['current_row'] = -1
+    chkpt['wavefunction'].attrs['n_rows']      = -1
 
     chkpt.create_group('integral')
-    chkpt['integral'].attrs['current_time']     = 0
-    chkpt['integral'].attrs['n_rows']           = 0
-
-    chkpt.create_group('matrices')
-    chkpt['matrices'].attrs['current_time']     = 0
-    chkpt['matrices'].attrs['n_rows']           = 0
+    chkpt['integral'].attrs['current_row']     = -1
+    chkpt['integral'].attrs['n_rows']          = -1
 
     traj0 = wfn.traj[0]
     chkpt.create_group('simulation')
-    chkpt['simulation'].attrs['nstates']        = traj0.nstates
-    chkpt['simulation'].attrs['dim']            = traj0.dim
-    chkpt['simulation'].attrs['widths']         = traj0.widths()
-    chkpt['simulation'].attrs['masses']         = traj0.masses()
+    chkpt['simulation'].attrs['nstates']  = traj0.nstates
+    chkpt['simulation'].attrs['dim']      = traj0.dim
+    chkpt['simulation'].attrs['widths']   = traj0.widths()
+    chkpt['simulation'].attrs['masses']   = traj0.masses()
+    chkpt['simulation'].attrs['kecoef']   = traj0.kecoef
 
     # close following initialization
     chkpt.close()
@@ -169,18 +187,18 @@ def create(file_name, wfn):
 def write_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
 
-    wfn_data    = package_wfn(wfn)
-    n_traj      = wfn.n_traj()
-    n_rows      = default_blk_size(time)
-    resize      = False
+    wfn_data  = package_wfn(wfn)
+    n_traj    = wfn.n_traj()
+    n_blk     = default_blk_size(time)
+    resize    = False
 
     # update the current row index (same for all data sets)
-    current_row = chkpt['wavefunction'].attrs['current_time'] + 1
+    current_row = chkpt['wavefunction'].attrs['current_row'] + 1
 
     if current_row > chkpt['wavefunction'].attrs['n_rows']:
         resize   = True
-        new_size = chkpt['wavefunction'].attrs['n_rows'] + n_rows
-        chkpt['wavefunction'].attrs['n_rows'] = new_size
+        chkpt['wavefunction'].attrs['n_rows'] += n_blk
+    n_rows = chkpt['wavefunction'].attrs['n_rows']
 
     # first write items with time-independent dimensions
     for data_label in wfn_data.keys():
@@ -188,15 +206,15 @@ def write_wavefunction(chkpt, wfn, time):
 
         if dset in chkpt:
             if resize:
-                d_shape  = (new_size,) + wfn_data[data_label].shape
+                d_shape  = (n_rows,) + wfn_data[data_label].shape
                 chkpt[dset].resize(d_shape)
             chkpt[dset][current_row] = wfn_data[data_label]
 
         # if this is the first time we're trying to write this bundle,
         # create a new datasets with reasonble default sizes
         else:
-            d_shape   = (new_size,) +  wfn_data[data_label].shape
-            max_shape = (None,) + wfn_data[data_label].shape
+            d_shape   = (n_rows,) +  wfn_data[data_label].shape
+            max_shape = (None,)   + wfn_data[data_label].shape
             d_type    = wfn_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = wfn_data[data_label]
@@ -205,7 +223,7 @@ def write_wavefunction(chkpt, wfn, time):
     for i in range(n_traj):
         write_trajectory(chkpt, wfn.traj[i], time)
 
-    chkpt['wavefunction'].attrs['current_time'] = current_row
+    chkpt['wavefunction'].attrs['current_row'] = current_row
 
     return
 
@@ -216,16 +234,16 @@ def write_integral(chkpt, integral, time):
     """Documentation to come"""
 
     int_data = package_integral(integral, time)
-    n_rows   = default_blk_size(time)
+    n_blk    = default_blk_size(time)
     resize   = False
 
     # update the current row index (same for all data sets)
-    current_row = chkpt['integral'].attrs['current_time'] + 1
+    current_row = chkpt['integral'].attrs['current_row'] + 1
 
     if current_row > chkpt['integral'].attrs['n_rows']:
         resize   = True
-        new_size = chkpt['integral'].attrs['n_rows'] + n_rows
-        chkpt['integral'].attrs['n_rows'] = new_size
+        chkpt['integral'].attrs['n_rows'] += n_blk
+    n_rows = chkpt['integral'].attrs['n_rows']
 
     # first write items with time-independent dimensions
     for data_label in int_data.keys():
@@ -233,15 +251,15 @@ def write_integral(chkpt, integral, time):
 
         if dset in chkpt:
             if resize:
-                d_shape  = (new_size,) + int_data[data_label].shape
+                d_shape  = (n_rows,) + int_data[data_label].shape
                 chkpt[dset].resize(d_shape)
             chkpt[dset][current_row] = int_data[data_label]
 
         # if this is the first time we're trying to write this bundle,
         # create a new datasets with reasonble default sizes
         else:
-            d_shape   = (new_size,) +  int_data[data_label].shape
-            max_shape = (None,) + int_data[data_label].shape
+            d_shape   = (n_rows,) + int_data[data_label].shape
+            max_shape = (None,)   + int_data[data_label].shape
             d_type    = int_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = int_data[data_label]
@@ -253,44 +271,7 @@ def write_integral(chkpt, integral, time):
                  if integral.centroid[i][j] is not None:
                      write_centroid(chkpt, integral.centroid[i][j], time)
 
-    return
-
-#
-#
-#
-def write_matrices(chkpt, matrices, time):
-    """Documentation to come"""
-    # open the trajectory file
-    m_data  = package_matrices(matrices, time)
-    n_rows  = default_blk_size(time)
-    resize  = False
-
-    # if trajectory group already exists, just append current
-    # time information to existing datasets
-    current_row = chkpt['matrices'].attrs['current_time'] + 1
-
-    if current_row > chkpt['matrices'].attrs['n_rows']:
-        resize = True
-        new_size = chkpt['matrices'].attrs['n_rows'] + n_rows
-        chkpt['matrices'].attrs['n_rows'] = new_size
-
-    for data_label in m_data.keys():
-        dset = 'matrices/'+data_label
-
-        if dset in chkpt:
-            if resize:
-                d_shape  = (new_size,) + m_data[data_label].shape
-                chkpt[dset].resize(d_shape)
-            chkpt[dset][current_row] = m_data[data_label]
-
-    # if this is the first time we're trying to write this trajectory,
-    # create a new data group, and new data sets with reasonble default sizes
-        else:
-            d_shape   = (new_size,) + m_data[data_label].shape
-            max_shape = (None,) + m_data[data_label].shape
-            d_type    = m_data[data_label].dtype
-            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
-            chkpt[dset][current_row] = m_data[data_label]
+    chkpt['integral'].attrs['current_row'] = current_row
 
     return
 
@@ -301,46 +282,52 @@ def write_trajectory(chkpt, traj, time):
     """Documentation to come"""
 
     # open the trajectory file
-    t_data   = package_trajectory(traj, time)
-    t_label  = str(traj.label)
-    n_rows   = default_blk_size(time)
-    resize   = False
+    t_data  = package_trajectory(traj, time)
+    t_label = str(traj.label)
+    n_blk   = default_blk_size(time)
+    resize  = False
 
     # if trajectory group already exists, just append current
     # time information to existing datasets
     t_grp = 'wavefunction/'+t_label
-
+    print("writing trajectory: "+str(t_grp))
+ 
     if t_grp in chkpt:
 
-        current_row = chkpt[t_grp].attrs['current_time'] + 1
+        current_row = chkpt[t_grp].attrs['current_row'] + 1
 
         if current_row > chkpt[t_grp].attrs['n_rows']:
             resize = True
-            new_size = chkpt[t_grp].attrs['n_rows'] + n_rows
-            chkpt[t_grp].attrs['n_rows'] = new_size
+            chkpt[t_grp].attrs['n_rows'] += n_blk
+
+        n_rows = chkpt[t_grp].attrs['n_rows']
 
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
             if resize:
-                d_shape  = (new_size,) + t_data[data_label].shape
+                d_shape  = (n_rows,) + t_data[data_label].shape
                 chkpt[dset].resize(d_shape)
 
             chkpt[dset][current_row] = t_data[data_label]
-        
+ 
+        chkpt[t_grp].attrs['current_row'] += 1
+       
     # if this is the first time we're trying to write this trajectory,
     # create a new data group, and new data sets with reasonble default sizes
     else:
 
         chkpt.create_group(t_grp)
-        current_row                          = 0
-        chkpt[t_grp].attrs['current_time']   = current_row
-        chkpt[t_grp].attrs['n_rows']         = n_rows
+        current_row                       = 0
+        chkpt[t_grp].attrs['current_row'] = current_row
+        chkpt[t_grp].attrs['n_rows']      = n_blk
  
+        n_rows = chkpt[t_grp].attrs['n_rows']
+
         # store surface information from trajectory
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
             d_shape   = (n_rows,) + t_data[data_label].shape
-            max_shape = (None,) + t_data[data_label].shape
+            max_shape = (None,)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
@@ -356,7 +343,7 @@ def write_centroid(chkpt, cent, time):
     # open the trajectory file
     c_data  = package_centroid(traj, time)
     c_label = str(cent.label)
-    n_rows  = default_blk_size(time)
+    n_blk   = default_blk_size(time)
     resize  = False
 
     # if trajectory group already exists, just append current
@@ -365,35 +352,40 @@ def write_centroid(chkpt, cent, time):
 
     if c_grp in chkpt:
 
-        current_row = chkpt[c_grp].attrs['current_time'] + 1
+        current_row = chkpt[c_grp].attrs['current_row'] + 1
 
         if current_row > chkpt[c_grp].attrs['n_rows']:
             resize = True
-            new_size = chkpt[c_grp].attrs['n_rows'] + n_rows
-            chkpt[c_grp].attrs['n_rows'] = new_size
+            chkpt[c_grp].attrs['n_rows'] += n_blk
+
+        n_rows = chkpt[c_grp].attrs['n_rows']
 
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
             if resize:
-                d_shape  = (new_size,) + c_data[data_label].shape
+                d_shape  = (n_rows,) + c_data[data_label].shape
                 chkpt[dset].resize(d_shape)
 
             chkpt[dset][current_row] = c_data[data_label]
+
+        chkpt[c_grp].attrs['current_row'] += 1
 
     # if this is the first time we're trying to write this trajectory,
     # create a new data group, and new data sets with reasonble default sizes
     else:
 
         chkpt.create_group(c_grp)
-        current_row                          = 0
-        chkpt[c_grp].attrs['current_time']   = current_row
-        chkpt[c_grp].attrs['n_rows']         = n_rows
+        current_row                       = 0
+        chkpt[c_grp].attrs['current_row'] = current_row
+        chkpt[c_grp].attrs['n_rows']      = n_blk
+
+        n_rows = chkpt[c_grp].attrs['n_rows']
 
         # store surface information from trajectory
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
             d_shape   = (n_rows,) + c_data[data_label].shape
-            max_shape = (None,) + c_data[data_label].shape
+            max_shape = (None,)   + c_data[data_label].shape
             d_type    = c_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = c_data[data_label]
@@ -410,29 +402,35 @@ def read_wavefunction(chkpt, wfn, time):
     dim     = chkpt['simulation'].attrs['dim']
     widths  = chkpt['simulation'].attrs['widths']
     masses  = chkpt['simulation'].attrs['masses']
+    kecoef  = chkpt['simulation'].attrs['kecoef']
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt, 'wavefunction/time', time)
+
+    read_row = get_time_index(chkpt, 'wavefunction', time)
+
     if read_row is None:
         sys.exit('time='+str(time)+' requested, but not in checkpoint file')
  
     # dimensions of these objects are not time-dependent 
     wfn.nstates = nstates
-    wfn.time    = chkpt['wavefunction/time'][read_row]
-    
+    wfn.time    = chkpt['wavefunction/time'][read_row,0]
+
     for label in chkpt['wavefunction']:
 
-        if label == 'time':
+        if (label=='time' or label=='pop' or label=='energy'):
             continue
 
         t_grp = 'wavefunction/'+label
-        t_row = get_time_index(chkpt, t_grp+'/time', time)
+        t_row = get_time_index(chkpt, t_grp, time)
 
         if t_row is None:
             continue
 
-        new_traj = trajectory.Trajectory(nstates, dim, width=widths, 
-                                         mass=masses, label=label)
+        new_traj = trajectory.Trajectory(nstates, dim, 
+                                         width=widths,
+                                         mass=masses,
+                                         label=label,
+                                         kecoef=kecoef)
         read_trajectory(chkpt, new_traj, t_grp, t_row)
         wfn.add_trajectory(new_traj.copy())
 
@@ -450,7 +448,8 @@ def read_integral(chkpt, integral, time):
     masses  = chkpt['simulation'].attrs['masses']
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt, 'integral/time', time)
+    read_row = get_time_index(chkpt, 'integral', time)
+
     if read_row is None:
         sys.exit('time='+str(time)+' requested, but not in checkpoint file')
 
@@ -461,7 +460,7 @@ def read_integral(chkpt, integral, time):
                 continue
 
             c_grp = 'integral/'+label
-            c_row = get_time_index(chkpt, c_grp+'/time', time)
+            c_row = get_time_index(chkpt, c_grp, time)
  
             if c_row is None:
                 continue
@@ -475,35 +474,23 @@ def read_integral(chkpt, integral, time):
 #
 #
 #
-def read_matrices(chkpt, matrices, time):
-    """Documentation to come"""
-
-    read_row = get_time_index(chkpt, 'matrices/time', time)
-    if read_row is None:
-        sys.exit('time='+str(time)+' requested, but not in checkpoint file')
-
-    for mat in chkpt['matrices']:
-        dset = 'matrices/'+mat
-        matrices.set(mat, chkpt[mat][read_row])
-
-    return True
-#
-#
-#
 def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
 
     # populate the surface object in the trajectory
     pes = surface.Surface()
     for data_label in chkpt[t_grp].keys():  
-        if data_label == 'time' and data_label == 'global':
+        if data_label == 'time' or data_label == 'global':
             continue
         dset = chkpt[t_grp+'/'+data_label]
         pes.add_data(data_label, dset[t_row])
 
     # set information about the trajectory itself
     data_row = chkpt[t_grp+'/global'][t_row]
-    [new_traj.parent, new_traj.state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+    [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+
+    new_traj.state  = int(state)
+    new_traj.parent = int(parent)
     new_traj.update_amplitude(amp_real+1.j*amp_imag)
     new_traj.last_spawn = data_row[5:]
 
@@ -522,14 +509,18 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     # populate the surface object in the trajectory
     pes = surface.Surface()
     for data_label in chkpt[c_grp].keys():
-        if data_label == 'time' and data_label == 'global':
+        if data_label == 'time' or data_label == 'global':
             continue
         dset = chkpt[c_grp+'/'+data_label]
         pes.add_data(data_label, dset[c_row])
 
     # set information about the trajectory itself
-    [new_cent.parent[0], new_cent.parent[1],
-     new_cent.states[0], new_cent.states[1]] = chkpt[c_grp+'/global'][c_row] 
+    parent = [0.,0.]
+    states = [0.,0.]
+    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/global'][c_row] 
+    
+    new_cent.parents = int(parent)
+    new_cent.states  = int(states)
 
     new_cent.update_pes_info(pes)
     new_cent.update_x(new_cent.pes.get_data('geom'))
@@ -543,16 +534,31 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
 def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
 
-    time_vals = chkpt[grp_name][:]
-    
+    time_vals = time_steps(grp_name)
+ 
     if time is None:
-        return chkpt[grp_name].attrs['current_time']
+        return chkpt[grp_name].attrs['current_row']
 
     dt       = np.absolute(time_vals - time)
     read_row = np.argmin(dt)
 
+    # this tolerance is arbitrary: check if the matched time
+    # is further than 0.5 * timestep to the next closest times,
+    # else we don't have a match
+    match_chk = []
+    if read_row > 0:
+        match_chk.extend([time_vals[read_row]-time_vals[read_row-1]])
+    if read_row < len(time_vals)-1:
+        match_chk.extend([time_vals[read_row+1]-time_vals[read_row]])
+
+    if dt[read_row] > 0.5*min(match_chk):
+        read_row = None
+
+    return read_row
+
     # this tolerance for matching times is kinda arbitrary
     t_off = np.roll(time_vals,1)
+    print("t_off="+str(t_off))
     if dt[read_row] > np.min(np.absolute(time_vals - t_off)):
         read_row = None
 
@@ -568,7 +574,7 @@ def package_wfn(wfn):
 
     # dimensions of these objects are not time-dependent 
     wfn_data['time']  = np.array([wfn.time], dtype='float')
-    wfn_data['pop']   = wfn.pop()
+    wfn_data['pop']   = np.array(wfn.pop())
     wfn_data['energy']= np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
                                   wfn.pot_classical(), wfn.kin_classical()])
 
@@ -585,23 +591,6 @@ def package_integral(integral, time):
     int_data['time'] = np.array([time],dtype='float')
 
     return int_data
-
-
-#
-#
-#
-def package_matrices(matrices, time):
-    """Documentation to come"""
-
-    mat_data = dict()
-
-    mat_data['time'] = np.array([time],dtype='float')
-
-    # dimensions of these objects are time-dependent
-    for typ,mat in matrices.mat.items():
-        mat_data[typ] = mat
-
-    return mat_data
 
 #
 #

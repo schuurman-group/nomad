@@ -46,21 +46,26 @@ def main():
     mat     = matrices.Matrices()
     ncrd    = wfn0.traj[0].dim
     nstates = wfn0.traj[0].nstates
-    printing.generate_data_formats(ncrd, nst)
+    printing.generate_data_formats(ncrd, nstates)
 
     # if we want all times, run through all the data
     if time is None:
         tvals = checkpoint.time_steps('wavefunction',chkpt_file)
         for i in range(len(tvals)):
-            checkpoint.read(wfn, chkpt_file, tvals[i])
-            checkpoint.read(mat, chkpt_file, tvals[i])
+            wfn = wavefunction.Wavefunction()
+            checkpoint.retrieve_simulation(wfn, integrals=ints, 
+                                          time=tvals[i], file_name=chkpt_file)
+            mat.build(wfn, ints)
+            wfn.update_matrices(mat)
             extract_data(wfn, mat, data)
 
     # else, print data from current bundle
     else:
         # read bundle for the case of a single time
-        checkpoint.read(wfn, chkpt_file, read_time)
-        checkpoint.read(mat, chkpt_file, read_time)
+        checkpoint.retrieve_simulation(wfn, integrals=ints,
+                                       time=read_time, file_name=chkpt_file)
+        mat.build(wfn, ints)
+        wfn.update_matrices(mat)
         extract_data(wfn, mat, data)
 
     return
@@ -142,10 +147,11 @@ def extract_data(wfn, mat, dlst):
 #
 def extract_energy(wfn):
     """Documentation to come"""
-    
+   
     prnt_data = [wfn.time]
-    prnt_data.append(wfn.pot_quantum(),   wfn.kin_quantum(),   wfn.tot_quantum(),
-                     wfn.pot_classical(), wfn.kin_classical(), wfn.tot_classical())
+
+    prnt_data.extend([wfn.pot_quantum(),   wfn.kin_quantum(),   wfn.tot_quantum(),
+                      wfn.pot_classical(), wfn.kin_classical(), wfn.tot_classical()])
 
     printing.print_wfn_row('energy', prnt_data)
 
@@ -159,7 +165,7 @@ def extract_pop(wfn):
 
     prnt_data = [wfn.time]
     prnt_data.extend(wfn.pop())
-    prnt_data.append(wfn.norm())
+    prnt_data.extend([wfn.norm()])
 
     printing.print_wfn_row('pop', prnt_data)
 
@@ -185,11 +191,11 @@ def extract_auto(wfn):
 def extract_matrices(wfn, mat):
     """Documentation to come"""
 
-    printing.print_wfn_mat(wfn.time, 's', mat.mat['S'])
-    printing.print_wfn_mat(wfn.time, 'sdot', mat.mat['Sdot'])
-    printing.print_wfn_mat(wfn.time, 'h', mat.mat['H'])
-    printing.print_wfn_mat(wfn.time, 'heff', mat.mat['Heff'])
-    printing.print_wfn_mat(wfn.time, 't_overlap', mat.mat['S_traj'])
+    printing.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
+    printing.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
+    printing.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
+    printing.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
+    printing.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
 
     return
 
@@ -200,21 +206,22 @@ def extract_trajectories(wfn):
     """Documentation to come"""
 
     for i in range(wfn.nalive):
-        traj = wfn.traj[alive[i]]
+        traj  = wfn.traj[wfn.alive[i]]
         label = traj.label
+        state = traj.state 
 
         # print trajectory file        
         prnt_data = [wfn.time]
         prnt_data.extend(traj.x())
         prnt_data.extend(traj.p())
         prnt_data.extend([traj.phase(), traj.amplitude.real, traj.amplitude.imag, 
-                          np.absolute(traj.amplitude, traj.state)])
+                          np.absolute(traj.amplitude), traj.state])
         printing.print_traj_row(label, 'traj', prnt_data)
 
         # print potential energies
         prnt_data = [wfn.time]
         prnt_data.extend([traj.energy(i) for i in range(traj.nstates)])
-        printing.print_traj_row(label, 'traj', prnt_data)
+        printing.print_traj_row(label, 'poten', prnt_data)
 
         # print gradients
         prnt_data = [wfn.time]
@@ -223,12 +230,12 @@ def extract_trajectories(wfn):
 
         # print coupling
         prnt_data = [wfn.time]
-        prnt_data.extend([traj.coupling_norm(i) for i in range(traj.nstates)])
-        prnt_data.extend([traj.coup_dot_vel(i) for i in range(traj.nstates)])
+        prnt_data.extend([np.linalg.norm(traj.derivative(state,i)) for i in range(traj.nstates)])
+        prnt_data.extend([traj.coupling(state,i) for i in range(traj.nstates)])
         printing.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-        printing_print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
+        printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
     return
 

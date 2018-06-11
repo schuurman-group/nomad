@@ -116,7 +116,7 @@ class Wavefunction:
 
         new_amp = np.zeros(self.nalive, dtype=complex)
 
-        B = -1j * self.matrices.mat['Heff'] * dt
+        B = -1j * self.matrices.mat_dict['heff'] * dt
 
         if self.nalive < 150:
             # Eigen-decomposition
@@ -162,7 +162,7 @@ class Wavefunction:
         i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.matrices.mat['S_traj'][i,j] *
+            mulliken += abs(self.matrices.mat_dict['s_traj'][i,j] *
                             self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -171,7 +171,7 @@ class Wavefunction:
     def norm(self):
         """Returns the norm of the wavefunction """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.matrices.mat['S']),self.amplitudes()).real
+                      self.matrices.mat_dict['s']),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -187,7 +187,7 @@ class Wavefunction:
                 jj = self.alive[j]
                 if self.traj[jj].state != state:
                     continue
-                popij = (self.matrices.mat['S_traj'][i,j]  *
+                popij = (self.matrices.mat_dict['s_traj'][i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
@@ -213,7 +213,7 @@ class Wavefunction:
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.mat['V']), self.amplitudes()).real
+                             self.matrices.mat_dict['v']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.V)),self.amplitudes()).real
@@ -231,7 +231,7 @@ class Wavefunction:
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the wfn."""
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.mat['T']), self.amplitudes()).real
+                             self.matrices.mat_dict['t']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.T)),self.amplitudes()).real

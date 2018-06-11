@@ -69,10 +69,9 @@ def main():
 
         # determine whether it is necessary to update the output logs
         if glbl.mpi['rank'] == 0:
-            # update the fms output files, as well as checkpoint, if necessary
-            checkpoint.write(master, time=master.time)
-            checkpoint.write(glbl.master_mat, time=master.time)
-            checkpoint.write(glbl.master_int, time=master.time)
+            # update the checkpoint, if necessary
+            checkpoint.archive_simulation(master, integrals=glbl.master_int, 
+                                          time=master.time)
 
     # clean up, stop the global timer and write logs
     cleanup.cleanup_end()

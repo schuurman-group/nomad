@@ -30,7 +30,10 @@ def set_initial_coords(master):
 
     # create template trajectory basis function
     template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
-                                     width=w_vec, mass=m_vec, parent=0)
+                                     width=w_vec, 
+                                     mass=m_vec, 
+                                     parent=0,
+                                     kecoef=glbl.kecoef)
     template.update_x(x_ref)
     template.update_p(p_ref)
 

@@ -108,7 +108,7 @@ def t_integral(traj1, traj2, nuc_ovrlp=None):
     ke = nuclear.deld2x(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
                                   traj2.widths(),traj2.x(),traj2.p())
 
-    return -np.dot(glbl.interface.kecoeff,ke)*elec_overlap(traj1,traj2)
+    return -np.dot(traj1.kecoef,ke)*elec_overlap(traj1,traj2)
     
 #
 # sdot integral

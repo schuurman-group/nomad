@@ -89,7 +89,7 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
     elif t1.state != t2.state:
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
-        v = 2.*np.vdot(fij, glbl.interface.kecoeff *
+        v = 2.*np.vdot(fij, t1.kecoef *
                        nuclear.deldx(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                                t2.widths(),t2.x(),t2.p()))
         # Scalar coupling
@@ -117,7 +117,7 @@ def t_integral(t1, t2, nuc_ovrlp=None):
         ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, glbl.interface.kecoeff)
+        return -np.dot(ke, t1.kecoef)
 
 #
 # time derivative of the overlap

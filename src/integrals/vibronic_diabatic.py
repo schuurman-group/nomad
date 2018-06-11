@@ -78,7 +78,7 @@ def ke_integral(t1, t2, Snuc=None):
         ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
-        return -sum( ke * glbl.interface.kecoeff)
+        return -sum( ke * t1.kecoef)
 
 def sdot_integral(t1, t2, Snuc=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""

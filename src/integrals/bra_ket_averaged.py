@@ -120,10 +120,10 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
 
-        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), glbl.interface.kecoeff *
+        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), t1.kecoef *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), glbl.interface.kecoeff *
+        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), t2.kecoef *
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())
@@ -131,7 +131,7 @@ def v_integral(t1, t2, nuc_ovrlp=None):
 #
 #
 #
-def ke_integral(t1, t2, nuc_ovrlp=None):
+def t_integral(t1, t2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
 
     if t1.state != t2.state:
@@ -144,7 +144,7 @@ def ke_integral(t1, t2, nuc_ovrlp=None):
         ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, glbl.interface.kecoeff)
+        return -np.dot(ke, t1.kecoef)
 
 #
 #
