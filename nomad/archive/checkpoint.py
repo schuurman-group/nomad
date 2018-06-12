@@ -1,15 +1,12 @@
 """
 Routines for reading input files and writing log files.
 """
-import sys
 import os
 import h5py
 import numpy as np
 import nomad.integrals.integral as integral
-import nomad.basis.matrices as matrices
 import nomad.basis.wavefunction as wavefunction
 import nomad.basis.trajectory as trajectory
-import nomad.integrals.centroid as centroid
 import nomad.archive.surface as surface
 
 
@@ -48,7 +45,7 @@ def write(data_obj, file_name=None, time=None):
             raise TypeError('chkpt file must be created with wavefunction object.')
 
     # open checkpoint file
-    chkpt = h5py.File(chkpt_file, "a", libver='latest')
+    chkpt = h5py.File(chkpt_file, 'a', libver='latest')
 
     # this definition of time over-rules all others as far as writing
     # data is concerned.
@@ -80,7 +77,7 @@ def read(data_obj, file_name, time=None):
     chkpt_file = file_name.strip()
 
     # open chkpoint file
-    chkpt = h5py.File(chkpt_file, "r", libver='latest')
+    chkpt = h5py.File(chkpt_file, 'r', libver='latest')
 
     if isinstance(data_obj, wavefunction.Wavefunction):
 
@@ -106,7 +103,7 @@ def time_steps(grp_name, file_name=None):
         chkpt_file = file_name.strip()
 
     # open chkpoint file
-    chkpt = h5py.File(chkpt_file, "r", libver='latest')
+    chkpt = h5py.File(chkpt_file, 'r', libver='latest')
 
     print("grp_name="+str(grp_name))
     # if the group name is in the checkpoint file, return
@@ -135,7 +132,7 @@ def time_steps(grp_name, file_name=None):
 def create(file_name, wfn):
     """Creates a new checkpoint file."""
     # create chkpoint file
-    chkpt = h5py.File(file_name, "w", libver='latest')
+    chkpt = h5py.File(file_name, 'w', libver='latest')
 
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
@@ -422,7 +419,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     # populate the surface object in the trajectory
     pes = surface.Surface()
     for data_label in chkpt[t_grp].keys():
-        if data_label == 'time' or data_label == 'global':
+        if data_label == 'time' or data_label == 'glbl':
             continue
         dset = chkpt[t_grp+'/'+data_label]
         pes.add_data(data_label, dset[t_row])
@@ -446,7 +443,7 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     # populate the surface object in the trajectory
     pes = surface.Surface()
     for data_label in chkpt[c_grp].keys():
-        if data_label == 'time' or data_label == 'global':
+        if data_label == 'time' or data_label == 'glbl':
             continue
         dset = chkpt[c_grp+'/'+data_label]
         pes.add_data(data_label, dset[c_row])
@@ -501,8 +498,8 @@ def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
     wfn_data = dict(
-        time   = np.array([wfn.time], dtype='float')
-        pop    = np.array(wfn.pop())
+        time   = np.array([wfn.time], dtype='float'),
+        pop    = np.array(wfn.pop()),
         energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
                            wfn.pot_classical(), wfn.kin_classical()])
                     )
@@ -523,11 +520,10 @@ def package_trajectory(traj, time):
     # time is not an element in a trajectory, but necessary to
     # uniquely tag everything
     traj_data = dict(
-        time   = np.array([time],dtype='float')
-        global = np.concatenate(
-                  (np.array([traj.parent,   traj.state,  traj.gamma,
-                             traj.amplitude.real, traj.amplitude.imag]),
-                   traj.last_spawn))
+        time = np.array([time],dtype='float'),
+        glbl = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
+                                 traj.amplitude.real, traj.amplitude.imag]),
+                                 traj.last_spawn))
                      )
 
     # store everything about the surface
@@ -540,8 +536,8 @@ def package_trajectory(traj, time):
 def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
-        time   = np.array([time],dtype='float')
-        global = np.concatenate((traj.parents, traj.states))
+        time = np.array([time],dtype='float'),
+        glbl = np.concatenate((traj.parents, traj.states))
                      )
 
     # last, store everything about the surface

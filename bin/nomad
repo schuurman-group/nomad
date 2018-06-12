@@ -2,9 +2,7 @@
 """
 The main nomad driver.
 """
-import os
 import sys
-import random
 import numpy as np
 import mpi4py.MPI as MPI
 import nomad.parse.glbl as glbl
@@ -42,7 +40,7 @@ def init():
     files.read_input()
 
     # initialize random number generator
-    random.seed(glbl.sampling['seed'])
+    np.random.seed(glbl.sampling['seed'])
 
     # initialize the running calculation log
     log.init_logfile('nomad.log')

@@ -13,11 +13,10 @@ As a matter of course, this function also builds:
      --> this is the matrix employed to solve for the time
          dependent amplitudes
 """
-import sys
+import copy
 import numpy as np
-import copy as copy
 import scipy.linalg as sp_linalg
-import nomad.utils.linalg as fms_linalg
+import nomad.utils.linalg as linalg
 import nomad.utils.timings as timings
 
 
@@ -121,12 +120,12 @@ class Matrices:
             # compute the S^-1, needed to compute Heff
             timings.start('linalg.pinvh')
             self.mat_dict['sinv'] = sp_linalg.pinvh(self.mat_dict['s'])
-            #Sinv, cond = fms_linalg.pseudo_inverse2(S)
+            #Sinv, cond = linalg.pseudo_inverse2(S)
             timings.stop('linalg.pinvh')
         else:
             # compute the S^-1, needed to compute Heff
             timings.start('hamiltonian.pseudo_inverse')
-            self.mat_dict['sinv'], cond = fms_linalg.pseudo_inverse(S)
+            self.mat_dict['sinv'], cond = linalg.pseudo_inverse(S)
             timings.stop('hamiltonian.pseudo_inverse')
 
         self.mat_dict['heff'] = np.dot( self.mat_dict['sinv'], self.mat_dict['h'] - 1j * self.mat_dict['sdot'] )

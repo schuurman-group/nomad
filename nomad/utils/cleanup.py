@@ -1,17 +1,14 @@
-import os
+"""
+Module for cleanup operations at the end of a simulation or an exception.
+"""
 import re
-import shutil
 import traceback
 import nomad.utils.timings as timings
 import nomad.parse.glbl as glbl
 import nomad.parse.log as log
 import nomad.archive.printing as printing
 
-#----------------------------------------------------------------------------
-#
-# FMS summary output file
-#
-#----------------------------------------------------------------------------
+
 def cleanup_end():
     """Cleans up the FMS log file if calculation completed."""
     # simulation ended
@@ -48,9 +45,7 @@ def cleanup_exc(etyp, val, tb):
     if glbl.mpi['parallel']:
         glbl.mpi['comm'].Abort(1)
 
-#
-#
-#
+
 def rm_timer(exc):
     """Removes the timer lines from an Exception traceback."""
     tb = exc.split('\n')

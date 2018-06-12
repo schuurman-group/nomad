@@ -3,7 +3,6 @@ Routines for running a Columbus computation.
 """
 import sys
 import os
-import copy
 import shutil
 import subprocess
 import numpy as np
@@ -13,6 +12,7 @@ import nomad.basis.atom_lib as atom_lib
 import nomad.basis.trajectory as trajectory
 import nomad.basis.centroid as centroid
 import nomad.archive.surface as surface
+
 
 # path to columbus executables
 columbus_path = ''
@@ -175,9 +175,9 @@ def evaluate_trajectory(traj, t=None):
               'id associated with centroid, label=' + str(label))
 
     # create surface object to hold potential information
-    col_surf      = surface.Surface()
+    col_surf = surface.Surface()
     col_surf.add_data('geom', traj.x())
-    col_surf.add_data('momentum',traj.p())
+    col_surf.add_data('momentum', traj.p())
 
     # write geometry to file
     write_col_geom(traj.x())
@@ -235,7 +235,7 @@ def evaluate_trajectory(traj, t=None):
     for i in range(nstates):
         if i == traj.state:
             continue
-        coup[traj.state,i] = np.dot(traj.p(), nad_coup[:,i]
+        coup[traj.state,i] = np.dot(traj.p(), nad_coup[:,i])
         coup[i,traj.state] = coup[traj.state,i]
     col_surf.add_data('coupling', coup)
 
@@ -285,15 +285,15 @@ def evaluate_centroid(Cent, t=None):
     col_surf.add_data('potential', potential)
     col_surf.add_data('atom_pop', atom_pop)
 
-    deriv = np.zeros((Cent.dim, nstates, nstates)
+    deriv = np.zeros((Cent.dim, nstates, nstates))
     if state_i != state_j:
         # run coupling to other states
         nad_coup = run_col_coupling(Cent, col_surf.potential, t)
         deriv[:,state_i, state_j] =  nad_coup[:,state_j]
         deriv[:,state_j, state_i] = -nad_coup[:,state_j]
 
-    col_surf.add_data('derivative') = deriv
-    col_surf.add_data('coupling')   = deriv
+    col_surf.add_data('derivative', deriv)
+    col_surf.add_data('coupling', deriv)
 
     # save restart files
     make_col_restart(Cent)
@@ -915,13 +915,13 @@ def get_col_restart(traj):
     # of parents [relevant if we've just spawned and this is first
     # pes evaluation for the child
     if not mo_restart:
-        print("looking for parent restart...")
+        print('looking for parent restart...')
         for i in range(len(par_arr)):
-            print("checking: "+mocoef_file+par_arr[i])
+            print('checking: '+mocoef_file+par_arr[i])
             if os.path.exists(mocoef_file+par_arr[i]):
                 shutil.copy(mocoef_file+par_arr[i], 'mocoef')
                 mo_restart = True
-                print("found: "+mocoef_file+par_arr[i])
+                print('found: '+mocoef_file+par_arr[i])
                 par_str = par_arr[i]
                 break
         sys.stdout.flush()

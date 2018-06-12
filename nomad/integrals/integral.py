@@ -1,10 +1,7 @@
 """
 Routines for computing integrals.
 """
-import sys
-import copy
 import numpy as np
-import scipy.linalg as sp_linalg
 import nomad.utils.timings as timings
 import nomad.integrals.centroid as centroid
 

@@ -1,7 +1,6 @@
 """
 The Trajectory object and its associated functions.
 """
-import sys
 import copy
 import numpy as np
 import nomad.utils.timings as timings

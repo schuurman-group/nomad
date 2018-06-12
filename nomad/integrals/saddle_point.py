@@ -4,10 +4,10 @@ potentials
 
 This currently uses first-order saddle point.
 """
-import sys
 import numpy as np
 import nomad.parse.glbl as glbl
 import nomad.integrals.nuclear_gaussian as nuclear
+
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
@@ -21,7 +21,7 @@ basis = 'gaussian'
 
 def elec_overlap(t1, t2):
     """ Returns < phi | phi' >, the electronic overlap integral of two trajectories"""
-    t1.state == t2.state:
+    if t1.state == t2.state:
         return 1.
     else:
         return 0.

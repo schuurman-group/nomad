@@ -1,14 +1,12 @@
 """
 A class object to contain information about a potential energy surface
 """
-import sys
 import copy
 
 
 class Surface:
     """Object containing potential energy surface data."""
     def __init__(self):
-        """Object containing potential energy surface data."""
         self.standard_objs = ['geom','momentum','potential','derivative','hessian','coupling']
         self.optional_objs = ['mos','dipoles','atom_pop','sec_mom',
                          'diabat_pot','diabat_deriv','diabat_hessian',
@@ -48,4 +46,3 @@ class Surface:
             new_surface.data[key] = copy.deepcopy(value)
 
         return new_surface
-

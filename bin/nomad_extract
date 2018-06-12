@@ -4,7 +4,6 @@ Module used to extract data from nomad output files.
 """
 import os
 import sys
-import random
 import numpy as np
 import nomad.archive.checkpoint as checkpoint
 import nomad.archive.printing as printing
@@ -156,7 +155,7 @@ def extract_auto(wfn):
     """Documentation to come"""
     global wfn0, ints
     wfn_overlap = ints.wfn_overlap(wfn0, wfn)
-    prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.absolute(wfn_overlap)]
+    prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.abs(wfn_overlap)]
 
     printing.print_wfn_row('auto', prnt_data)
 
@@ -182,7 +181,7 @@ def extract_trajectories(wfn):
         prnt_data.extend(traj.x())
         prnt_data.extend(traj.p())
         prnt_data.extend([traj.phase(), traj.amplitude.real, traj.amplitude.imag,
-                          np.absolute(traj.amplitude), traj.state])
+                          np.abs(traj.amplitude), traj.state])
         printing.print_traj_row(label, 'traj', prnt_data)
 
         # print potential energies

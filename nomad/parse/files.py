@@ -1,15 +1,11 @@
 """
 Routines for reading input files and writing log files.
 """
-import sys
 import os
 import re
-import glob
 import ast
 import shutil
-import traceback
 import numpy as np
-import nomad.utils.timings as timings
 import nomad.parse.glbl as glbl
 import nomad.parse.atom_lib as atom_lib
 import nomad.integrals.integral as integral

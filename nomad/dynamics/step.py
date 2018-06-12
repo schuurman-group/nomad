@@ -1,7 +1,6 @@
 """
 Routines for propagating a wavefunction forward by a time step.
 """
-import sys
 import numpy as np
 import nomad.parse.glbl as glbl
 import nomad.parse.log as log

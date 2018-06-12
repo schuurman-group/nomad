@@ -1,7 +1,6 @@
 """
 General routines for all spawning algorithms.
 """
-import sys as sys
 import numpy as np
 import nomad.utils.constants as constants
 import nomad.parse.glbl as glbl

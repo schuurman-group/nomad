@@ -5,9 +5,9 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
+import nomad.integrals.centroid as centroid
 import nomad.integrals.nuclear_gaussian as nuclear
-import nomad.interfaces.vibronic as vibronic
-import nomad.interfaces.vcham.hampar as ham
+
 
 # Let nomad know if overlap matrix elements require PES info
 overlap_requires_pes = True

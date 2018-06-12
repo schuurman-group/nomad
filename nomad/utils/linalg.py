@@ -1,9 +1,7 @@
 """
 Linear algebra library routines.
 """
-import sys
 import numpy as np
-import nomad.utils.timings as timings
 import nomad.parse.glbl as glbl
 
 

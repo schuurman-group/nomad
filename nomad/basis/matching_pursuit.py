@@ -3,12 +3,7 @@ The matching pursuit module.
 
 The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
 """
-import sys
 import numpy as np
-import copy
-import nomad.utils.timings as timings
-import nomad.parse.glbl as glbl
-import nomad.basis.bundle as bundle
 import nomad.utils.linalg as linalg
 
 
@@ -164,7 +159,7 @@ def reset_wavefunction(master):
     # Sort the selected basis functions and coefficients in order of
     # ascending basis function index
     indxmap = sorted(range(len(selected)), key=lambda k: selected[k])
-    tmp = copy.copy(coeff)
+    tmp = np.copy(coeff)
     for i in range(nbas):
         coeff[i] = tmp[indxmap[i]]
     selected.sort()

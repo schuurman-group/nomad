@@ -14,11 +14,9 @@ child(s',ti) <------------- child(s',ts)
 1. The spawn routine is called with parent_i at time t0.
 2. If parent_i is coupled to another.
 """
-import sys
 import numpy as np
 import nomad.parse.glbl as glbl
 import nomad.parse.log as log
-import nomad.basis.trajectory as trajectory
 import nomad.grow.utilities as utils
 import nomad.dynamics.step as step
 import nomad.dynamics.evaluate as evaluate

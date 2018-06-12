@@ -1,7 +1,6 @@
 """
 Routines for initializing dynamics calculations.
 """
-import sys
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.parse.glbl as glbl

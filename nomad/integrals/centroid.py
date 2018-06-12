@@ -1,14 +1,14 @@
 """
 The Centroid object and its associated functions.
 """
-import sys
 import copy
 import numpy as np
 import nomad.utils.timings as timings
 import nomad.utils.constants as constants
 
+
 def cent_label(itraj_id, jtraj_id):
-    """return the centroid id for centroid between traj_i, traj_j"""
+    """Returns the centroid id for centroid between traj_i, traj_j"""
     idi          = max(itraj_id, jtraj_id)
     idj          = min(itraj_id, jtraj_id)
     return -((idi * (idi - 1) // 2) + idj + 1)
@@ -185,4 +185,3 @@ class Centroid:
     def same_state(self):
         """Determines if both trajectories are on the same state."""
         return self.states[0] == self.states[1]
-

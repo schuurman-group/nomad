@@ -9,6 +9,7 @@ import nomad.utils.constants as constants
 import nomad.parse.glbl as glbl
 import nomad.integrals.nuclear_gaussian_ccs as nuclear
 
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 

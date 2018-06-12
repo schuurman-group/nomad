@@ -1,8 +1,6 @@
 """
 Routines for running a vibronic coupling calculation.
 """
-import sys
-import copy
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.utils.constants as constants

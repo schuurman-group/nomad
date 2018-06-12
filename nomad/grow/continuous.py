@@ -16,7 +16,6 @@ import numpy as np
 import nomad.parse.glbl as glbl
 import nomad.parse.log as log
 import nomad.utils.timings as timings
-import nomad.basis.trajectory as trajectory
 import nomad.grow.utilities as utilities
 
 

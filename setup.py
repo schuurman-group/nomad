@@ -32,7 +32,7 @@ setup(
     author='Michael S. Schuurman',
     license='LGPL-3.0',
     packages=find_packages(),
-    scripts=['bin/nomad, bin/nomad_extract'],
+    scripts=['bin/nomad', 'bin/nomad_extract'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
@@ -42,6 +42,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'mpi4py>=2.0.0'],
+    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'h5py>=2.5.0',
+                      'mpi4py>=2.0.0'],
     ext_modules = cythonize(ext_modules)
       )

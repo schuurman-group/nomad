@@ -1,8 +1,6 @@
 """
 Routines for generating and sampling a Wigner vibrational distribution.
 """
-import sys
-import random
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.utils.constants as constants
@@ -91,8 +89,8 @@ def set_initial_coords(master):
                            np.sqrt(alpha))
                 itry = 0
                 while itry <= max_try:
-                    dx = random.gauss(0., sigma_x)
-                    dp = random.gauss(0., sigma_p)
+                    dx = np.random.normal(0., sigma_x)
+                    dp = np.random.normal(0., sigma_p)
                     itry += 1
                     if mode_overlap(alpha, dx, dp) > glbl.sampling['init_mode_min_olap']:
                         break

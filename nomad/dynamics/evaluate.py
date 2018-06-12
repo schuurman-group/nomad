@@ -4,7 +4,6 @@ Routines for handling the potential energy surface.
 All calls to update the pes are localized here.  This facilitates parallel
 execution of potential evaluations which is essential for ab initio PES.
 """
-from functools import partial
 import numpy as np
 import nomad.utils.constants as constants
 import nomad.parse.glbl as glbl

@@ -2,9 +2,6 @@
 Extract data from checkpoint file into human-readable
 files
 """
-import sys
-import numpy as np
-import h5py as h5py
 
 
 def query_group(chkpt_file, data_group):
@@ -51,7 +48,7 @@ def print_set(set_struct, file_name, directory_name=None):
     pass
 
 
-def print_trajectory()
+def print_trajectory():
     """Documentation to come"""
     # trajectory output
     arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
