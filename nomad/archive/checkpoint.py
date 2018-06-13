@@ -249,27 +249,23 @@ def write_trajectory(chkpt, traj, time):
     # if trajectory group already exists, just append current
     # time information to existing datasets
     t_grp = 'wavefunction/'+t_label
-    print("writing trajectory: "+str(t_grp))
 
     if t_grp in chkpt:
 
-        current_row = chkpt[t_grp].attrs['current_row'] + 1
+        chkpt[t_grp].attrs['current_row'] += 1
+        current_row = chkpt[t_grp].attrs['current_row']
 
-        if current_row > chkpt[t_grp].attrs['n_rows']:
+        if (current_row > chkpt[t_grp].attrs['n_rows']):
             resize = True
             chkpt[t_grp].attrs['n_rows'] += n_blk
-
-        n_rows = chkpt[t_grp].attrs['n_rows']
 
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
             if resize:
-                d_shape  = (n_rows,) + t_data[data_label].shape
+                d_shape  = (n_blk,) + t_data[data_label].shape
                 chkpt[dset].resize(d_shape)
 
             chkpt[dset][current_row] = t_data[data_label]
-
-        chkpt[t_grp].attrs['current_row'] += 1
 
     # if this is the first time we're trying to write this trajectory,
     # create a new data group, and new data sets with reasonble default sizes
@@ -280,12 +276,10 @@ def write_trajectory(chkpt, traj, time):
         chkpt[t_grp].attrs['current_row'] = current_row
         chkpt[t_grp].attrs['n_rows']      = n_blk
 
-        n_rows = chkpt[t_grp].attrs['n_rows']
-
         # store surface information from trajectory
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
-            d_shape   = (n_rows,) + t_data[data_label].shape
+            d_shape   = (n_blk,) + t_data[data_label].shape
             max_shape = (None,)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
@@ -306,23 +300,20 @@ def write_centroid(chkpt, cent, time):
 
     if c_grp in chkpt:
 
-        current_row = chkpt[c_grp].attrs['current_row'] + 1
+        chkpt[c_grp].attrs['current_row'] += 1
+        current_row = chkpt[c_grp].attrs['current_row']
 
         if current_row > chkpt[c_grp].attrs['n_rows']:
             resize = True
             chkpt[c_grp].attrs['n_rows'] += n_blk
 
-        n_rows = chkpt[c_grp].attrs['n_rows']
-
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
             if resize:
-                d_shape  = (n_rows,) + c_data[data_label].shape
+                d_shape  = (n_blk,) + c_data[data_label].shape
                 chkpt[dset].resize(d_shape)
 
             chkpt[dset][current_row] = c_data[data_label]
-
-        chkpt[c_grp].attrs['current_row'] += 1
 
     # if this is the first time we're trying to write this trajectory,
     # create a new data group, and new data sets with reasonble default sizes
@@ -333,12 +324,10 @@ def write_centroid(chkpt, cent, time):
         chkpt[c_grp].attrs['current_row'] = current_row
         chkpt[c_grp].attrs['n_rows']      = n_blk
 
-        n_rows = chkpt[c_grp].attrs['n_rows']
-
         # store surface information from trajectory
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
-            d_shape   = (n_rows,) + c_data[data_label].shape
+            d_shape   = (n_blk,) + c_data[data_label].shape
             max_shape = (None,)   + c_data[data_label].shape
             d_type    = c_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
@@ -425,7 +414,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         pes.add_data(data_label, dset[t_row])
 
     # set information about the trajectory itself
-    data_row = chkpt[t_grp+'/global'][t_row]
+    data_row = chkpt[t_grp+'/glbl'][t_row]
     [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
 
     new_traj.state  = int(state)
@@ -451,7 +440,7 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     # set information about the trajectory itself
     parent = [0.,0.]
     states = [0.,0.]
-    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/global'][c_row]
+    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
 
     new_cent.parents = int(parent)
     new_cent.states  = int(states)
@@ -485,15 +474,6 @@ def get_time_index(chkpt, grp_name, time):
 
     return read_row
 
-    # this tolerance for matching times is kinda arbitrary
-    t_off = np.roll(time_vals,1)
-    print("t_off="+str(t_off))
-    if dt[read_row] > np.min(np.absolute(time_vals - t_off)):
-        read_row = None
-
-    return read_row
-
-
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
@@ -524,7 +504,7 @@ def package_trajectory(traj, time):
         glbl = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
                                  traj.amplitude.real, traj.amplitude.imag]),
                                  traj.last_spawn))
-                     )
+                    )
 
     # store everything about the surface
     for obj in traj.pes.avail_data():
