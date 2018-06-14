@@ -66,12 +66,12 @@ def step_wavefunction(master, dt):
             # to get the electronic structure information at the associated
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
-            if basis_grown and glbl.integrals.require_centroids:
+            if basis_grown and glbl.master_int.require_centroids:
                 evaluate.update_pes(master)
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.master_mat(master, glbl.integrals)
+                 glbl.master_mat(master, glbl.master_int)
 
             # re-expression of the basis using the matching pursuit
             # algorithm
@@ -101,7 +101,7 @@ def step_trajectory(traj, init_time, dt):
     """Propagates a single trajectory.
 
     Used to backward/forward propagate a trajectory during spawning.
-    NOTE: fms_step_wavefunction and fms_step_trajectory could/should probably
+    NOTE: step_wavefunction and step_trajectory could/should probably
     be integrated somehow...
     """
     current_time = init_time

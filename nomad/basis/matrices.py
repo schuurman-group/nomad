@@ -23,15 +23,17 @@ import nomad.utils.timings as timings
 class Matrices:
     """Object containing the Hamiltonian and associated matrices."""
     def __init__(self):
-        self.mat_dict = {"t":     np.empty(shape=(0, 0)),
-                         "v":     np.empty(shape=(0, 0)),
-                         "h":     np.empty(shape=(0, 0)),
-                         "s_traj":np.empty(shape=(0, 0)),
-                         "s_nuc": np.empty(shape=(0, 0)),
-                         "s":     np.empty(shape=(0, 0)),
-                         "sinv":  np.empty(shape=(0, 0)),
-                         "sdot":  np.empty(shape=(0, 0)),
-                         "heff":  np.empty(shape=(0, 0)),}
+        self.mat_dict = dict(
+            t      = np.empty((0, 0)),
+            v      = np.empty((0, 0)),
+            h      = np.empty((0, 0)),
+            s_traj = np.empty((0, 0)),
+            s_nuc  = np.empty((0, 0)),
+            s      = np.empty((0, 0)),
+            sinv   = np.empty((0, 0)),
+            sdot   = np.empty((0, 0)),
+            heff   = np.empty((0, 0))
+                             )
 
     def set(self, name, matrix):
         """Sets the matrices in the current matrix object equal
@@ -125,7 +127,7 @@ class Matrices:
         else:
             # compute the S^-1, needed to compute Heff
             timings.start('hamiltonian.pseudo_inverse')
-            self.mat_dict['sinv'], cond = linalg.pseudo_inverse(S)
+            self.mat_dict['sinv'], cond = linalg.pseudo_inverse(self.mat_dict['s'])
             timings.stop('hamiltonian.pseudo_inverse')
 
         self.mat_dict['heff'] = np.dot( self.mat_dict['sinv'], self.mat_dict['h'] - 1j * self.mat_dict['sdot'] )

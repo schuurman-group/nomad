@@ -17,8 +17,9 @@ class Integral:
         except ImportError:
             print('Cannot import integrals: nomad.integrals.'+str(self.type))
 
-        self.hermitian         = self.ints.hermitian
-        self.require_centroids = self.ints.require_centroids
+        self.hermitian            = self.ints.hermitian
+        self.require_centroids    = self.ints.require_centroids
+        self.overlap_requires_pes = False
 
     @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
@@ -30,11 +31,11 @@ class Integral:
         """Calculates the nuclear overlap."""
         return self.ints.nuc_overlap(bra_traj, ket_traj)
 
-
     @timings.timed
-    def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None, nuc_only=True):
         """Calculates the trajectory overlap."""
-        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp,
+                                      nuc_only=nuc_only)
 
     @timings.timed
     def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
@@ -51,7 +52,6 @@ class Integral:
         """Calculates the potential energy integral between two
         trajectories."""
         if self.require_centroids:
-            args.append(self.centroid[bra_traj.label][ket_traj.label])
             return self.ints.v_integral(bra_traj, ket_traj,
                                         self.centroid[bra_traj.label][ket_traj.label],
                                         nuc_ovrlp=nuc_ovrlp)
@@ -138,13 +138,13 @@ class Integral:
             raise ValueError('n_traj() < dim_cent in wfn. Exiting...')
 
         # ...else we need to add more centroids
-        if self.n_traj() > dim_cent:
+        if wfn.n_traj() > dim_cent:
             for i in range(dim_cent):
-                self.centroid[i].extend([None for j in range(self.n_traj() -
+                self.centroid[i].extend([None for j in range(wfn.n_traj() -
                                                          dim_cent)])
 
-            for i in range(self.n_traj() - dim_cent):
-                self.centroid.append([None for j in range(self.n_traj())])
+            for i in range(wfn.n_traj() - dim_cent):
+                self.centroid.append([None for j in range(wfn.n_traj())])
 
         for i in range(wfn.n_traj()):
             for j in range(i):

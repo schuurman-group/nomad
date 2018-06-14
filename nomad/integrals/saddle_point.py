@@ -33,18 +33,21 @@ def nuc_overlap(t1, t2):
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
 
-def traj_overlap(t1, t2, nuc_ovrlp=None):
+def traj_overlap(t1, t2, nuc_ovrlp=None, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp)
+    return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp, nuc_only=nuc_only)
 
 
-def s_integral(t1, t2, nuc_ovrlp=None):
+def s_integral(t1, t2, nuc_ovrlp=None, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if nuc_ovrlp is None:
         nuc_ovrlp = nuc_overlap(t1, t2)
 
-    return elec_overlap(t1,t2) * nuc_ovrlp
+    if nuc_only:
+        return nuc_ovrlp
+    else:
+        return elec_overlap(t1,t2) * nuc_ovrlp
 
 
 def v_integral(t1, t2, centroid, nuc_ovrlp=None):
@@ -69,7 +72,7 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
         v = centroid.energy(t1.state) * nuc_ovrlp
         # DBOC
         if glbl.iface_params['coupling_order'] == 3:
-            v += centroid.scalar_coup(t1.state, t2.state) * Snuc
+            v += centroid.scalar_coup(t1.state, t2.state) * nuc_ovrlp
         return v
 
     # [necessarily] off-diagonal matrix element between trajectories
@@ -82,7 +85,7 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
                                                t2.widths(),t2.x(),t2.p()))
         # Scalar coupling
         if glbl.iface_params['coupling_order'] > 1:
-            v += centroid.scalar_coup(t1.state, t2.state) * Snuc
+            v += centroid.scalar_coup(t1.state, t2.state) * nuc_ovrlp
         return v
 
     else:
@@ -120,6 +123,6 @@ def sdot_integral(t1, t2, nuc_ovrlp=None):
                                         t2.widths(),t2.x(),t2.p())
 
         sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
-                +1j * t2.phase_dot() * Snuc)
+                +1j * t2.phase_dot() * nuc_ovrlp)
 
         return sdot

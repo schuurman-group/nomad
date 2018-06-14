@@ -55,7 +55,7 @@ def init_wavefunction(master):
         # correlation function
         save_initial_wavefunction(master)
 
-    # write the bundle to the archive
+    # write the wavefunction to the archive
     if glbl.mpi['rank'] == 0:
         checkpoint.archive_simulation(master, integrals=glbl.master_int,
                                       time=master.time, file_name='chkpt.hdf5')
@@ -118,11 +118,11 @@ def set_initial_amplitudes(master):
         # the initial wavefunction that we are sampling
         ovec = np.zeros(master.n_traj(), dtype=complex)
         for i in range(master.n_traj()):
-            ovec[i] = glbl.integrals.traj_overlap(master.traj[i], origin, nuc_only=True)
+            ovec[i] = glbl.master_int.traj_overlap(master.traj[i], origin, nuc_only=True)
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):
-                smat[i,j] = glbl.integrals.traj_overlap(master.traj[i],
+                smat[i,j] = glbl.master_int.traj_overlap(master.traj[i],
                                                         master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
@@ -191,7 +191,7 @@ def make_origin_traj():
     origin.update_p(p_vec)
     origin.state = 0
     # if we need pes data to evaluate overlaps, determine that now
-    if glbl.integrals.overlap_requires_pes:
+    if glbl.master_int.overlap_requires_pes:
         evaluate.update_pes_traj(origin)
 
     return origin

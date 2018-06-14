@@ -109,7 +109,7 @@ def time_steps(grp_name, file_name=None):
     # the associated time array
     if grp_name in chkpt:
         if 'current_row' in chkpt[grp_name].attrs:
-            current_row = chkpt[grp_name].attrs['current_row']+1
+            current_row = chkpt[grp_name].attrs['current_row'] + 1
         else:
             current_row = len(chkpt[grp_name+'/time'][:])
         steps = chkpt[grp_name+'/time'][:current_row, 0]
@@ -154,16 +154,16 @@ def create(file_name, wfn):
 
 def write_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
-    wfn_data  = package_wfn(wfn)
-    n_traj    = wfn.n_traj()
-    n_blk     = default_blk_size(time)
-    resize    = False
+    wfn_data = package_wfn(wfn)
+    n_traj   = wfn.n_traj()
+    n_blk    = default_blk_size(time)
+    resize   = False
 
     # update the current row index (same for all data sets)
     current_row = chkpt['wavefunction'].attrs['current_row'] + 1
 
     if current_row > chkpt['wavefunction'].attrs['n_rows']:
-        resize   = True
+        resize = True
         chkpt['wavefunction'].attrs['n_rows'] += n_blk
     n_rows = chkpt['wavefunction'].attrs['n_rows']
 

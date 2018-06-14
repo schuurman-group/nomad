@@ -94,7 +94,7 @@ def print_header():
                    ' scr_path    = ' + os.uname()[1] + ':' + glbl.scr_path + '\n')
         logfile.write(log_str)
 
-        logfile.write('\n fms simulation keywords\n' +
+        logfile.write('\n nomad simulation keywords\n' +
                    ' ----------------------------------------\n')
 
         logfile.write("\n ** global variables **\n")

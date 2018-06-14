@@ -32,7 +32,7 @@ setup(
     author='Michael S. Schuurman',
     license='LGPL-3.0',
     packages=find_packages(),
-    scripts=['bin/nomad', 'bin/nomad_extract'],
+    scripts=['bin/nomad_driver', 'bin/nomad_extract'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

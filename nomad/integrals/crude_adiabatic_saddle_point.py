@@ -47,30 +47,30 @@ def traj_overlap(traj1, traj2, centroid, nuc_only=False):
         return nuc_ovrlp * elec_overlap(traj1, traj2, centroid)
 
 
-def s_integral(traj1, traj2, centroid=None, nuc_only=False, Snuc=None):
+def s_integral(traj1, traj2, centroid=None, nuc_only=False, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
-    if Snuc is None:
-        Snuc = traj_overlap(traj1, traj2, centroid=centroid, nuc_only=True)
+    if nuc_ovrlp is None:
+        nuc_ovrlp = traj_overlap(traj1, traj2, centroid=centroid, nuc_only=True)
 
     if nuc_only:
-        return Snuc
+        return nuc_ovrlp
     else:
-        return Snuc * elec_overlap(traj1, traj2, centroid)
+        return nuc_ovrlp * elec_overlap(traj1, traj2, centroid)
 
 
-def v_integral(traj1, traj2, centroid=None, Snuc=None):
+def v_integral(traj1, traj2, centroid=None, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     dx_1 = traj1.x() - centroid.x()
     dx_2 = traj2.x() - centroid.x()
     dp   = traj1.p() - traj2.p()
     if traj1.tid == traj2.tid:
-        vint = Snuc * (traj1.energy(traj1.state) +
+        vint = nuc_ovrlp * (traj1.energy(traj1.state) +
                    0.5*np.dot(centroid.derivative(traj1.state,traj1.state),
                               dx_1 + dx_2 - 1j*dp))
     else:
@@ -78,49 +78,49 @@ def v_integral(traj1, traj2, centroid=None, Snuc=None):
                           centroid.energy(traj2.state))
         dif_ener = 0.5 * (centroid.energy(traj1.state) -
                           centroid.energy(traj2.state))
-        vint = Snuc * np.dot(centroid.derivative(traj1.state,traj2.state),
+        vint = nuc_ovrlp * np.dot(centroid.derivative(traj1.state,traj2.state),
                        ave_ener * dx_2 - ave_ener * dx_1 + 1j * dif_ener * dp)
 
     return vint
 
 
-def ke_integral(traj1, traj2, centroid=None, Snuc=None):
+def ke_integral(traj1, traj2, centroid=None, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
     Selec = elec_overlap(traj1, traj2)
 
     # < chi | del^2 / dx^2 | chi'>
-    ke = nuclear.deld2x(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    ke = nuclear.deld2x(nuc_ovrlp,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                              traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     return -sum( ke * traj1.kecoef) * Selec
 
 
 
-def sdot_integral(traj1, traj2, centroid=None, Snuc=None, e_only=False, nuc_only=False):
+def sdot_integral(traj1, traj2, centroid=None, nuc_ovrlp=None, e_only=False, nuc_only=False):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if Snuc is None:
-        Snuc = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuclear.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # overlap of electronic functions
     Selec = elec_overlap(traj1, traj2, centroid)
 
     # < chi | d / dx | chi'>
-    deldx = nuclear.deldx(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    deldx = nuclear.deldx(nuc_ovrlp,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
     # < chi | d / dp | chi'>
-    deldp = nuclear.deldp(Snuc,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
+    deldp = nuclear.deldp(nuc_ovrlp,traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
                                traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
     sdot = ( np.dot(traj2.velocity(), deldx) + np.dot(traj2.force(), deldp)
-            + 1j * traj2.phase_dot() * Snuc) * Selec
+            + 1j * traj2.phase_dot() * nuc_ovrlp) * Selec
 
     # time-derivative of the electronic component
 

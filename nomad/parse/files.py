@@ -206,7 +206,7 @@ def validate():
     """
     # set the integral definition
     #try:
-    #    glbl.integrals =__import__('nomad.integrals.'+
+    #    glbl.master_int =__import__('nomad.integrals.'+
     #                               glbl.propagate['integrals'],fromlist=['a'])
     #except ImportError:
     #    print('Cannot import integrals: nomad.integrals.' +

@@ -114,12 +114,7 @@ class Wavefunction:
 
         B = -1j * self.matrices.mat_dict['heff'] * dt
 
-        if self.nalive < 150:
-            # Eigen-decomposition
-            umat = sp_linalg.expm2(B)
-        else:
-            # Pade approximation
-            umat = sp_linalg.expm(B)
+        umat = sp_linalg.expm(B)
 
         new_amp = np.dot(umat, old_amp)
 

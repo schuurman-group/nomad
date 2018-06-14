@@ -17,29 +17,29 @@ hermitian = True
 basis = 'gaussian'
 
 
-def traj_overlap(t1, t2, nuc_only=False, Snuc=None):
+def traj_overlap(t1, t2, nuc_only=False, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(t1, t2, nuc_only, Snuc)
+    return s_integral(t1, t2, nuc_only, nuc_ovrlp)
 
 
-def s_integral(t1, t2, nuc_only=False, Snuc=None):
+def s_integral(t1, t2, nuc_only=False, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if t1.state != t2.state and not nuc_only:
         return complex(0.,0.)
     else:
-        if Snuc is None:
+        if nuc_ovrlp is None:
             return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
         else:
-            return Snuc
+            return nuc_ovrlp
 
 
-def v_integral(t1, t2, Snuc=None):
+def v_integral(t1, t2, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if Snuc is None:
-        Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                t2.phase(),t2.widths(),t2.x(),t2.p())
 
     states = np.sort(np.array([t1.state, t2.state]))
@@ -60,38 +60,38 @@ def v_integral(t1, t2, Snuc=None):
                            t2.widths()[qi],t2.x()[qi],t2.p()[qi])
             v_total += v_term
 
-    return v_total * Snuc
+    return v_total * nuc_ovrlp
 
 
-def ke_integral(t1, t2, Snuc=None):
+def ke_integral(t1, t2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     if t1.state != t2.state:
         return complex(0.,0.)
     else:
-        if Snuc is None:
-            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+        if nuc_ovrlp is None:
+            nuc_ovrlp = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
-        ke = nuclear.deld2x(Snuc,t1.widths(),t1.x(),t1.p(),
+        ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                  t2.widths(),t2.x(),t2.p())
 
         return -sum( ke * t1.kecoef)
 
 
-def sdot_integral(t1, t2, Snuc=None):
+def sdot_integral(t1, t2, nuc_ovrlp=None):
     """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
     if t1.state != t2.state:
         return complex(0.,0.)
     else:
-        if Snuc is None:
-            Snuc = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+        if nuc_ovrlp is None:
+            nuc_ovrlp = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                                    t2.phase(),t2.widths(),t2.x(),t2.p())
-        t1_dx_t2 = nuclear.deldx(Snuc,t1.widths(),t1.x(),t1.p(),
+        t1_dx_t2 = nuclear.deldx(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
-        t1_dp_t2 = nuclear.deldp(Snuc,t1.widths(),t1.x(),t1.p(),
+        t1_dp_t2 = nuclear.deldp(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
         sdot = ( np.dot( t2.velocity(), t1_dx_t2) +
                  np.dot( t2.force(),    t1_dp_t2) +
-                 1.j*t2.phase_dot()*Snuc )
+                 1.j*t2.phase_dot()*nuc_ovrlp )
 
         return sdot

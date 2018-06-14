@@ -115,7 +115,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
         adjust_success      = utils.adjust_child(parent, child_attempt,
                                                  parent.derivative(parent_state,
                                                                    child_state))
-        sij = abs(glbl.integrals.traj_overlap(parent, child_attempt, nuc_only=True))
+        sij = abs(glbl.master_int.traj_overlap(parent, child_attempt, nuc_only=True))
 
         # if the coupling has already peaked, either we exit with a successful
         # spawn from previous step, or we exit with a fail
@@ -157,7 +157,7 @@ def spawn_forward(parent, child_state, initial_time, dt):
             log.print_message('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
 
-            step.fms_step_trajectory(parent, current_time, dt)
+            step.step_trajectory(parent, current_time, dt)
             current_time = current_time + dt
 
     return child_created, child_at_spawn, parent_at_spawn, spawn_time, exit_time
@@ -170,7 +170,7 @@ def spawn_backward(child, current_time, end_time, dt):
 
     back_time = current_time
     for i in range(nstep):
-        step.fms_step_trajectory(child, back_time, dt)
+        step.step_trajectory(child, back_time, dt)
         back_time = back_time + dt
         log.print_message('spawn_back', [back_time])
 
