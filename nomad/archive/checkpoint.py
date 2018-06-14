@@ -105,7 +105,6 @@ def time_steps(grp_name, file_name=None):
     # open chkpoint file
     chkpt = h5py.File(chkpt_file, 'r', libver='latest')
 
-    print("grp_name="+str(grp_name))
     # if the group name is in the checkpoint file, return
     # the associated time array
     if grp_name in chkpt:
@@ -113,7 +112,6 @@ def time_steps(grp_name, file_name=None):
             current_row = chkpt[grp_name].attrs['current_row']+1
         else:
             current_row = len(chkpt[grp_name+'/time'][:])
-        print("current_row, time steps="+str(current_row))
         steps = chkpt[grp_name+'/time'][:current_row, 0]
     #else abort
     else:

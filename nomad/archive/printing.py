@@ -172,10 +172,6 @@ def print_wfn_row(key, data):
     file 'filename'."""
     filename = bfile_names[key]
 
-    print("key="+str(key))
-    print("header="+str(dump_header[key]))
-    print("format="+str(dump_format[key]))
-    print("data="+str(data))
     if not os.path.isfile(filename):
         with open(filename, 'x') as outfile:
             outfile.write(dump_header[key])
