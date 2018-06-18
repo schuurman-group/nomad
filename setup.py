@@ -42,6 +42,6 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'mpi4py>=2.0.0'],
+    install_requires=['cython>=0.28.3', 'numpy>=1.7.0', 'scipy>=0.12.0', 'mpi4py>=2.0.0'],
     ext_modules = cythonize(ext_modules)
       )
