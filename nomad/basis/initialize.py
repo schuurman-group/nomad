@@ -16,7 +16,10 @@ def init_wavefunction(master):
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
+
     glbl.interface.init_interface()
+
+    print("a")
 
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
@@ -29,21 +32,27 @@ def init_wavefunction(master):
         else:
             save_initial_wavefunction(master)
     else:
+
+        print("b")
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         glbl.distrib.set_initial_coords(master)
 
+        print("c")
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
         set_initial_state(master)
 
+        print("d")
         # once phase space position and states of the basis functions
         # are set, update the potential information
         evaluate.update_pes(master)
 
+        print("e")
         # set the initial amplitudes of the basis functions
         set_initial_amplitudes(master)
 
+        print("f")
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)

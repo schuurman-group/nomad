@@ -8,9 +8,9 @@ import subprocess
 import numpy as np
 import nomad.utils.constants as constants
 import nomad.parse.glbl as glbl
-import nomad.basis.atom_lib as atom_lib
+import nomad.parse.atom_lib as atom_lib
 import nomad.basis.trajectory as trajectory
-import nomad.basis.centroid as centroid
+import nomad.integrals.centroid as centroid
 import nomad.archive.surface as surface
 
 
@@ -65,9 +65,6 @@ def init_interface():
     global columbus_path, input_path, work_path, restart_path, log_file
     global a_sym, a_num, a_mass, n_atoms, n_cart, p_dim, coup_de_thresh
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
-
-    # KE operator coefficients: Unscaled Cartesian coordinates,
-    # a_i = 1/2m_i
 
     # set atomic symbol, number, mass,
     natm    = int(len(glbl.nuclear_basis['labels']) / p_dim)
@@ -191,7 +188,7 @@ def evaluate_trajectory(traj, t=None):
 
     # run mcscf
     run_col_mcscf(traj, t)
-    col_surf.add_data('mos',pack_mocoef())
+    col_surf.add_data('mo',pack_mocoef())
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(traj, ci_restart, t)
@@ -201,7 +198,7 @@ def evaluate_trajectory(traj, t=None):
     # run properties, dipoles, etc.
     [perm_dipoles, sec_moms] = run_col_multipole(traj)
     col_surf.add_data('sec_mom', sec_moms)
-    dipoles = np.zeros(3,nstates,nstates)
+    dipoles = np.zeros((3,nstates,nstates), dtype=float)
     for i in range(nstates):
         dipoles[:,i,i] = perm_dipoles[:,i]
 
@@ -216,12 +213,12 @@ def evaluate_trajectory(traj, t=None):
     col_surf.add_data('dipole',dipoles)
 
     # compute gradient on current state
-    deriv = np.zeroes(n_cart, nstates, nstates)
+    deriv = np.zeros((n_cart, nstates, nstates),dtype=float)
     grads = run_col_gradient(traj, t)
     deriv[:,state,state] = grads
 
     # run coupling to other states
-    nad_coup = run_col_coupling(traj, col_surf.potential, t)
+    nad_coup = run_col_coupling(traj, potential, t)
     for i in range(nstates):
         if i != state:
             state_i = min(i,state)
@@ -278,7 +275,7 @@ def evaluate_centroid(Cent, t=None):
 
     # run mcscf
     run_col_mcscf(Cent, t)
-    col_surf.add_data('mos',pack_mocoef())
+    col_surf.add_data('mo',pack_mocoef())
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(Cent, ci_restart, t)
@@ -288,7 +285,7 @@ def evaluate_centroid(Cent, t=None):
     deriv = np.zeros((Cent.dim, nstates, nstates))
     if state_i != state_j:
         # run coupling to other states
-        nad_coup = run_col_coupling(Cent, col_surf.potential, t)
+        nad_coup = run_col_coupling(Cent, potential, t)
         deriv[:,state_i, state_j] =  nad_coup[:,state_j]
         deriv[:,state_j, state_i] = -nad_coup[:,state_j]
 
@@ -903,8 +900,8 @@ def get_col_restart(traj):
 
     # MOCOEF RESTART FILES
     # if we have some orbitals in memory, write those out
-    if traj.pes_data is not None and 'mos' in traj.pes_data.data_keys:
-        write_mocoef('mocoef', traj.pes_data.mos)
+    if traj.pes is not None and 'mo' in traj.pes.avail_data():
+        write_mocoef('mocoef', traj.pes.get_data('mo'))
         mo_restart = True
     # if restart file exists, create symbolic link to it
     elif os.path.exists(mocoef_file+lbl_str):
@@ -979,15 +976,15 @@ def get_adiabatic_phase(traj, new_coup):
         state = min(traj.pstates)
 
     # pull data to make consistent
-    if traj.pes_data is not None:
+    if traj.pes is not None:
         old_coup = np.transpose(
-                   np.array([traj.pes_data.deriv[:,min(state,i),max(state,i)] for i in range(traj.nstates)]))
+                   np.array([traj.derivative(min(state,i),max(state,i)) for i in range(traj.nstates)]))
     else:
         old_coup = np.zeros((n_cart, traj.nstates))
 
     for i in range(traj.nstates):
         # if the previous coupling is vanishing, phase of new coupling is arbitrary
-        if np.linalg.norm(old_coup[:,i]) > glbl.fpzero:
+        if np.linalg.norm(old_coup[:,i]) > constants.fpzero:
             # check the difference between the vectors assuming phases of +1/-1
             norm_pos = np.linalg.norm( new_coup[:,i] - old_coup[:,i])
             norm_neg = np.linalg.norm(-new_coup[:,i] - old_coup[:,i])
@@ -1205,7 +1202,7 @@ def ang_mom_dalton(infile):
                 for k in range(n_con[j]):
                     line = daltaoin.readline()
                     nprim  = int(line.split()[1])
-                    n_line = np.ceil(float(line.split()[2])/3.)
+                    n_line = int(np.ceil(float(line.split()[2])/3.))
                     for l in range(nprim * n_line):
                         line = daltaoin.readline()
     return max_l
@@ -1230,15 +1227,15 @@ def link_force(target, link_name):
 
 def pack_mocoef():
     """Loads orbitals from a mocoef file."""
-    f = open('mocoef', 'r')
-    mos = f.readlines()
-    f.close()
+    mos = np.genfromtxt('mocoef',dtype=str,delimiter='\n')
     return mos
 
 
-def write_mocoef(fname, mo_list):
+def write_mocoef(fname, mos):
     """Writes orbitals to mocoef file."""
-    f = open(str(fname),'w')
-    for i in range(len(mo_list)):
-        f.write(str(mo_list[i]))
-    f.close()
+    np.savetxt(str(fname), mos, fmt="%s")
+
+#    f = open(str(fname),'w')
+#    for i in range(len(mo_list)):
+#        f.write(str(mo_list[i]))
+#    f.close()

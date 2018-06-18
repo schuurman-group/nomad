@@ -86,7 +86,7 @@ iface_params = dict(
     coup_de_thresh         = 100.,
 
     # parameters that apply to vibronic interface
-    opfile                 = 'vibronic.op',
+    opfile                 = '',
     # highest polynomial order in vibronic expansion
     ordr_max               = 1
                  )
