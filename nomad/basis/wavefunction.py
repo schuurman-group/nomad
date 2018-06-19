@@ -28,7 +28,7 @@ class Wavefunction:
         of a wfn with new references. Overriding deepcopy for
         significantly more work.
         """
-        new_wfn = Wavefunction()
+        new_wfn          = Wavefunction()
         new_wfn.time     = copy.copy(self.time)
         new_wfn.nalive   = copy.copy(self.nalive)
         new_wfn.ndead    = copy.copy(self.ndead)
@@ -49,11 +49,11 @@ class Wavefunction:
     @timings.timed
     def add_trajectory(self, new_traj):
         """Adds a trajectory to the wfn."""
-        self.nalive         += 1
-        self.nactive        += 1
-        new_traj.alive       = True
-        new_traj.active      = True
-        new_traj.label       = self.n_traj() - 1
+        self.nalive     += 1
+        self.nactive    += 1
+        new_traj.alive   = True
+        new_traj.active  = True
+        new_traj.label   = self.n_traj() - 1
         self.alive.append(new_traj.label)
         self.active.append(new_traj.label)
         self.traj.append(new_traj)

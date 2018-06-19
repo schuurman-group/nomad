@@ -978,7 +978,7 @@ def get_adiabatic_phase(traj, new_coup):
     # pull data to make consistent
     if traj.pes is not None:
         old_coup = np.transpose(
-                   np.array([traj.derivative(min(state,i),max(state,i),geom_chk=False) 
+                   np.array([traj.derivative(min(state,i),max(state,i),geom_chk=False)
                                              for i in range(traj.nstates)]))
     else:
         old_coup = np.zeros((n_cart, traj.nstates))

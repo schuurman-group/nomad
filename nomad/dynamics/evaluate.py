@@ -82,14 +82,11 @@ def update_pes(master, update_integrals=True):
     # simply run over trajectories in serial (in theory, this too could be cythonized,
     # but unlikely to ever be bottleneck)
     else:
-        print('aa')
         # iterate over trajectories..
         for i in range(master.n_traj()):
             if master.traj[i].active:
-                print('bb')
                 master.traj[i].update_pes_info(glbl.interface.evaluate_trajectory(
                                                master.traj[i], master.time))
-                print('cc')
 
         # ...and centroids if need be
         if update_integrals and glbl.master_int.require_centroids:

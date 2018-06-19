@@ -17,7 +17,7 @@ hermitian = True
 basis = 'gaussian'
 
 def nuc_overlap(t1, t2):
-    """ Returns the just the nuclear component of the overlap integral 
+    """ Returns the just the nuclear component of the overlap integral
         between two trajectories"""
     return nuclear.overlap(t1.phase(), t1.widths(), t1.x(), t1.p(),
                            t2.phase(), t2.widths(), t2.x(), t2.p())

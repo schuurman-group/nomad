@@ -82,7 +82,7 @@ def process_arguments(args):
     time = None
 
     if len(args) == 0:
-        exit_error('input file not specified')
+        raise ValueError('input file not specified')
 
     chkpt_file = args[1]
 

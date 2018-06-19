@@ -4,6 +4,7 @@ Routines for reading input files and writing log files.
 import os
 import h5py
 import numpy as np
+import nomad.parse.glbl as glbl
 import nomad.integrals.integral as integral
 import nomad.basis.wavefunction as wavefunction
 import nomad.basis.trajectory as trajectory
@@ -293,7 +294,7 @@ def write_trajectory(chkpt, traj, time):
 def write_centroid(chkpt, cent, time):
     """Documentation to come"""
     # open the trajectory file
-    c_data  = package_centroid(traj, time)
+    c_data  = package_centroid(cent, time)
     c_label = str(cent.label)
     n_blk   = default_blk_size(time)
     resize  = False
@@ -521,7 +522,7 @@ def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
         time = np.array([time],dtype='float'),
-        glbl = np.concatenate((traj.parents, traj.states))
+        glbl = np.concatenate((cent.parents, cent.states))
                      )
 
     # last, store everything about the surface
@@ -533,6 +534,5 @@ def package_centroid(cent, time):
 
 def default_blk_size(time):
     """Documentation to come"""
-    #return int(1.1 * (glbl.propagate['simulation_time']-time) /
-    #                   glbl.propagate['default_time_step'])
-    return 500
+    return int(2.1 * (glbl.propagate['simulation_time']-time) /
+                      glbl.propagate['default_time_step'])

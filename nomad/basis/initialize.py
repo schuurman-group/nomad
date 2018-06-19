@@ -30,7 +30,6 @@ def init_wavefunction(master):
         else:
             save_initial_wavefunction(master)
     else:
-
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         glbl.distrib.set_initial_coords(master)
@@ -39,12 +38,19 @@ def init_wavefunction(master):
         # require evaluation of electronic structure
         set_initial_state(master)
 
+        # set the initial amplitudes of the basis functions
+        set_initial_amplitudes(master)
+
+        # add virtual basis functions, if desired
+        if glbl.sampling['virtual_basis']:
+            virtual_basis(master)
+
+        # update the integrals
+        glbl.master_int.update(master)
+
         # once phase space position and states of the basis functions
         # are set, update the potential information
         evaluate.update_pes(master)
-
-        # set the initial amplitudes of the basis functions
-        set_initial_amplitudes(master)
 
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)
@@ -87,10 +93,10 @@ def set_initial_state(master):
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
             if 'dipole' not in master.traj[i].pes.avail_data():
-                raise KeyError('ERROR, trajectory '+str(i)+
+                raise KeyError('trajectory '+str(i)+
                                ': Cannot set state by transition moments - '+
                                'dipole not in pes.avail_data()')
-            
+
             tr_dipole = master.traj[i].pes.get_data('dipole')
             tdip = np.array([np.linalg.norm(tr_dipole[:,0,j])
                              for j in range(1, glbl.propagate['n_states'])])
@@ -115,7 +121,6 @@ def set_initial_amplitudes(master):
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in nomad.input
     if glbl.nuclear_basis['init_amp_overlap']:
-
         origin = make_origin_traj()
 
         # Calculate the initial expansion coefficients via projection onto
@@ -171,19 +176,16 @@ def virtual_basis(master):
     """
     for i in range(master.n_traj()):
         for j in range(glbl.propagate['n_states']):
-            if j == master.traj[i].state:
-                continue
-
-            new_traj = master.traj[i].copy()
-            new_traj.amplitude = 0j
-            new_traj.state = j
-            master.add_trajectory(new_traj)
+            if j != master.traj[i].state:
+                new_traj = master.traj[i].copy()
+                new_traj.amplitude = 0j
+                new_traj.state = j
+                master.add_trajectory(new_traj)
 
 
 def make_origin_traj():
     """Construct a trajectory basis function at the origin
     specified in the input files"""
-
     ndim = len(glbl.nuclear_basis['geometries'][0])
     m_vec = np.array(glbl.nuclear_basis['masses'])
     w_vec = np.array(glbl.nuclear_basis['widths'])

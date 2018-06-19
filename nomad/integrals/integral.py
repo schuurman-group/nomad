@@ -140,25 +140,28 @@ class Integral:
         if wfn.n_traj() > dim_cent:
             for i in range(dim_cent):
                 self.centroid[i].extend([None for j in range(wfn.n_traj() -
-                                                         dim_cent)])
+                                                             dim_cent)])
+                self.centroid_required[i].extend([None for j in range(wfn.n_traj() -
+                                                                      dim_cent)])
 
             for i in range(wfn.n_traj() - dim_cent):
                 self.centroid.append([None for j in range(wfn.n_traj())])
+                self.centroid_required.append([None for j in range(wfn.n_traj())])
 
         for i in range(wfn.n_traj()):
             for j in range(i):
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
                 # required slots
-                if wfn.cent[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
-                    wfn.cent[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
-                                                       traj_j=wfn.traj[j])
+                if self.centroid[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
+                    self.centroid[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
+                                                            traj_j=wfn.traj[j])
                     self.centroid[i][j].update_x(wfn.traj[i],wfn.traj[j])
                     self.centroid[i][j].update_p(wfn.traj[i],wfn.traj[j])
                     self.centroid[j][i] = self.centroid[i][j]
                 self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
-                self.centroid_required[i][j] = self.is_required(wfn.traj[j],wfn.traj[i])
+                self.centroid_required[j][i] = self.is_required(wfn.traj[j],wfn.traj[i])
 
-    def is_required(traj1, traj2):
+    def is_required(self, traj1, traj2):
         """Documentation to come"""
         return traj1.alive and traj2.alive
