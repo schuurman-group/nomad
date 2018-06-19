@@ -201,7 +201,7 @@ def extract_trajectories(wfn):
         printing.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-        printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
+#        printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
 
 def extract_interface_data(wfn):

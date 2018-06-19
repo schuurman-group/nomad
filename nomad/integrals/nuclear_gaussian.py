@@ -90,8 +90,8 @@ def prim_v_integral(N, a1, x1, p1, a2, x2, p2):
 
 def ordr1_vec(a1, x1, p1, a2, x2, p2):
     """Docstring missing."""
-    a   = a1 + a2
-    b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
+    a   = np.array(a1 + a2, dtype=float)
+    b   = np.array(2.*(a1*x1 + a2*x2) - 1.j*(p1-p2),dtype=complex)
     v_int = b / (2 * a)
 
     return v_int
@@ -99,8 +99,8 @@ def ordr1_vec(a1, x1, p1, a2, x2, p2):
 
 def ordr2_vec(a1, x1, p1, a2, x2, p2):
     """Docstring missing."""
-    a   = a1 + a2
-    b   = complex(2.*(a1*x1 + a2*x2),-(p1-p2))
+    a   = np.array(a1 + a2, dtype=float)
+    b   = np.array(2.*(a1*x1 + a2*x2) - 1.j*(p1-p2),dtype=complex)
     v_int = 0.5 * (b**2 / (2 * a**2) + (1/a))
 
     return v_int
