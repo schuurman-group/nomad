@@ -86,17 +86,19 @@ def set_initial_state(master):
 
         # set the initial state to the one with largest t. dip.
         for i in range(master.n_traj()):
-            if 'tr_dipole' not in master.traj[i].pes_data.data_keys:
+            if 'dipole' not in master.traj[i].pes.avail_data():
                 raise KeyError('ERROR, trajectory '+str(i)+
                                ': Cannot set state by transition moments - '+
-                               'tr_dipole not in pes_data.data_keys')
-            tdip = np.array([np.linalg.norm(master.traj[i].pes_data.dipoles[:,0,j])
+                               'dipole not in pes.avail_data()')
+            
+            tr_dipole = master.traj[i].pes.get_data('dipole')
+            tdip = np.array([np.linalg.norm(tr_dipole[:,0,j])
                              for j in range(1, glbl.propagate['n_states'])])
-            log.print_logfile('general',
-                                     ['Initializing trajectory '+str(i)+
-                                     ' to state '+str(np.argmax(tdip)+1)+
-                                     ' | tr. dipople array='+np.array2string(tdip, \
-                                       formatter={'float_kind':lambda x: "%.4f" % x})])
+            log.print_message('general',
+                             ['Initializing trajectory '+str(i)+
+                              ' to state '+str(np.argmax(tdip)+1)+
+                              ' | tr. dipople array='+np.array2string(tdip, \
+                              formatter={'float_kind':lambda x: "%.4f" % x})])
             master.traj[i].state = np.argmax(tdip)+1
 
     # use "init_state" to set the initial state
@@ -120,12 +122,12 @@ def set_initial_amplitudes(master):
         # the initial wavefunction that we are sampling
         ovec = np.zeros(master.n_traj(), dtype=complex)
         for i in range(master.n_traj()):
-            ovec[i] = glbl.master_int.traj_overlap(master.traj[i], origin, nuc_only=True)
+            ovec[i] = glbl.master_int.nuc_overlap(master.traj[i], origin)
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):
                 smat[i,j] = glbl.master_int.traj_overlap(master.traj[i],
-                                                        master.traj[j])
+                                                         master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)

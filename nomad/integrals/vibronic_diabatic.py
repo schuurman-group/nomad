@@ -16,23 +16,31 @@ hermitian = True
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+def nuc_overlap(t1, t2):
+    """ Returns the just the nuclear component of the overlap integral 
+        between two trajectories"""
+    return nuclear.overlap(t1.phase(), t1.widths(), t1.x(), t1.p(),
+                           t2.phase(), t2.widths(), t2.x(), t2.p())
 
-def traj_overlap(t1, t2, nuc_only=False, nuc_ovrlp=None):
-    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(t1, t2, nuc_only, nuc_ovrlp)
-
-
-def s_integral(t1, t2, nuc_only=False, nuc_ovrlp=None):
-    """ Returns < Psi | Psi' >, the overlap of the nuclear
-    component of the wave function only"""
-    if t1.state != t2.state and not nuc_only:
+def elec_overlap(t1, t2):
+    """ Returns the overlap between two electronic wavefunctions in diabatic
+        basis (i.e. KroneckerDelta)"""
+    if t1.state != t2.state:
         return complex(0.,0.)
     else:
-        if nuc_ovrlp is None:
-            return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                                   t2.phase(),t2.widths(),t2.x(),t2.p())
-        else:
-            return nuc_ovrlp
+        return complex(1.,0.)
+
+def traj_overlap(t1, t2, nuc_ovrlp=None):
+    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+    return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp)
+
+def s_integral(t1, t2, nuc_ovrlp=None):
+    """ Returns < Psi | Psi' >, the overlap of the nuclear
+    component of the wave function only"""
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(t1,t2)
+
+    return elec_overlap(t1,t2) * nuc_ovrlp
 
 
 def v_integral(t1, t2, nuc_ovrlp=None):
@@ -40,7 +48,7 @@ def v_integral(t1, t2, nuc_ovrlp=None):
     # evaluate just the nuclear component (for re-use)
     if nuc_ovrlp is None:
         nuc_ovrlp = nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                               t2.phase(),t2.widths(),t2.x(),t2.p())
+                                    t2.phase(),t2.widths(),t2.x(),t2.p())
 
     states = np.sort(np.array([t1.state, t2.state]))
     v_total = complex(0.,0.)

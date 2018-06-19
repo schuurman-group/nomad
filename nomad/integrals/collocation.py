@@ -17,7 +17,6 @@ hermitian = False
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'dirac_delta'
 
-
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
     if traj1.state != traj2.state and not nuc_only:

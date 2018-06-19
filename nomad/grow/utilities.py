@@ -103,9 +103,9 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
     for j in range(bundle.n_traj()):
         if bundle.traj[j].alive and j != overlap_traj:
             if overlap_state is None or bundle.traj[j].state == overlap_state:
-                max_sij = max(max_sij, abs(glbl.master_int.traj_overlap(
+                max_sij = max(max_sij, abs(glbl.master_int.nuc_overlap(
                                                  bundle.traj[overlap_traj],
-                                                 bundle.traj[j], nuc_only=True)))
+                                                 bundle.traj[j])))
 
     return max_sij
 

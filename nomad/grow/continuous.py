@@ -35,9 +35,8 @@ def spawn(master, dt):
             if st == parent.state:
                 continue
 
-            s_array = [abs(glbl.master_int.traj_overlap(parent,
-                                                  master.traj[j],
-                                                  nuc_only=True))
+            s_array = [abs(glbl.master_int.nuc_overlap(parent,
+                                                       master.traj[j])
                        if master.traj[j].state == st
                        and master.traj[j].alive else 0.
                        for j in range(master.n_traj())]
@@ -49,7 +48,7 @@ def spawn(master, dt):
 
                 success = utilities.adjust_child(parent, child,
                                     parent.nact(parent.state, child.state))
-                sij = glbl.master_int.traj_overlap(parent, child, nuc_only=True)
+                sij = glbl.master_int.nuc_overlap(parent, child)
 
                 # try to set up the child
                 if not success:
