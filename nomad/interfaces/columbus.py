@@ -232,8 +232,8 @@ def evaluate_trajectory(traj, t=None):
     for i in range(nstates):
         if i == traj.state:
             continue
-        coup[traj.state,i] = np.dot(traj.p(), nad_coup[:,i])
-        coup[i,traj.state] = coup[traj.state,i]
+        coup[state,i] = np.dot(traj.velocity(), nad_coup[:,i])
+        coup[i,state] = coup[state,i]
     col_surf.add_data('coupling', coup)
 
     # save restart files
