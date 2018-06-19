@@ -105,7 +105,7 @@ def set_initial_coords(master):
         # normal mode to generate the final geometry...
         if coordtype == 'cart':
             disp_x = np.dot(modes, delta_x) / np.sqrt(m_vec)
-            disp_p = np.dot(modes, delta_p) / np.sqrt(m_vec)
+            disp_p = np.dot(modes, delta_p) * np.sqrt(m_vec)
 
         # ... else if mass- and frequency-scaled normal modes are
         # being used, then take the frequency-scaled normal mode
