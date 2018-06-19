@@ -19,8 +19,6 @@ def init_wavefunction(master):
 
     glbl.interface.init_interface()
 
-    print("a")
-
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
         checkpoint.retrive_simulation(master, integrals=glbl.master_int,
@@ -33,26 +31,21 @@ def init_wavefunction(master):
             save_initial_wavefunction(master)
     else:
 
-        print("b")
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         glbl.distrib.set_initial_coords(master)
 
-        print("c")
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
         set_initial_state(master)
 
-        print("d")
         # once phase space position and states of the basis functions
         # are set, update the potential information
         evaluate.update_pes(master)
 
-        print("e")
         # set the initial amplitudes of the basis functions
         set_initial_amplitudes(master)
 
-        print("f")
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)
@@ -67,7 +60,7 @@ def init_wavefunction(master):
     # write the wavefunction to the archive
     if glbl.mpi['rank'] == 0:
         checkpoint.archive_simulation(master, integrals=glbl.master_int,
-                                      time=master.time, file_name='chkpt.hdf5')
+                                      time=master.time, file_name=glbl.scr_path+'/chkpt.hdf5')
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])
@@ -138,12 +131,15 @@ def set_initial_amplitudes(master):
         sinv = sp_linalg.pinvh(smat)
         glbl.nuclear_basis['amplitudes'] = np.dot(sinv, ovec)
 
+    # if we didn't set any amplitudes, set them all equal -- normalization
+    # will occur later
+    elif len(glbl.nuclear_basis['amplitudes']) == 0:
+        glbl.nuclear_basis['amplitudes'] = np.ones(master.n_traj(),dtype=complex)
+
     # if we don't have a sufficient number of amplitudes, append
     # amplitudes with "zeros" as necesary
-    if len(glbl.nuclear_basis['amplitudes']) < master.n_traj():
+    elif len(glbl.nuclear_basis['amplitudes']) < master.n_traj():
         dif = master.n_traj() - len(glbl.nuclear_basis['amplitudes'])
-        log.print_message('warning',['appending '+str(dif)+
-                                 ' values of 0+0j to amplitudes'])
         glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])
 
     # finally -- update amplitudes in the bundle

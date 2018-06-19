@@ -33,21 +33,18 @@ def nuc_overlap(t1, t2):
                            t2.phase(),t2.widths(),t2.x(),t2.p())
 
 
-def traj_overlap(t1, t2, nuc_ovrlp=None, nuc_only=False):
+def traj_overlap(t1, t2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp, nuc_only=nuc_only)
+    return s_integral(t1, t2, nuc_ovrlp=nuc_ovrlp)
 
 
-def s_integral(t1, t2, nuc_ovrlp=None, nuc_only=False):
+def s_integral(t1, t2, nuc_ovrlp=None):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
     if nuc_ovrlp is None:
         nuc_ovrlp = nuc_overlap(t1, t2)
 
-    if nuc_only:
-        return nuc_ovrlp
-    else:
-        return elec_overlap(t1,t2) * nuc_ovrlp
+    return elec_overlap(t1,t2) * nuc_ovrlp
 
 
 def v_integral(t1, t2, centroid, nuc_ovrlp=None):

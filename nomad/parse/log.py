@@ -15,7 +15,7 @@ def init_logfile(file_name):
     global log_file
 
     # log file gets named here, everybody else writes to this file
-    log_file = file_name.strip()
+    log_file = os.getcwd()+'/'+file_name.strip()
 
     # generate the allowed log file formats
     generate_formats()

@@ -280,6 +280,12 @@ def write_trajectory(chkpt, traj, time):
             d_shape   = (n_blk,) + t_data[data_label].shape
             max_shape = (None,)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
+            if d_type.type is np.unicode_:
+                print('dtype='+str(d_type)+' coverting to S')
+                print('d_shape='+str(d_shape))
+                print('max_shape='+str(max_shape))
+                print('first line='+str(t_data[data_label][0]))
+                d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
 

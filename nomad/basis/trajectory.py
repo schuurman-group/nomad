@@ -164,62 +164,62 @@ class Trajectory:
     # Functions to update information about the potential energy surface
     #
     #--------------------------------------------------------------------
-    def energy(self, state):
+    def energy(self, state, geom_chk=True):
         """Returns the potential energies.
 
         Add the energy shift right here. If not current, recompute them.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero and geom_chk:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         #return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
         return self.pes.get_data('potential')[state]
 
-    def derivative(self, state_i, state_j):
+    def derivative(self, state_i, state_j, geom_chk=True):
         """Returns the derivative with ket state = rstate.
 
         Bra state assumed to be the current state.
         """
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if geom_chk and np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.derivative() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         return self.pes.get_data('derivative')[:, state_i, state_j]
 
-    def hessian(self, state_i):
+    def hessian(self, state_i, geom_chk=True):
         """Returns the hessian of the potential on state state_i."""
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if geom_chk and np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.hessian() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         return self.pes.get_data('hessian')[:, :, state_i]
 
-    def coupling(self, state_i, state_j):
+    def coupling(self, state_i, state_j, geom_chk=True):
         """Returns the coupling between surfaces state_i and state_j."""
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if geom_chk and np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.coupling() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         return self.pes.get_data('coupling')[state_i, state_j]
 
-    def scalar_coup(self, state_i, state_j):
+    def scalar_coup(self, state_i, state_j, geom_chk=True):
         """Returns the scalar coupling for Hamiltonian
         block (self.state,c_state)."""
         if 'scalar_coup' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if geom_chk and np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.scalar_coup() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
         return self.pes.get_data('scalar_coup')[state_i, state_j]
 
-    def nact(self, state_i, state_j):
+    def nact(self, state_i, state_j, geom_chk=True):
         """Returns the derivative coupling between adiabatic states
         block (self.state,c_state)."""
         if 'nac' not in self.pes.avail_data():
             return 0.
-        if np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
+        if geom_chk and np.linalg.norm(self.pes.get_data('geom') - self.x()) > 10.*constants.fpzero:
             print('WARNING: trajectory.nact() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))

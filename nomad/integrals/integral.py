@@ -32,10 +32,9 @@ class Integral:
         return self.ints.nuc_overlap(bra_traj, ket_traj)
 
     @timings.timed
-    def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None, nuc_only=True):
+    def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None):
         """Calculates the trajectory overlap."""
-        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp,
-                                      nuc_only=nuc_only)
+        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
     @timings.timed
     def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):

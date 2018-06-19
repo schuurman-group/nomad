@@ -978,7 +978,8 @@ def get_adiabatic_phase(traj, new_coup):
     # pull data to make consistent
     if traj.pes is not None:
         old_coup = np.transpose(
-                   np.array([traj.derivative(min(state,i),max(state,i)) for i in range(traj.nstates)]))
+                   np.array([traj.derivative(min(state,i),max(state,i),geom_chk=False) 
+                                             for i in range(traj.nstates)]))
     else:
         old_coup = np.zeros((n_cart, traj.nstates))
 
@@ -1227,7 +1228,7 @@ def link_force(target, link_name):
 
 def pack_mocoef():
     """Loads orbitals from a mocoef file."""
-    mos = np.genfromtxt('mocoef',dtype=str,delimiter='\n')
+    mos = np.loadtxt('mocoef',dtype=bytes,delimiter='\n').astype(str)
     return mos
 
 
@@ -1235,7 +1236,3 @@ def write_mocoef(fname, mos):
     """Writes orbitals to mocoef file."""
     np.savetxt(str(fname), mos, fmt="%s")
 
-#    f = open(str(fname),'w')
-#    for i in range(len(mo_list)):
-#        f.write(str(mo_list[i]))
-#    f.close()
