@@ -116,7 +116,7 @@ def set_initial_coords(master):
             disp_p = delta_p * np.sqrt(freqs)
 
         x_sample = x_ref + disp_x
-        p_sample = p_ref + disp_p
+        p_samplt = p_ref + disp_p
 
         # add new trajectory to the bundle
         new_traj = template.copy()

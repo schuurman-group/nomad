@@ -7,7 +7,7 @@ import copy
 class Surface:
     """Object containing potential energy surface data."""
     def __init__(self):
-        self.standard_objs = ['geom','momentum','potential','derivative','hessian','coupling']
+        self.standard_objs = ['geom','potential','derivative','hessian','coupling']
         self.optional_objs = ['mo','dipole','atom_pop','sec_mom',
                          'diabat_pot','diabat_deriv','diabat_hessian',
                          'adt_mat','dat_mat','nac','scalar_coup']
@@ -36,6 +36,10 @@ class Surface:
     def avail_data(self):
         """Adds new item to dictionary"""
         return self.data.keys()
+
+    def valid_data(self, key):
+        """Return true if data is valid for addition to surface object"""
+        return key in self.standard_objs+self.optional_objs
 
     def copy(self):
         """Creates a copy of a Surface object."""

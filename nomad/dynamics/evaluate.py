@@ -85,8 +85,8 @@ def update_pes(master, update_integrals=True):
         # iterate over trajectories..
         for i in range(master.n_traj()):
             if master.traj[i].active:
-                master.traj[i].update_pes_info(glbl.interface.evaluate_trajectory(
-                                               master.traj[i], master.time))
+                pes_traji = glbl.interface.evaluate_trajectory(master.traj[i], master.time)
+                master.traj[i].update_pes_info(pes_traji)
 
         # ...and centroids if need be
         if update_integrals and glbl.master_int.require_centroids:

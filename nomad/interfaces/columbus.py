@@ -174,7 +174,6 @@ def evaluate_trajectory(traj, t=None):
     # create surface object to hold potential information
     col_surf = surface.Surface()
     col_surf.add_data('geom', traj.x())
-    col_surf.add_data('momentum', traj.p())
 
     # write geometry to file
     write_col_geom(traj.x())
@@ -227,15 +226,6 @@ def evaluate_trajectory(traj, t=None):
             deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.add_data('derivative', deriv)
 
-    # effective coupling is the nad projected onto velocity
-    coup = np.zeros((nstates, nstates),dtype='float')
-    for i in range(nstates):
-        if i == traj.state:
-            continue
-        coup[state,i] = np.dot(traj.velocity(), nad_coup[:,i])
-        coup[i,state] = coup[state,i]
-    col_surf.add_data('coupling', coup)
-
     # save restart files
     make_col_restart(traj)
 
@@ -261,7 +251,6 @@ def evaluate_centroid(Cent, t=None):
     col_surf      = surface.Surface()
 
     col_surf.add_data('geom', Cent.x())
-    col_surf.add_data('momentum', Cent.p())
 
     # write geometry to file
     write_col_geom(Cent.x())
@@ -290,12 +279,25 @@ def evaluate_centroid(Cent, t=None):
         deriv[:,state_j, state_i] = -nad_coup[:,state_j]
 
     col_surf.add_data('derivative', deriv)
-    col_surf.add_data('coupling', deriv)
 
     # save restart files
     make_col_restart(Cent)
 
     return col_surf
+
+def evaluate_coupling(traj):
+    """evaluate coupling between electronic states"""
+
+    # effective coupling is the nad projected onto velocity
+    coup = np.zeros((nstates, nstates),dtype='float')
+    vel  = traj.velocity()
+    for i in range(nstates):
+        if i == traj.state:
+            continue
+        coup[state,i] = np.dot(vel, traj.derivative(state,i))
+        coup[i,state] = -coup[state,i]
+    traj.pes.add_data('coupling', coup)
+    return
 
 
 #----------------------------------------------------------------

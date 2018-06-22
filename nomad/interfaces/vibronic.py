@@ -193,7 +193,6 @@ def evaluate_trajectory(traj, t=None):
 
     label = traj.label
     geom  = traj.x()
-    momt  = traj.p()
 
      # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
@@ -212,7 +211,6 @@ def evaluate_trajectory(traj, t=None):
     #** load the data into the pes object to pass to trajectory **
     t_data = surface.Surface()
     t_data.add_data('geom',geom)
-    t_data.add_data('momentum',momt)
 
     t_data.add_data('diabat_pot',diabpot)
     t_data.add_data('diabat_deriv',diabderiv1)
@@ -245,11 +243,6 @@ def evaluate_trajectory(traj, t=None):
                                       range(ham.nmode_total)] + nactmat))
         t_data.add_data('hessian',adiabderiv2)
 
-        coup = np.array([[np.dot(momt,nactmat[:,i,j]) for i in range(nsta)]
-                                                      for j in range(nsta)])
-        coup -= np.diag(coup.diagonal())
-        t_data.add_data('coupling',coup)
-
         # non-standard items
         t_data.add_data('nac',nactmat)
         t_data.add_data('scalar_coup',0.5*sctmat) #account for the 1/2 prefactor in the EOMs
@@ -263,11 +256,9 @@ def evaluate_trajectory(traj, t=None):
         t_data.add_data('potential',np.array([diabpot[i,i] for i in range(nsta)]))
         t_data.add_data('derivative',diabderiv1)
         t_data.add_data('hessian',diabderiv2)
-        t_data.add_data('coupling',diab_effcoup)
 
     data_cache[label] = t_data
     return t_data
-
 
 def evaluate_centroid(traj, t=None):
     """Evaluates the centroid.
@@ -276,6 +267,24 @@ def evaluate_centroid(traj, t=None):
     """
     return evaluate_trajectory(traj, t)
 
+def evaluate_coupling(traj):
+    """update the coupling to the other states"""
+
+    if glbl.variables['surface_rep'] == 'adiabatic':
+        vel   = traj.velocity()
+        deriv = traj.pes.get_data('derivative')
+ 
+        coup = np.array([[np.dot(vel, deriv[:,i,j]) for i in range(nsta)]
+                                                    for j in range(nsta)])
+        coup -= np.diag(coup.diagonal())
+        traj.pes.add_data('coupling',coup)
+
+    else:
+        diabpot          = traj.pes.get_data('diabat_pot')
+        diab_effcoup     = calc_diabeffcoup(diabpot)
+        traj.pes.add_data('coupling',diab_effcoup)
+
+    return
 
 #----------------------------------------------------------------------
 #

@@ -41,6 +41,10 @@ def step_wavefunction(master, dt):
         # the propagators update the potential energy surface as need be.
         glbl.integrator.propagate_wfn(master, time_step)
 
+        # update the couplings for all the trajectories
+        for i in range(master.n_traj()):
+            glbl.interface.evaluate_coupling(master.traj[i])
+ 
         # propagate amplitudes for 1/2 time step using x1
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)
@@ -115,6 +119,9 @@ def step_trajectory(traj, init_time, dt):
 
         # propagate single trajectory
         glbl.integrator.propagate_trajectory(traj, time_step)
+
+        # update the couplings for the trajectory
+        glbl.interface.evaluate_coupling(traj)
 
         # update current time
         proposed_time = current_time + time_step

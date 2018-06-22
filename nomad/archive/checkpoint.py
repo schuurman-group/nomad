@@ -282,10 +282,6 @@ def write_trajectory(chkpt, traj, time):
             max_shape = (None,)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
             if d_type.type is np.unicode_:
-                print('dtype='+str(d_type)+' coverting to S')
-                print('d_shape='+str(d_shape))
-                print('max_shape='+str(max_shape))
-                print('first line='+str(t_data[data_label][0]))
                 d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
@@ -411,16 +407,19 @@ def read_integral(chkpt, integral, time):
 def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
     # populate the surface object in the trajectory
-    pes = surface.Surface()
-    for data_label in chkpt[t_grp].keys():
-        if data_label == 'time' or data_label == 'glbl':
-            continue
-        dset = chkpt[t_grp+'/'+data_label]
-        pes.add_data(data_label, dset[t_row])
 
     # set information about the trajectory itself
     data_row = chkpt[t_grp+'/glbl'][t_row]
     [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+
+    pes = surface.Surface()
+    for data_label in chkpt[t_grp].keys():
+        if pes.valid_data(data_label):
+            dset = chkpt[t_grp+'/'+data_label]
+            pes.add_data(data_label, dset[t_row])
+
+    # currently, momentum has to be read in separately
+    momt    = chkpt[t_grp+'/momentum'][t_row]
 
     new_traj.state  = int(state)
     new_traj.parent = int(parent)
@@ -429,30 +428,33 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
 
     new_traj.update_pes_info(pes)
     new_traj.update_x(new_traj.pes.get_data('geom'))
-    new_traj.update_p(new_traj.pes.get_data('momentum'))
+    new_traj.update_p(momt)
 
 
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
-    # populate the surface object in the trajectory
-    pes = surface.Surface()
-    for data_label in chkpt[c_grp].keys():
-        if data_label == 'time' or data_label == 'glbl':
-            continue
-        dset = chkpt[c_grp+'/'+data_label]
-        pes.add_data(data_label, dset[c_row])
 
     # set information about the trajectory itself
     parent = [0.,0.]
     states = [0.,0.]
     [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
 
+    # populate the surface object in the trajectory
+    pes = surface.Surface()
+    for data_label in chkpt[c_grp].keys():
+        if pes.valid_data(data_label):
+            dset = chkpt[c_grp+'/'+data_label]
+            pes.add_data(data_label, dset[c_row])
+
+    # currently, momentum has to be read in separately
+    momt    = chkpt[c_grp+'/momentum'][t_row]
+
     new_cent.parents = int(parent)
     new_cent.states  = int(states)
 
     new_cent.update_pes_info(pes)
     new_cent.update_x(new_cent.pes.get_data('geom'))
-    new_cent.update_p(new_cent.pes.get_data('momentum'))
+    new_cent.update_p(momt)
 
 
 def get_time_index(chkpt, grp_name, time):
@@ -505,10 +507,11 @@ def package_trajectory(traj, time):
     # time is not an element in a trajectory, but necessary to
     # uniquely tag everything
     traj_data = dict(
-        time = np.array([time],dtype='float'),
-        glbl = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
+        time     = np.array([time],dtype='float'),
+        glbl     = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
                                  traj.amplitude.real, traj.amplitude.imag]),
-                                 traj.last_spawn))
+                                 traj.last_spawn)),
+        momentum = traj.p()
                     )
 
     # store everything about the surface
@@ -521,8 +524,9 @@ def package_trajectory(traj, time):
 def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
-        time = np.array([time],dtype='float'),
-        glbl = np.concatenate((cent.parents, cent.states))
+        time     = np.array([time],dtype='float'),
+        glbl     = np.concatenate((cent.parents, cent.states)),
+        momentum = cent.p()
                      )
 
     # last, store everything about the surface

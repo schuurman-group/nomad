@@ -52,6 +52,10 @@ def init_wavefunction(master):
         # are set, update the potential information
         evaluate.update_pes(master)
 
+        # update the couplings for all the trajectories
+        for i in range(master.n_traj()):
+            glbl.interface.evaluate_coupling(master.traj[i])    
+
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)
