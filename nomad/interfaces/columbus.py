@@ -244,8 +244,8 @@ def evaluate_centroid(Cent, t=None):
         print('evaluate_centroid called with ' +
               'id associated with trajectory, label=' + str(label))
 
-    state_i = min(Cent.pstates)
-    state_j = max(Cent.pstates)
+    state_i = min(Cent.states)
+    state_j = max(Cent.states)
 
     # create surface object to hold potential information
     col_surf      = surface.Surface()
@@ -287,6 +287,8 @@ def evaluate_centroid(Cent, t=None):
 
 def evaluate_coupling(traj):
     """evaluate coupling between electronic states"""
+    nstates = traj.nstates
+    state   = traj.state
 
     # effective coupling is the nad projected onto velocity
     coup = np.zeros((nstates, nstates),dtype='float')
@@ -474,9 +476,9 @@ def run_col_mrci(traj, ci_restart, t):
     # else, this is a centroid
     else:
         # only need gradient if statei != statej
-        state_i = min(traj.pstates)
-        state_j = max(traj.pstates)
-        int_trans = (traj.pstates[0] != traj.pstates[1])
+        state_i = min(traj.states)
+        state_j = max(traj.states)
+        int_trans = (traj.states[0] != traj.states[1])
         tran_den  = [[state_i+1, state_j+1]]
 
     # append entries in tran_den to ciudgin file
@@ -743,8 +745,8 @@ def run_col_coupling(traj, ci_ener, t):
         c_states   = range(traj.nstates)
         delta_e_max = coup_de_thresh
     elif type(traj) is centroid.Centroid:
-        t_state    = min(traj.pstates)
-        c_states   = [max(traj.pstates)]
+        t_state    = min(traj.states)
+        c_states   = [max(traj.states)]
         # if computing coupling regardless of delta e,
         # set threshold to something we know won't trigger
         # the ignoring of the coupling
@@ -891,7 +893,7 @@ def get_col_restart(traj):
 
     if type(traj) is centroid.Centroid:
         # centroids have two parents
-        par_arr = [str(traj.parent[i]) for i in range(len(traj.parent))]
+        par_arr = [str(traj.parents[i]) for i in range(len(traj.parents))]
     else:
         # if trajectory, there is a single parent
         par_arr = [str(traj.parent)]

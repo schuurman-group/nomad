@@ -75,7 +75,7 @@ def step_wavefunction(master, dt):
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.master_mat(master, glbl.master_int)
+                 glbl.master_mat.build(master, glbl.master_int)
 
             # re-expression of the basis using the matching pursuit
             # algorithm
