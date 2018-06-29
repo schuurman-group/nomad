@@ -95,9 +95,9 @@ def update_pes(master, update_integrals=True):
                 for j in range(i):
                 # if centroid not initialized, skip it
                     if glbl.master_int.centroid_required[i][j]:
-                        glbl.master_int.centroid[i][j].update_pes_info(
-                                          glbl.interface.evaluate_centroid(
-                                          glbl.master_int.centroid[i][j], master.time))
+                        pes_centij = glbl.interface.evaluate_centroid(
+                                          glbl.master_int.centroid[i][j], master.time)
+                        glbl.master_int.centroid[i][j].update_pes_info(pes_centij)
                         glbl.master_int.centroid[j][i] = glbl.master_int.centroid[i][j]
 
     return success

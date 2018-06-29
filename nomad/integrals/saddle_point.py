@@ -120,6 +120,6 @@ def sdot_integral(t1, t2, nuc_ovrlp=None):
                                         t2.widths(),t2.x(),t2.p())
 
         sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force())
-                +1j * t2.phase_dot() * nuc_ovrlp)
+                + 1j * t2.phase_dot() * nuc_ovrlp)
 
         return sdot
