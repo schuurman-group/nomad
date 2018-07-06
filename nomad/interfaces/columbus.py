@@ -375,7 +375,7 @@ def run_col_mcscf(traj, t):
     if type(traj) is trajectory.Trajectory:
         state = traj.state
     else:
-        state = min(traj.pstates)
+        state = min(traj.states)
 
     os.chdir(work_path)
 
@@ -977,7 +977,7 @@ def get_adiabatic_phase(traj, new_coup):
     if type(traj) is trajectory.Trajectory:
         state = traj.state
     else:
-        state = min(traj.pstates)
+        state = min(traj.states)
 
     # pull data to make consistent
     if traj.pes is not None:

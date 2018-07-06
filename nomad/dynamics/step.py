@@ -77,6 +77,8 @@ def step_wavefunction(master, dt):
             if basis_grown or basis_pruned:
                  glbl.master_mat.build(master, glbl.master_int)
                  master.update_matrices(glbl.master_mat)
+                 for i in range(master.n_traj()):
+                     glbl.interface.evaluate_coupling(master.traj[i])
 
             # re-expression of the basis using the matching pursuit
             # algorithm

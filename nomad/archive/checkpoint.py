@@ -331,6 +331,8 @@ def write_centroid(chkpt, cent, time):
             d_shape   = (n_blk,) + c_data[data_label].shape
             max_shape = (None,)   + c_data[data_label].shape
             d_type    = c_data[data_label].dtype
+            if d_type.type is np.unicode_:
+                d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = c_data[data_label]
 
