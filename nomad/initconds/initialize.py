@@ -3,12 +3,12 @@ Routines for initializing dynamics calculations.
 """
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.parse.glbl as glbl
-import nomad.parse.log as log
-import nomad.basis.trajectory as trajectory
-import nomad.basis.wavefunction as wavefunction
-import nomad.dynamics.evaluate as evaluate
-import nomad.archive.checkpoint as checkpoint
+import nomad.simulation.glbl as glbl
+import nomad.simulation.log as log
+import nomad.simulation.trajectory as trajectory
+import nomad.simulation.wavefunction as wavefunction
+import nomad.simulation.evaluate as evaluate
+import nomad.simulation.checkpoint as checkpoint
 
 
 def init_wavefunction(master):
@@ -32,7 +32,7 @@ def init_wavefunction(master):
     else:
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
-        glbl.distrib.set_initial_coords(master)
+        glbl.init_conds.set_initial_coords(master)
 
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
@@ -54,7 +54,7 @@ def init_wavefunction(master):
 
         # update the couplings for all the trajectories
         for i in range(master.n_traj()):
-            glbl.interface.evaluate_coupling(master.traj[i])    
+            glbl.interface.evaluate_coupling(master.traj[i])
 
         # compute the hamiltonian matrix...
         glbl.master_mat.build(master, glbl.master_int)

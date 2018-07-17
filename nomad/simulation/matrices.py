@@ -16,8 +16,8 @@ As a matter of course, this function also builds:
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.utils.linalg as linalg
-import nomad.utils.timings as timings
+import nomad.math.linalg as linalg
+import nomad.simulation.timings as timings
 
 
 class Matrices:

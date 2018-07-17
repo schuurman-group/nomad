@@ -3,7 +3,7 @@ Compute Bra-ket averaged Taylor expansion integrals over trajectories
 traveling on adiabataic potentials
 """
 import numpy as np
-import nomad.parse.glbl as glbl
+import nomad.simulation.glbl as glbl
 import nomad.integrals.nuclear_gaussian as nuclear
 
 # Let propagator know if we need data at centroids to propagate

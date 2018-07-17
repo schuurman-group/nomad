@@ -4,8 +4,8 @@ The Wavefunction object and its associated functions.
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.utils.timings as timings
-import nomad.basis.matrices as matrices
+import nomad.simulation.timings as timings
+import nomad.simulation.matrices as matrices
 
 
 class Wavefunction:

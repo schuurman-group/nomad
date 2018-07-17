@@ -3,10 +3,10 @@ Module for cleanup operations at the end of a simulation or an exception.
 """
 import re
 import traceback
-import nomad.utils.timings as timings
-import nomad.parse.glbl as glbl
-import nomad.parse.log as log
-import nomad.archive.printing as printing
+import nomad.simulation.timings as timings
+import nomad.simulation.glbl as glbl
+import nomad.simulation.log as log
+import nomad.simulation.printing as printing
 
 
 def cleanup_end():

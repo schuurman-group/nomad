@@ -6,12 +6,12 @@ import os
 import shutil
 import subprocess
 import numpy as np
-import nomad.utils.constants as constants
-import nomad.parse.glbl as glbl
-import nomad.parse.atom_lib as atom_lib
-import nomad.basis.trajectory as trajectory
+import nomad.math.constants as constants
+import nomad.simulation.glbl as glbl
+import nomad.simulation.atom_lib as atom_lib
+import nomad.simulation.trajectory as trajectory
+import nomad.simulation.surface as surface
 import nomad.integrals.centroid as centroid
-import nomad.archive.surface as surface
 
 
 # path to columbus executables

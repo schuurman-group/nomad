@@ -3,8 +3,8 @@ The Trajectory object and its associated functions.
 """
 import copy
 import numpy as np
-import nomad.utils.timings as timings
-import nomad.utils.constants as constants
+import nomad.simulation.timings as timings
+import nomad.math.constants as constants
 
 
 class Trajectory:

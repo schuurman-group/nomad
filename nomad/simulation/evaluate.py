@@ -5,9 +5,9 @@ All calls to update the pes are localized here.  This facilitates parallel
 execution of potential evaluations which is essential for ab initio PES.
 """
 import numpy as np
-import nomad.utils.constants as constants
-import nomad.parse.glbl as glbl
-import nomad.basis.trajectory as trajectory
+import nomad.math.constants as constants
+import nomad.simulation.glbl as glbl
+import nomad.simulation.trajectory as trajectory
 import nomad.integrals.centroid as centroid
 
 pes_cache  = dict()

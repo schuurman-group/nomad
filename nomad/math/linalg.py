@@ -2,7 +2,7 @@
 Linear algebra library routines.
 """
 import numpy as np
-import nomad.parse.glbl as glbl
+import nomad.simulation.glbl as glbl
 
 
 def pseudo_inverse(mat):

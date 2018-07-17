@@ -2,15 +2,15 @@
 Routines for propagating a wavefunction forward by a time step.
 """
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.parse.log as log
-import nomad.dynamics.evaluate as evaluate
-#import nomad.basis.matching_pursuit as mp
+import nomad.simulation.glbl as glbl
+import nomad.simulation.log as log
+import nomad.simulation.evaluate as evaluate
+#import nomad.simulation.matching_pursuit as mp
 
 
 def time_step(master):
     """ Determine time step based on whether in coupling regime"""
-    if glbl.grow.in_coupled_regime(master):
+    if glbl.adapt.in_coupled_regime(master):
         return float(glbl.propagate['coupled_time_step'])
 
     else:
@@ -62,7 +62,7 @@ def step_wavefunction(master, dt):
             # update the wavefunction time
             master.time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = glbl.grow.spawn(master, time_step)
+            basis_grown  = glbl.adapt.spawn(master, time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
 
@@ -169,7 +169,7 @@ def check_step_wfn(master0, master, time_step):
     coupling region."""
 
     # if we're in the coupled regime and using default time step, reject
-    if glbl.grow.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
+    if glbl.adapt.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
 
     # ...or if there's a numerical error in the simulation:

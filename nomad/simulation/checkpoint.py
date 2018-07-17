@@ -4,11 +4,11 @@ Routines for reading input files and writing log files.
 import os
 import h5py
 import numpy as np
-import nomad.parse.glbl as glbl
 import nomad.integrals.integral as integral
-import nomad.basis.wavefunction as wavefunction
-import nomad.basis.trajectory as trajectory
-import nomad.archive.surface as surface
+import nomad.simulation.glbl as glbl
+import nomad.simulation.wavefunction as wavefunction
+import nomad.simulation.trajectory as trajectory
+import nomad.simulation.surface as surface
 
 
 chkpt_file = ''

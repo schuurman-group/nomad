@@ -3,7 +3,7 @@ Computes matrix elements over the nuclear component of the trajectory
 basis function, assumes bra is also product of frozen gaussians
 """
 import numpy as np
-import nomad.utils.constants as constants
+import nomad.math.constants as constants
 
 
 print('WARNING: Using uncompiled Python module for Gaussian integrals. '

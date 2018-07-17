@@ -2,7 +2,7 @@
 Routines for reading input files and writing log files.
 """
 import os
-import nomad.parse.glbl as glbl
+import nomad.simulation.glbl as glbl
 
 
 log_file = ''

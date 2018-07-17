@@ -3,10 +3,10 @@ Routines for running a vibronic coupling calculation.
 """
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.utils.constants as constants
-import nomad.parse.glbl as glbl
-import nomad.parse.log as log
-import nomad.archive.surface as surface
+import nomad.math.constants as constants
+import nomad.simulation.glbl as glbl
+import nomad.simulation.log as log
+import nomad.simulation.surface as surface
 
 
 ham = None

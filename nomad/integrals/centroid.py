@@ -3,8 +3,8 @@ The Centroid object and its associated functions.
 """
 import copy
 import numpy as np
-import nomad.utils.timings as timings
-import nomad.utils.constants as constants
+import nomad.simulation.timings as timings
+import nomad.math.constants as constants
 
 
 def cent_label(itraj_id, jtraj_id):

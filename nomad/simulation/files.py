@@ -6,10 +6,10 @@ import re
 import ast
 import shutil
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.parse.atom_lib as atom_lib
+import nomad.simulation.glbl as glbl
+import nomad.simulation.atom_lib as atom_lib
 import nomad.integrals.integral as integral
-import nomad.basis.matrices as matrices
+import nomad.simulation.matrices as matrices
 
 
 def read_input():
@@ -224,17 +224,17 @@ def validate():
                                str(glbl.iface_params['interface']))
 
     try:
-        glbl.distrib = __import__('nomad.sampling.'+glbl.sampling['init_sampling'],
+        glbl.init_conds = __import__('nomad.initconds.'+glbl.sampling['init_sampling'],
                                  fromlist=['NA'])
     except ImportError:
-        print('Cannot import sampling: nomad.sampling.'+
+        print('Cannot import initial conditions: nomad.initconds.'+
                                str(glbl.sampling['init_sampling']))
 
     try:
-        glbl.grow = __import__('nomad.grow.'+glbl.spawning['spawning'],
+        glbl.adapt = __import__('nomad.adapt.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
-        print('Cannot import spawning: nomad.grow.'+
+        print('Cannot import spawning: nomad.adapt.'+
                                str(glbl.spawning['spawning']))
 
     try:

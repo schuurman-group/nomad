@@ -5,15 +5,15 @@ The main nomad driver.
 import sys
 import numpy as np
 import mpi4py.MPI as MPI
-import nomad.parse.glbl as glbl
-import nomad.parse.files as files
-import nomad.parse.log as log
-import nomad.archive.checkpoint as checkpoint
-import nomad.basis.wavefunction as wavefunction
-import nomad.basis.initialize as initialize
-import nomad.dynamics.step as step
-import nomad.utils.timings as timings
-import nomad.utils.cleanup as cleanup
+import nomad.simulation.glbl as glbl
+import nomad.simulation.files as files
+import nomad.simulation.log as log
+import nomad.simulation.checkpoint as checkpoint
+import nomad.simulation.step as step
+import nomad.simulation.timings as timings
+import nomad.simulation.cleanup as cleanup
+import nomad.simulation.wavefunction as wavefunction
+import nomad.initconds.initialize as initialize
 
 
 def init():

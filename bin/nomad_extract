@@ -5,10 +5,10 @@ Module used to extract data from nomad output files.
 import os
 import sys
 import numpy as np
-import nomad.archive.checkpoint as checkpoint
-import nomad.archive.printing as printing
-import nomad.basis.wavefunction as wavefunction
-import nomad.basis.matrices as matrices
+import nomad.simulation.checkpoint as checkpoint
+import nomad.simulation.printing as printing
+import nomad.simulation.wavefunction as wavefunction
+import nomad.simulation.matrices as matrices
 import nomad.integrals.integral as integral
 
 

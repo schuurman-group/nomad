@@ -4,7 +4,7 @@ Routines for reading input files and writing log files.
 import os
 import shutil
 import numpy as np
-import nomad.parse.glbl as glbl
+import nomad.simulation.glbl as glbl
 np.set_printoptions(threshold = np.inf)
 
 
