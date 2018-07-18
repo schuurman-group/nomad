@@ -122,8 +122,8 @@ class Trajectory:
         """Updates the nuclear phase."""
 #        self.gamma = 0.5 * np.dot(self.x(), self.p())
         self.gamma = phase
-        #if abs(self.gamma) > 2*np.pi:
-        #    self.gamma = self.gamma % 2*np.pi
+        if abs(self.gamma) > 2*np.pi:
+            self.gamma = self.gamma % 2*np.pi
 
     def update_amplitude(self, amplitude):
         """Updates the amplitude of the trajectory."""
