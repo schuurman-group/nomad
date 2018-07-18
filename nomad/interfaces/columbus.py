@@ -191,7 +191,7 @@ def evaluate_trajectory(traj, t=None):
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(traj, ci_restart, t)
-    col_surf.add_data('potential', potential)
+    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
     # run properties, dipoles, etc.
@@ -219,11 +219,12 @@ def evaluate_trajectory(traj, t=None):
     # run coupling to other states
     nad_coup = run_col_coupling(traj, potential, t)
     for i in range(nstates):
-        if i != state:
-            state_i = min(i,state)
-            state_j = max(i,state)
-            deriv[:, state_i, state_j] =  nad_coup[:, i]
-            deriv[:, state_j, state_i] = -nad_coup[:, i]
+        if i == state:
+            continue
+        state_i = min(i,state)
+        state_j = max(i,state)
+        deriv[:, state_i, state_j] =  nad_coup[:, i]
+        deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.add_data('derivative', deriv)
 
     # save restart files
@@ -268,7 +269,7 @@ def evaluate_centroid(Cent, t=None):
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(Cent, ci_restart, t)
-    col_surf.add_data('potential', potential)
+    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
     deriv = np.zeros((Cent.dim, nstates, nstates))
@@ -294,7 +295,7 @@ def evaluate_coupling(traj):
     coup = np.zeros((nstates, nstates),dtype='float')
     vel  = traj.velocity()
     for i in range(nstates):
-        if i == traj.state:
+        if i == state:
             continue
         coup[state,i] = np.dot(vel, traj.derivative(state,i))
         coup[i,state] = -coup[state,i]

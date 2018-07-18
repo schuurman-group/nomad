@@ -197,7 +197,9 @@ def extract_trajectories(wfn):
 
         # print coupling
         prnt_data = [wfn.time]
-        prnt_data.extend([np.linalg.norm(traj.derivative(state,i)) for i in range(traj.nstates)])
+        deriv_coup = [np.linalg.norm(traj.derivative(state,i)) for i in range(traj.nstates)]
+        deriv_coup[state] = 0.
+        prnt_data.extend(deriv_coup)
         prnt_data.extend([traj.coupling(state,i) for i in range(traj.nstates)])
         checkpoint.print_traj_row(label,'coup', prnt_data)
 
