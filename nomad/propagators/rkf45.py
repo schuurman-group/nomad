@@ -30,9 +30,9 @@ step size sfac*dt. Otherwise, use sfac*dt for next step. Update
 position, momentum using x4, p4.
 """
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.utils.timings as timings
-import nomad.dynamics.evaluate as evaluate
+import nomad.core.glbl as glbl
+import nomad.core.timings as timings
+import nomad.core.surface as evaluate
 
 
 rk_ordr = 6

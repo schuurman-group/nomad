@@ -6,52 +6,42 @@ import re
 import ast
 import shutil
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.parse.atom_lib as atom_lib
+import nomad.core.glbl as glbl
+import nomad.core.atom_lib as atom_lib
 import nomad.integrals.integral as integral
-import nomad.basis.matrices as matrices
+import nomad.core.matrices as matrices
 
 
-def read_input():
+def read_input(fname):
     """Reads the nomad.input files.
 
     This file contains variables related to the running of the
     dynamics simulation.
+
+    Valid sections are:
+        initial_conditions
+        propagation
+        spawning
+        interface
+        geometry
+        printing
     """
-    # save the name of directory where program is called from
-    glbl.home_path = os.getcwd()
-
-    # set a sensible default for glbl.scr_path
-    glbl.scr_path = os.environ['TMPDIR']
-    if os.path.exists(glbl.scr_path) and glbl.mpi['rank']==0:
-        shutil.rmtree(glbl.scr_path)
-        os.makedirs(glbl.scr_path)
-
-    # Read nomad.input. Valid sections are:
-    #   initial_conditions
-    #   propagation
-    #   spawning
-    #   interface
-    #   geometry
-    #   printing
-
-    # Read nomad.input. Small enough to gulp the whole thing
-    with open('nomad.input', 'r') as infile:
+    # Read input file. Small enough to gulp the whole thing
+    with open(glbl.home_path + '/' + fname, 'r') as infile:
         nomad_input = infile.readlines()
 
     # remove comment lines
-    nmoad_input = [item for item in nomad_input if
-                 not item.startswith('#') and not item.startswith('!')]
+    nomad_input = [re.split('#|!', ln)[0] for ln in nomad_input]
 
     sec_strings = list(glbl.input_groups)
 
-    current_line = 0
     # look for begining of input section
+    current_line = 0
     while current_line < len(nomad_input):
-        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'),nomad_input[current_line])
+        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'), nomad_input[current_line])
                      for i in range(len(sec_strings))]
         if all([v is None for v in sec_start]):
-            current_line+=1
+            current_line += 1
         else:
             section = next(item for item in sec_start
                            if item is not None).string
@@ -224,17 +214,17 @@ def validate():
                                str(glbl.iface_params['interface']))
 
     try:
-        glbl.distrib = __import__('nomad.sampling.'+glbl.sampling['init_sampling'],
+        glbl.init_conds = __import__('nomad.initconds.'+glbl.sampling['init_sampling'],
                                  fromlist=['NA'])
     except ImportError:
-        print('Cannot import sampling: nomad.sampling.'+
+        print('Cannot import initial conditions: nomad.initconds.'+
                                str(glbl.sampling['init_sampling']))
 
     try:
-        glbl.grow = __import__('nomad.grow.'+glbl.spawning['spawning'],
+        glbl.adapt = __import__('nomad.adapt.'+glbl.spawning['spawning'],
                                    fromlist=['a'])
     except ImportError:
-        print('Cannot import spawning: nomad.grow.'+
+        print('Cannot import spawning: nomad.adapt.'+
                                str(glbl.spawning['spawning']))
 
     try:

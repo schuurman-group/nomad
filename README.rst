@@ -18,4 +18,5 @@ To create a local nomad directory and compile, use::
     $ cd nomad
     $ python setup.py install
 
-This will also install the nomad driver (`nomad`) to the path.
+This will also install the nomad driver (`nomad_driver`) and the
+checkpoint file extractor (`nomad_extract`) to the path.

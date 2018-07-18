@@ -2,18 +2,18 @@
 """
 The main nomad driver.
 """
+import os
 import sys
 import numpy as np
 import mpi4py.MPI as MPI
-import nomad.parse.glbl as glbl
-import nomad.parse.files as files
-import nomad.parse.log as log
-import nomad.archive.checkpoint as checkpoint
-import nomad.basis.wavefunction as wavefunction
-import nomad.basis.initialize as initialize
-import nomad.dynamics.step as step
-import nomad.utils.timings as timings
-import nomad.utils.cleanup as cleanup
+import nomad.core.glbl as glbl
+import nomad.core.files as files
+import nomad.core.log as log
+import nomad.core.checkpoint as checkpoint
+import nomad.core.step as step
+import nomad.core.timings as timings
+import nomad.core.wavefunction as wavefunction
+import nomad.initconds.initialize as initialize
 
 
 def init():
@@ -36,14 +36,35 @@ def init():
 
     # read in options/variables pertaining to the running
     # of the dynamics, pass the starting time of the simluation
-    # a nd the end time
-    files.read_input()
+    # and the end time
+    input_fname = process_arguments(sys.argv)
+    files.read_input(input_fname)
 
     # initialize random number generator
     np.random.seed(glbl.sampling['seed'])
 
     # initialize the running calculation log
-    log.init_logfile('nomad.log')
+    log.init_logfile()
+
+
+def process_arguments(args):
+    """Process command line arguments."""
+    glbl.home_path = os.getcwd()
+    proj = args[1].split('.inp')[0]
+
+    if '-o' in sys.argv:
+        log_path = args[args.index('-o')+1]
+        glbl.log_file = log_path + '/' + proj + '.log'
+    else:
+        glbl.log_file = glbl.home_path + '/' + proj + '.log'
+
+    if '-c' in sys.argv:
+        chkpt_path = args[args.index('-c')+1]
+        glbl.chkpt_file = chkpt_path + '/' + proj + '.hdf5'
+    else:
+        glbl.chkpt_file = glbl.home_path + '/' + proj + '.hdf5'
+
+    return args[1]
 
 
 def main():
@@ -74,7 +95,7 @@ def main():
                                           time=master.time)
 
     # clean up, stop the global timer and write logs
-    cleanup.cleanup_end()
+    log.cleanup_end()
 
 
 if __name__ == '__main__':
@@ -85,6 +106,6 @@ if __name__ == '__main__':
     # initialize
     init()
     # if an error occurs, cleanup and report the error
-    sys.excepthook = cleanup.cleanup_exc
+    sys.excepthook = log.cleanup_exc
     # run the main routine
     main()

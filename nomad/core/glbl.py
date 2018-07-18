@@ -3,15 +3,16 @@ Conversion factors and constants for FMSpy.
 """
 
 interface = None
-distrib = None
-spawn = None
+init_conds = None
+adapt = None
 integrator = None
 
 master_mat = None
 master_int = None
 
-scr_path = ''
 home_path = ''
+log_file = ''
+chkpt_file = ''
 
 # contains global variables that are not user-specified
 variables = dict(
@@ -19,7 +20,7 @@ variables = dict(
   bundle0  = None,
   # surface representation: either adiabatic or diabatic
   surface_rep = 'adiabatic'
-)
+                 )
 
 # MPI variables
 mpi = dict(

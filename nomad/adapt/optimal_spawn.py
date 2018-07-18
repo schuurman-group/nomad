@@ -15,11 +15,11 @@ child(s',ti) <------------- child(s',ts)
 2. If parent_i is coupled to another.
 """
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.parse.log as log
-import nomad.grow.utilities as utils
-import nomad.dynamics.step as step
-import nomad.dynamics.evaluate as evaluate
+import nomad.core.glbl as glbl
+import nomad.core.log as log
+import nomad.core.step as step
+import nomad.core.surface as evaluate
+import nomad.adapt.utilities as utils
 
 coup_hist = []
 

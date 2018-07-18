@@ -19,9 +19,9 @@ values of n.
 For more details, see http://apps.nrbook.com/fortran/index.html.
 """
 import numpy as np
-import nomad.parse.glbl as glbl
-import nomad.utils.timings as timings
-import nomad.dynamics.evaluate as evaluate
+import nomad.core.glbl as glbl
+import nomad.core.timings as timings
+import nomad.core.surface as evaluate
 
 propphase = glbl.propagate['phase_prop']
 

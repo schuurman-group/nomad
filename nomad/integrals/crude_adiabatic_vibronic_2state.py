@@ -5,8 +5,8 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
-import nomad.utils.constants as constants
-import nomad.parse.glbl as glbl
+import nomad.math.constants as constants
+import nomad.core.glbl as glbl
 import nomad.integrals.nuclear_gaussian_ccs as nuclear
 
 

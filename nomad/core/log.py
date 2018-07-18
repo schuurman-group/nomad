@@ -2,21 +2,18 @@
 Routines for reading input files and writing log files.
 """
 import os
-import nomad.parse.glbl as glbl
+import re
+import traceback
+import nomad.core.timings as timings
+import nomad.core.glbl as glbl
 
 
-log_file = ''
 log_format  = dict()
 print_level = dict()
 
 
-def init_logfile(file_name):
+def init_logfile():
     """Documentation to come"""
-    global log_file
-
-    # log file gets named here, everybody else writes to this file
-    log_file = os.getcwd()+'/'+file_name.strip()
-
     # generate the allowed log file formats
     generate_formats()
 
@@ -26,17 +23,16 @@ def init_logfile(file_name):
 
 def print_message(otype, data):
     """Prints a string to the log file."""
-    global log_format, print_level, log_file
+    global log_format, print_level
 
     if glbl.mpi['rank'] == 0:
         if otype not in log_format:
             print('CANNOT WRITE otype=' + str(otype) + '\n')
 
         elif glbl.printing['print_level'] >= print_level[otype]:
-            with open(log_file, 'a') as logfile:
+            with open(glbl.log_file, 'a') as logfile:
                 logfile.write(log_format[otype].format(*data))
 
-    return
 
 def print_spawn_log(data):
     """Print the spawn log.
@@ -69,6 +65,37 @@ def print_spawn_log(data):
                 outfile.write(spawn_format.format(*data))
 
 
+def cleanup_end():
+    """Cleans up the FMS log file if calculation completed."""
+    # simulation ended
+    print_message('complete', [])
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_message('timings', [t_table])
+
+
+def cleanup_exc(etyp, val, tb):
+    """Cleans up the FMS log file if an exception occurs."""
+    # print exception
+    exception = ''.join(traceback.format_exception(etyp, val, tb))
+    print_message('error', [rm_timer(exception)])
+
+    # stop remaining timers
+    for timer in timings.active_stack[:0:-1]:
+        timings.stop(timer.name)
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_message('timings', [t_table])
+
+    # abort other processes if running in parallel
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].Abort(1)
+
+
 #-----------------------------------------------------------------------------------
 #
 # Private Functions
@@ -76,10 +103,8 @@ def print_spawn_log(data):
 #-----------------------------------------------------------------------------------
 def print_header():
     """Documentation to come"""
-    global log_file
-
     # ------------------------- log file formats --------------------------
-    with open(log_file, 'w') as logfile:
+    with open(glbl.log_file, 'w') as logfile:
         log_str = (' ---------------------------------------------------\n' +
                    ' NOMAD: NOnadiabatc Multistate Adaptive Dynamics    \n' +
                    ' ---------------------------------------------------\n' +
@@ -90,8 +115,9 @@ def print_header():
                    '\n' +
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
-                   ' home_path   = ' + str(glbl.home_path) + '\n' +
-                   ' scr_path    = ' + os.uname()[1] + ':' + glbl.scr_path + '\n')
+                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.home_path) + '\n' +
+                   ' log_file    = ' + os.uname()[1] + ':' + glbl.log_file + '\n' +
+                   ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.chkpt_file + '\n')
         logfile.write(log_str)
 
         logfile.write('\n nomad simulation keywords\n' +
@@ -154,3 +180,16 @@ def generate_formats():
     print_level['complete']       = 0
     print_level['error']          = 0
     print_level['timings']        = 0
+
+
+def rm_timer(exc):
+    """Removes the timer lines from an Exception traceback."""
+    tb = exc.split('\n')
+    regex = re.compile('.*timings\.py.*in (hooked|_run_func)')
+    i = 0
+    while i < len(tb):
+        if re.match(regex, tb[i]):
+            tb = tb[:i] + tb[i+2:]
+        else:
+            i += 1
+    return '\n'.join(tb)

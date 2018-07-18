@@ -2,7 +2,7 @@
 Routines for computing integrals.
 """
 import numpy as np
-import nomad.utils.timings as timings
+import nomad.core.timings as timings
 import nomad.integrals.centroid as centroid
 
 

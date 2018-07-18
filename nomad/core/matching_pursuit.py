@@ -4,7 +4,7 @@ The matching pursuit module.
 The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
 """
 import numpy as np
-import nomad.utils.linalg as linalg
+import nomad.math.linalg as linalg
 
 
 selected = []

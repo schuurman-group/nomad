@@ -5,10 +5,9 @@ Module used to extract data from nomad output files.
 import os
 import sys
 import numpy as np
-import nomad.archive.checkpoint as checkpoint
-import nomad.archive.printing as printing
-import nomad.basis.wavefunction as wavefunction
-import nomad.basis.matrices as matrices
+import nomad.core.checkpoint as checkpoint
+import nomad.core.wavefunction as wavefunction
+import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
 
@@ -44,7 +43,7 @@ def main():
     mat     = matrices.Matrices()
     ncrd    = wfn0.traj[0].dim
     nstates = wfn0.traj[0].nstates
-    printing.generate_data_formats(ncrd, nstates)
+    checkpoint.generate_data_formats(ncrd, nstates)
 
     # if we want all times, run through all the data
     if time is None:
@@ -74,8 +73,13 @@ def process_arguments(args):
     to put it.
     """
     # a list of valid arguments and the default values
-    data_lst = {'-all':False,      '-energy':False,       '-pop':False, '-auto':False,
-                '-matrices':False, '-trajectories':False, '-interface_data':False,
+    data_lst = {'-all':False,
+                '-energy':False,
+                '-pop':False,
+                '-auto':False,
+                '-matrices':False,
+                '-trajectories':False,
+                '-interface_data':False,
                 '-integrals':'bra_ket_averaged'}
 
     # this defaults to extracting data at all times
@@ -91,18 +95,15 @@ def process_arguments(args):
 
     iarg = 2
     while iarg < len(args):
-
         arg_val = args[iarg].strip()
 
         # just skip unrecognized commands
         if arg_val not in data_lst:
             print('argument: '+str(arg_val)+' not recognized. Skipping...')
             continue
-
         elif arg_val == '-time':
             time = float(args[iarg+1])
             iarg += 1
-
         else:
             data_lst[arg_val] = True
 
@@ -139,7 +140,7 @@ def extract_energy(wfn):
     prnt_data.extend([wfn.pot_quantum(),   wfn.kin_quantum(),   wfn.tot_quantum(),
                       wfn.pot_classical(), wfn.kin_classical(), wfn.tot_classical()])
 
-    printing.print_wfn_row('energy', prnt_data)
+    checkpoint.print_wfn_row('energy', prnt_data)
 
 
 def extract_pop(wfn):
@@ -148,7 +149,7 @@ def extract_pop(wfn):
     prnt_data.extend(wfn.pop())
     prnt_data.extend([wfn.norm()])
 
-    printing.print_wfn_row('pop', prnt_data)
+    checkpoint.print_wfn_row('pop', prnt_data)
 
 
 def extract_auto(wfn):
@@ -157,16 +158,16 @@ def extract_auto(wfn):
     wfn_overlap = ints.wfn_overlap(wfn0, wfn)
     prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.abs(wfn_overlap)]
 
-    printing.print_wfn_row('auto', prnt_data)
+    checkpoint.print_wfn_row('auto', prnt_data)
 
 
 def extract_matrices(wfn, mat):
     """Documentation to come"""
-    printing.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
-    printing.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
-    printing.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
-    printing.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
-    printing.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
+    checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
+    checkpoint.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
+    checkpoint.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
+    checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
+    checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
 
 
 def extract_trajectories(wfn):
@@ -182,17 +183,17 @@ def extract_trajectories(wfn):
         prnt_data.extend(traj.p())
         prnt_data.extend([traj.phase(), traj.amplitude.real, traj.amplitude.imag,
                           np.abs(traj.amplitude), traj.state])
-        printing.print_traj_row(label, 'traj', prnt_data)
+        checkpoint.print_traj_row(label, 'traj', prnt_data)
 
         # print potential energies
         prnt_data = [wfn.time]
         prnt_data.extend([traj.energy(i) for i in range(traj.nstates)])
-        printing.print_traj_row(label, 'poten', prnt_data)
+        checkpoint.print_traj_row(label, 'poten', prnt_data)
 
         # print gradients
         prnt_data = [wfn.time]
         prnt_data.extend(traj.derivative(traj.state,traj.state))
-        printing.print_traj_row(label, 'grad', prnt_data)
+        checkpoint.print_traj_row(label, 'grad', prnt_data)
 
         # print coupling
         prnt_data = [wfn.time]
@@ -200,10 +201,10 @@ def extract_trajectories(wfn):
         deriv_coup[state] = 0.
         prnt_data.extend(deriv_coup)
         prnt_data.extend([traj.coupling(state,i) for i in range(traj.nstates)])
-        printing.print_traj_row(label,'coup', prnt_data)
+        checkpoint.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-#        printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
+        #checkpoint.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
 
 def extract_interface_data(wfn):

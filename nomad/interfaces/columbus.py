@@ -6,12 +6,12 @@ import os
 import shutil
 import subprocess
 import numpy as np
-import nomad.utils.constants as constants
-import nomad.parse.glbl as glbl
-import nomad.parse.atom_lib as atom_lib
-import nomad.basis.trajectory as trajectory
+import nomad.math.constants as constants
+import nomad.core.glbl as glbl
+import nomad.core.atom_lib as atom_lib
+import nomad.core.trajectory as trajectory
+import nomad.core.surface as surface
 import nomad.integrals.centroid as centroid
-import nomad.archive.surface as surface
 
 
 # path to columbus executables
@@ -95,10 +95,10 @@ def init_interface():
 
     # setup working directories
     # input and restart are shared
-    input_path    = glbl.scr_path + '/input'
-    restart_path  = glbl.scr_path + '/restart'
+    input_path    = glbl.home_path + '/input'
+    restart_path  = glbl.home_path + '/restart'
     # ...but each process has it's own work directory
-    work_path     = glbl.scr_path + '/work.'+str(glbl.mpi['rank'])
+    work_path     = glbl.home_path + '/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -112,7 +112,7 @@ def init_interface():
         os.makedirs(input_path)
         os.makedirs(restart_path)
 
-    # copy input directory to scratch and copy file contents to work directory
+    # copy input directory to home and copy file contents to work directory
     for item in os.listdir('input'):
         local_file = os.path.join('input', item)
 
@@ -219,12 +219,11 @@ def evaluate_trajectory(traj, t=None):
     # run coupling to other states
     nad_coup = run_col_coupling(traj, potential, t)
     for i in range(nstates):
-        if i == state:
-            continue
-        state_i = min(i,state)
-        state_j = max(i,state)
-        deriv[:, state_i, state_j] =  nad_coup[:, i]
-        deriv[:, state_j, state_i] = -nad_coup[:, i]
+        if i != state:
+            state_i = min(i,state)
+            state_j = max(i,state)
+            deriv[:, state_i, state_j] =  nad_coup[:, i]
+            deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.add_data('derivative', deriv)
 
     # save restart files
@@ -1066,7 +1065,7 @@ def append_log(label, listing_file, time):
         tstr = str(time)
 
     # open the running log for this process
-    log_file = open(glbl.scr_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
+    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(" time="+tstr+" trajectory="+str(label)+
                    ": "+str(listing_file)+" summary -------------\n")

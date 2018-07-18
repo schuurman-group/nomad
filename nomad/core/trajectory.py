@@ -3,8 +3,8 @@ The Trajectory object and its associated functions.
 """
 import copy
 import numpy as np
-import nomad.utils.timings as timings
-import nomad.utils.constants as constants
+import nomad.core.timings as timings
+import nomad.math.constants as constants
 
 
 class Trajectory:
@@ -120,7 +120,7 @@ class Trajectory:
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-#        self.gamma = 0.5 * np.dot(self.x(), self.p())
+        #self.gamma = 0.5 * np.dot(self.x(), self.p())
         self.gamma = phase
         if abs(self.gamma) > 2*np.pi:
             self.gamma = self.gamma % 2*np.pi
