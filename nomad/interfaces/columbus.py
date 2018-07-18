@@ -219,12 +219,11 @@ def evaluate_trajectory(traj, t=None):
     # run coupling to other states
     nad_coup = run_col_coupling(traj, potential, t)
     for i in range(nstates):
-        if i == state:
-            continue
-        state_i = min(i,state)
-        state_j = max(i,state)
-        deriv[:, state_i, state_j] =  nad_coup[:, i]
-        deriv[:, state_j, state_i] = -nad_coup[:, i]
+        if i != state:
+            state_i = min(i,state)
+            state_j = max(i,state)
+            deriv[:, state_i, state_j] =  nad_coup[:, i]
+            deriv[:, state_j, state_i] = -nad_coup[:, i]
     col_surf.add_data('derivative', deriv)
 
     # save restart files
