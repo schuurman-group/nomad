@@ -6,14 +6,13 @@ import os
 import sys
 import numpy as np
 import mpi4py.MPI as MPI
-import nomad.simulation.glbl as glbl
-import nomad.simulation.files as files
-import nomad.simulation.log as log
-import nomad.simulation.checkpoint as checkpoint
-import nomad.simulation.step as step
-import nomad.simulation.timings as timings
-import nomad.simulation.cleanup as cleanup
-import nomad.simulation.wavefunction as wavefunction
+import nomad.core.glbl as glbl
+import nomad.core.files as files
+import nomad.core.log as log
+import nomad.core.checkpoint as checkpoint
+import nomad.core.step as step
+import nomad.core.timings as timings
+import nomad.core.wavefunction as wavefunction
 import nomad.initconds.initialize as initialize
 
 
@@ -96,7 +95,7 @@ def main():
                                           time=master.time)
 
     # clean up, stop the global timer and write logs
-    cleanup.cleanup_end()
+    log.cleanup_end()
 
 
 if __name__ == '__main__':
@@ -107,6 +106,6 @@ if __name__ == '__main__':
     # initialize
     init()
     # if an error occurs, cleanup and report the error
-    sys.excepthook = cleanup.cleanup_exc
+    sys.excepthook = log.cleanup_exc
     # run the main routine
     main()

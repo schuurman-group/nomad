@@ -7,10 +7,10 @@ import shutil
 import subprocess
 import numpy as np
 import nomad.math.constants as constants
-import nomad.simulation.glbl as glbl
-import nomad.simulation.atom_lib as atom_lib
-import nomad.simulation.trajectory as trajectory
-import nomad.simulation.surface as surface
+import nomad.core.glbl as glbl
+import nomad.core.atom_lib as atom_lib
+import nomad.core.trajectory as trajectory
+import nomad.core.surface as surface
 import nomad.integrals.centroid as centroid
 
 

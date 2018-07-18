@@ -2,10 +2,10 @@
 Routines for propagating a wavefunction forward by a time step.
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.log as log
-import nomad.simulation.evaluate as evaluate
-#import nomad.simulation.matching_pursuit as mp
+import nomad.core.glbl as glbl
+import nomad.core.log as log
+import nomad.core.surface as evaluate
+#import nomad.core.matching_pursuit as mp
 
 
 def time_step(master):

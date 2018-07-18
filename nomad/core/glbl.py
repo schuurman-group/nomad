@@ -3,8 +3,8 @@ Conversion factors and constants for FMSpy.
 """
 
 interface = None
-distrib = None
-spawn = None
+init_conds = None
+adapt = None
 integrator = None
 
 master_mat = None

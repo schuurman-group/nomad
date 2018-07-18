@@ -3,7 +3,7 @@ The Trajectory object and its associated functions.
 """
 import copy
 import numpy as np
-import nomad.simulation.timings as timings
+import nomad.core.timings as timings
 import nomad.math.constants as constants
 
 

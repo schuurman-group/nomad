@@ -13,9 +13,9 @@ parent(r,p,st,ti) ------------------------------------> child(r,p',st',ti)
    enforce constraint that classical energies be equal.
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.log as log
-import nomad.simulation.timings as timings
+import nomad.core.glbl as glbl
+import nomad.core.log as log
+import nomad.core.timings as timings
 import nomad.adapt.utilities as utilities
 
 

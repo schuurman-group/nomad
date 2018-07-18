@@ -4,13 +4,64 @@ Routines for handling the potential energy surface.
 All calls to update the pes are localized here.  This facilitates parallel
 execution of potential evaluations which is essential for ab initio PES.
 """
+import copy
 import numpy as np
 import nomad.math.constants as constants
-import nomad.simulation.glbl as glbl
-import nomad.simulation.trajectory as trajectory
+import nomad.core.glbl as glbl
+import nomad.core.trajectory as trajectory
 import nomad.integrals.centroid as centroid
 
+
 pes_cache  = dict()
+
+
+class Surface:
+    """Object containing potential energy surface data."""
+    def __init__(self):
+        self.standard_objs = ['geom','potential','derivative','hessian','coupling']
+        self.optional_objs = ['mo','dipole','atom_pop','sec_mom',
+                              'diabat_pot','diabat_deriv','diabat_hessian',
+                              'adt_mat','dat_mat','nac','scalar_coup']
+
+        # these are the standard quantities ALL interface_data objects return
+        self.data = dict()
+
+    def rm_data(self, key):
+        """Adds new item to dictionary"""
+        del self.data[key]
+
+    def add_data(self, key, value):
+        """Adds new item to dictionary"""
+        if key in self.standard_objs + self.optional_objs:
+            self.data[key] = value
+        else:
+            raise KeyError('Cannot add key='+str(key)+' to Surface instance: invalid key')
+
+    def get_data(self, key):
+        """Adds new item to dictionary"""
+        if key in self.data:
+            return self.data[key]
+        else:
+            raise ValueError('(get_data('+str(key)+') from Surface: datum not present')
+
+    def avail_data(self):
+        """Adds new item to dictionary"""
+        return self.data.keys()
+
+    def valid_data(self, key):
+        """Return true if data is valid for addition to surface object"""
+        return key in self.standard_objs+self.optional_objs
+
+    def copy(self):
+        """Creates a copy of a Surface object."""
+        new_surface = Surface()
+
+        # required potential data
+        for key,value in self.data.items():
+            new_surface.data[key] = copy.deepcopy(value)
+
+        return new_surface
+
 
 def update_pes(master, update_integrals=True):
     """Updates the potential energy surface."""
@@ -102,9 +153,7 @@ def update_pes(master, update_integrals=True):
 
     return success
 
-#
-#
-#
+
 def update_pes_traj(traj):
     """Updates a single trajectory
 
@@ -121,9 +170,7 @@ def update_pes_traj(traj):
 
     traj.update_pes_info(results)
 
-#
-#
-#
+
 def cached(label, geom):
     """Returns True if the surface in the cache corresponds to the current
     trajectory (don't recompute the surface)."""

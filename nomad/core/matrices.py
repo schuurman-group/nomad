@@ -17,7 +17,7 @@ import copy
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.math.linalg as linalg
-import nomad.simulation.timings as timings
+import nomad.core.timings as timings
 
 
 class Matrices:

@@ -2,7 +2,10 @@
 Routines for reading input files and writing log files.
 """
 import os
-import nomad.simulation.glbl as glbl
+import re
+import traceback
+import nomad.core.timings as timings
+import nomad.core.glbl as glbl
 
 
 log_format  = dict()
@@ -62,6 +65,37 @@ def print_spawn_log(data):
                 outfile.write(spawn_format.format(*data))
 
 
+def cleanup_end():
+    """Cleans up the FMS log file if calculation completed."""
+    # simulation ended
+    print_message('complete', [])
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_message('timings', [t_table])
+
+
+def cleanup_exc(etyp, val, tb):
+    """Cleans up the FMS log file if an exception occurs."""
+    # print exception
+    exception = ''.join(traceback.format_exception(etyp, val, tb))
+    print_message('error', [rm_timer(exception)])
+
+    # stop remaining timers
+    for timer in timings.active_stack[:0:-1]:
+        timings.stop(timer.name)
+
+    # print timing information
+    timings.stop('global', cumulative=True)
+    t_table = timings.print_timings()
+    print_message('timings', [t_table])
+
+    # abort other processes if running in parallel
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].Abort(1)
+
+
 #-----------------------------------------------------------------------------------
 #
 # Private Functions
@@ -82,8 +116,8 @@ def print_header():
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
                    ' home_path   = ' + os.uname()[1] + ':' + str(glbl.home_path) + '\n' +
-                   ' log_path    = ' + os.uname()[1] + ':' + glbl.log_path + '\n' +
-                   ' chkpt_path  = ' + os.uname()[1] + ':' + glbl.chkpt_path + '\n')
+                   ' log_file    = ' + os.uname()[1] + ':' + glbl.log_file + '\n' +
+                   ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.chkpt_file + '\n')
         logfile.write(log_str)
 
         logfile.write('\n nomad simulation keywords\n' +
@@ -146,3 +180,16 @@ def generate_formats():
     print_level['complete']       = 0
     print_level['error']          = 0
     print_level['timings']        = 0
+
+
+def rm_timer(exc):
+    """Removes the timer lines from an Exception traceback."""
+    tb = exc.split('\n')
+    regex = re.compile('.*timings\.py.*in (hooked|_run_func)')
+    i = 0
+    while i < len(tb):
+        if re.match(regex, tb[i]):
+            tb = tb[:i] + tb[i+2:]
+        else:
+            i += 1
+    return '\n'.join(tb)

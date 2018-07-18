@@ -3,8 +3,8 @@ General routines for all spawning algorithms.
 """
 import numpy as np
 import nomad.math.constants as constants
-import nomad.simulation.glbl as glbl
-import nomad.simulation.log as log
+import nomad.core.glbl as glbl
+import nomad.core.log as log
 
 
 def adjust_child(parent, child, scale_dir):

@@ -4,9 +4,9 @@ Routines for generating and sampling a Wigner vibrational distribution.
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.math.constants as constants
-import nomad.simulation.glbl as glbl
-import nomad.simulation.log as log
-import nomad.simulation.trajectory as trajectory
+import nomad.core.glbl as glbl
+import nomad.core.log as log
+import nomad.core.trajectory as trajectory
 
 
 def set_initial_coords(master):

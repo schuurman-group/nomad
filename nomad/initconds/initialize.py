@@ -3,12 +3,12 @@ Routines for initializing dynamics calculations.
 """
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.simulation.glbl as glbl
-import nomad.simulation.log as log
-import nomad.simulation.trajectory as trajectory
-import nomad.simulation.wavefunction as wavefunction
-import nomad.simulation.evaluate as evaluate
-import nomad.simulation.checkpoint as checkpoint
+import nomad.core.glbl as glbl
+import nomad.core.log as log
+import nomad.core.trajectory as trajectory
+import nomad.core.wavefunction as wavefunction
+import nomad.core.surface as evaluate
+import nomad.core.checkpoint as checkpoint
 
 
 def init_wavefunction(master):

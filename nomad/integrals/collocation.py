@@ -3,7 +3,7 @@ Computes matrix elements over a dirac delta function at the centre of
 trajectory 1 and trajectory 2.
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
+import nomad.core.glbl as glbl
 import nomad.integrals.nuclear_dirac as dirac
 import nomad.integrals.nuclear_gaussian as gauss
 

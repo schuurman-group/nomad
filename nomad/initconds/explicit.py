@@ -2,8 +2,8 @@
 Sample a specific geometry or set of geometries.
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.trajectory as trajectory
+import nomad.core.glbl as glbl
+import nomad.core.trajectory as trajectory
 
 
 def set_initial_coords(master):

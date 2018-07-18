@@ -6,9 +6,9 @@ Velocity Verlet:
   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.timings as timings
-import nomad.simulation.evaluate as evaluate
+import nomad.core.glbl as glbl
+import nomad.core.timings as timings
+import nomad.core.surface as evaluate
 
 
 propphase = glbl.propagate['phase_prop']

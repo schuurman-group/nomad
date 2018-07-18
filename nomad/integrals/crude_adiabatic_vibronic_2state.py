@@ -6,7 +6,7 @@ This currently uses first-order saddle point.
 """
 import numpy as np
 import nomad.math.constants as constants
-import nomad.simulation.glbl as glbl
+import nomad.core.glbl as glbl
 import nomad.integrals.nuclear_gaussian_ccs as nuclear
 
 

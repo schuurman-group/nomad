@@ -6,10 +6,10 @@ import re
 import ast
 import shutil
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.atom_lib as atom_lib
+import nomad.core.glbl as glbl
+import nomad.core.atom_lib as atom_lib
 import nomad.integrals.integral as integral
-import nomad.simulation.matrices as matrices
+import nomad.core.matrices as matrices
 
 
 def read_input(fname):
@@ -27,7 +27,7 @@ def read_input(fname):
         printing
     """
     # Read input file. Small enough to gulp the whole thing
-    with open(home_path + '/' + fname, 'r') as infile:
+    with open(glbl.home_path + '/' + fname, 'r') as infile:
         nomad_input = infile.readlines()
 
     # remove comment lines

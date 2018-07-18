@@ -11,9 +11,9 @@ Routines for propagation with the 4th order Runge-Kutta algorithm.
   ky4 = f[t + dt, y(t) + ky3*dt]
 """
 import numpy as np
-import nomad.simulation.glbl as glbl
-import nomad.simulation.timings as timings
-import nomad.simulation.evaluate as evaluate
+import nomad.core.glbl as glbl
+import nomad.core.timings as timings
+import nomad.core.surface as evaluate
 
 
 rk_ordr = 4
