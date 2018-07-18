@@ -189,35 +189,3 @@ def print_wfn_mat(time, key, mat):
         outfile.write('{:9.2f}\n'.format(time))
         outfile.write(np.array2string(mat,
                       formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
-
-
-#################################################################################
-#
-# THIS SHOUDL BE DELETED: nomad should not move files around....
-#
-def copy_output():
-    """Copies output files to current working directory."""
-    # move trajectory summary files to an output directory in the home area
-    odir = glbl.home_path + '/output'
-    if os.path.exists(odir):
-        shutil.rmtree(odir)
-    os.makedirs(odir)
-
-    # move trajectory files
-    for key, fname in tfile_names.items():
-        for tfile in glob.glob(glbl.scr_path + '/' + fname + '.*'):
-            if not os.path.isdir(tfile):
-                shutil.move(tfile, odir)
-
-    # move bundle files
-    for key, fname in bfile_names.items():
-        try:
-            shutil.move(glbl.scr_path + '/' + fname, odir)
-        except IOError:
-            pass
-
-    # move chkpt file
-    try:
-        shutil.move(glbl.scr_path + '/ckhpt.hdf5', odir)
-    except IOError:
-        pass

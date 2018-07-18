@@ -5,18 +5,12 @@ import os
 import nomad.simulation.glbl as glbl
 
 
-log_file = ''
 log_format  = dict()
 print_level = dict()
 
 
-def init_logfile(file_name):
+def init_logfile():
     """Documentation to come"""
-    global log_file
-
-    # log file gets named here, everybody else writes to this file
-    log_file = os.getcwd()+'/'+file_name.strip()
-
     # generate the allowed log file formats
     generate_formats()
 
@@ -26,17 +20,16 @@ def init_logfile(file_name):
 
 def print_message(otype, data):
     """Prints a string to the log file."""
-    global log_format, print_level, log_file
+    global log_format, print_level
 
     if glbl.mpi['rank'] == 0:
         if otype not in log_format:
             print('CANNOT WRITE otype=' + str(otype) + '\n')
 
         elif glbl.printing['print_level'] >= print_level[otype]:
-            with open(log_file, 'a') as logfile:
+            with open(glbl.log_file, 'a') as logfile:
                 logfile.write(log_format[otype].format(*data))
 
-    return
 
 def print_spawn_log(data):
     """Print the spawn log.
@@ -76,10 +69,8 @@ def print_spawn_log(data):
 #-----------------------------------------------------------------------------------
 def print_header():
     """Documentation to come"""
-    global log_file
-
     # ------------------------- log file formats --------------------------
-    with open(log_file, 'w') as logfile:
+    with open(glbl.log_file, 'w') as logfile:
         log_str = (' ---------------------------------------------------\n' +
                    ' NOMAD: NOnadiabatc Multistate Adaptive Dynamics    \n' +
                    ' ---------------------------------------------------\n' +
@@ -90,8 +81,9 @@ def print_header():
                    '\n' +
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
-                   ' home_path   = ' + str(glbl.home_path) + '\n' +
-                   ' scr_path    = ' + os.uname()[1] + ':' + glbl.scr_path + '\n')
+                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.home_path) + '\n' +
+                   ' log_path    = ' + os.uname()[1] + ':' + glbl.log_path + '\n' +
+                   ' chkpt_path  = ' + os.uname()[1] + ':' + glbl.chkpt_path + '\n')
         logfile.write(log_str)
 
         logfile.write('\n nomad simulation keywords\n' +

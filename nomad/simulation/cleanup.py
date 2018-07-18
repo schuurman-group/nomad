@@ -6,7 +6,6 @@ import traceback
 import nomad.simulation.timings as timings
 import nomad.simulation.glbl as glbl
 import nomad.simulation.log as log
-import nomad.simulation.printing as printing
 
 
 def cleanup_end():
@@ -18,9 +17,6 @@ def cleanup_end():
     timings.stop('global', cumulative=True)
     t_table = timings.print_timings()
     log.print_message('timings', [t_table])
-
-    # copy output files
-    printing.copy_output()
 
 
 def cleanup_exc(etyp, val, tb):
@@ -37,9 +33,6 @@ def cleanup_exc(etyp, val, tb):
     timings.stop('global', cumulative=True)
     t_table = timings.print_timings()
     log.print_message('timings', [t_table])
-
-    # copy output files
-    printing.copy_output()
 
     # abort other processes if running in parallel
     if glbl.mpi['parallel']:

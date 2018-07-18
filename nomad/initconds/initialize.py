@@ -22,10 +22,10 @@ def init_wavefunction(master):
     # now load the initial trajectories into the bundle
     if glbl.sampling['restart']:
         checkpoint.retrieve_simulation(master, integrals=glbl.master_int,
-                                      time=glbl.sampling['restart_time'], file_name='chkpt.hdf5')
+                                       time=glbl.sampling['restart_time'], file_name=glbl.chkpt_file)
         if glbl.sampling['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
-            checkpoint.retrieve_simulation(master0, integrals=None, time=0., file_name='chkpt.hdf5')
+            checkpoint.retrieve_simulation(master0, integrals=None, time=0., file_name=glbl.chkpt_file)
             save_initial_wavefunction(master0)
         else:
             save_initial_wavefunction(master)
@@ -70,7 +70,7 @@ def init_wavefunction(master):
     # write the wavefunction to the archive
     if glbl.mpi['rank'] == 0:
         checkpoint.archive_simulation(master, integrals=glbl.master_int,
-                                      time=master.time, file_name=glbl.scr_path+'/chkpt.hdf5')
+                                      time=master.time, file_name=glbl.chkpt_file)
 
     log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
                                       master.nalive])

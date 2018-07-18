@@ -74,8 +74,13 @@ def process_arguments(args):
     to put it.
     """
     # a list of valid arguments and the default values
-    data_lst = {'-all':False,      '-energy':False,       '-pop':False, '-auto':False,
-                '-matrices':False, '-trajectories':False, '-interface_data':False,
+    data_lst = {'-all':False,
+                '-energy':False,
+                '-pop':False,
+                '-auto':False,
+                '-matrices':False,
+                '-trajectories':False,
+                '-interface_data':False,
                 '-integrals':'bra_ket_averaged'}
 
     # this defaults to extracting data at all times
@@ -91,18 +96,15 @@ def process_arguments(args):
 
     iarg = 2
     while iarg < len(args):
-
         arg_val = args[iarg].strip()
 
         # just skip unrecognized commands
         if arg_val not in data_lst:
             print('argument: '+str(arg_val)+' not recognized. Skipping...')
             continue
-
         elif arg_val == '-time':
             time = float(args[iarg+1])
             iarg += 1
-
         else:
             data_lst[arg_val] = True
 
@@ -201,7 +203,7 @@ def extract_trajectories(wfn):
         printing.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-#        printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
+        #printing.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
 
 def extract_interface_data(wfn):

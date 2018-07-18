@@ -2,6 +2,7 @@
 """
 The main nomad driver.
 """
+import os
 import sys
 import numpy as np
 import mpi4py.MPI as MPI
@@ -36,14 +37,35 @@ def init():
 
     # read in options/variables pertaining to the running
     # of the dynamics, pass the starting time of the simluation
-    # a nd the end time
-    files.read_input()
+    # and the end time
+    input_fname = process_arguments(sys.argv)
+    files.read_input(input_fname)
 
     # initialize random number generator
     np.random.seed(glbl.sampling['seed'])
 
     # initialize the running calculation log
-    log.init_logfile('nomad.log')
+    log.init_logfile()
+
+
+def process_arguments(args):
+    """Process command line arguments."""
+    glbl.home_path = os.getcwd()
+    proj = args[1].split('.inp')[0]
+
+    if '-o' in sys.argv:
+        log_path = args[args.index('-o')+1]
+        glbl.log_file = log_path + '/' + proj + '.log'
+    else:
+        glbl.log_file = glbl.home_path + '/' + proj + '.log'
+
+    if '-c' in sys.argv:
+        chkpt_path = args[args.index('-c')+1]
+        glbl.chkpt_file = chkpt_path + '/' + proj + '.hdf5'
+    else:
+        glbl.chkpt_file = glbl.home_path + '/' + proj + '.hdf5'
+
+    return args[1]
 
 
 def main():
