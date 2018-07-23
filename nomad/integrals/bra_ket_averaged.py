@@ -4,7 +4,7 @@ traveling on adiabataic potentials
 """
 import numpy as np
 import nomad.core.glbl as glbl
-import nomad.integrals.nuclear_gaussian as nuclear
+import nomad.compiled.nuclear_gaussian as nuclear
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False

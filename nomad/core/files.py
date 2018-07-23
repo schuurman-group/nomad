@@ -204,7 +204,6 @@ def validate():
 
     glbl.master_int = integral.Integral(glbl.propagate['integrals'])
     glbl.master_mat = matrices.Matrices()
-    print("iface_params['interface']="+str(glbl.iface_params['interface']))
 
     try:
         glbl.interface = __import__('nomad.interfaces.' +

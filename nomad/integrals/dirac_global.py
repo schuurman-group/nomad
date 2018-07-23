@@ -4,8 +4,8 @@ trajectory 1 and trajectory 2.
 """
 import numpy as np
 import nomad.core.glbl as glbl
-import nomad.integrals.nuclear_dirac as dirac
-import nomad.integrals.nuclear_gaussian as gauss
+import nomad.compiled.nuclear_dirac as dirac
+import nomad.compiled.nuclear_gaussian as gauss
 
 
 # Let propagator know if we need data at centroids to propagate
@@ -16,6 +16,13 @@ hermitian = False
 
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'dirac_delta'
+
+def elec_overlap(t1, t2):
+    """ Returns < Psi | Psi' >, the nuclear overlap integral of two trajectories"""
+    if t1.state == t2.state:
+        return 1.
+    else:
+        return 0.
 
 def traj_overlap(traj1, traj2, nuc_only=False):
     """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
@@ -58,7 +65,7 @@ def v_integral(traj1, traj2, centroid=None, nuc_ovrlp=None):
         fij = traj1.derivative(traj2.state)
         v = np.dot(fij, 2.*traj1.kecoef*
                           dirac.deldx(nuc_ovrlp,traj1.x(),
-                          traj2.phase(),traj2.widths(),traj2.x(),traj2.p()))
+                                       traj2.widths(),traj2.x(),traj2.p()))
         return v * nuc_ovrlp
     else:
         print('ERROR in v_integral -- argument disagreement')
@@ -76,7 +83,7 @@ def ke_integral(traj1, traj2, nuc_ovrlp=None):
                                  traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
         ke = dirac.deld2x(nuc_ovrlp,traj1.x(),
-                               traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+                                 traj2.widths(),traj2.x(),traj2.p())
 
         return -sum(ke * traj1.kecoef)
 
@@ -97,10 +104,9 @@ def sdot_integral(traj1, traj2, nuc_ovrlp=None):
 
         sdot = (np.dot(traj2.velocity(),
                        dirac.deldx(nuc_ovrlp,traj1.x(),
-                          traj2.phase(),traj2.widths(),traj2.x(),traj2.p())) +
+                          traj2.widths(),traj2.x(),traj2.p())) +
                 np.dot(traj2.force(),
-                       dirac.deldp(nuc_ovrlp,traj1.x(),
-                          traj2.phase(),traj2.widths(),traj2.x(),traj2.p())) +
+                       dirac.deldp(nuc_ovrlp,traj1.x(),traj2.x())) +
                 1j * traj2.phase_dot() * nuc_ovrlp)
 
         return sdot

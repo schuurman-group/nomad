@@ -3,7 +3,7 @@ Compute Bra-ket averaged Taylor expansion integrals over trajectories
 traveling on adiabataic potentials
 """
 import numpy as np
-import nomad.integrals.nuclear_gaussian as nuclear
+import nomad.compiled.nuclear_gaussian as nuclear
 
 # Determines the Hamiltonian symmetry
 hermitian = True
@@ -44,7 +44,7 @@ def s_integral(t1, t2, nuc_ovrlp=None):
     return elec_overlap(t1, t2) * nuc_ovrlp
 
 
-def t_integral(t1, t2, ke_coef, nuc_ovrlp=None):
+def t_integral(t1, t2, nuc_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     if t1.state != t2.state:
         return 0j
@@ -56,7 +56,7 @@ def t_integral(t1, t2, ke_coef, nuc_ovrlp=None):
         ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                       t2.widths(),t2.x(),t2.p())
 
-        return -np.dot(ke, ke_coef)
+        return -np.dot(ke, t1.kecoef)
 
 
 def sdot_integral(t1, t2, nuc_ovrlp=None):

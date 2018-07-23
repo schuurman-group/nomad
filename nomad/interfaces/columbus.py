@@ -105,23 +105,21 @@ def init_interface():
     os.makedirs(work_path)
 
     if glbl.mpi['rank'] == 0:
-        if os.path.exists(input_path):
-            shutil.rmtree(input_path)
         if os.path.exists(restart_path):
             shutil.rmtree(restart_path)
-        os.makedirs(input_path)
         os.makedirs(restart_path)
 
     # copy input directory to home and copy file contents to work directory
+    # we now asssume input directory is present in current directory
     for item in os.listdir('input'):
         local_file = os.path.join('input', item)
 
         work_file  = os.path.join(work_path, item)
         shutil.copy2(local_file, work_file)
 
-        if glbl.mpi['rank'] == 0:
-          input_file = os.path.join(input_path, item)
-          shutil.copy2(local_file, input_file)
+    #    if glbl.mpi['rank'] == 0:
+    #      input_file = os.path.join(input_path, item)
+    #      shutil.copy2(local_file, input_file)
 
     # make sure process 0 is finished populating the input directory
     if glbl.mpi['parallel']:
