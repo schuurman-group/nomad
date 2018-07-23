@@ -19,7 +19,7 @@ import nomad.core.surface as evaluate
 rk_ordr = 4
 coeff = np.array([0.5, 0.5, 1.])
 wgt = np.array([1./6., 1./3., 1./3., 1./6.])
-propphase = glbl.propagate['phase_prop']
+propphase = glbl.properties['phase_prop']
 
 
 @timings.timed

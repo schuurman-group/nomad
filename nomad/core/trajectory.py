@@ -173,7 +173,7 @@ class Trajectory:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-        #return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+        #return self.pes.get_data('potential')[state] + glbl.properties['pot_shift']
         return self.pes.get_data('potential')[state]
 
     def derivative(self, state_i, state_j, geom_chk=True):

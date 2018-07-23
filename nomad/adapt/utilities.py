@@ -85,7 +85,7 @@ def overlap_with_bundle(traj, bundle):
                 sij = 0j
             else:
                 sij = glbl.master_int.traj_overlap(traj, bundle.traj[i])
-            if abs(sij) > glbl.propagate['sij_thresh']:
+            if abs(sij) > glbl.properties['sij_thresh']:
                 t_overlap_bundle = True
                 break
 

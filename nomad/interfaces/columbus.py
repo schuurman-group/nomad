@@ -67,8 +67,8 @@ def init_interface():
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     # set atomic symbol, number, mass,
-    natm    = int(len(glbl.nuclear_basis['labels']) / p_dim)
-    a_sym   = [glbl.nuclear_basis['labels'][p_dim*i] for i in range(natm)]
+    natm    = int(len(glbl.properties['labels']) / p_dim)
+    a_sym   = [glbl.properties['labels'][p_dim*i] for i in range(natm)]
 
     a_data  = []
     # we need to go through this to pull out the atomic numbers for
@@ -141,12 +141,12 @@ def init_interface():
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(int(glbl.iface_params['mem_per_core']))
-    coup_de_thresh = float(glbl.iface_params['coup_de_thresh'])
+    mem_str = str(int(glbl.columbus['mem_per_core']))
+    coup_de_thresh = float(glbl.columbus['coup_de_thresh'])
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
-    if n_cistates < int(glbl.propagate['n_states']):
-        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.propagate['n_states']))
+    if n_cistates < int(glbl.properties['n_states']):
+        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.properties['n_states']))
 
     # generate one time input files for columbus calculations
     make_one_time_input()
@@ -191,7 +191,7 @@ def evaluate_trajectory(traj, t=None):
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(traj, ci_restart, t)
-    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
+    col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
     # run properties, dipoles, etc.
@@ -268,7 +268,7 @@ def evaluate_centroid(Cent, t=None):
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(Cent, ci_restart, t)
-    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
+    col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
     deriv = np.zeros((Cent.dim, nstates, nstates))
@@ -1040,7 +1040,7 @@ def prog_status():
     has been written. If so, return False, else, return True"""
 
     try:
-        with open("bummer", "r") as f:
+        with open('bummer', 'r') as f:
             bummer = f.readlines()
 
     except EnvironmentError:
@@ -1060,15 +1060,15 @@ def append_log(label, listing_file, time):
     # check to see if time is given, if not -- this is a spawning
     # situation
     if time is None:
-        tstr = "spawning"
+        tstr = 'spawning'
     else:
         tstr = str(time)
 
     # open the running log for this process
     log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
-    log_file.write(" time="+tstr+" trajectory="+str(label)+
-                   ": "+str(listing_file)+" summary -------------\n")
+    log_file.write(' time='+tstr+' trajectory='+str(label)+
+                   ': '+str(listing_file)+' summary -------------\n')
 
     if listing_file == 'integral':
         with open('hermitls', 'r') as hermitls:

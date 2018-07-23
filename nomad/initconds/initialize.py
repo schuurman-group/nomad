@@ -20,10 +20,10 @@ def init_wavefunction(master):
     glbl.interface.init_interface()
 
     # now load the initial trajectories into the bundle
-    if glbl.sampling['restart']:
+    if glbl.properties['restart']:
         checkpoint.retrieve_simulation(master, integrals=glbl.master_int,
-                                       time=glbl.sampling['restart_time'], file_name=glbl.chkpt_file)
-        if glbl.sampling['restart_time'] != 0.:
+                                       time=glbl.properties['restart_time'], file_name=glbl.chkpt_file)
+        if glbl.properties['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
             checkpoint.retrieve_simulation(master0, integrals=None, time=0., file_name=glbl.chkpt_file)
             save_initial_wavefunction(master0)
@@ -42,7 +42,7 @@ def init_wavefunction(master):
         set_initial_amplitudes(master)
 
         # add virtual basis functions, if desired
-        if glbl.sampling['virtual_basis']:
+        if glbl.properties['virtual_basis']:
             virtual_basis(master)
 
         # update the integrals
@@ -72,7 +72,7 @@ def init_wavefunction(master):
         checkpoint.archive_simulation(master, integrals=glbl.master_int,
                                       time=master.time, file_name=glbl.chkpt_file)
 
-    log.print_message('t_step', [master.time, glbl.propagate['default_time_step'],
+    log.print_message('t_step', [master.time, glbl.properties['default_time_step'],
                                       master.nalive])
 
     return master.time
@@ -86,7 +86,7 @@ def init_wavefunction(master):
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
     # initialize to the state with largest transition dipole moment
-    if glbl.sampling['init_brightest']:
+    if glbl.properties['init_brightest']:
 
         # set all states to the ground state
         for i in range(master.n_traj()):
@@ -103,7 +103,7 @@ def set_initial_state(master):
 
             tr_dipole = master.traj[i].pes.get_data('dipole')
             tdip = np.array([np.linalg.norm(tr_dipole[:,0,j])
-                             for j in range(1, glbl.propagate['n_states'])])
+                             for j in range(1, glbl.properties['n_states'])])
             log.print_message('general',
                              ['Initializing trajectory '+str(i)+
                               ' to state '+str(np.argmax(tdip)+1)+
@@ -112,9 +112,9 @@ def set_initial_state(master):
             master.traj[i].state = np.argmax(tdip)+1
 
     # use "init_state" to set the initial state
-    elif len(glbl.sampling['init_states']) == master.n_traj():
+    elif len(glbl.properties['init_states']) == master.n_traj():
         for i in range(master.n_traj()):
-            master.traj[i].state = glbl.sampling['init_states'][i]
+            master.traj[i].state = glbl.properties['init_states'][i]
 
     else:
         raise ValueError('Ambiguous initial state assignment.')
@@ -124,7 +124,7 @@ def set_initial_amplitudes(master):
     """Sets the initial amplitudes."""
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in nomad.input
-    if glbl.nuclear_basis['init_amp_overlap']:
+    if glbl.properties['init_amp_overlap']:
         origin = make_origin_traj()
 
         # Calculate the initial expansion coefficients via projection onto
@@ -140,35 +140,35 @@ def set_initial_amplitudes(master):
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)
-        glbl.nuclear_basis['amplitudes'] = np.dot(sinv, ovec)
+        glbl.properties['amplitudes'] = np.dot(sinv, ovec)
 
     # if we didn't set any amplitudes, set them all equal -- normalization
     # will occur later
-    elif len(glbl.nuclear_basis['amplitudes']) == 0:
-        glbl.nuclear_basis['amplitudes'] = np.ones(master.n_traj(),dtype=complex)
+    elif len(glbl.properties['amplitudes']) == 0:
+        glbl.properties['amplitudes'] = np.ones(master.n_traj(),dtype=complex)
 
     # if we don't have a sufficient number of amplitudes, append
     # amplitudes with "zeros" as necesary
-    elif len(glbl.nuclear_basis['amplitudes']) < master.n_traj():
-        dif = master.n_traj() - len(glbl.nuclear_basis['amplitudes'])
-        glbl.nuclear_basis['amplitudes'].extend([0+0j for i in range(dif)])
+    elif len(glbl.properties['amplitudes']) < master.n_traj():
+        dif = master.n_traj() - len(glbl.properties['amplitudes'])
+        glbl.properties['amplitudes'].extend([0+0j for i in range(dif)])
 
     # finally -- update amplitudes in the bundle
     for i in range(master.n_traj()):
-        master.traj[i].update_amplitude(glbl.nuclear_basis['amplitudes'][i])
+        master.traj[i].update_amplitude(glbl.properties['amplitudes'][i])
 
 
 def save_initial_wavefunction(master):
     """Sets the intial t=0 bundle in order to compute the autocorrelation
     function for subsequent time steps"""
-    glbl.variables['bundle0'] = master.copy()
+    glbl.bundle0 = master.copy()
     # change the trajectory labels in this bundle to differentiate
     # them from trajctory labels in the master bundle. This avoids
     # cache collisions between trajetories in 'bundle0' and trajectories
     # in 'master'
-    for i in range(glbl.variables['bundle0'].n_traj()):
-        new_label = str(glbl.variables['bundle0'].traj[i].label)+'_0'
-        glbl.variables['bundle0'].traj[i].label = new_label
+    for i in range(glbl.bundle0.n_traj()):
+        new_label = str(glbl.bundle0.traj[i].label)+'_0'
+        glbl.bundle0.traj[i].label = new_label
 
 
 def virtual_basis(master):
@@ -179,7 +179,7 @@ def virtual_basis(master):
     amplitude.
     """
     for i in range(master.n_traj()):
-        for j in range(glbl.propagate['n_states']):
+        for j in range(glbl.properties['n_states']):
             if j != master.traj[i].state:
                 new_traj = master.traj[i].copy()
                 new_traj.amplitude = 0j
@@ -190,13 +190,13 @@ def virtual_basis(master):
 def make_origin_traj():
     """Construct a trajectory basis function at the origin
     specified in the input files"""
-    ndim = len(glbl.nuclear_basis['geometries'][0])
-    m_vec = np.array(glbl.nuclear_basis['masses'])
-    w_vec = np.array(glbl.nuclear_basis['widths'])
-    x_vec = np.array(glbl.nuclear_basis['geometries'][0])
-    p_vec = np.array(glbl.nuclear_basis['momenta'][0])
+    ndim = len(glbl.properties['geometries'][0])
+    m_vec = np.array(glbl.properties['masses'])
+    w_vec = np.array(glbl.properties['widths'])
+    x_vec = np.array(glbl.properties['geometries'][0])
+    p_vec = np.array(glbl.properties['momenta'][0])
 
-    origin = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
+    origin = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                    width=w_vec, mass=m_vec, parent=0,
                                    kecoef=glbl.kecoef)
 

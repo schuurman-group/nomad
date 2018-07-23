@@ -12,21 +12,21 @@ import nomad.core.trajectory as trajectory
 def set_initial_coords(master):
     """Samples a v=0 Wigner distribution."""
     # Set the coordinate type: Cartesian or normal mode coordinates
-    if glbl.iface_params['interface'] == 'vibronic':
+    if glbl.methods['interface'] == 'vibronic':
         coordtype = 'normal'
         ham       = glbl.interface.ham
     else:
         coordtype = 'cart'
 
     # if multiple geometries in geometry.dat -- just take the first one
-    x_ref = np.array(glbl.nuclear_basis['geometries'][0],dtype=float)
-    p_ref = np.array(glbl.nuclear_basis['momenta'][0],dtype=float)
-    w_vec = np.array(glbl.nuclear_basis['widths'],dtype=float)
-    m_vec = np.array(glbl.nuclear_basis['masses'],dtype=float)
+    x_ref = np.array(glbl.properties['geometries'][0],dtype=float)
+    p_ref = np.array(glbl.properties['momenta'][0],dtype=float)
+    w_vec = np.array(glbl.properties['widths'],dtype=float)
+    m_vec = np.array(glbl.properties['masses'],dtype=float)
     ndim  = len(x_ref)
 
     # create template trajectory basis function
-    template = trajectory.Trajectory(glbl.propagate['n_states'], ndim,
+    template = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                      width=w_vec,
                                      mass=m_vec,
                                      parent=0,
@@ -38,7 +38,7 @@ def set_initial_coords(master):
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        hessian   = np.array(glbl.nuclear_basis['hessian'],dtype=float)
+        hessian   = np.array(glbl.properties['hessian'],dtype=float)
         invmass = np.asarray([1./ np.sqrt(m_vec[i]) if m_vec[i] != 0.
                               else 0 for i in range(len(m_vec))], dtype=float)
         mw_hess      = invmass * hessian * invmass[:,np.newaxis]
@@ -74,7 +74,7 @@ def set_initial_coords(master):
 
     # loop over the number of initial trajectories
     max_try = 1000
-    ntraj  = glbl.sampling['n_init_traj']
+    ntraj  = glbl.properties['n_init_traj']
     for i in range(ntraj):
         delta_x   = np.zeros(n_modes)
         delta_p   = np.zeros(n_modes)
@@ -83,20 +83,20 @@ def set_initial_coords(master):
         for j in range(n_modes):
             alpha   = 0.5 * freqs[j]
             if alpha > constants.fpzero:
-                sigma_x = (glbl.sampling['distrib_compression'] *
+                sigma_x = (glbl.properties['distrib_compression'] *
                            np.sqrt(0.25 / alpha))
-                sigma_p = (glbl.sampling['distrib_compression'] *
+                sigma_p = (glbl.properties['distrib_compression'] *
                            np.sqrt(alpha))
                 itry = 0
                 while itry <= max_try:
                     dx = np.random.normal(0., sigma_x)
                     dp = np.random.normal(0., sigma_p)
                     itry += 1
-                    if mode_overlap(alpha, dx, dp) > glbl.sampling['init_mode_min_olap']:
+                    if mode_overlap(alpha, dx, dp) > glbl.properties['init_mode_min_olap']:
                         break
-                if mode_overlap(alpha, dx, dp) < glbl.sampling['init_mode_min_olap']:
+                if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
                     print('Cannot get mode overlap > ' +
-                      str(glbl.sampling['init_mode_min_olap']) +
+                      str(glbl.properties['init_mode_min_olap']) +
                       ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp

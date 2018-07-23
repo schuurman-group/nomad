@@ -64,7 +64,7 @@ def read_geometry(geom_file):
     # and number of geometries
     ncrd    = int(gm_file[0].strip().split()[0])
     crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
-    ngeoms  = int(len(gm_file)/(ncrd+2))
+    ngeoms  = int(len(gm_file)/(ncrd+2)) # this is definitely not correct
 
     # read in the atom/crd labels -- assumes atoms are same for each
     # geometry in the list
@@ -88,7 +88,7 @@ def read_geometry(geom_file):
         geoms.append(geom)
         moms.append(mom)
 
-    return labels,geoms,moms
+    return labels, geoms, moms
 
 
 def read_hessian(hess_file):
@@ -194,115 +194,87 @@ def validate():
     basis section. The following lines ensure that subsequent usage of the
     entries in glbl is consistent, regardless of how input specified.
     """
-    # set the integral definition
-    #try:
-    #    glbl.master_int =__import__('nomad.integrals.'+
-    #                               glbl.propagate['integrals'],fromlist=['a'])
-    #except ImportError:
-    #    print('Cannot import integrals: nomad.integrals.' +
-    #          str(glbl.propagate['integrals']))
-
-    glbl.master_int = integral.Integral(glbl.propagate['integrals'])
+    glbl.master_int = integral.Integral(glbl.methods['integral_eval'])
     glbl.master_mat = matrices.Matrices()
-    print("iface_params['interface']="+str(glbl.iface_params['interface']))
 
-    try:
-        glbl.interface = __import__('nomad.interfaces.' +
-                               glbl.iface_params['interface'],fromlist=['NA'])
-    except ImportError:
-        print('Cannot import pes: nomad.interfaces.'+
-                               str(glbl.iface_params['interface']))
-
-    try:
-        glbl.init_conds = __import__('nomad.initconds.'+glbl.sampling['init_sampling'],
+    glbl.interface = __import__('nomad.interfaces.' +
+                                glbl.methods['interface'], fromlist=['NA'])
+    glbl.init_conds = __import__('nomad.initconds.' + glbl.methods['init_conds'],
                                  fromlist=['NA'])
-    except ImportError:
-        print('Cannot import initial conditions: nomad.initconds.'+
-                               str(glbl.sampling['init_sampling']))
-
-    try:
-        glbl.adapt = __import__('nomad.adapt.'+glbl.spawning['spawning'],
-                                   fromlist=['a'])
-    except ImportError:
-        print('Cannot import spawning: nomad.adapt.'+
-                               str(glbl.spawning['spawning']))
-
-    try:
-        glbl.integrator = __import__('nomad.propagators.'+glbl.propagate['propagator'],
-                                     fromlist=['a'])
-    except ImportError:
-        print('Cannot import propagator: nomad.propagators.'+
-                               str(glbl.propagate['propagator']))
+    glbl.adapt = __import__('nomad.adapt.' + glbl.methods['adapt_basis'],
+                            fromlist=['a'])
+    glbl.propagator = __import__('nomad.propagators.' + glbl.methods['propagator'],
+                                 fromlist=['a'])
 
     # if geomfile specified, it's contents overwrite variable settings in nomad.input
-    if os.path.isfile(glbl.nuclear_basis['geomfile']):
-        (labels, geoms, moms)            = read_geometry(glbl.nuclear_basis['geomfile'])
-        glbl.nuclear_basis['labels']     = labels
-        glbl.nuclear_basis['geometries'] = geoms
-        glbl.nuclear_basis['momenta']    = moms
+    #if os.path.isfile(glbl.properties['geomfile']): ###
+    #    labels, geoms, moms              = read_geometry(glbl.properties['geomfile'])
+    #    #glbl.properties['labels']     = labels
+    #    glbl.properties['geometries'] = geoms
+    #    #glbl.properties['momenta']    = moms
 
     # if hessfile is specified, its contents overwrite variable settings from nomad.input
-    if os.path.isfile(glbl.nuclear_basis['hessfile']):
-        glbl.nuclear_basis['hessian']    = read_hessian(glbl.nuclear_basis['hessfile'])
+    #if os.path.isfile(glbl.properties['hessfile']):
+    #    glbl.properties['hessian']    = read_hessian(glbl.properties['hessfile'])
 
     # if use_atom_lib, atom_lib values overwrite variables settings from nomad.input
-    if glbl.nuclear_basis['use_atom_lib']:
+    if glbl.properties['use_atom_lib']:
         wlst  = []
         mlst  = []
         for i in range(len(labels)):
-            (wid, mass, num) = atom_lib.atom_data(labels[i])
+            wid, mass, num = atom_lib.atom_data(labels[i])
             wlst.append(wid)
             mlst.append(mass)
-        glbl.nuclear_basis['widths'] = wlst
-        glbl.nuclear_basis['masses'] = mlst
+        glbl.properties['widths'] = wlst
+        glbl.properties['masses'] = mlst
 
     # set mass array here if using vibronic interface
     if glbl.iface_params['interface'] == 'vibronic':
-        n_usr_freq = len(glbl.nuclear_basis['freqs'])
+        n_usr_freq = len(glbl.properties['freqs'])
 
         # automatically set the "mass" of the coordinates to be 1/omega
         # the coefficient on p^2 -> 0.5 omega == 0.5 / m. Any user set masses
         # will override the default
-        if len(glbl.nuclear_basis['masses']) >= n_usr_freq:
+        if len(glbl.properties['masses']) >= n_usr_freq:
             pass
         else:
-            glbl.nuclear_basis['masses'] = [1. for i in range(n_usr_freq)]
-        #else all(freq != 0. for freq in glbl.nuclear_basis['freqs']):
-        #    glbl.nuclear_basis['masses'] = [1./glbl.nuclear_basis['freqs'][i] for i in
+            glbl.properties['masses'] = [1. for i in range(n_usr_freq)]
+        #else all(freq != 0. for freq in glbl.properties['freqs']):
+        #    glbl.properties['masses'] = [1./glbl.properties['freqs'][i] for i in
         #                                     range(len(n_usr_freq)]
 
         # set the widths to automatically be 1/2 (i.e. assumes frequency-weighted coordinates.
         # Any user set widths will override the default
-        if len(glbl.nuclear_basis['widths']) >= n_usr_freq:
+        if len(glbl.properties['widths']) >= n_usr_freq:
             pass
         else:
-            glbl.nuclear_basis['widths'] = [0.5 for i in range(n_usr_freq)]
+            glbl.properties['widths'] = [0.5 for i in range(n_usr_freq)]
 
     # set the kinetic energy coefficient
     if glbl.iface_params['interface'] == 'vibronic':
         # KE operator coefficients, mass- and frequency-scaled normal mode
         # coordinates, a_i = 0.5*omega_i
-        glbl.kecoef = 0.5 * np.array(glbl.nuclear_basis['freqs'])
+        glbl.kecoef = 0.5 * np.array(glbl.properties['freqs'])
     else:
-        glbl.kecoef = 0.5 / np.array(glbl.nuclear_basis['masses'])
+        glbl.kecoef = 0.5 / np.array(glbl.properties['masses'])
 
     # subsequent code will ONLY use the 'init_states' array. If that array hasn't
     # been set, using the value of 'init_state' to create it
-    if glbl.sampling['init_state'] != -1:
-        glbl.sampling['init_states'] = [glbl.sampling['init_state'] for
-                                        i in range(glbl.sampling['n_init_traj'])]
+    if glbl.properties['init_state'] != -1:
+        glbl.properties['init_states'] = [glbl.properties['init_state'] for
+                                        i in range(glbl.properties['n_init_traj'])]
 
-    elif (any(state == -1 for state in glbl.sampling['init_states']) or
-          len(glbl.sampling['init_states']) != glbl.sampling['n_init_traj']):
+    elif (any(state == -1 for state in glbl.properties['init_states']) or
+          len(glbl.properties['init_states']) != glbl.properties['n_init_traj']):
         raise ValueError('Cannot assign state.')
 
     # set the surface_rep variable depending on the value of the integrals
     # keyword
-    if glbl.propagate['integrals'] == 'vibronic_diabatic':
-        glbl.variables['surface_rep'] = 'diabatic'
+    if glbl.properties['integrals'] == 'vibronic_diabatic':
+        glbl.surface_rep = 'diabatic'
     else:
-        glbl.variables['surface_rep'] = 'adiabatic'
+        glbl.surface_rep = 'adiabatic'
 
     # check array lengths
-    #ngeom   = len(glbl.nuclear_basis['geometries'])
-    #lenarr  = [len(glbl.nuclear_basis['geometries'][i]) for i in range(ngeom)]
+    #ngeom   = len(glbl.properties['geometries'])
+    #lenarr  = [len(glbl.properties['geometries'][i]) for i in range(ngeom)]

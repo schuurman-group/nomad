@@ -41,7 +41,7 @@ def init():
     files.read_input(input_fname)
 
     # initialize random number generator
-    np.random.seed(glbl.sampling['seed'])
+    np.random.seed(glbl.properties['seed'])
 
     # initialize the running calculation log
     log.init_logfile()
@@ -75,7 +75,7 @@ def main():
     # set the initial conditions for trajectories
     initialize.init_wavefunction(master)
 
-    while master.time < glbl.propagate['simulation_time']:
+    while master.time < glbl.properties['simulation_time']:
         # set the time step --> top level time step should always
         # be default time step. fms_step_wfn will decide if/how
         # dt should be shortened for numerics

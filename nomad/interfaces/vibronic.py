@@ -10,7 +10,7 @@ import nomad.core.surface as surface
 
 
 ham = None
-nsta = glbl.propagate['n_states']
+nsta = glbl.properties['n_states']
 data_cache = dict()
 
 
@@ -141,25 +141,25 @@ def init_interface():
     # Read in geometry labels, frequency and operator files
     ham = VibHam()
 
-    # if 'geometry.dat' present, read info from there, else, from inputfile
-    if glbl.nuclear_basis['geomfile'] != '':
-        ham.rdgeomfile(glbl.home_path + '/geometry.dat')
-    else:
-        ham.nmode_total = len(glbl.nuclear_basis['geometries'][0])
-        ham.mlbl_total  = glbl.nuclear_basis['labels']
+    ## if 'geometry.dat' present, read info from there, else, from inputfile
+    #if glbl.properties['geomfile'] != '':
+    #    ham.rdgeomfile(glbl.home_path + '/geometry.dat')
+    #else:
+    ham.nmode_total = len(glbl.properties['geometries'][0])
+    ham.mlbl_total  = glbl.properties['labels'] # shouldn't be set by global
 
     # I propose discontinuing 'freq.dat' file. This can be entered in
     # input file. Need way to differentiate between active/inactive modes
     # I presume
     #ham.rdfreqfile(glbl.home_path + '/freq.dat')
-    ham.nmode_active = len(glbl.nuclear_basis['freqs'])
+    ham.nmode_active = len(glbl.properties['freqs']) # should be set by opfile (in ham.rdoperfile)
     ham.mlbl_active  = ham.mlbl_total
-    ham.freq         = np.array(glbl.nuclear_basis['freqs'])
+    ham.freq         = np.array(glbl.properties['freqs'])
     for i in range(len(ham.freq)):
         ham.freqmap[ham.mlbl_active[i]] = ham.freq[i]
 
     # operator file will always be a separate file
-    ham.rdoperfile(glbl.home_path + '/' + glbl.iface_params['opfile'])
+    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
 
     # Ouput some information about the Hamiltonian
     log.print_message('string', ['*'*72])
@@ -167,7 +167,7 @@ def init_interface():
                              ['* Vibronic Coupling Hamiltonian Information'])
     log.print_message('string', ['*'*72])
     log.print_message('string',
-                             ['Operator file: ' + glbl.iface_params['opfile']])
+                             ['Operator file: ' + glbl.vibronic['opfile']])
     log.print_message('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
     string = 'Total no. modes: ' + str(ham.nmode_total)
@@ -216,7 +216,7 @@ def evaluate_trajectory(traj, t=None):
     t_data.add_data('diabat_deriv',diabderiv1)
     t_data.add_data('diabat_hessian',diabderiv2)
 
-    if glbl.variables['surface_rep'] == 'adiabatic':
+    if glbl.surface_rep == 'adiabatic':
         # Calculation of the adiabatic potential vector and ADT matrix
         adiabpot, datmat = calc_dat(label, diabpot)
 
@@ -260,6 +260,7 @@ def evaluate_trajectory(traj, t=None):
     data_cache[label] = t_data
     return t_data
 
+
 def evaluate_centroid(traj, t=None):
     """Evaluates the centroid.
 
@@ -267,13 +268,13 @@ def evaluate_centroid(traj, t=None):
     """
     return evaluate_trajectory(traj, t)
 
-def evaluate_coupling(traj):
-    """update the coupling to the other states"""
 
-    if glbl.variables['surface_rep'] == 'adiabatic':
+def evaluate_coupling(traj):
+    """Updates the coupling to the other states"""
+    if glbl.surface_rep == 'adiabatic':
         vel   = traj.velocity()
         deriv = traj.pes.get_data('derivative')
- 
+
         coup = np.array([[np.dot(vel, deriv[:,i,j]) for i in range(nsta)]
                                                     for j in range(nsta)])
         coup -= np.diag(coup.diagonal())
@@ -284,7 +285,6 @@ def evaluate_coupling(traj):
         diab_effcoup     = calc_diabeffcoup(diabpot)
         traj.pes.add_data('coupling',diab_effcoup)
 
-    return
 
 #----------------------------------------------------------------------
 #
@@ -395,7 +395,7 @@ def calc_dat(label, diabpot):
 def calc_ddat(label, q, diabpot, dat_mat):
     """Returns the derviative of the diabatic to adiabatic transformation
        matrix via numerical differentiation"""
-    ddat_mat = np.zeros((ham.nmode_total,nsta,nsta))
+    ddat_mat = np.zeros((ham.nmode_total, nsta, nsta))
     dx = 0.001
 
     return ddat_mat
@@ -484,7 +484,7 @@ def calc_diabeffcoup(diabpot):
        eff_coup = Hij / (H[i,i] - H[j,j])
     """
     demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs)
-                           for i in range(nsta)] for j in range(nsta)])
+                       for i in range(nsta)] for j in range(nsta)])
     eff_coup = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
 
     return eff_coup
