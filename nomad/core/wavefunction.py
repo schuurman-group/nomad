@@ -162,7 +162,7 @@ class Wavefunction:
     def norm(self):
         """Returns the norm of the wavefunction """
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.matrices.mat_dict['s']),self.amplitudes()).real
+                      self.matrices.mat_dict['s_traj']),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -176,8 +176,6 @@ class Wavefunction:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
-                if self.traj[jj].state != state:
-                    continue
                 popij = (self.matrices.mat_dict['s_traj'][i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())

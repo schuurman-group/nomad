@@ -243,6 +243,8 @@ def generate_data_formats(ncrd, nst):
     tfile_names['hessian']   = 'hessian.dat'
 
     # bundle matrices
+    bfile_names['t']         = 't.dat'
+    bfile_names['v']         = 'v.dat'
     bfile_names['s']         = 's.dat'
     bfile_names['sdot']      = 'sdot.dat'
     bfile_names['h']         = 'h.dat'
