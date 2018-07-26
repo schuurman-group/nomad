@@ -104,6 +104,9 @@ def process_arguments(args):
         elif arg_val == '-time':
             time = float(args[iarg+1])
             iarg += 1
+        elif arg_val == '-integrals':
+            data_lst[arg_val] = str(args[iarg+1])
+            iarg += 1
         else:
             data_lst[arg_val] = True
 

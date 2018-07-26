@@ -72,11 +72,14 @@
     double complex,intent(out)   :: int_del2x(size(a1))
 
     double precision :: dx(size(a1)), psum(size(a1))
+    double precision :: real_part(size(a1)), imag_part(size(a1))
     double complex,parameter  :: I = (0., 1.)
 
     dx        = x1 - x2
     psum      = a1*p2 + a2*p1
-    int_del2x = S * (-4.*a1*a2*dx*psum*I - 2.*a1*a2*(a1+a2) + 4.*dx**2*a1**2*a2**2 - psum**2) / (a1+a2)**2
+    real_part = 4.*dx**2*a1**2*a2**2 - psum**2 - 2.*a1*a2*(a1+a2)
+    imag_part = -4.*a1*a2*dx*psum
+    int_del2x = S * (real_part + I * imag_part) / (a1+a2)**2
 
     return
   end subroutine deld2x

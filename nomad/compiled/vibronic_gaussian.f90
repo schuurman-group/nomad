@@ -14,23 +14,21 @@
     double complex, parameter    :: Im = (0., 1.)
     double precision, parameter  :: zero = 1.e-16
 
-
     n_2    = int(floor(0.5*n))
     a      = a1 + a2
     b      = 2.*(a1*x1 + a2*x2) - Im*(p1-p2)
 
     int_qn = (0., 0.)
+
     if (abs(b) < zero) then
-      if (mod(N,2) /= 0) then
-        return
-      else
-        int_qn = (a**(-n_2))/factorial(n_2) * factorial(n) / 2.**n
-        return
+      if (mod(n,2) == 0) then 
+        int_qn = a**(-n_2) * factorial(n) / (factorial(n_2) * 2.**n)
       endif
+      return
     endif
   
     do i = 0,n_2
-      int_qn = int_qn + a**(i-N) * b**(N-2*i) / (factorial(i) * factorial(n-2*i))
+      int_qn = int_qn + a**(i-n) * b**(n-2*i) / (factorial(i) * factorial(n-2*i))
     enddo
     int_qn = int_qn * factorial(n) / 2.**n
 
