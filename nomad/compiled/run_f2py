@@ -1,4 +1,6 @@
 #!/bin/sh
+# Compiles the nuclear integral scripts into local shared libraries.
+# This is done automatically using setup.py in the main directory.
 
 rm -f *.so
 f2py -c --fcompiler=gfortran -m nuclear_gaussian nuclear_gaussian.f90
