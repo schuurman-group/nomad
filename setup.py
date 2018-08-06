@@ -43,7 +43,6 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'h5py>=2.5.0',
-                      'mpi4py>=2.0.0'],
+    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'h5py>=2.5.0'],
     ext_modules=ext_modules
       )
