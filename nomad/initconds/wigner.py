@@ -18,12 +18,13 @@ def set_initial_coords(master):
     else:
         coordtype = 'cart'
 
-    # if multiple geometries in geometry.dat -- just take the first one
-    x_ref = np.array(glbl.properties['geometries'][0],dtype=float)
-    p_ref = np.array(glbl.properties['momenta'][0],dtype=float)
-    w_vec = np.array(glbl.properties['widths'],dtype=float)
-    m_vec = np.array(glbl.properties['masses'],dtype=float)
-    ndim  = len(x_ref)
+    # if multiple geometries, just take the first one
+    coords = glbl.properties['init_coords']
+    ndim = coords.shape[-1]
+    x_ref = coords[0,0]
+    p_ref = coords[0,1]
+    w_vec = glbl.properties['atm_widths']
+    m_vec = glbl.properties['atm_masses']
 
     # create template trajectory basis function
     template = trajectory.Trajectory(glbl.properties['n_states'], ndim,
@@ -64,7 +65,7 @@ def set_initial_coords(master):
         n_modes = len(w_vec)
         # we multiply by 0.5 below -- multiply by 2 here (i.e. default width for
         # vibronic hamiltonans is 1/2, assuming frequency weighted coords
-        freqs   = 2.* w_vec
+        freqs   = 2. * w_vec
         log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies

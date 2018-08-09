@@ -145,8 +145,8 @@ def init_interface():
     #if glbl.properties['geomfile'] != '':
     #    ham.rdgeomfile(glbl.home_path + '/geometry.dat')
     #else:
-    ham.nmode_total = len(glbl.properties['geometries'][0])
-    ham.mlbl_total  = glbl.properties['labels'] # shouldn't be set by global
+    ham.nmode_total = glbl.properties['init_coords'].shape[-1]
+    ham.mlbl_total  = [lbl.lower() for lbl in glbl.properties['atm_labels']]
 
     # I propose discontinuing 'freq.dat' file. This can be entered in
     # input file. Need way to differentiate between active/inactive modes

@@ -10,195 +10,275 @@ import nomad.core.glbl as glbl
 import nomad.core.atom_lib as atom_lib
 import nomad.integrals.integral as integral
 import nomad.core.matrices as matrices
+import nomad.math.constants as constants
 
 
 def read_input(fname):
-    """Reads the nomad.input files.
+    """Reads the nomad input files.
 
     This file contains variables related to the running of the
     dynamics simulation.
 
     Valid sections are:
-        initial_conditions
-        propagation
-        spawning
-        interface
-        geometry
-        printing
+        methods
+        properties
+        [interface name]
+    The methods section must be present to define the simulation
+    run type. The properties section is also required with at least
+    the 'geometry' keyword.
     """
     # Read input file. Small enough to gulp the whole thing
     with open(glbl.home_path + '/' + fname, 'r') as infile:
         nomad_input = infile.readlines()
 
-    # remove comment lines
+    # remove comment lines marked with '#' or '!'
     nomad_input = [re.split('#|!', ln)[0] for ln in nomad_input]
 
-    sec_strings = list(glbl.input_groups)
+    # parse the methods section
+    parse_section('methods', nomad_input)
 
-    # look for begining of input section
-    current_line = 0
-    while current_line < len(nomad_input):
-        sec_start = [re.search(str('begin '+sec_strings[i]+'-section'), nomad_input[current_line])
-                     for i in range(len(sec_strings))]
-        if all([v is None for v in sec_start]):
-            current_line += 1
-        else:
-            section = next(item for item in sec_start
-                           if item is not None).string
-            section = section.replace('-section','').replace('begin','').strip()
-            current_line = parse_section(nomad_input, current_line, section)
+    # parse the properties section
+    parse_section('properties', nomad_input)
 
-    # ensure that input is internally consistent
-    validate()
+    # parse the interface-specific section if present
+    try:
+        parse_section(glbl.methods['interface'], nomad_input)
+    except IOError:
+        pass
 
-
-def read_geometry(geom_file):
-    """Reads position and momenta from an xyz file"""
-    geoms = []
-    moms  = []
-
-    with open(geom_file, 'r') as gfile:
-        gm_file = gfile.readlines()
-
-    # parse file for number of atoms/dof, dimension of coordinates
-    # and number of geometries
-    ncrd    = int(gm_file[0].strip().split()[0])
-    crd_dim = int(0.5*(len(gm_file[2].strip().split()) - 1))
-    ngeoms  = int(len(gm_file)/(ncrd+2)) # this is definitely not correct
-
-    # read in the atom/crd labels -- assumes atoms are same for each
-    # geometry in the list
-    labels = []
-    for i in range(2,ncrd+2):
-        labels.extend([gm_file[i].strip().split()[0] for j in range(crd_dim)])
-
-    # loop over geoms, load positions and momenta into arrays
-    for i in range(ngeoms):
-        geom = []
-        mom  = []
-
-        # delete first and comment lines
-        del gm_file[0:2]
-        for j in range(ncrd):
-            line = gm_file[0].strip().split()
-            geom.extend([float(line[k]) for k in range(1,crd_dim+1)])
-            mom.extend([float(line[k]) for k in range(crd_dim+1,2*crd_dim+1)])
-            del gm_file[0]
-
-        geoms.append(geom)
-        moms.append(mom)
-
-    return labels, geoms, moms
-
-
-def read_hessian(hess_file):
-    """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
-    return np.loadtxt(str(hess_file), dtype=float)
+    # setup calculation consistent with the input
+    setup_input()
 
 
 #------------------------------------------------------------------
 #
 # Below functions should not be called outside the module
 #
-def parse_section(kword_array, line_start, section):
+def parse_section(section, file_contents):
     """Reads a namelist style input, returns results in dictionary.
 
     Set keywords in the appropriate keyword dictionary by parsing
-    input array."""
-    current_line = line_start + 1
-    while (current_line < len(kword_array) and
-           re.search('end '+section+'-section',kword_array[current_line]) is None):
-        line = kword_array[current_line].rstrip('\r\n')
+    input array.
+    """
+    nlines = len(file_contents)
+    sec_dict = getattr(glbl, section)
 
-        # allow for multi-line input
-        while ('=' not in kword_array[current_line+1] and
-               'end '+section+'-section' not in kword_array[current_line+1]):
-            current_line += 1
-            line += kword_array[current_line].rstrip('\r\n').strip()
+    # find the start of the section
+    for i in range(nlines):
+        if re.search('begin\s+' + section, file_contents[i]):
+            break
+        elif i == nlines - 1:
+            raise IOError(section + ' section not found in input file')
 
-        key,value = line.split('=',1)
-        key   = key.strip()
-        value = value.strip().lower() # convert to lowercase
-
-        if key not in glbl.input_groups[section].keys():
-            if glbl.mpi['rank'] == 0:
-                print('Cannot find input parameter: '+key+
-                      ' in input section: '+section)
+    # read the section contents
+    j = i + 1
+    while j < nlines:
+        if re.search('end\s+' + section, file_contents[j]):
+            break
+        elif j == nlines - 1:
+            raise IOError('no end found for ' + section + ' section')
         else:
-            # put all variable types into a flat list
-            # here we explicitly consider dimension 0,1,2 lists: which
-            # is pretty messy.
-            valid = True
-            if glbl.keyword_type[key][1] == 2:
-                try:
-                    value = ast.literal_eval(value)
-                except Exception:
-                    valid = False
-                    print('Cannot interpret input as nested array: '+
-                            str(ast.literal_eval('\'%s\'' % value)))
-                try:
-                    varcast = [[glbl.keyword_type[key][0](check_boolean(item))
-                               for item in sublist] for sublist in value]
-                except ValueError:
-                    valid = False
-                    print('Cannot read variable: '+str(key)+
-                          ' as nested list of '+str(glbl.keyword_type[key][0]))
-            elif glbl.keyword_type[key][1] == 1:
-                try:
-                    value = ast.literal_eval(value)
-                except Exception:
-                    valid = False
-                    print('Cannot interpret input as list: '+
-                            str(ast.literal_eval('\'%s\'' % value)))
-                try:
-                    varcast = [glbl.keyword_type[key][0](check_boolean(item))
-                               for item in value]
-                except ValueError:
-                    valid = False
-                    print('Cannot read variable: '+str(key)+
-                          ' as list of '+str(glbl.keyword_type[key][0]))
+            line = file_contents[j]
+            lwhite = len(line) - len(line.lstrip())
+            var = line.split(maxsplit=1)
+            for i in range(1, nlines):
+                # keep reading if the next line is indented relative to
+                # the variable name
+                next_line = file_contents[j+i]
+                nlwhite = len(next_line) - len(next_line.lstrip())
+                if nlwhite <= lwhite and next_line.lstrip() != '':
+                    break
+                elif len(var) == 1:
+                    # variable contents start on next line
+                    var.append(next_line)
+                else:
+                    var[1] += next_line
+
+            # check and parse variable name and value
+            if len(var) == 1:
+                # boolean variables don't require an argument
+                vname = var[0].replace('no_','')
+                if var[0] in sec_dict.keys():
+                    sec_dict[var[0]] = True
+                elif vname in sec_dict.keys():
+                    sec_dict[vname] = False
+                else:
+                    print('Skipping unrecognized variable ' + vname + ' in ' +
+                          section + ' section')
+            elif var[0] not in sec_dict.keys():
+                print('Skipping unrecognized variable ' + var[0] + ' in ' +
+                      section + ' section')
+            elif var[0] == 'init_coords':
+                sec_dict[var[0]] = parse_coords(var[1])
+            elif var[0] == 'hessian':
+                sec_dict[var[0]] = parse_hessian(var[1])
             else:
-                try:
-                    varcast = glbl.keyword_type[key][0](check_boolean(value))
-                except ValueError:
-                    valid = False
-                    print('Cannot read variable: '+str(key)+
-                          ' as a '+str(glbl.keyword_type[key][0]))
+                sec_dict[var[0]] = parse_value(var[1])
 
-            if valid:
-                glbl.input_groups[section][key] = varcast
-
-        current_line+=1
-
-    return current_line
+            j += i
 
 
-def check_boolean(chk_str):
-    """Routine to check if string is boolean.
+def parse_coords(valstr):
+    """Returns geometry and momenta or a set of geometries and momenta
+    from a string or input filename.
 
-    Accepts 'true','TRUE','True', etc. and if so, return True or False.
+    Geometries are in the XYZ file format in atomic units by default.
+    Momenta are specified in the XYZ format, i.e. alongside the cartesian
+    coordinates of each atom. If not given, momenta are set to zero.
     """
-    bool_str = str(chk_str).strip().lower()
-    if bool_str == 'true':
-        return True
-    elif bool_str == 'false':
-        return False
+    all_lines = valstr.split('\n')[:-1]
+    nlines = len(all_lines)
+    if nlines == 1:
+        # filename given, read in XYZ file
+        with open(all_lines[0], 'r') as f:
+            all_lines = f.read().split('\n')
+
+    # read the geometries and momenta if applicable
+    natms = []
+    comms = []
+    labels = []
+    coords = []
+    i = 0
+    while i < nlines:
+        natm = int(all_lines[i])
+        natms.append(natm)
+        comms.append(all_lines[i+1].lower())
+        icoord = np.array([line.split() for line in all_lines[i+2:i+natm+2]])
+        labels.append(icoord[:,0])
+        coords.append(icoord[:,1:])
+        i += natm + 2
+
+    nmol = len(natms)
+    natms = np.array(natms)
+    labels = np.array(labels)
+    coords = np.array(coords, dtype=float)
+
+    # make sure all geometries are the same molecule
+    if not np.all(natms == natms[0]):
+        raise ValueError('All geometries must correspond to the same ' +
+                         'molecule.')
+    for i in range(1, nmol):
+        if not np.all(labels[i] == labels[0]):
+            raise ValueError('All geometries must correspond to the same ' +
+                             'molecule.')
+
+    # 1D or 3D geometries only
+    cshape = coords.shape
+    dcoord = cshape[-1]
+    if dcoord not in [1, 2, 3, 6]:
+        raise ValueError('Coordinates must be 1D or 3D (2D or 6D with momenta')
+    if dcoord % 2 == 1:
+        # reshape x
+        xyz = coords.reshape(cshape[0], cshape[1]*cshape[2])
+        # momenta not given, set to zero
+        mom = np.zeros_like(xyz)
+        coords = np.array([[xi, pi] for xi, pi in zip(xyz, mom)])
+        dcoord *= 2
     else:
-        return chk_str
+        # reshape x and p
+        xyz = coords[:,:,:dcoord//2].reshape(cshape[0], cshape[1]*cshape[2]//2)
+        mom = coords[:,:,dcoord//2:].reshape(cshape[0], cshape[1]*cshape[2]//2)
+        coords = np.array([[xi, pi] for xi, pi in zip(xyz, mom)])
+
+    # parse comment line to get units
+    for i in range(nmol):
+        xconv = 1. / constants.bohr2ang
+        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
+        if 'units=' in comms[i]:
+            unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i])
+            if unit == 'bohr':
+                xconv = 1.
+                pconv = 1.
+        coords[:,0] *= xconv
+        coords[:,1] *= pconv
+
+    # set atomic labels if not set in input file
+    if glbl.properties['atm_labels'] is None:
+        glbl.properties['atm_labels'] = labels[0]
+
+    return coords
 
 
-def validate():
-    """Ensures that input values are internally consistent.
+def parse_hessian(valstr):
+    """Reads the non-mass-weighted Hessian matrix from hessian.dat."""
+    all_lines = valstr.split('\n')[:-1]
+    nlines = len(all_lines)
+    if nlines == 1:
+        try:
+            # 1 x 1 Hessian
+            return np.atleast_2d(all_lines[0]).astype(float)
+        except ValueError:
+            # filename given, read in Hessian file
+            return np.loadtxt(all_lines[0], dtype=float)
+    else:
+        # full Hessian given in input
+        return np.array([line.split() for line in all_lines], dtype=float)
 
-    Currently there are multiple ways to set variables in the nuclear
-    basis section. The following lines ensure that subsequent usage of the
-    entries in glbl is consistent, regardless of how input specified.
+
+def parse_value(valstr):
+    """Returns a value converted to the appropriate type and shape.
+
+    By default, spaces and newlines will be treated as delimiters. The
+    combination of both will be treated as a 2D array.
     """
+    # how is the Hessian handled?
+    all_lines = valstr.split('\n')[:-1]
+    split_lines = [line.split() for line in all_lines]
+
+    if len(all_lines) > 1 and len(split_lines[0]) == 1:
+        # newline and space give the same result for a vector
+        split_lines = [[line[0] for line in split_lines]]
+
+    if len(split_lines) == 1:
+        if len(split_lines[0]) == 1:
+            # handle single values
+            return convert_value(split_lines[0][0])
+        else:
+            # handle vectors
+            return convert_array(split_lines[0])
+    else:
+        # handle 2D arrays
+        return convert_array(split_lines)
+
+
+def convert_value(val):
+    """Converts a string value to int, float or string."""
+    try:
+        return int(val)
+    except ValueError:
+        pass
+
+    try:
+        return float(val)
+    except ValueError:
+        pass
+
+    return val
+
+
+def convert_array(val_list):
+    """Converts a list of strings to an array of ints, floats or strings."""
+    try:
+        return np.array(val_list, dtype=int)
+    except ValueError:
+        pass
+
+    try:
+        return np.array(val_list, dtype=float)
+    except ValueError:
+        pass
+
+    return np.array(val_list, dtype=str)
+
+
+def setup_input():
+    """Sets up global methods and properties based on the input."""
+    # import method objects
     glbl.master_int = integral.Integral(glbl.methods['integral_eval'])
     glbl.master_mat = matrices.Matrices()
 
-    glbl.interface = __import__('nomad.interfaces.' +
-                                glbl.methods['interface'], fromlist=['NA'])
+    glbl.interface = __import__('nomad.interfaces.' + glbl.methods['interface'],
+                                fromlist=['NA'])
     glbl.init_conds = __import__('nomad.initconds.' + glbl.methods['init_conds'],
                                  fromlist=['NA'])
     glbl.adapt = __import__('nomad.adapt.' + glbl.methods['adapt_basis'],
@@ -206,75 +286,42 @@ def validate():
     glbl.propagator = __import__('nomad.propagators.' + glbl.methods['propagator'],
                                  fromlist=['a'])
 
-    # if geomfile specified, it's contents overwrite variable settings in nomad.input
-    #if os.path.isfile(glbl.properties['geomfile']): ###
-    #    labels, geoms, moms              = read_geometry(glbl.properties['geomfile'])
-    #    #glbl.properties['labels']     = labels
-    #    glbl.properties['geometries'] = geoms
-    #    #glbl.properties['momenta']    = moms
+    # set atomic widths and masses unless they are given in the input file
+    natm = len(glbl.properties['atm_labels'])
+    if glbl.methods['interface'] == 'vibronic':
+        wlst = np.array([1.0 for i in range(natm)])
+        mlst = np.array([0.5 for i in range(natm)])
+    elif glbl.properties['use_atom_lib']:
+        labels = glbl.properties['atm_labels']
+        wlst = np.empty(len(labels))
+        mlst = np.empty(len(labels))
+        for i, l in enumerate(labels):
+            wlst[i], mlst[i], num = atom_lib.atom_data(l)
+    else:
+        wlst = np.array([0.0 for i in range(natm)])
+        mlst = np.array([1.0 for i in range(natm)])
 
-    # if hessfile is specified, its contents overwrite variable settings from nomad.input
-    #if os.path.isfile(glbl.properties['hessfile']):
-    #    glbl.properties['hessian']    = read_hessian(glbl.properties['hessfile'])
-
-    # if use_atom_lib, atom_lib values overwrite variables settings from nomad.input
-    if glbl.properties['use_atom_lib']:
-        wlst  = []
-        mlst  = []
-        for i in range(len(labels)):
-            wid, mass, num = atom_lib.atom_data(labels[i])
-            wlst.append(wid)
-            mlst.append(mass)
-        glbl.properties['widths'] = wlst
-        glbl.properties['masses'] = mlst
-
-    # set mass array here if using vibronic interface
-    if glbl.iface_params['interface'] == 'vibronic':
-        n_usr_freq = len(glbl.properties['freqs'])
-
-        # automatically set the "mass" of the coordinates to be 1/omega
-        # the coefficient on p^2 -> 0.5 omega == 0.5 / m. Any user set masses
-        # will override the default
-        if len(glbl.properties['masses']) >= n_usr_freq:
-            pass
-        else:
-            glbl.properties['masses'] = [1. for i in range(n_usr_freq)]
-        #else all(freq != 0. for freq in glbl.properties['freqs']):
-        #    glbl.properties['masses'] = [1./glbl.properties['freqs'][i] for i in
-        #                                     range(len(n_usr_freq)]
-
-        # set the widths to automatically be 1/2 (i.e. assumes frequency-weighted coordinates.
-        # Any user set widths will override the default
-        if len(glbl.properties['widths']) >= n_usr_freq:
-            pass
-        else:
-            glbl.properties['widths'] = [0.5 for i in range(n_usr_freq)]
+    if glbl.properties['atm_widths'] is None:
+        glbl.properties['atm_widths'] = wlst
+    if glbl.properties['atm_masses'] is None:
+        glbl.properties['atm_masses'] = mlst
 
     # set the kinetic energy coefficient
-    if glbl.iface_params['interface'] == 'vibronic':
+    if glbl.methods['interface'] == 'vibronic':
         # KE operator coefficients, mass- and frequency-scaled normal mode
         # coordinates, a_i = 0.5*omega_i
         glbl.kecoef = 0.5 * np.array(glbl.properties['freqs'])
     else:
-        glbl.kecoef = 0.5 / np.array(glbl.properties['masses'])
+        glbl.kecoef = 0.5 / np.array(glbl.properties['atm_masses'])
 
-    # subsequent code will ONLY use the 'init_states' array. If that array hasn't
-    # been set, using the value of 'init_state' to create it
-    if glbl.properties['init_state'] != -1:
-        glbl.properties['init_states'] = [glbl.properties['init_state'] for
-                                        i in range(glbl.properties['n_init_traj'])]
+    # set init_state for all trajectories
+    istate = glbl.properties['init_state']
+    if isinstance(istate, int):
+        glbl.properties['init_state'] = [istate for i in
+                                         range(glbl.properties['n_init_traj'])]
 
-    elif (any(state == -1 for state in glbl.properties['init_states']) or
-          len(glbl.properties['init_states']) != glbl.properties['n_init_traj']):
-        raise ValueError('Cannot assign state.')
-
-    # set the surface_rep variable depending on the value of the integrals
-    # keyword
-    if glbl.properties['integrals'] == 'vibronic_diabatic':
+    # set the surface_rep variable depending on the integrals keyword
+    if glbl.methods['integral_eval'] == 'vibronic_diabatic':
         glbl.surface_rep = 'diabatic'
     else:
         glbl.surface_rep = 'adiabatic'
-
-    # check array lengths
-    #ngeom   = len(glbl.properties['geometries'])
-    #lenarr  = [len(glbl.properties['geometries'][i]) for i in range(ngeom)]

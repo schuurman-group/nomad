@@ -14,4 +14,3 @@ au2ev    = 27.21138505
 au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
-

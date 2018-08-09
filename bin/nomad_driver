@@ -68,7 +68,7 @@ def process_arguments(args):
 
 
 def main():
-    """Runs the main FMSpy routine."""
+    """Runs the main nomad routine."""
     # Create the collection of trajectories
     master = wavefunction.Wavefunction()
 
@@ -81,7 +81,7 @@ def main():
         # dt should be shortened for numerics
         time_step = step.time_step(master)
 
-        # take an fms dynamics step
+        # propagate one step forward
         master = step.step_wavefunction(master, time_step)
 
         # if no more live trajectories, simulation is complete

@@ -44,7 +44,7 @@ def step_wavefunction(master, dt):
         # update the couplings for all the trajectories
         for i in range(master.n_traj()):
             glbl.interface.evaluate_coupling(master.traj[i])
- 
+
         # propagate amplitudes for 1/2 time step using x1
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)

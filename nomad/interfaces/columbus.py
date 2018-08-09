@@ -462,7 +462,6 @@ def run_col_mrci(traj, ci_restart, t):
     # determine if trajectory or centroid, and compute densities
     # accordingly
     if type(traj) is trajectory.Trajectory:
-
         # perform density transformation for gradient computations
         int_trans = True
         # compute densities between all states and trajectory state
@@ -473,9 +472,8 @@ def run_col_mrci(traj, ci_restart, t):
                 if i != j and not (j in init_states and j < i):
                     tran_den.append([min(i,j)+1, max(i,j)+1])
 
-    # else, this is a centroid
     else:
-        # only need gradient if statei != statej
+        # this is a centroid, only need gradient if statei != statej
         state_i = min(traj.states)
         state_j = max(traj.states)
         int_trans = (traj.states[0] != traj.states[1])

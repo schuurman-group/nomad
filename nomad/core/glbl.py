@@ -26,12 +26,12 @@ mpi = dict(
 
 # Method variables (no default values)
 methods = dict(
-    init_conds    = None,
-    interface     = None,
     adapt_basis   = None,
-    propagator    = None,
+    ansatz        = None,
+    init_conds    = None,
     integral_eval = None,
-    ansatz        = None
+    interface     = None,
+    propagator    = None
                )
 
 # Interface-specific variables
@@ -42,7 +42,7 @@ columbus = dict(
                 )
 
 vibronic = dict(
-    opfile         = None, # required, should contain frequencies
+    opfile         = None, # required filename, should contain frequencies
     mem_per_core   = 1000.,
     coupling_order = 1,
     ordr_max       = 1
@@ -55,8 +55,12 @@ interfaces = dict(
 
 # Remaining properties (mostly optional)
 properties = dict(
-    geometries          = None, # required, can be filename or XYZ format
-    n_states            = None, # required
+    freqs = [0.003351536, 0.004001999, 0.006515652, 0.00947397, 0.013645016], # this is a hack to test the rest of input
+    init_coords         = None, # required, can be filename or XYZ format
+    atm_labels          = None,
+    atm_widths          = None,
+    atm_masses          = None,
+    n_states            = 2,
     n_init_traj         = 1,
     init_state          = -1,
     init_brightest      = False,
@@ -85,9 +89,8 @@ properties = dict(
     spawn_coup_thresh   = 0.02,
     spawn_olap_thresh   = 0.7,
     continuous_min_overlap = 0.5,
-    amplitudes          = [1+0j], # only used with multiple specified geoms
-    widths              = [0],    # only used with multiple specified geoms
-    masses              = [0],    # only used with multiple specified geoms
+    init_amps           = [1+0j],
+    init_amp_overlap    = True,
     print_level         = 1
                   )
 

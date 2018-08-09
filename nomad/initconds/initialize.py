@@ -16,7 +16,6 @@ def init_wavefunction(master):
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
-
     glbl.interface.init_interface()
 
     # now load the initial trajectories into the bundle
@@ -87,7 +86,6 @@ def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
     # initialize to the state with largest transition dipole moment
     if glbl.properties['init_brightest']:
-
         # set all states to the ground state
         for i in range(master.n_traj()):
             master.traj[i].state = 0
@@ -112,9 +110,9 @@ def set_initial_state(master):
             master.traj[i].state = np.argmax(tdip)+1
 
     # use "init_state" to set the initial state
-    elif len(glbl.properties['init_states']) == master.n_traj():
+    elif len(glbl.properties['init_state']) == master.n_traj():
         for i in range(master.n_traj()):
-            master.traj[i].state = glbl.properties['init_states'][i]
+            master.traj[i].state = glbl.properties['init_state'][i]
 
     else:
         raise ValueError('Ambiguous initial state assignment.')
@@ -190,11 +188,12 @@ def virtual_basis(master):
 def make_origin_traj():
     """Construct a trajectory basis function at the origin
     specified in the input files"""
-    ndim = len(glbl.properties['geometries'][0])
-    m_vec = np.array(glbl.properties['masses'])
-    w_vec = np.array(glbl.properties['widths'])
-    x_vec = np.array(glbl.properties['geometries'][0])
-    p_vec = np.array(glbl.properties['momenta'][0])
+    coords = glbl.properties['init_coords']
+    ndim = coords.shape[-1]
+    m_vec = glbl.properties['atm_masses']
+    w_vec = glbl.properties['atm_widths']
+    x_vec = coords[0,0]
+    p_vec = coords[0,1]
 
     origin = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                    width=w_vec, mass=m_vec, parent=0,

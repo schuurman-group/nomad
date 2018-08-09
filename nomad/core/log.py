@@ -29,7 +29,7 @@ def print_message(otype, data):
         if otype not in log_format:
             print('CANNOT WRITE otype=' + str(otype) + '\n')
 
-        elif glbl.printing['print_level'] >= print_level[otype]:
+        elif glbl.properties['print_level'] >= print_level[otype]:
             with open(glbl.log_file, 'a') as logfile:
                 logfile.write(log_format[otype].format(*data))
 
@@ -123,18 +123,23 @@ def print_header():
         logfile.write('\n nomad simulation keywords\n' +
                    ' ----------------------------------------\n')
 
-        logfile.write("\n ** global variables **\n")
+        logfile.write('\n ** method variables **\n')
         log_str = ''
-        for k,v in glbl.variables.items():
+        for k,v in glbl.methods.items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
 
-        for group,keywords in glbl.input_groups.items():
-            logfile.write('\n ** '+str(group)+' **\n')
-            log_str = ''
-            for k, v in glbl.input_groups[group].items():
-                log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
-            logfile.write(log_str+'\n')
+        logfile.write('\n ** property variables **\n')
+        log_str = ''
+        for k,v in glbl.properties.items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
+
+        logfile.write('\n ** '+glbl.methods['interface']+' variables **\n')
+        log_str = ''
+        for k,v in glbl.interfaces[glbl.methods['interface']].items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
 
         logfile.write ('\n ***********\n' +
                          ' propagation\n' +
