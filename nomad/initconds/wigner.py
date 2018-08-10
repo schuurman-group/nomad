@@ -23,8 +23,8 @@ def set_initial_coords(master):
     ndim = coords.shape[-1]
     x_ref = coords[0,0]
     p_ref = coords[0,1]
-    w_vec = glbl.properties['atm_widths']
-    m_vec = glbl.properties['atm_masses']
+    w_vec = glbl.properties['crd_widths']
+    m_vec = glbl.properties['crd_masses']
 
     # create template trajectory basis function
     template = trajectory.Trajectory(glbl.properties['n_states'], ndim,

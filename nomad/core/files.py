@@ -192,9 +192,8 @@ def parse_coords(valstr):
         coords[:,0] *= xconv
         coords[:,1] *= pconv
 
-    # set atomic labels if not set in input file
-    if glbl.properties['atm_labels'] is None:
-        glbl.properties['atm_labels'] = labels[0]
+    # set atomic labels
+    glbl.crd_labels = labels[0]
 
     return coords
 
@@ -242,7 +241,14 @@ def parse_value(valstr):
 
 
 def convert_value(val):
-    """Converts a string value to int, float or string."""
+    """Converts a string value to NoneType, bool, int, float or string."""
+    if val.lower() == 'none':
+        return None
+    elif val.lower() == 'true':
+        return True
+    elif val.lower() == 'false':
+        return False
+
     try:
         return int(val)
     except ValueError:
@@ -287,12 +293,12 @@ def setup_input():
                                  fromlist=['a'])
 
     # set atomic widths and masses unless they are given in the input file
-    natm = len(glbl.properties['atm_labels'])
+    natm = len(glbl.crd_labels)
     if glbl.methods['interface'] == 'vibronic':
-        wlst = np.array([1.0 for i in range(natm)])
-        mlst = np.array([0.5 for i in range(natm)])
+        wlst = np.array([np.sqrt(2) / 2 for i in range(natm)])
+        mlst = np.array([1. for i in range(natm)])
     elif glbl.properties['use_atom_lib']:
-        labels = glbl.properties['atm_labels']
+        labels = glbl.crd_labels
         wlst = np.empty(len(labels))
         mlst = np.empty(len(labels))
         for i, l in enumerate(labels):
@@ -301,18 +307,20 @@ def setup_input():
         wlst = np.array([0.0 for i in range(natm)])
         mlst = np.array([1.0 for i in range(natm)])
 
-    if glbl.properties['atm_widths'] is None:
-        glbl.properties['atm_widths'] = wlst
-    if glbl.properties['atm_masses'] is None:
-        glbl.properties['atm_masses'] = mlst
+    if glbl.properties['crd_widths'] is None:
+        glbl.properties['crd_widths'] = wlst
+    elif isinstance(glbl.properties['crd_widths'], (int, float)):
+        glbl.properties['crd_widths'] = np.array([glbl.properties['crd_widths']
+                                                  for i in range(natm)], dtype=float)
+    if glbl.properties['crd_masses'] is None:
+        glbl.properties['crd_masses'] = mlst
+    elif isinstance(glbl.properties['crd_masses'], (int, float)):
+        glbl.properties['crd_masses'] = np.array([glbl.properties['crd_masses']
+                                                  for i in range(natm)], dtype=float)
 
     # set the kinetic energy coefficient
-    if glbl.methods['interface'] == 'vibronic':
-        # KE operator coefficients, mass- and frequency-scaled normal mode
-        # coordinates, a_i = 0.5*omega_i
-        glbl.kecoef = 0.5 * np.array(glbl.properties['freqs'])
-    else:
-        glbl.kecoef = 0.5 / np.array(glbl.properties['atm_masses'])
+    # this value is reset if the vibronic interface is used
+    glbl.kecoef = 0.5 / np.array(glbl.properties['crd_masses'])
 
     # set init_state for all trajectories
     istate = glbl.properties['init_state']

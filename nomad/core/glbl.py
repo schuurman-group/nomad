@@ -2,6 +2,7 @@
 Global variables used throughout nomad
 """
 
+
 interface   = None
 init_conds  = None
 adapt       = None
@@ -11,6 +12,7 @@ surface_rep = 'adiabatic'
 bundle0     = None
 master_mat  = None
 master_int  = None
+crd_labels  = None
 
 home_path   = ''
 log_file    = ''
@@ -55,11 +57,9 @@ interfaces = dict(
 
 # Remaining properties (mostly optional)
 properties = dict(
-    freqs = [0.003351536, 0.004001999, 0.006515652, 0.00947397, 0.013645016], # this is a hack to test the rest of input
     init_coords         = None, # required, can be filename or XYZ format
-    atm_labels          = None,
-    atm_widths          = None,
-    atm_masses          = None,
+    crd_widths          = None,
+    crd_masses          = None,
     n_states            = 2,
     n_init_traj         = 1,
     init_state          = -1,
@@ -97,6 +97,7 @@ properties = dict(
 # lists keywords, the datatype of the keyword and the dimension
 # 0=scalar, 1=list, 2=nested list.
 # note that multi-dimensional keywords are python lists
+# NOTE: This needs to be updated or removed
 keyword_type = dict(
     bundle0                = [None,0],
     surf_rep               = [str,0],

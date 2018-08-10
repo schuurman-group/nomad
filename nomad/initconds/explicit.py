@@ -13,8 +13,8 @@ def set_initial_coords(master):
 
     for coord in coords:
         itraj = trajectory.Trajectory(glbl.properties['n_states'], ndim,
-                                      width=glbl.properties['atm_widths'],
-                                      mass=glbl.properties['atm_masses'],
+                                      width=glbl.properties['crd_widths'],
+                                      mass=glbl.properties['crd_masses'],
                                       parent=0, kecoef=glbl.kecoef)
 
         # set position and momentum

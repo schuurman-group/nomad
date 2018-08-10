@@ -190,8 +190,8 @@ def make_origin_traj():
     specified in the input files"""
     coords = glbl.properties['init_coords']
     ndim = coords.shape[-1]
-    m_vec = glbl.properties['atm_masses']
-    w_vec = glbl.properties['atm_widths']
+    m_vec = glbl.properties['crd_masses']
+    w_vec = glbl.properties['crd_widths']
     x_vec = coords[0,0]
     p_vec = coords[0,1]
 
