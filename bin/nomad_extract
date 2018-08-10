@@ -91,7 +91,7 @@ def process_arguments(args):
     chkpt_file = args[1]
 
     if not os.path.isfile(chkpt_file):
-        exit_error('input file: '+str(ckhpt_file)+' not found')
+        raise ValueError('input file: '+str(ckhpt_file)+' not found')
 
     iarg = 2
     while iarg < len(args):
@@ -103,6 +103,9 @@ def process_arguments(args):
             continue
         elif arg_val == '-time':
             time = float(args[iarg+1])
+            iarg += 1
+        elif arg_val == '-integrals':
+            data_lst[arg_val] = str(args[iarg+1])
             iarg += 1
         else:
             data_lst[arg_val] = True
@@ -165,6 +168,8 @@ def extract_matrices(wfn, mat):
     """Documentation to come"""
     checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
     checkpoint.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
+    checkpoint.print_wfn_mat(wfn.time, 't', mat.mat_dict['t'])
+    checkpoint.print_wfn_mat(wfn.time, 'v', mat.mat_dict['v'])
     checkpoint.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
     checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
     checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])

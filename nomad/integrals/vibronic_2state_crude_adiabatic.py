@@ -7,8 +7,8 @@ This currently uses first-order saddle point.
 import numpy as np
 import nomad.math.constants as constants
 import nomad.core.glbl as glbl
-import nomad.integrals.nuclear_gaussian_ccs as nuclear
-
+import nomad.compiled.nuclear_gaussian_ccs as nuclear
+import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -74,7 +74,7 @@ def v_integral(traj1, traj2, nuc_ovrlp=None):
         v_term = complex(1.,0.) * glbl.interface.ham.coe[i]
         for q in range(len(glbl.interface.ham.order[i])):
             qi      =  glbl.interface.ham.mode[i][q]
-            v_term *=  nuclear.prim_v_integral(glbl.interface.ham.order[i][q],
+            v_term *=  vibronic.qn_integral(glbl.interface.ham.order[i][q],
                        traj1.widths()[qi],traj1.x()[qi],traj1.p()[qi],
                        traj2.widths()[qi],traj2.x()[qi],traj2.p()[qi])
         v_mat[s1,s2] += v_term
@@ -187,6 +187,8 @@ def theta(traj):
             ang += pi_mult[shft]*np.pi
 
     theta_cache[traj.label] = ang
+
+#    print("traj="+str(traj.label)+" theta="+str(ang)+"\n")
 
     return ang
 

@@ -5,21 +5,18 @@ import numpy as np
 import nomad.core.timings as timings
 import nomad.integrals.centroid as centroid
 
-
 class Integral:
     """Class constructor for the Bundle object."""
     def __init__(self, ansatz):
         self.type     = ansatz
         self.centroid = []
         self.centroid_required = []
-        try:
-            self.ints =__import__('nomad.integrals.'+str(self.type),fromlist=['a'])
-        except ImportError:
-            print('Cannot import integrals: nomad.integrals.'+str(self.type))
+        self.ints = __import__('nomad.integrals.gaussian_global', fromlist=['a'])
+        self.ints_eval = __import__('nomad.integrals.'+str(self.type),fromlist=['a'])
 
         self.hermitian            = self.ints.hermitian
-        self.require_centroids    = self.ints.require_centroids
-        self.overlap_requires_pes = False
+        self.require_centroids    = self.ints_eval.require_centroids
+        self.overlap_requires_pes = False 
 
     @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
@@ -51,11 +48,11 @@ class Integral:
         """Calculates the potential energy integral between two
         trajectories."""
         if self.require_centroids:
-            return self.ints.v_integral(bra_traj, ket_traj,
+            return self.ints_eval.v_integral(bra_traj, ket_traj,
                                         self.centroid[bra_traj.label][ket_traj.label],
                                         nuc_ovrlp=nuc_ovrlp)
         else:
-            return self.ints.v_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+            return self.ints_eval.v_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
 
     @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
@@ -88,7 +85,7 @@ class Integral:
 
     def update(self, wfn):
         """Updates the wavefunction information if required."""
-        if self.ints.require_centroids:
+        if self.require_centroids:
             self.update_centroids(wfn)
 
     def add_centroid(self, new_cent):

@@ -4,7 +4,8 @@ traveling on adiabataic potentials
 """
 import numpy as np
 import nomad.core.glbl as glbl
-import nomad.integrals.nuclear_gaussian as nuclear
+import nomad.compiled.nuclear_gaussian as nuclear
+import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -15,40 +16,7 @@ hermitian = True
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
-
-def elec_overlap(t1, t2):
-    """ Returns < Psi | Psi' >, the nuclear overlap integral of two trajectories"""
-    if t1.state == t2.state:
-        return 1.
-    else:
-        return 0.
-
-
-def nuc_overlap(t1, t2):
-    """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
-    return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
-                           t2.phase(),t2.widths(),t2.x(),t2.p())
-
-
-def traj_overlap(t1, t2, nuc_ovrlp=None):
-    """Returns < Psi | Psi' >, the overlap integral of two trajectories.
-
-    The bra and ket functions for the s_integral may be different
-    (i.e. pseudospectral/collocation methods).
-    """
-    return s_integral(t1, t2, nuc_ovrlp)
-
-
-def s_integral(t1, t2, nuc_ovrlp=None):
-    """ Returns < Psi | Psi' >, the overlap of the nuclear
-    component of the wave function only"""
-
-    if nuc_ovrlp is None:
-        nuc_ovrlp = nuc_overlap(t1, t2)
-
-    return elec_overlap(t1, t2) * nuc_ovrlp
-
-
+# evaluates potential integral using bra_ket averaged approach
 def v_integral(t1, t2, nuc_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories.
 
@@ -70,20 +38,21 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         vij = t1.energy(state) * Sij
         vji = t2.energy(state) * Sji
 
-        if glbl.properties['integral_order'] > 0:
-            o1_ij = nuclear.ordr1_vec(t1.widths(),t1.x(),t1.p(),
-                                      t2.widths(),t2.x(),t2.p())
-            o1_ji = nuclear.ordr1_vec(t2.widths(),t2.x(),t2.p(),
-                                      t1.widths(),t1.x(),t1.p())
+        if glbl.propagate['integral_order'] > 0:
+
+            o1_ij = vibronic.qn_vector(1, t1.widths(), t1.x(), t1.p(),
+                                          t2.widths(), t2.x(), t2.p())
+            o1_ji = vibronic.qn_vector(1, t2.widths(), t2.x(), t2.p(),
+                                          t1.widths(), t1.x(), t1.p())
             vij += np.dot(o1_ij - t1.x()*Sij, t1.derivative(state,state))
             vji += np.dot(o1_ji - t2.x()*Sji, t2.derivative(state,state))
 
         if glbl.properties['integral_order'] > 1:
             xcen  = (t1.widths()*t1.x() + t2.widths()*t2.x()) / (t1.widths()+t2.widths())
-            o2_ij = nuclear.ordr2_vec(t1.widths(),t1.x(),t1.p(),
-                                      t2.widths(),t2.x(),t2.p())
-            o2_ji = nuclear.ordr2_vec(t2.widths(),t2.x(),t2.p(),
-                                      t1.widths(),t1.x(),t1.p())
+            o2_ij = vibronic.qn_vector(2, t1.widths(), t1.x(), t1.p(),
+                                          t2.widths(), t2.x(), t2.p())
+            o2_ji = vibronic.qn_vector(2, t2.widths(), t2.x(), t2.p(),
+                                          t1.widths(), t1.x(), t1.p())
 
             for k in range(t1.dim):
                 vij += 0.5*o2_ij[k]*t1.hessian(state)[k,k]
@@ -105,45 +74,12 @@ def v_integral(t1, t2, nuc_ovrlp=None):
     else:
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
-        vij = 2.*np.vdot(t1.derivative(t1.state,t2.state), t1.kecoef *
+        fji = t2.derivative(t2.state, t1.state)
+        vij = 2.*np.vdot(fij, t1.kecoef *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(t2.derivative(t2.state,t1.state), t2.kecoef *
+        vji = 2.*np.vdot(fji, t2.kecoef *
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())
 
-
-def t_integral(t1, t2, nuc_ovrlp=None):
-    """Returns kinetic energy integral over trajectories."""
-    if t1.state != t2.state:
-        return 0j
-
-    else:
-        if nuc_ovrlp is None:
-            nuc_ovrlp = nuc_overlap(t1, t2)
-
-        ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
-                                      t2.widths(),t2.x(),t2.p())
-
-        return -np.dot(ke, t1.kecoef)
-
-
-def sdot_integral(t1, t2, nuc_ovrlp=None):
-    """Returns the matrix element <Psi_1 | d/dt | Psi_2>."""
-    if t1.state != t2.state:
-        return 0j
-
-    else:
-        if nuc_ovrlp is None:
-            nuc_ovrlp = nuc_overlap(t1, t2)
-
-        deldx = nuclear.deldx(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
-                                        t2.widths(),t2.x(),t2.p())
-        deldp = nuclear.deldp(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
-                                        t2.widths(),t2.x(),t2.p())
-
-        sdot = (np.dot(deldx,t2.velocity()) + np.dot(deldp,t2.force()) +
-                1j * t2.phase_dot() * nuc_ovrlp)
-
-        return sdot

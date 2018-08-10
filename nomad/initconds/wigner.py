@@ -113,11 +113,13 @@ def set_initial_coords(master):
         # displacements and momenta as the inital point in phase
         # space
         elif coordtype == 'normal':
-            disp_x = delta_x * np.sqrt(freqs)
-            disp_p = delta_p * np.sqrt(freqs)
+            disp_x = delta_x
+            disp_p = delta_p
+            #disp_x = delta_x * np.sqrt(freqs)
+            #disp_p = delta_p * np.sqrt(freqs)
 
         x_sample = x_ref + disp_x
-        p_samplt = p_ref + disp_p
+        p_sample = p_ref + disp_p
 
         # add new trajectory to the bundle
         new_traj = template.copy()

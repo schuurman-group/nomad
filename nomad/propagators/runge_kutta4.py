@@ -29,7 +29,7 @@ def propagate_wfn(master, dt):
     ntraj = master.n_traj()
     kx = np.zeros((ntraj, rk_ordr, ncrd))
     kp = np.zeros((ntraj, rk_ordr, ncrd))
-    kg = np.zeros((ntraj, rk_ordr, ncrd))
+    kg = np.zeros((ntraj, rk_ordr))
 
     for rk in range(rk_ordr):
         tmp_wfn = master.copy()
@@ -50,7 +50,7 @@ def propagate_wfn(master, dt):
                                     np.sum(wgt[:,np.newaxis]*kp[i], axis=0))
             if propphase:
                 master.traj[i].update_phase(master.traj[i].phase() +
-                                            np.sum(wgt[:,np.newaxis]*kg[i], axis=0))
+                                            np.sum(wgt*kg[i,:]))
     evaluate.update_pes(master)
 
 
@@ -60,7 +60,7 @@ def propagate_trajectory(traj, dt):
     ncrd = traj.dim
     kx = np.zeros((rk_ordr, ncrd))
     kp = np.zeros((rk_ordr, ncrd))
-    kg = np.zeros((rk_ordr, ncrd))
+    kg = np.zeros((rk_ordr))
 
     for rk in range(rk_ordr):
         tmptraj = traj.copy()
@@ -74,7 +74,7 @@ def propagate_trajectory(traj, dt):
     traj.update_x(traj.x() + np.sum(wgt[:,np.newaxis]*kx, axis=0))
     traj.update_p(traj.p() + np.sum(wgt[:,np.newaxis]*kp, axis=0))
     if propphase:
-        traj.update_phase(traj.phase() + np.sum(wgt[:,np.newaxis]*kg, axis=0))
+        traj.update_phase(traj.phase() + np.sum(wgt*kg))
     evaluate.update_pes_traj(traj)
 
 

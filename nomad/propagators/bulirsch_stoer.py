@@ -63,17 +63,17 @@ def propagate_wfn(master, dt):
         err = np.zeros(kmax)
         Tx = np.zeros((kmax, ntraj, ncrd))
         Tp = np.zeros((kmax, ntraj, ncrd))
-        Tg = np.zeros((kmax, ntraj, ncrd))
+        Tg = np.zeros((kmax, ntraj))
 
         for k in range(kmax):
             tmp_wfn = master.copy()
 
             x0 = np.zeros((ntraj, ncrd))
             p0 = np.zeros((ntraj, ncrd))
-            g0 = np.zeros((ntraj, ncrd))
+            g0 = np.zeros((ntraj))
             x1 = np.zeros((ntraj, ncrd))
             p1 = np.zeros((ntraj, ncrd))
-            g1 = np.zeros((ntraj, ncrd))
+            g1 = np.zeros((ntraj))
 
             # step through n modified midpoint steps
             for n in range(nstep[k]):
@@ -143,17 +143,17 @@ def propagate_trajectory(traj, dt):
         err = np.zeros(kmax_traj)
         Tx = np.zeros((kmax_traj, ncrd))
         Tp = np.zeros((kmax_traj, ncrd))
-        Tg = np.zeros((kmax_traj, ncrd))
+        Tg = np.zeros((kmax_traj))
 
         for k in range(kmax):
             tmptraj = traj.copy()
 
             x0 = np.zeros(ncrd)
             p0 = np.zeros(ncrd)
-            g0 = np.zeros(ncrd)
+            g0 = 0.
             x1 = np.zeros(ncrd)
             p1 = np.zeros(ncrd)
-            g1 = np.zeros(ncrd)
+            g1 = 0.
 
             # step through n modified midpoint steps
             for n in range(nstep[k]):
@@ -208,16 +208,16 @@ def mm_step(traj, dt, x0, x1, p0, p1, g0, g1, n):
         x1[:] = x0 + dt*traj.velocity()
         p1[:] = p0 + dt*traj.force()
         if propphase:
-            g0[:] = traj.phase()
-            g1[:] = g0 + dt*traj.phase_dot()
+            g0 = traj.phase()
+            g1 = g0 + dt*traj.phase_dot()
     else:
         x1[:] = x0 + 2*dt*traj.velocity()
         p1[:] = p0 + 2*dt*traj.force()
         x0[:] = traj.x()
         p0[:] = traj.p()
         if propphase:
-            g1[:] = g0 + 2*dt*traj.phase_dot()
-            g0[:] = traj.phase()
+            g1 = g0 + 2*dt*traj.phase_dot()
+            g0 = traj.phase()
 
     traj.update_x(x1)
     traj.update_p(p1)
