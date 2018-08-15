@@ -43,6 +43,21 @@ columbus = dict(
     coup_de_thresh = 100.
                 )
 
+pytc = dict(
+    closed = None,
+    active = None,
+    cassinglets = 2,
+    charge = 0,
+    spinmult = 1,
+    guess_method = 'pbe0',
+    basis = '6-31g*',
+    closed_shell = True,
+    restricted = True,
+    fon = 'yes',
+    casci = 'yes',
+    bond_order = True
+             )
+
 vibronic = dict(
     opfile         = None, # required filename, should contain frequencies
     mem_per_core   = 1000.,
@@ -52,6 +67,7 @@ vibronic = dict(
 
 interfaces = dict(
     columbus = columbus,
+    pytc = pytc,
     vibronic = vibronic
                   )
 
@@ -66,6 +82,7 @@ properties = dict(
     init_brightest      = False,
     init_mode_min_olap  = 0.,
     virtual_basis       = False,
+    use_atom_lib        = True,
     distrib_compression = 1.,
     seed                = 0,
     restart             = False,
