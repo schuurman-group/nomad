@@ -808,7 +808,7 @@ def run_col_coupling(traj, ci_ener, t):
         shutil.move('cartgrd', 'cartgrd.nad.' + str(s1) + '.' + str(s2))
 
         # grab mcscfls output
-        append_log(traj.label,'nad', t)
+        append_log(traj.label, 'nad', t)
 
     # set the phase of the new coupling vectors using the cached data
     nad_coupl_phased = get_adiabatic_phase(traj, nad_coupl)

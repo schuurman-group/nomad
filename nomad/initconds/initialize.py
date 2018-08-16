@@ -138,22 +138,22 @@ def set_initial_amplitudes(master):
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)
-        glbl.properties['amplitudes'] = np.dot(sinv, ovec)
+        glbl.properties['init_amps'] = np.dot(sinv, ovec)
 
     # if we didn't set any amplitudes, set them all equal -- normalization
     # will occur later
-    elif len(glbl.properties['amplitudes']) == 0:
-        glbl.properties['amplitudes'] = np.ones(master.n_traj(),dtype=complex)
+    elif len(glbl.properties['init_amps']) == 0:
+        glbl.properties['init_amps'] = np.ones(master.n_traj(),dtype=complex)
 
     # if we don't have a sufficient number of amplitudes, append
     # amplitudes with "zeros" as necesary
-    elif len(glbl.properties['amplitudes']) < master.n_traj():
-        dif = master.n_traj() - len(glbl.properties['amplitudes'])
-        glbl.properties['amplitudes'].extend([0+0j for i in range(dif)])
+    elif len(glbl.properties['init_amps']) < master.n_traj():
+        dif = master.n_traj() - len(glbl.properties['init_amps'])
+        glbl.properties['init_amps'].extend([0+0j for i in range(dif)])
 
     # finally -- update amplitudes in the bundle
     for i in range(master.n_traj()):
-        master.traj[i].update_amplitude(glbl.properties['amplitudes'][i])
+        master.traj[i].update_amplitude(glbl.properties['init_amps'][i])
 
 
 def save_initial_wavefunction(master):

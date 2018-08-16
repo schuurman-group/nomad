@@ -17,7 +17,8 @@ client = None
 
 class PythonTC:
     """Object containing the PyTC properties and keys."""
-    def __init__(self, host='http://fire-05-31', port=30080, engine='terachem'):
+    def __init__(self, host='http://fire-05-31', port=30080, engine='terachem',
+                 sleep_seconds=1, max_poll=20, verbose=True):
         # the PyTC client object
         self.TC = None
 
@@ -27,12 +28,15 @@ class PythonTC:
             port = port,
             user = os.environ['TCCLOUD_USER'],
             api_key = os.environ['TCCLOUD_API_KEY'],
-            engine = engine
+            engine = engine,
+            sleep_seconds = sleep_seconds,
+            max_poll = max_poll,
+            verbose = verbose
                                 )
 
         # job options
         self.job_opts = dict(
-            atoms = glbl.crd_labels,
+            atoms = list(glbl.crd_labels[::3]),
             charge = glbl.pytc['charge'],
             spinmult = glbl.pytc['spinmult'],
             closed_shell = glbl.pytc['closed_shell'],
@@ -77,20 +81,23 @@ class PythonTC:
             sp_opts.update(self.coup_opts[state1,state2])
         sp_opts.update(opts)
         results = self.TC.compute(name=name, job_type=jtype, geoms=geom,
-                                  **opts)
+                                  **sp_opts)
         key = list(results.keys())[0]
-        return results[key]
+        if 'FAILURE' in results[key]:
+            raise RuntimeError('Calculation '+key+' failed to converge')
+        else:
+            return results[key]
 
     def compute_energies(self, geom, name='E'):
         """Returns potential energies for the given molecular geometry."""
         return self.compute_sp(geom, name=name)['energy']
 
-    def compute_gradient(self, geom, state, name='Grad'):
+    def compute_gradient(self, geom, state1, name='Grad'):
         """Returns potential energy gradients for the given geometry
         and state."""
         grad = self.compute_sp(geom, state1=state1, name=name+str(state),
                                jtype='gradient')['gradient']
-        return grad.astype(float)
+        return np.array(grad)
 
     def compute_coupling(self, geom, state1, state2, name='Coup'):
         """Returns nonadiabatic coupling for the given geometry
@@ -101,7 +108,7 @@ class PythonTC:
             nac = self.compute_sp(geom, state1=state1, state2=state2,
                                   name=name+str(state1)+str(state2),
                                   jtype='coupling')['nacme']
-            return nac.astype(float)
+            return np.array(nac)
 
     def _update_gradopts(self):
         """Updates gradient options for the number of requested states."""
@@ -132,14 +139,14 @@ def evaluate_trajectory(traj, t=None):
     nstates = traj.nstates
 
     tc_surf = surface.Surface()
-    col_surf.add_data('geom', traj.x())
-
+    tc_surf.add_data('geom', traj.x())
     props = client.compute_sp(traj.x(), state1=state, jtype='gradient')
 
     #tc_surf.add_data('mo', pack_mocoef())
 
-    tc_surf.add_data('potential', props['energy'] + glbl.properties['pot_shift'])
-    tc_surf.add_data('atom_pop', -props['charges']) # not exactly
+    energy = np.array(props['energy']) + glbl.properties['pot_shift']
+    tc_surf.add_data('potential', energy)
+    tc_surf.add_data('atom_pop', np.array(props['charges'])) # not exactly
     #tc_surf.add_data('sec_mom', sec_moms)
 
     # compute gradient on current state
@@ -154,9 +161,13 @@ def evaluate_trajectory(traj, t=None):
         if i != state:
             state_i = min(i,state)
             state_j = max(i,state)
-            nad_coup = client.compute_coupling(traj.x(), state_i, state_j)
-            deriv[:,state_i,state_j] =  nad_coup
-            deriv[:,state_j,state_i] = -nad_coup
+            de = energy[state_j] - energy[state_i]
+            if de <= glbl.pytc['coup_de_thresh']:
+                nad_coup = np.array(client.compute_coupling(traj.x(), state_i,
+                                                            state_j))
+                nad_coup /= de
+                deriv[:,state_i,state_j] =  nad_coup
+                deriv[:,state_j,state_i] = -nad_coup
 
     tc_surf.add_data('derivative', deriv)
     tc_surf.add_data('dipole', dipoles)
@@ -174,21 +185,24 @@ def evaluate_centroid(cent, t=None):
     state_j = max(cent.states)
 
     tc_surf = surface.Surface()
-    col_surf.add_data('geom', cent.x())
-
-    props = client.compute_sp(traj.x())
+    tc_surf.add_data('geom', cent.x())
+    props = client.compute_sp(cent.x())
 
     #tc_surf.add_data('mo', pack_mocoef())
 
-    tc_surf.add_data('potential', props['energy'] + glbl.properties['pot_shift'])
-    tc_surf.add_data('atom_pop', -props['charges']) # not exactly
+    energy = np.array(props['energy']) + glbl.properties['pot_shift']
+    tc_surf.add_data('potential', energy)
+    tc_surf.add_data('atom_pop', np.array(props['charges'])) # not exactly
 
     deriv = np.zeros((cent.dim, nstates, nstates))
     if state_i != state_j:
         # run coupling between states
-        nad_coup = client.compute_coupling(traj.x(), state_i, state_j)
-        deriv[:,state_i,state_j] =  nad_coup
-        deriv[:,state_j,state_i] = -nad_coup
+        de = energy[state_j] - energy[state_i]
+        if de <= 2 * (energy[-1] - energy[0]):
+            nad_coup = np.array(client.compute_coupling(cent.x(), state_i, state_j))
+            nad_coup /= de
+            deriv[:,state_i,state_j] =  nad_coup
+            deriv[:,state_j,state_i] = -nad_coup
 
     tc_surf.add_data('derivative', deriv)
 

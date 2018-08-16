@@ -193,7 +193,7 @@ def parse_coords(valstr):
         coords[:,1] *= pconv
 
     # set atomic labels
-    glbl.crd_labels = labels[0]
+    glbl.crd_labels = np.repeat(labels[0], 3)
 
     return coords
 

@@ -38,7 +38,7 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         vij = t1.energy(state) * Sij
         vji = t2.energy(state) * Sji
 
-        if glbl.propagate['integral_order'] > 0:
+        if glbl.properties['integral_order'] > 0:
 
             o1_ij = vibronic.qn_vector(1, t1.widths(), t1.x(), t1.p(),
                                           t2.widths(), t2.x(), t2.p())

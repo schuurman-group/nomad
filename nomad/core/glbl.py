@@ -44,6 +44,8 @@ columbus = dict(
                 )
 
 pytc = dict(
+    hessian = None,
+    coup_de_thresh = 100.,
     closed = None,
     active = None,
     cassinglets = 2,
@@ -108,7 +110,7 @@ properties = dict(
     continuous_min_overlap = 0.5,
     init_amps           = [1+0j],
     init_amp_overlap    = True,
-    print_level         = 1
+    print_level         = 5
                   )
 
 # lists keywords, the datatype of the keyword and the dimension
