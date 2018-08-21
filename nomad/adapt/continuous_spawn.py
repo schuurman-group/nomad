@@ -46,7 +46,8 @@ def spawn(master, dt):
                 child.parent    = parent.label
 
                 success = utilities.adjust_child(parent, child,
-                                    parent.nact(parent.state, child.state))
+                                                 parent.derivative(parent.state,
+                                                                   child.state))
                 sij = glbl.master_int.nuc_overlap(parent, child)
 
                 # try to set up the child

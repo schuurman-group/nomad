@@ -204,7 +204,7 @@ def evaluate_trajectory(traj, t=None):
     t_data.add_data('diabat_deriv',diabderiv1)
     t_data.add_data('diabat_hessian',diabderiv2)
 
-    if glbl.surface_rep == 'adiabatic':
+    if glbl.methods['surface'] == 'adiabatic':
         # Calculation of the adiabatic potential vector and ADT matrix
         adiabpot, datmat = calc_dat(label, diabpot)
 
@@ -259,7 +259,7 @@ def evaluate_centroid(traj, t=None):
 
 def evaluate_coupling(traj):
     """Updates the coupling to the other states"""
-    if glbl.surface_rep == 'adiabatic':
+    if glbl.methods['surface'] == 'adiabatic':
         vel   = traj.velocity()
         deriv = traj.pes.get_data('derivative')
 
@@ -431,7 +431,7 @@ def calc_diabderiv2(q):
         o = np.array(ham.order[i])
 
         # first do diagonal d^2/dx^2 terms
-        elem = [ind for ind,val in enumerate(o) if val > 1]
+        elem = [ind for ind, val in enumerate(o) if val > 1]
         nelem = len(elem)
         if nelem > 0:
             prim = np.repeat(q[m]**o, nelem).reshape(len(m), nelem)
@@ -443,16 +443,17 @@ def calc_diabderiv2(q):
                 if s1 != s2:
                     diabderiv2[m[elem[j]],m[elem[j]],s2,s1] += trm
 
-        #now do bilinear terms
-        elem = [ind for ind,val in enumerate(o) if val > 0]
+        # now do bilinear terms
+        elem = [ind for ind, val in enumerate(o) if val > 0]
         nelem = len(elem)
         if nelem > 1:
-            nterm = nelem * (nelem-1) / 2
-            prim = np.repeat(q[m]**o, nelem).reshape(len(m), nterm)
+            nterm = nelem * (nelem-1) // 2
+            prim = np.repeat(q[m]**o, nelem)
+            prim = prim.reshape(len(m), nelem)
             derv = o[elem]*q[elem]**(o[elem]-1)
             icnt = 0
             for j in range(nelem):
-                for k in range(i):
+                for k in range(j):
                     prim[icnt,elem[j]] = derv[j]
                     prim[icnt,elem[k]] = derv[k]
                     trm = ham.coe[i] * np.prod(prim[icnt])

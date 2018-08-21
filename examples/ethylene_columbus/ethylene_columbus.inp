@@ -1,0 +1,28 @@
+begin methods
+    adapt_basis        optimal_spawn
+    init_conds         wigner
+    integral_eval      saddle_point
+    interface          columbus
+    propagator         velocity_verlet
+    surface            adiabatic
+end methods
+
+begin columbus
+    hessian            hessian.dat
+    coup_de_thresh     0.12
+end columbus
+
+begin properties
+    seed               1
+    init_coords        ethylene.xyz
+    n_states           4
+    init_brightest
+    init_mode_min_olap 0.1
+    simulation_time    1000
+    default_time_step  10
+    coupled_time_step  5
+    spawn_pop_thresh   0.025
+    spawn_coup_thresh  0.018
+    pot_shift          78.1068509052
+    auto
+end properties

@@ -5,24 +5,24 @@ N /Spin-Orbit CI Calculation?
   1 /input the number of irreps (1:8)
 Y /enter symmetry labels:
  a  
- 36
+ 49
   /input the frozen core orbitals (sym(i),rmo(i),i=1,nfct)
   /input the frozen virtual orbitals (sym(i),rmo(i),i=1,nfvt)
- 1 1 1 2 1 3 1 4 1 5 1 6 1 7 1 8 1 9
+  1  1  1  2  1  3  1  4  1  5  1  6  1  7  1  8  1  9  1 10
   /input the internal orbitals (sym(i),rmo(i),i=1,niot)
   1 /input the molecular spatial symmetry (irrep 1:nsym)
   7 /input the number of ref-csf doubly-occupied orbitals
- 0 2
- 2 2
- 0 0
- 6 6
- 1111 1111
-  2 /input the maximum excitation level from the reference csfs
-  0  0  0  0  0  0  0  0 14
- 16 16 16 16 16 16 16 16 16
- 0 0 0 0 0 0 0 0 0
- 16 16 16 16 16 16 16 16 16
- 1000 1000 1111 1111 1111 1111 1111 1111 1111
+ 0 0 2
+ 2 2 2
+ 0 0 0
+ 6 6 6
+ 1111 1111 1111
+  1 /input the maximum excitation level from the reference csfs
+  0  0  0  0  0  0  0  0  0 15
+ 16 16 16 16 16 16 16 16 16 16
+ 0 0 0 0 0 0 0 0 0 0
+ 16 16 16 16 16 16 16 16 16 16
+ 1000 1000 1111 1111 1111 1111 1111 1111 1111 1111
 N /impose generalized interacting space restrictions?
  -1  0  0
  -1  0  0  0
@@ -33,8 +33,8 @@ Y /generate walks while applying reference drt restrictions?
 N /impose additional orbital-group occupation restrictions?
 N /apply primary reference occupation restrictions?
 N /manually select individual walks?
- -1  4  4  4  4  4  4  4  4
+ -1  4  4  4  4  4  4  4  4  4
   0 /input reference walk number (0 to end)
- 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0
   0 /input mrsdci walk number (0 to end)
  cidrt_title DRT#1                                                              

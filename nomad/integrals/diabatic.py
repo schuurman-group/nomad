@@ -2,8 +2,9 @@
 Compute integrals over trajectories traveling on vibronic potentials
 """
 import numpy as np
+import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
-import nomad.compiled.nuclear_vibronic as vibronic
+import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -29,7 +30,6 @@ def v_integral(t1, t2, nuc_ovrlp=None):
 
     # roll through terms in the hamiltonian
     for i in range(glbl.interface.ham.nterms):
-
         if np.array_equal(states,glbl.interface.ham.stalbl[i,:]-1):
             # adiabatic states in diabatic basis -- cross terms between orthogonal
             # diabatic states are zero
@@ -37,9 +37,9 @@ def v_integral(t1, t2, nuc_ovrlp=None):
             v_term = complex(1.,0.) * glbl.interface.ham.coe[i]
             for q in range(len(glbl.interface.ham.order[i])):
                 qi      =  glbl.interface.ham.mode[i][q]
-                v_term *=  vibronic.prim_v_integral(glbl.interface.ham.order[i][q],
-                           t1.widths()[qi],t1.x()[qi],t1.p()[qi],
-                           t2.widths()[qi],t2.x()[qi],t2.p()[qi])
+                v_term *=  vibronic.qn_integral(glbl.interface.ham.order[i][q],
+                                                t1.widths()[qi], t1.x()[qi], t1.p()[qi],
+                                                t2.widths()[qi], t2.x()[qi], t2.p()[qi])
             v_total += v_term
 
     return v_total * nuc_ovrlp

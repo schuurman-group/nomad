@@ -21,10 +21,12 @@ def init_wavefunction(master):
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
         checkpoint.retrieve_simulation(master, integrals=glbl.master_int,
-                                       time=glbl.properties['restart_time'], file_name=glbl.chkpt_file)
+                                       time=glbl.properties['restart_time'],
+                                       file_name=glbl.chkpt_file)
         if glbl.properties['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
-            checkpoint.retrieve_simulation(master0, integrals=None, time=0., file_name=glbl.chkpt_file)
+            checkpoint.retrieve_simulation(master0, integrals=None, time=0.,
+                                           file_name=glbl.chkpt_file)
             save_initial_wavefunction(master0)
         else:
             save_initial_wavefunction(master)
@@ -84,8 +86,8 @@ def init_wavefunction(master):
 #----------------------------------------------------------------------------
 def set_initial_state(master):
     """Sets the initial state of the trajectories in the bundle."""
-    # initialize to the state with largest transition dipole moment
     if glbl.properties['init_brightest']:
+        # initialize to the state with largest transition dipole moment
         # set all states to the ground state
         for i in range(master.n_traj()):
             master.traj[i].state = 0
@@ -108,12 +110,14 @@ def set_initial_state(master):
                               ' | tr. dipople array='+np.array2string(tdip, \
                               formatter={'float_kind':lambda x: "%.4f" % x})])
             master.traj[i].state = np.argmax(tdip)+1
-
-    # use "init_state" to set the initial state
     elif len(glbl.properties['init_state']) == master.n_traj():
+        # use "init_state" to set the initial state
         for i in range(master.n_traj()):
-            master.traj[i].state = glbl.properties['init_state'][i]
-
+            istate = glbl.properties['init_state'][i]
+            if istate < 0:
+                master.traj[i].state = glbl.properties['n_states'] + istate
+            else:
+                master.traj[i].state = istate
     else:
         raise ValueError('Ambiguous initial state assignment.')
 
@@ -138,22 +142,22 @@ def set_initial_amplitudes(master):
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)
-        glbl.properties['amplitudes'] = np.dot(sinv, ovec)
+        glbl.properties['init_amps'] = np.dot(sinv, ovec)
 
     # if we didn't set any amplitudes, set them all equal -- normalization
     # will occur later
-    elif len(glbl.properties['amplitudes']) == 0:
-        glbl.properties['amplitudes'] = np.ones(master.n_traj(),dtype=complex)
+    elif len(glbl.properties['init_amps']) == 0:
+        glbl.properties['init_amps'] = np.ones(master.n_traj(),dtype=complex)
 
     # if we don't have a sufficient number of amplitudes, append
     # amplitudes with "zeros" as necesary
-    elif len(glbl.properties['amplitudes']) < master.n_traj():
-        dif = master.n_traj() - len(glbl.properties['amplitudes'])
-        glbl.properties['amplitudes'].extend([0+0j for i in range(dif)])
+    elif len(glbl.properties['init_amps']) < master.n_traj():
+        dif = master.n_traj() - len(glbl.properties['init_amps'])
+        glbl.properties['init_amps'].extend([0+0j for i in range(dif)])
 
     # finally -- update amplitudes in the bundle
     for i in range(master.n_traj()):
-        master.traj[i].update_amplitude(glbl.properties['amplitudes'][i])
+        master.traj[i].update_amplitude(glbl.properties['init_amps'][i])
 
 
 def save_initial_wavefunction(master):

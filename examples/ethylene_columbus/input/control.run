@@ -1,7 +1,8 @@
-niter = 40 
+niter = 1 
 hermit
+ciudgmom
+scf
 mcscf
 ciudgav
-ciudgmom
+ciprop
 nadcoupl
-gdiis

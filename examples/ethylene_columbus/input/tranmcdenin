@@ -2,6 +2,6 @@
   denopt=1,
   freeze = 1,
   nsymao= 1
-  naopsy=   86,
+  naopsy=   49,
  ldamax=8191 
  &end 

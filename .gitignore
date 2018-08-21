@@ -12,3 +12,6 @@ dist/
 build/
 *.egg
 *.egg-info/
+
+# Wavefunction data files
+*.hdf5

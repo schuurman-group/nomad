@@ -1,0 +1,26 @@
+begin methods
+    adapt_basis        optimal_spawn
+    init_conds         wigner
+    integral_eval      saddle_point
+    interface          vibronic
+    propagator         velocity_verlet
+    surface            adiabatic
+end methods
+
+begin vibronic
+    opfile             pyrazine4d.op
+end vibronic
+
+begin properties
+    seed               0
+    init_coords        geometry.dat
+    n_states           2
+    init_state         1
+    n_init_traj        10
+    simulation_time    200
+    default_time_step  1.0
+    coupled_time_step  0.5
+    spawn_coup_thresh  0.001
+    spawn_olap_thresh  0.8
+    virtual_basis
+end properties

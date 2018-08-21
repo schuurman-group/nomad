@@ -193,7 +193,7 @@ def parse_coords(valstr):
         coords[:,1] *= pconv
 
     # set atomic labels
-    glbl.crd_labels = labels[0]
+    glbl.crd_labels = np.repeat(labels[0], dcoord//2)
 
     return coords
 
@@ -327,9 +327,3 @@ def setup_input():
     if isinstance(istate, int):
         glbl.properties['init_state'] = [istate for i in
                                          range(glbl.properties['n_init_traj'])]
-
-    # set the surface_rep variable depending on the integrals keyword
-    if glbl.methods['integral_eval'] == 'vibronic_diabatic':
-        glbl.surface_rep = 'diabatic'
-    else:
-        glbl.surface_rep = 'adiabatic'
