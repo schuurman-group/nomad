@@ -67,8 +67,8 @@ def init_interface():
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     # set atomic symbol, number, mass,
-    natm    = len(glbl.crd_labels)
-    a_sym   = glbl.crd_labels
+    natm    = len(glbl.crd_labels) // p_dim
+    a_sym   = glbl.crd_labels[::p_dim]
 
     a_data  = []
     # we need to go through this to pull out the atomic numbers for

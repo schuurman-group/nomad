@@ -15,7 +15,7 @@ end columbus
 begin properties
     seed               1
     init_coords        ethylene.xyz
-    n_states           4
+    n_states           3
     init_brightest
     init_mode_min_olap 0.1
     simulation_time    1000

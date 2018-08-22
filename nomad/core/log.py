@@ -106,7 +106,7 @@ def print_header():
     # ------------------------- log file formats --------------------------
     with open(glbl.log_file, 'w') as logfile:
         log_str = (' ---------------------------------------------------\n' +
-                   ' NOMAD: NOnadiabatc Multistate Adaptive Dynamics    \n' +
+                   ' NOMAD: Nonadiabatic Multistate Adaptive Dynamics    \n' +
                    ' ---------------------------------------------------\n' +
                    '\n' +
                    ' *************\n' +

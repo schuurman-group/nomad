@@ -1,0 +1,321 @@
+ ---------------------------------------------------
+ NOMAD: Nonadiabatic Multistate Adaptive Dynamics    
+ ---------------------------------------------------
+
+ *************
+ input summary
+ *************
+
+ file paths
+ ---------------------------------------
+ home_path   = n126s1:/tmp/rymac/nomad_test/ethylene2
+ log_file    = n126s1:/tmp/rymac/nomad_test/ethylene2/ethylene_columbus.log
+ chkpt_file  = n126s1:/tmp/rymac/nomad_test/ethylene2/ethylene_columbus.hdf5
+
+ nomad simulation keywords
+ ----------------------------------------
+
+ ** method variables **
+ init_conds           = wigner              
+ adapt_basis          = optimal_spawn       
+ integral_eval        = saddle_point        
+ surface              = adiabatic           
+ interface            = columbus            
+ propagator           = velocity_verlet     
+
+
+ ** property variables **
+ init_amps            = [(1+0j)]            
+ use_atom_lib         = True                
+ phase_prop           = False               
+ simulation_time      = 1000                
+ coupled_time_step    = 5                   
+ sinv_thrsh           = -1.0                
+ pop_jump_toler       = 0.0001              
+ crd_masses           = [ 21874.644       21874.644       21874.644       21874.644       21874.644
+  21874.644        1837.15115822   1837.15115822   1837.15115822
+   1837.15115822   1837.15115822   1837.15115822   1837.15115822
+   1837.15115822   1837.15115822   1837.15115822   1837.15115822
+   1837.15115822]
+ n_init_traj          = 1                   
+ default_time_step    = 10                  
+ auto                 = True                
+ spawn_coup_thresh    = 0.018               
+ matching_pursuit     = False               
+ continuous_min_overlap = 0.5                 
+ integral_order       = 1                   
+ init_coords          = [[[-1.25946548  0.          0.          1.25946548  0.          0.
+   -2.32162667  1.74006152  0.         -2.32162667 -1.74006152  0.
+    2.32162667  1.74006152  0.          2.32162667 -1.74006152  0.        ]
+  [ 0.          0.          0.          0.          0.          0.          0.
+    0.          0.          0.          0.          0.          0.          0.
+    0.          0.          0.          0.        ]]]
+ restart_time         = -1                  
+ pot_shift            = 78.1068509052       
+ seed                 = 1                   
+ norm_thresh          = 1.1                 
+ hij_coup_thresh      = 0.001               
+ sij_thresh           = 0.7                 
+ print_level          = 1                   
+ init_state           = [-1]                
+ spawn_olap_thresh    = 0.7                 
+ energy_jump_toler    = 0.0001              
+ restart              = False               
+ init_amp_overlap     = True                
+ distrib_compression  = 1.0                 
+ spawn_pop_thresh     = 0.025               
+ n_states             = 3                   
+ virtual_basis        = False               
+ init_brightest       = True                
+ renorm               = False               
+ crd_widths           = [ 22.5  22.5  22.5  22.5  22.5  22.5   4.5   4.5   4.5   4.5   4.5   4.5
+   4.5   4.5   4.5   4.5   4.5   4.5]
+ init_mode_min_olap   = 0.1                 
+
+
+ ** columbus variables **
+ hessian              = [[  8.41110903e-01   0.00000000e+00   0.00000000e+00  -5.53557450e-01
+    0.00000000e+00   0.00000000e+00  -1.31494812e-01   1.26153332e-01
+    0.00000000e+00  -1.31494812e-01  -1.26153332e-01   0.00000000e+00
+   -1.22819140e-02   2.90831220e-03   0.00000000e+00  -1.22819140e-02
+   -2.90831220e-03   0.00000000e+00]
+ [  0.00000000e+00   6.38910869e-01   0.00000000e+00   0.00000000e+00
+   -1.10856788e-01   0.00000000e+00   1.20060042e-01  -2.67146436e-01
+    0.00000000e+00  -1.20060042e-01  -2.67146436e-01   0.00000000e+00
+   -3.08085314e-02   3.11939630e-03   0.00000000e+00   3.08085314e-02
+    3.11939630e-03   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00   1.06406118e-01   0.00000000e+00
+    0.00000000e+00  -4.37686563e-02   0.00000000e+00   0.00000000e+00
+   -3.60265429e-02   0.00000000e+00   0.00000000e+00  -3.60265429e-02
+    0.00000000e+00   0.00000000e+00   4.70781210e-03   0.00000000e+00
+    0.00000000e+00   4.70781210e-03]
+ [ -5.53557450e-01   0.00000000e+00   0.00000000e+00   8.41110903e-01
+    0.00000000e+00   0.00000000e+00  -1.22819140e-02  -2.90831220e-03
+    0.00000000e+00  -1.22819140e-02   2.90831220e-03   0.00000000e+00
+   -1.31494812e-01  -1.26153332e-01   0.00000000e+00  -1.31494812e-01
+    1.26153332e-01   0.00000000e+00]
+ [  0.00000000e+00  -1.10856788e-01   0.00000000e+00   0.00000000e+00
+    6.38910869e-01   0.00000000e+00   3.08085314e-02   3.11939630e-03
+    0.00000000e+00  -3.08085314e-02   3.11939630e-03   0.00000000e+00
+   -1.20060042e-01  -2.67146436e-01   0.00000000e+00   1.20060042e-01
+   -2.67146436e-01   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00  -4.37686563e-02   0.00000000e+00
+    0.00000000e+00   1.06406118e-01   0.00000000e+00   0.00000000e+00
+    4.70781210e-03   0.00000000e+00   0.00000000e+00   4.70781210e-03
+    0.00000000e+00   0.00000000e+00  -3.60265429e-02   0.00000000e+00
+    0.00000000e+00  -3.60265429e-02]
+ [ -1.31494812e-01   1.20060042e-01   0.00000000e+00  -1.22819140e-02
+    3.08085314e-02   0.00000000e+00   1.37317644e-01  -1.36286917e-01
+    0.00000000e+00   1.06495676e-02  -1.31663985e-02   0.00000000e+00
+    1.02808640e-03  -6.45379700e-04   0.00000000e+00  -5.21857190e-03
+   -7.69881000e-04   0.00000000e+00]
+ [  1.26153332e-01  -2.67146436e-01   0.00000000e+00  -2.90831220e-03
+    3.11939630e-03   0.00000000e+00  -1.36286917e-01   2.78944797e-01
+    0.00000000e+00   1.31663985e-02  -1.81453264e-02   0.00000000e+00
+    6.45379700e-04   1.67754070e-03   0.00000000e+00  -7.69881000e-04
+    1.55002840e-03   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00  -3.60265429e-02   0.00000000e+00
+    0.00000000e+00   4.70781210e-03   0.00000000e+00   0.00000000e+00
+    2.38975073e-02   0.00000000e+00   0.00000000e+00   2.81090300e-03
+    0.00000000e+00   0.00000000e+00  -8.23818540e-03   0.00000000e+00
+    0.00000000e+00   1.28485059e-02]
+ [ -1.31494812e-01  -1.20060042e-01   0.00000000e+00  -1.22819140e-02
+   -3.08085314e-02   0.00000000e+00   1.06495676e-02   1.31663985e-02
+    0.00000000e+00   1.37317644e-01   1.36286917e-01   0.00000000e+00
+   -5.21857190e-03   7.69881000e-04   0.00000000e+00   1.02808640e-03
+    6.45379700e-04   0.00000000e+00]
+ [ -1.26153332e-01  -2.67146436e-01   0.00000000e+00   2.90831220e-03
+    3.11939630e-03   0.00000000e+00  -1.31663985e-02  -1.81453264e-02
+    0.00000000e+00   1.36286917e-01   2.78944797e-01   0.00000000e+00
+    7.69881000e-04   1.55002840e-03   0.00000000e+00  -6.45379700e-04
+    1.67754070e-03   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00  -3.60265429e-02   0.00000000e+00
+    0.00000000e+00   4.70781210e-03   0.00000000e+00   0.00000000e+00
+    2.81090300e-03   0.00000000e+00   0.00000000e+00   2.38975073e-02
+    0.00000000e+00   0.00000000e+00   1.28485059e-02   0.00000000e+00
+    0.00000000e+00  -8.23818540e-03]
+ [ -1.22819140e-02  -3.08085314e-02   0.00000000e+00  -1.31494812e-01
+   -1.20060042e-01   0.00000000e+00   1.02808640e-03   6.45379700e-04
+    0.00000000e+00  -5.21857190e-03   7.69881000e-04   0.00000000e+00
+    1.37317644e-01   1.36286917e-01   0.00000000e+00   1.06495676e-02
+    1.31663985e-02   0.00000000e+00]
+ [  2.90831220e-03   3.11939630e-03   0.00000000e+00  -1.26153332e-01
+   -2.67146436e-01   0.00000000e+00  -6.45379700e-04   1.67754070e-03
+    0.00000000e+00   7.69881000e-04   1.55002840e-03   0.00000000e+00
+    1.36286917e-01   2.78944797e-01   0.00000000e+00  -1.31663985e-02
+   -1.81453264e-02   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00   4.70781210e-03   0.00000000e+00
+    0.00000000e+00  -3.60265429e-02   0.00000000e+00   0.00000000e+00
+   -8.23818540e-03   0.00000000e+00   0.00000000e+00   1.28485059e-02
+    0.00000000e+00   0.00000000e+00   2.38975073e-02   0.00000000e+00
+    0.00000000e+00   2.81090300e-03]
+ [ -1.22819140e-02   3.08085314e-02   0.00000000e+00  -1.31494812e-01
+    1.20060042e-01   0.00000000e+00  -5.21857190e-03  -7.69881000e-04
+    0.00000000e+00   1.02808640e-03  -6.45379700e-04   0.00000000e+00
+    1.06495676e-02  -1.31663985e-02   0.00000000e+00   1.37317644e-01
+   -1.36286917e-01   0.00000000e+00]
+ [ -2.90831220e-03   3.11939630e-03   0.00000000e+00   1.26153332e-01
+   -2.67146436e-01   0.00000000e+00  -7.69881000e-04   1.55002840e-03
+    0.00000000e+00   6.45379700e-04   1.67754070e-03   0.00000000e+00
+    1.31663985e-02  -1.81453264e-02   0.00000000e+00  -1.36286917e-01
+    2.78944797e-01   0.00000000e+00]
+ [  0.00000000e+00   0.00000000e+00   4.70781210e-03   0.00000000e+00
+    0.00000000e+00  -3.60265429e-02   0.00000000e+00   0.00000000e+00
+    1.28485059e-02   0.00000000e+00   0.00000000e+00  -8.23818540e-03
+    0.00000000e+00   0.00000000e+00   2.81090300e-03   0.00000000e+00
+    0.00000000e+00   2.38975073e-02]]
+ mem_per_core         = 1000.0              
+ coup_de_thresh       = 0.12                
+
+
+ ***********
+ propagation
+ ***********
+
+ > time:         0.0000 step: 10.0000 [   1 trajectories]
+ > time:        10.0000 step: 10.0000 [   1 trajectories]
+ > time:        20.0000 step: 10.0000 [   1 trajectories]
+ > time:        30.0000 step: 10.0000 [   1 trajectories]
+ > time:        40.0000 step: 10.0000 [   1 trajectories]
+ > time:        50.0000 step: 10.0000 [   1 trajectories]
+ > time:        60.0000 step: 10.0000 [   1 trajectories]
+ > time:        70.0000 step: 10.0000 [   1 trajectories]
+ > time:        80.0000 step: 10.0000 [   1 trajectories]
+ > time:        90.0000 step: 10.0000 [   1 trajectories]
+ > time:       100.0000 step: 10.0000 [   1 trajectories]
+ > time:       110.0000 step: 10.0000 [   1 trajectories]
+ > time:       120.0000 step: 10.0000 [   1 trajectories]
+ > time:       130.0000 step: 10.0000 [   1 trajectories]
+ > time:       140.0000 step: 10.0000 [   1 trajectories]
+ > time:       150.0000 step: 10.0000 [   1 trajectories]
+ > time:       160.0000 step: 10.0000 [   1 trajectories]
+ > time:       170.0000 step: 10.0000 [   1 trajectories]
+ > time:       180.0000 step: 10.0000 [   1 trajectories]
+ > time:       190.0000 step: 10.0000 [   1 trajectories]
+ > time:       200.0000 step: 10.0000 [   1 trajectories]
+ > time:       210.0000 step: 10.0000 [   1 trajectories]
+ > time:       220.0000 step: 10.0000 [   1 trajectories]
+ > time:       230.0000 step: 10.0000 [   1 trajectories]
+ > time:       240.0000 step: 10.0000 [   1 trajectories]
+ > time:       250.0000 step: 10.0000 [   1 trajectories]
+ > time:       260.0000 step: 10.0000 [   1 trajectories]
+ > time:       270.0000 step: 10.0000 [   1 trajectories]
+ > time:       280.0000 step: 10.0000 [   1 trajectories]
+ > time:       290.0000 step: 10.0000 [   1 trajectories]
+ > time:       300.0000 step: 10.0000 [   1 trajectories]
+ > time:       310.0000 step: 10.0000 [   1 trajectories]
+ > time:       320.0000 step: 10.0000 [   1 trajectories]
+ > time:       330.0000 step: 10.0000 [   1 trajectories]
+ > time:       340.0000 step: 10.0000 [   1 trajectories]
+ > time:       350.0000 step: 10.0000 [   1 trajectories]
+ > time:       360.0000 step: 10.0000 [   1 trajectories]
+ > time:       370.0000 step: 10.0000 [   1 trajectories]
+ > time:       380.0000 step: 10.0000 [   1 trajectories]
+ > time:       390.0000 step: 10.0000 [   1 trajectories]
+ > time:       400.0000 step: 10.0000 [   1 trajectories]
+ > time:       405.0000 step:  5.0000 [   1 trajectories]
+  -- spawning: trajectory    0, state  1 --> state  0
+          time      coup   overlap   spawn
+      410.0000    0.0188    0.0760   no [overlap too small]                  
+      415.0000    0.0228    0.0874   no [overlap too small]                  
+      420.0000    0.0274    0.0968   no [overlap too small]                  
+      425.0000    0.0318    0.1019   no [overlap too small]                  
+      430.0000    0.0344    0.1008   no [overlap too small]                  
+      435.0000    0.0337    0.0927   no [overlap too small]                  
+      440.0000    0.0299    0.0781   no [decreasing coupling]                
+ - spawn failed, cannot create new trajectory
+ > time:       410.0000 step:  5.0000 [   1 trajectories]
+ > time:       415.0000 step:  5.0000 [   1 trajectories]
+ > time:       420.0000 step:  5.0000 [   1 trajectories]
+ > time:       425.0000 step:  5.0000 [   1 trajectories]
+ > time:       430.0000 step:  5.0000 [   1 trajectories]
+ > time:       435.0000 step:  5.0000 [   1 trajectories]
+ > time:       440.0000 step:  5.0000 [   1 trajectories]
+ > time:       445.0000 step:  5.0000 [   1 trajectories]
+ > time:       450.0000 step:  5.0000 [   1 trajectories]
+ > time:       455.0000 step:  5.0000 [   1 trajectories]
+ > time:       465.0000 step: 10.0000 [   1 trajectories]
+ > time:       475.0000 step: 10.0000 [   1 trajectories]
+ > time:       485.0000 step: 10.0000 [   1 trajectories]
+ > time:       495.0000 step: 10.0000 [   1 trajectories]
+ > time:       505.0000 step: 10.0000 [   1 trajectories]
+ > time:       515.0000 step: 10.0000 [   1 trajectories]
+ > time:       525.0000 step: 10.0000 [   1 trajectories]
+ > time:       535.0000 step: 10.0000 [   1 trajectories]
+ > time:       545.0000 step: 10.0000 [   1 trajectories]
+ > time:       555.0000 step: 10.0000 [   1 trajectories]
+ > time:       565.0000 step: 10.0000 [   1 trajectories]
+ > time:       575.0000 step: 10.0000 [   1 trajectories]
+ > time:       585.0000 step: 10.0000 [   1 trajectories]
+ > time:       595.0000 step: 10.0000 [   1 trajectories]
+ > time:       605.0000 step: 10.0000 [   1 trajectories]
+ > time:       615.0000 step: 10.0000 [   1 trajectories]
+ > time:       625.0000 step: 10.0000 [   1 trajectories]
+ > time:       635.0000 step: 10.0000 [   1 trajectories]
+ > time:       645.0000 step: 10.0000 [   1 trajectories]
+ > time:       655.0000 step: 10.0000 [   1 trajectories]
+ > time:       665.0000 step: 10.0000 [   1 trajectories]
+ > time:       675.0000 step: 10.0000 [   1 trajectories]
+ > time:       685.0000 step: 10.0000 [   1 trajectories]
+ > time:       695.0000 step: 10.0000 [   1 trajectories]
+ > time:       705.0000 step: 10.0000 [   1 trajectories]
+ > time:       715.0000 step: 10.0000 [   1 trajectories]
+ > time:       725.0000 step: 10.0000 [   1 trajectories]
+ > time:       735.0000 step: 10.0000 [   1 trajectories]
+ > time:       745.0000 step: 10.0000 [   1 trajectories]
+ > time:       755.0000 step: 10.0000 [   1 trajectories]
+ > time:       765.0000 step: 10.0000 [   1 trajectories]
+ > time:       775.0000 step: 10.0000 [   1 trajectories]
+ > time:       785.0000 step: 10.0000 [   1 trajectories]
+ > time:       795.0000 step: 10.0000 [   1 trajectories]
+ > time:       805.0000 step: 10.0000 [   1 trajectories]
+ > time:       815.0000 step: 10.0000 [   1 trajectories]
+ > time:       825.0000 step: 10.0000 [   1 trajectories]
+ > time:       835.0000 step: 10.0000 [   1 trajectories]
+ > time:       845.0000 step: 10.0000 [   1 trajectories]
+ > time:       855.0000 step: 10.0000 [   1 trajectories]
+ > time:       865.0000 step: 10.0000 [   1 trajectories]
+ > time:       875.0000 step: 10.0000 [   1 trajectories]
+ > time:       885.0000 step: 10.0000 [   1 trajectories]
+ > time:       895.0000 step: 10.0000 [   1 trajectories]
+ > time:       905.0000 step: 10.0000 [   1 trajectories]
+ > time:       915.0000 step: 10.0000 [   1 trajectories]
+ > time:       925.0000 step: 10.0000 [   1 trajectories]
+ > time:       935.0000 step: 10.0000 [   1 trajectories]
+ > time:       945.0000 step: 10.0000 [   1 trajectories]
+ > time:       955.0000 step: 10.0000 [   1 trajectories]
+ > time:       965.0000 step: 10.0000 [   1 trajectories]
+ > time:       975.0000 step: 10.0000 [   1 trajectories]
+ > time:       985.0000 step: 10.0000 [   1 trajectories]
+ > time:       995.0000 step: 10.0000 [   1 trajectories]
+ > time:      1005.0000 step: 10.0000 [   1 trajectories]
+ ------- simulation completed --------
+
+--------------------------------------- timings summary --------------------------------------- 
+routine                                   calls       wall time   frac.        cpu time   frac.
+velocity_verlet.propagate_wfn               107        859.2979    0.93          5.8200    0.68
+velocity_verlet.propagate_trajectory           6         47.0230    0.05          0.3700    0.04
+Wavefunction.update_amplitudes              214          0.8519    0.00          0.2900    0.03
+linalg.pinvh                                108          0.0280    0.00          0.0400    0.00
+Trajectory.copy                             124          0.0157    0.00          0.0300    0.00
+Matrices.build                              108          0.0143    0.00          0.0000    0.00
+Wavefunction.copy                           109          0.0125    0.00          0.0000    0.00
+Integral.sdot_integral                      108          0.0107    0.00          0.0200    0.00
+Wavefunction.pop                            318          0.0103    0.00          0.0000    0.00
+Wavefunction.update_matrices                108          0.0085    0.00          0.0000    0.00
+Wavefunction.pot_classical                  106          0.0036    0.00          0.0000    0.00
+Wavefunction.norm                           107          0.0030    0.00          0.0000    0.00
+Wavefunction.pot_quantum                    106          0.0029    0.00          0.0100    0.00
+Integral.v_integral                         108          0.0028    0.00          0.0100    0.00
+Integral.nuc_overlap                        116          0.0027    0.00          0.0100    0.00
+Wavefunction.kin_quantum                    106          0.0024    0.00          0.0000    0.00
+Wavefunction.kin_classical                  106          0.0024    0.00          0.0000    0.00
+Integral.t_integral                         108          0.0016    0.00          0.0100    0.00
+Integral.traj_overlap                       109          0.0009    0.00          0.0000    0.00
+Integral.update_centroids                   109          0.0007    0.00          0.0000    0.00
+Integral.s_integral                         108          0.0005    0.00          0.0000    0.00
+Wavefunction.renormalize                      1          0.0000    0.00          0.0000    0.00
+Wavefunction.add_trajectory                   1          0.0000    0.00          0.0000    0.00
+-----------------------------------------------------------------------------------------------
+**total**                                              927.7137    0.98          8.5700    0.77
+

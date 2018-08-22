@@ -39,7 +39,8 @@ def set_initial_coords(master):
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        hessian   = np.array(glbl.properties['hessian'],dtype=float)
+        iface_dict = glbl.interfaces[glbl.methods['interface']]
+        hessian = iface_dict['hessian']
         invmass = np.asarray([1./ np.sqrt(m_vec[i]) if m_vec[i] != 0.
                               else 0 for i in range(len(m_vec))], dtype=float)
         mw_hess      = invmass * hessian * invmass[:,np.newaxis]

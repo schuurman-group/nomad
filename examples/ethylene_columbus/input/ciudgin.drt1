@@ -3,17 +3,17 @@
  GSET = 0,
   DAVCOR =10,
  NCOREL = 12 
- NROOT = 4 
+ NROOT = 3
  IVMODE = 3 
  NBKITR = 1
- NVBKMN = 4
- RTOLBK = 1e-5,1e-5,1e-5,1e-4,
- NITER = 550
- NVCIMN = 6
- RTOLCI = 1e-5,1e-5,1e-5,1e-4,
- NVCIMX = 13
- NVRFMX = 13
- NVBKMX = 13
+ NVBKMN = 3
+ RTOLBK = 1e-5,1e-5,1e-5,
+ NITER = 120
+ NVCIMN = 5
+ RTOLCI = 1e-5,1e-5,1e-5,
+ NVCIMX = 10
+ NVRFMX = 10
+ NVBKMX = 10
   iden=2
  CSFPRN = 10, 
 /&end

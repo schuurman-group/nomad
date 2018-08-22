@@ -10,6 +10,7 @@
 .PRINT
     2
 .NOSUP
+.NOTWO
 *READIN
 .MAXPRI
    10
