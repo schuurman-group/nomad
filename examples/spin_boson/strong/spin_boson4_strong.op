@@ -1,45 +1,49 @@
 ##########################################################
-# 4D Spin Boson model 
+# 4D Spin Boson model
 # Parameters taken from:
-# Stock paper
-# Martinez paper
+# Rev. Mod. Phys., 59, 1-85 (1987)
+# Israel J. Chem., 47, 75-88 (2007)
 ##########################################################
 
 PARAMETER-SECTION
 
 #frequencies
-omega_1      =   0.0100 , au 
-omega_2       =  1.3400 , au 
+omega_1      =   0.0100 , au
+omega_2      =   1.3400 , au
 omega_3      =   2.6700 , au
-omega_4       =  4.0000 , au
+omega_4      =   4.0000 , au
 
 # linear diagonal terms
 # delta = 1
-# alpha = 0.0900 weak coupling
-# alpha = 0.5625
+# alpha = 0.5625 strong coupling
 # delta[omega] = 1.33
 # J(w) = (pi/2) * alpha * omega * exp(-omega / omega_c)
 # Ci   = Sqrt[(2/pi) * delta[omega] * J(omega_i)]
 # omega_c = 2.5 * delta = 2.5
 # ki = sqrt(1.33 * 0.5625 * omega_i * exp(-omega_i/omega_c) )
-kappa1_1            =  -0.0863214, au 
-kappa2_1            =  -0.765859, au 
-kappa3_1            =  -0.828570, au
-kappa4_1            =  -0.777287, au
+kappa1_1     =  -0.0863214, au
+kappa2_1     =  -0.765859, au
+kappa3_1     =  -0.828570, au
+kappa4_1     =  -0.777287, au
 
-kappa1_2            =  0.0863214, au 
-kappa2_2            =  0.765859, au 
-kappa3_2            =  0.828570, au
-kappa4_2            =  0.777287, au
+kappa1_2     =   0.0863214, au
+kappa2_2     =   0.765859, au
+kappa3_2     =   0.828570, au
+kappa4_2     =   0.777287, au
 
 #constant coupling constants (kappa)
-delta         =  1., au
+delta        =  1., au
 
 end-parameter-section
 
 HAMILTONIAN-SECTION
 
 modes   | q1 | q2 | q3 | q4
+
+omega_1    |1   KE
+omega_2    |2   KE
+omega_3    |3   KE
+omega_4    |4   KE
 
 0.5*omega_1        1^2   S1&1
 0.5*omega_2        2^2   S1&1

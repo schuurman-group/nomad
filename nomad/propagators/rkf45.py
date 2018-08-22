@@ -44,7 +44,7 @@ coeff = np.array([[1./4., 0., 0., 0., 0., 0.],
 wgt_lo = np.array([25./216., 0., 1408./2565., 2197./4104., -1./5., 0.])
 wgt_hi = np.array([16./135., 0., 6656./12825., 28561./56430., -9./50., 2./55.])
 
-propphase = glbl.propagate['phase_prop']
+propphase = glbl.properties['phase_prop']
 safety = 0.9
 tol = 1e-6
 h = None

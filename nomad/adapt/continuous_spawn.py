@@ -30,7 +30,7 @@ def spawn(master, dt):
             continue
 
         parent = master.traj[i]
-        for st in range(glbl.propagate['n_states']):
+        for st in range(glbl.properties['n_states']):
             # don't check overlap with basis functions on same state
             if st == parent.state:
                 continue
@@ -39,14 +39,15 @@ def spawn(master, dt):
                        if master.traj[j].state == st
                        and master.traj[j].alive else 0.
                        for j in range(master.n_traj())]
-            if max(s_array, key=abs) < glbl.spawning['continuous_min_overlap']:
+            if max(s_array, key=abs) < glbl.properties['continuous_min_overlap']:
                 child           = parent.copy()
                 child.amplitude = 0j
                 child.state     = st
                 child.parent    = parent.label
 
                 success = utilities.adjust_child(parent, child,
-                                    parent.nact(parent.state, child.state))
+                                                 parent.derivative(parent.state,
+                                                                   child.state))
                 sij = glbl.master_int.nuc_overlap(parent, child)
 
                 # try to set up the child
@@ -54,7 +55,7 @@ def spawn(master, dt):
                     pass
                     #log.print_message('spawn_bad_step',
                     #                         ['cannot adjust kinetic energy of child'])
-                elif abs(sij) < glbl.spawning['spawn_olap_thresh']:
+                elif abs(sij) < glbl.properties['spawn_olap_thresh']:
                     pass
                     #log.print_message('spawn_bad_step',
                     #                         ['child-parent overlap too small'])
@@ -77,7 +78,7 @@ def spawn(master, dt):
                         err_msg = ('Traj ' + str(parent.label) + ' from state ' +
                                    str(parent.state) + ' to state ' + str(st) +
                                    ': ' + 'overlap with bundle too large,' +
-                                   ' s_max=' + str(glbl.propagate['sij_thresh']))
+                                   ' s_max=' + str(glbl.properties['sij_thresh']))
                         log.print_message('spawn_bad_step', [err_msg])
     return basis_grown
 

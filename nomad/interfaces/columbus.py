@@ -67,8 +67,8 @@ def init_interface():
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     # set atomic symbol, number, mass,
-    natm    = int(len(glbl.nuclear_basis['labels']) / p_dim)
-    a_sym   = [glbl.nuclear_basis['labels'][p_dim*i] for i in range(natm)]
+    natm    = len(glbl.crd_labels) // p_dim
+    a_sym   = glbl.crd_labels[::p_dim]
 
     a_data  = []
     # we need to go through this to pull out the atomic numbers for
@@ -139,12 +139,12 @@ def init_interface():
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
-    mem_str = str(int(glbl.iface_params['mem_per_core']))
-    coup_de_thresh = float(glbl.iface_params['coup_de_thresh'])
+    mem_str = str(int(glbl.columbus['mem_per_core']))
+    coup_de_thresh = float(glbl.columbus['coup_de_thresh'])
 
     # Do some error checking to makes sure COLUMBUS calc is consistent with trajectory
-    if n_cistates < int(glbl.propagate['n_states']):
-        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.propagate['n_states']))
+    if n_cistates < int(glbl.properties['n_states']):
+        raise ValueError('n_cistates < n_states: t'+str(n_cistates)+' < '+str(glbl.properties['n_states']))
 
     # generate one time input files for columbus calculations
     make_one_time_input()
@@ -185,17 +185,17 @@ def evaluate_trajectory(traj, t=None):
 
     # run mcscf
     run_col_mcscf(traj, t)
-    col_surf.add_data('mo',pack_mocoef())
+    col_surf.add_data('mo', pack_mocoef())
 
     # run mrci, if necessary
     potential, atom_pop = run_col_mrci(traj, ci_restart, t)
-    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
+    col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
     # run properties, dipoles, etc.
     [perm_dipoles, sec_moms] = run_col_multipole(traj)
     col_surf.add_data('sec_mom', sec_moms)
-    dipoles = np.zeros((3,nstates,nstates), dtype=float)
+    dipoles = np.zeros((3, nstates, nstates))
     for i in range(nstates):
         dipoles[:,i,i] = perm_dipoles[:,i]
 
@@ -210,7 +210,7 @@ def evaluate_trajectory(traj, t=None):
     col_surf.add_data('dipole',dipoles)
 
     # compute gradient on current state
-    deriv = np.zeros((n_cart, nstates, nstates),dtype=float)
+    deriv = np.zeros((n_cart, nstates, nstates))
     grads = run_col_gradient(traj, t)
     deriv[:,state,state] = grads
 
@@ -230,30 +230,30 @@ def evaluate_trajectory(traj, t=None):
     return col_surf
 
 
-def evaluate_centroid(Cent, t=None):
-    """Evaluates  all requested electronic structure information at a
+def evaluate_centroid(cent, t=None):
+    """Evaluates all requested electronic structure information at a
     centroid."""
     global n_cart
 
-    label   = Cent.label
-    nstates = Cent.nstates
+    label   = cent.label
+    nstates = cent.nstates
 
     if label >= 0:
         print('evaluate_centroid called with ' +
               'id associated with trajectory, label=' + str(label))
 
-    state_i = min(Cent.states)
-    state_j = max(Cent.states)
+    state_i = min(cent.states)
+    state_j = max(cent.states)
 
     # create surface object to hold potential information
-    col_surf      = surface.Surface()
+    col_surf = surface.Surface()
 
-    col_surf.add_data('geom', Cent.x())
+    col_surf.add_data('geom', cent.x())
 
     # write geometry to file
-    write_col_geom(Cent.x())
+    write_col_geom(cent.x())
 
-    mo_restart, ci_restart = get_col_restart(Cent)
+    mo_restart, ci_restart = get_col_restart(cent)
     if not mo_restart:
         raise IOError('cannot find starting orbitals for mcscf')
 
@@ -261,27 +261,28 @@ def evaluate_centroid(Cent, t=None):
     generate_integrals(label, t)
 
     # run mcscf
-    run_col_mcscf(Cent, t)
+    run_col_mcscf(cent, t)
     col_surf.add_data('mo',pack_mocoef())
 
     # run mrci, if necessary
-    potential, atom_pop = run_col_mrci(Cent, ci_restart, t)
-    col_surf.add_data('potential', potential + glbl.propagate['pot_shift'])
+    potential, atom_pop = run_col_mrci(cent, ci_restart, t)
+    col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
-    deriv = np.zeros((Cent.dim, nstates, nstates))
+    deriv = np.zeros((cent.dim, nstates, nstates))
     if state_i != state_j:
-        # run coupling to other states
-        nad_coup = run_col_coupling(Cent, potential, t)
+        # run coupling between states
+        nad_coup = run_col_coupling(cent, potential, t)
         deriv[:,state_i, state_j] =  nad_coup[:,state_j]
         deriv[:,state_j, state_i] = -nad_coup[:,state_j]
 
     col_surf.add_data('derivative', deriv)
 
     # save restart files
-    make_col_restart(Cent)
+    make_col_restart(cent)
 
     return col_surf
+
 
 def evaluate_coupling(traj):
     """evaluate coupling between electronic states"""
@@ -289,15 +290,13 @@ def evaluate_coupling(traj):
     state   = traj.state
 
     # effective coupling is the nad projected onto velocity
-    coup = np.zeros((nstates, nstates),dtype='float')
+    coup = np.zeros((nstates, nstates))
     vel  = traj.velocity()
     for i in range(nstates):
-        if i == state:
-            continue
-        coup[state,i] = np.dot(vel, traj.derivative(state,i))
-        coup[i,state] = -coup[state,i]
+        if i != state:
+            coup[state,i] = np.dot(vel, traj.derivative(state,i))
+            coup[i,state] = -coup[state,i]
     traj.pes.add_data('coupling', coup)
-    return
 
 
 #----------------------------------------------------------------
@@ -460,7 +459,6 @@ def run_col_mrci(traj, ci_restart, t):
     # determine if trajectory or centroid, and compute densities
     # accordingly
     if type(traj) is trajectory.Trajectory:
-
         # perform density transformation for gradient computations
         int_trans = True
         # compute densities between all states and trajectory state
@@ -471,9 +469,8 @@ def run_col_mrci(traj, ci_restart, t):
                 if i != j and not (j in init_states and j < i):
                     tran_den.append([min(i,j)+1, max(i,j)+1])
 
-    # else, this is a centroid
     else:
-        # only need gradient if statei != statej
+        # this is a centroid, only need gradient if statei != statej
         state_i = min(traj.states)
         state_j = max(traj.states)
         int_trans = (traj.states[0] != traj.states[1])
@@ -723,12 +720,12 @@ def run_col_gradient(traj, t):
         lines = cartgrd.readlines()
     grad     = [lines[i].split() for i in range(len(lines))]
     gradient = np.array([item.replace('D', 'e') for row in grad
-                             for item in row], dtype=float)
+                         for item in row], dtype=float)
 
     shutil.move('cartgrd', 'cartgrd.s'+str(traj.state)+'.'+str(traj.label))
 
     # grab cigrdls output
-    append_log(traj.label,'cigrd', t)
+    append_log(traj.label, 'cigrd', t)
 
     return gradient
 
@@ -812,7 +809,7 @@ def run_col_coupling(traj, ci_ener, t):
         shutil.move('cartgrd', 'cartgrd.nad.' + str(s1) + '.' + str(s2))
 
         # grab mcscfls output
-        append_log(traj.label,'nad', t)
+        append_log(traj.label, 'nad', t)
 
     # set the phase of the new coupling vectors using the cached data
     nad_coupl_phased = get_adiabatic_phase(traj, nad_coupl)
@@ -1038,7 +1035,7 @@ def prog_status():
     has been written. If so, return False, else, return True"""
 
     try:
-        with open("bummer", "r") as f:
+        with open('bummer', 'r') as f:
             bummer = f.readlines()
 
     except EnvironmentError:
@@ -1058,15 +1055,15 @@ def append_log(label, listing_file, time):
     # check to see if time is given, if not -- this is a spawning
     # situation
     if time is None:
-        tstr = "spawning"
+        tstr = 'spawning'
     else:
         tstr = str(time)
 
     # open the running log for this process
     log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
 
-    log_file.write(" time="+tstr+" trajectory="+str(label)+
-                   ": "+str(listing_file)+" summary -------------\n")
+    log_file.write(' time='+tstr+' trajectory='+str(label)+
+                   ': '+str(listing_file)+' summary -------------\n')
 
     if listing_file == 'integral':
         with open('hermitls', 'r') as hermitls:

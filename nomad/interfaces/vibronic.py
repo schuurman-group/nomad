@@ -10,7 +10,7 @@ import nomad.core.surface as surface
 
 
 ham = None
-nsta = glbl.propagate['n_states']
+nsta = glbl.properties['n_states']
 data_cache = dict()
 
 
@@ -34,36 +34,14 @@ class VibHam:
         self.mlbl_active  = []
         self.nmode_total  = 0
         self.nmode_active = 0
-        self.freqmap      = dict()
         self.mrange       = None
-
-    def rdgeomfile(self, fname):
-        """Reads the labels of the geometry.dat file for ordering purposes."""
-        with open(fname, 'r') as infile:
-            self.nmode_total = int(infile.readline().split()[0])
-            infile.readline()
-            for i in range(self.nmode_total):
-                lbl = infile.readline().split()[0]
-                self.mlbl_total.append(lbl.lower())
-
-    def rdfreqfile(self, fname):
-        """Reads and interprets a freq.dat file."""
-        with open(fname, 'r') as infile:
-            keywords = get_kwds(infile)
-
-        self.nmode_active = len(keywords)
-        self.mlbl_active = ['' for i in range(self.nmode_active)]
-        self.freq = np.zeros(self.nmode_active)
-        for i, kwd in enumerate(keywords):
-            self.mlbl_active[i] = kwd[0]
-            self.freq[i] = conv(kwd[1:])
-            self.freqmap[kwd[0]] = self.freq[i]
 
     def rdoperfile(self, fname):
         """Reads and interprets an operator file."""
         with open(fname, 'r') as infile:
             keywords = get_kwds(infile)
 
+        # read the parameter section
         parstart = keywords.index(['parameter-section'])
         parend   = keywords.index(['end-parameter-section'])
         self.npar = parend - parstart - 1
@@ -78,10 +56,11 @@ class VibHam:
             self.par[i] = conv(kwd[2:])
             self.parmap[kwd[0]] = self.par[i]
 
+        # read the Hamiltonian section
         hamstart = keywords.index(['hamiltonian-section'])
         hamend   = keywords.index(['end-hamiltonian-section'])
         i = hamstart + 1
-        opind = []
+        # read Hamiltonian mode labels
         while i < hamend:
             kwd = keywords[i]
             if kwd[0] != 'modes' and i == hamstart + 1:
@@ -91,13 +70,35 @@ class VibHam:
                 break
             while '|' in kwd:
                 kwd.remove('|')
-            opind += [self.mlbl_total.index(i) for i in kwd[1:]]
+            self.mlbl_total += kwd[1:]
+            self.nmode_total += len(kwd[1:])
             i += 1
 
+        # find mapping from total to active modes
+        actmap = [self.mlbl_total.index(j) for j in self.mlbl_active]
+
+        # read Hamiltonian KE values (frequencies)
+        self.freq = np.zeros(self.nmode_active)
+        istart = i
+        while i < hamend:
+            kwd = keywords[i]
+            if kwd[-1] != 'ke' and i == istart:
+                print(kwd)
+                raise ValueError('The Hamiltonian section must have KE terms '
+                                 'following mode specification')
+            elif kwd[-1] != 'ke':
+                break
+            div = kwd.index('|')
+            modei = int(kwd[div+1]) - 1
+            if modei in actmap:
+                self.freq[actmap.index(modei)] += get_coe(kwd[:div])
+            i += 1
+
+        # read Hamiltonian terms
         nterms = hamend - i
         coe    = np.zeros(nterms)
-        mode   = [[] for i in range(nterms)]
-        order  = [[] for i in range(nterms)]
+        mode   = [[] for j in range(nterms)]
+        order  = [[] for j in range(nterms)]
         stalbl = np.zeros((nterms, 2), dtype=int)
         active = np.zeros(nterms, dtype=bool)
         for i in range(nterms):
@@ -105,9 +106,9 @@ class VibHam:
             if '^' in kwd:
                 powind = [j for j in range(len(kwd)) if kwd[j] == '^']
                 for j in powind:
-                    modei = opind[int(kwd[j-1]) - 1]
-                    if self.mlbl_total[modei] in self.mlbl_active:
-                        mode[i].append(modei)
+                    modei = int(kwd[j-1]) - 1
+                    if modei in actmap:
+                        mode[i].append(actmap.index(modei))
                         order[i].append(int(kwd[j+1]))
                         active[i] = True
             else:
@@ -125,41 +126,28 @@ class VibHam:
         self.stalbl = stalbl[active]
         self.mode   = np.array(mode)[active]
         self.order  = np.array(order)[active]
-        self.mrange = [self.mlbl_total.index(i) for i in self.mlbl_active]
+        self.mrange = [self.mlbl_total.index(lbl) for lbl in self.mlbl_active]
 
 
 def init_interface():
-    """Reads geometry.dat, freq.dat and the operator file.
+    """Reads the operator file.
 
-    Note that the order of modes is determined by geometry.dat and
-    the active modes are determined from the freq.dat file.
-    As such, we must read the labels in geometry.dat followed by
-    freq.dat file BEFORE reading the operator file.
+    Note that the order of active modes is determined by the init_coords
+    read from the input file.
     """
     global ham
 
-    # Read in geometry labels, frequency and operator files
+    # Read in operator file
     ham = VibHam()
 
-    # if 'geometry.dat' present, read info from there, else, from inputfile
-    if glbl.nuclear_basis['geomfile'] != '':
-        ham.rdgeomfile(glbl.home_path + '/geometry.dat')
-    else:
-        ham.nmode_total = len(glbl.nuclear_basis['geometries'][0])
-        ham.mlbl_total  = glbl.nuclear_basis['labels']
-
-    # I propose discontinuing 'freq.dat' file. This can be entered in
-    # input file. Need way to differentiate between active/inactive modes
-    # I presume
-    #ham.rdfreqfile(glbl.home_path + '/freq.dat')
-    ham.nmode_active = len(glbl.nuclear_basis['freqs'])
-    ham.mlbl_active  = ham.mlbl_total
-    ham.freq         = np.array(glbl.nuclear_basis['freqs'])
-    for i in range(len(ham.freq)):
-        ham.freqmap[ham.mlbl_active[i]] = ham.freq[i]
+    ham.mlbl_active  = [lbl.lower() for lbl in glbl.crd_labels]
+    ham.nmode_active = len(glbl.crd_labels)
 
     # operator file will always be a separate file
-    ham.rdoperfile(glbl.home_path + '/' + glbl.iface_params['opfile'])
+    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
+
+    # (re)set the kinetic energy coefficient
+    glbl.kecoef = 0.5 * ham.freq
 
     # Ouput some information about the Hamiltonian
     log.print_message('string', ['*'*72])
@@ -167,7 +155,7 @@ def init_interface():
                              ['* Vibronic Coupling Hamiltonian Information'])
     log.print_message('string', ['*'*72])
     log.print_message('string',
-                             ['Operator file: ' + glbl.iface_params['opfile']])
+                             ['Operator file: ' + glbl.vibronic['opfile']])
     log.print_message('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
     string = 'Total no. modes: ' + str(ham.nmode_total)
@@ -194,7 +182,7 @@ def evaluate_trajectory(traj, t=None):
     label = traj.label
     geom  = traj.x()
 
-     # Calculation of the diabatic potential matrix
+    # Calculation of the diabatic potential matrix
     diabpot = calc_diabpot(geom)
 
     # Calculation of the nuclear derivatives of the diabatic potential
@@ -208,7 +196,7 @@ def evaluate_trajectory(traj, t=None):
     # nuclear DOFs
     diablap = calc_diablap(geom)
 
-    #** load the data into the pes object to pass to trajectory **
+    # load the data into the pes object to pass to trajectory
     t_data = surface.Surface()
     t_data.add_data('geom',geom)
 
@@ -216,7 +204,7 @@ def evaluate_trajectory(traj, t=None):
     t_data.add_data('diabat_deriv',diabderiv1)
     t_data.add_data('diabat_hessian',diabderiv2)
 
-    if glbl.variables['surface_rep'] == 'adiabatic':
+    if glbl.methods['surface'] == 'adiabatic':
         # Calculation of the adiabatic potential vector and ADT matrix
         adiabpot, datmat = calc_dat(label, diabpot)
 
@@ -260,6 +248,7 @@ def evaluate_trajectory(traj, t=None):
     data_cache[label] = t_data
     return t_data
 
+
 def evaluate_centroid(traj, t=None):
     """Evaluates the centroid.
 
@@ -267,13 +256,13 @@ def evaluate_centroid(traj, t=None):
     """
     return evaluate_trajectory(traj, t)
 
-def evaluate_coupling(traj):
-    """update the coupling to the other states"""
 
-    if glbl.variables['surface_rep'] == 'adiabatic':
+def evaluate_coupling(traj):
+    """Updates the coupling to the other states"""
+    if glbl.methods['surface'] == 'adiabatic':
         vel   = traj.velocity()
         deriv = traj.pes.get_data('derivative')
- 
+
         coup = np.array([[np.dot(vel, deriv[:,i,j]) for i in range(nsta)]
                                                     for j in range(nsta)])
         coup -= np.diag(coup.diagonal())
@@ -284,7 +273,6 @@ def evaluate_coupling(traj):
         diab_effcoup     = calc_diabeffcoup(diabpot)
         traj.pes.add_data('coupling',diab_effcoup)
 
-    return
 
 #----------------------------------------------------------------------
 #
@@ -330,6 +318,7 @@ def get_kwds(infile):
 
     while [] in kwds:
         kwds.remove([])
+
     return kwds
 
 
@@ -395,7 +384,7 @@ def calc_dat(label, diabpot):
 def calc_ddat(label, q, diabpot, dat_mat):
     """Returns the derviative of the diabatic to adiabatic transformation
        matrix via numerical differentiation"""
-    ddat_mat = np.zeros((ham.nmode_total,nsta,nsta))
+    ddat_mat = np.zeros((ham.nmode_total, nsta, nsta))
     dx = 0.001
 
     return ddat_mat
@@ -442,7 +431,7 @@ def calc_diabderiv2(q):
         o = np.array(ham.order[i])
 
         # first do diagonal d^2/dx^2 terms
-        elem = [ind for ind,val in enumerate(o) if val > 1]
+        elem = [ind for ind, val in enumerate(o) if val > 1]
         nelem = len(elem)
         if nelem > 0:
             prim = np.repeat(q[m]**o, nelem).reshape(len(m), nelem)
@@ -454,16 +443,17 @@ def calc_diabderiv2(q):
                 if s1 != s2:
                     diabderiv2[m[elem[j]],m[elem[j]],s2,s1] += trm
 
-        #now do bilinear terms
-        elem = [ind for ind,val in enumerate(o) if val > 0]
+        # now do bilinear terms
+        elem = [ind for ind, val in enumerate(o) if val > 0]
         nelem = len(elem)
         if nelem > 1:
-            nterm = nelem * (nelem-1) / 2
-            prim = np.repeat(q[m]**o, nelem).reshape(len(m), nterm)
+            nterm = nelem * (nelem-1) // 2
+            prim = np.repeat(q[m]**o, nelem)
+            prim = prim.reshape(len(m), nelem)
             derv = o[elem]*q[elem]**(o[elem]-1)
             icnt = 0
             for j in range(nelem):
-                for k in range(i):
+                for k in range(j):
                     prim[icnt,elem[j]] = derv[j]
                     prim[icnt,elem[k]] = derv[k]
                     trm = ham.coe[i] * np.prod(prim[icnt])
@@ -484,7 +474,7 @@ def calc_diabeffcoup(diabpot):
        eff_coup = Hij / (H[i,i] - H[j,j])
     """
     demat = np.array([[max([constants.fpzero,diabpot[i,i]-diabpot[j,j]],key=abs)
-                           for i in range(nsta)] for j in range(nsta)])
+                       for i in range(nsta)] for j in range(nsta)])
     eff_coup = np.divide(diabpot - np.diag(diabpot.diagonal()), demat)
 
     return eff_coup

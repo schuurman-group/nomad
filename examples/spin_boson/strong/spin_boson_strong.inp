@@ -1,0 +1,30 @@
+begin methods
+    adapt_basis             continuous_spawn
+    init_conds              wigner
+    integral_eval           diabatic
+    interface               vibronic
+    propagator              velocity_verlet
+    surface                 diabatic
+end methods
+
+begin vibronic
+    opfile                  spin_boson4_strong.op
+end vibronic
+
+begin properties
+    init_coords
+        4
+
+        q1   0.00000000E+00    0.00000000E+00
+        q2   0.00000000E+00    0.00000000E+00
+        q3   0.00000000E+00    0.00000000E+00
+        q4   0.00000000E+00    0.00000000E+00
+    n_states                2
+    n_init_traj             10
+    simulation_time         30
+    default_time_step       0.02
+    coupled_time_step       0.01
+    virtual_basis
+    continuous_min_overlap  0.3
+    auto
+end properties

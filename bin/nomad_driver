@@ -38,7 +38,7 @@ def init():
     files.read_input(input_fname)
 
     # initialize random number generator
-    np.random.seed(glbl.sampling['seed'])
+    np.random.seed(glbl.properties['seed'])
 
     # initialize the running calculation log
     log.init_logfile()
@@ -65,20 +65,20 @@ def process_arguments(args):
 
 
 def main():
-    """Runs the main FMSpy routine."""
+    """Runs the main nomad routine."""
     # Create the collection of trajectories
     master = wavefunction.Wavefunction()
 
     # set the initial conditions for trajectories
     initialize.init_wavefunction(master)
 
-    while master.time < glbl.propagate['simulation_time']:
+    while master.time < glbl.properties['simulation_time']:
         # set the time step --> top level time step should always
         # be default time step. fms_step_wfn will decide if/how
         # dt should be shortened for numerics
         time_step = step.time_step(master)
 
-        # take an fms dynamics step
+        # propagate one step forward
         master = step.step_wavefunction(master, time_step)
 
         # if no more live trajectories, simulation is complete

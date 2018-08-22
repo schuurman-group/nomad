@@ -8,6 +8,9 @@ HAMILTONIAN-SECTION
 
 modes   | x1 | x2
 
+1.0    |1  KE
+1.0    |2  KE
+
 0.5 1^2 S1&1
 
 0.5 2^2 S1&1
