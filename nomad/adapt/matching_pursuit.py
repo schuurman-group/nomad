@@ -1,7 +1,7 @@
 """
 The matching pursuit module.
 
-The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2102).
+The algorithm is based on S. Habershon, J. Chem. Phys. 136, 014109 (2012).
 """
 import numpy as np
 import nomad.math.linalg as linalg
@@ -15,7 +15,7 @@ gamma = 0.
 
 
 def reexpress_basis(master):
-    """ Re-expresses the Gaussian basis using the matching pursuit
+    """Re-expresses the Gaussian basis using the matching pursuit
     method."""
     # Condition number threshold
     epsilon = 1e+7
@@ -125,7 +125,7 @@ def check_conv(residual,master):
     # Create a bundle corresponding to the selected basis functions
     new = residual.copy()
     for i in range(new.nalive+new.ndead):
-        new.traj[i].amplitude = np.copy(0j)
+        new.traj[i].amplitude = 0j
     for i in range(nbas):
         indx = selected[i]
         new.traj[indx].amplitude = np.copy(coeff[i])
@@ -176,7 +176,7 @@ def reset_wavefunction(master):
 
     # Set the new coefficients
     for i in range(master.nalive+master.ndead):
-        master.traj[i].amplitude = np.copy(0j)
+        master.traj[i].amplitude = 0j
     for i in range(nbas):
         indx = selected[i]
         master.traj[indx].amplitude = np.copy(coeff[i])

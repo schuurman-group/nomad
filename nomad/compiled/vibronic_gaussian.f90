@@ -27,12 +27,12 @@
     int_qn = (0., 0.)
 
     if (abs(b) < zero) then
-      if (mod(n,2) == 0) then 
+      if (mod(n,2) == 0) then
         int_qn = a**(-n_2) * factorial(n) / (factorial(n_2) * 2.**n)
       endif
       return
     endif
-  
+
     do i = 0,n_2
       int_qn = int_qn + a**(i-n) * b**(n-2*i) / (factorial(i) * factorial(n-2*i))
     enddo

@@ -11,10 +11,10 @@ import nomad.core.surface as evaluate
 def time_step(master):
     """ Determine time step based on whether in coupling regime"""
     if glbl.adapt.in_coupled_regime(master):
-        return float(glbl.propagate['coupled_time_step'])
+        return float(glbl.properties['coupled_time_step'])
 
     else:
-        return float(glbl.propagate['default_time_step'])
+        return float(glbl.properties['default_time_step'])
 
 
 def step_wavefunction(master, dt):
@@ -39,19 +39,19 @@ def step_wavefunction(master, dt):
         master.update_amplitudes(0.5*dt)
 
         # the propagators update the potential energy surface as need be.
-        glbl.integrator.propagate_wfn(master, time_step)
+        glbl.propagator.propagate_wfn(master, time_step)
 
         # update the couplings for all the trajectories
         for i in range(master.n_traj()):
             glbl.interface.evaluate_coupling(master.traj[i])
- 
+
         # propagate amplitudes for 1/2 time step using x1
         glbl.master_mat.build(master, glbl.master_int)
         master.update_matrices(glbl.master_mat)
         master.update_amplitudes(0.5*dt)
 
         # Renormalization
-        if glbl.propagate['renorm'] == 1:
+        if glbl.properties['renorm'] == 1:
             master.renormalize()
 
         # check time_step is fine, energy/amplitude conserved
@@ -82,7 +82,7 @@ def step_wavefunction(master, dt):
 
             # re-expression of the basis using the matching pursuit
             # algorithm
-            #if glbl.propagate['matching_pursuit'] == 1:
+            #if glbl.properties['matching_pursuit'] == 1:
             #    mp.reexpress_basis(master)
 
             # update the running log
@@ -121,7 +121,7 @@ def step_trajectory(traj, init_time, dt):
         traj0 = traj.copy()
 
         # propagate single trajectory
-        glbl.integrator.propagate_trajectory(traj, time_step)
+        glbl.propagator.propagate_trajectory(traj, time_step)
 
         # update the couplings for the trajectory
         glbl.interface.evaluate_coupling(traj)
@@ -169,19 +169,19 @@ def check_step_wfn(master0, master, time_step):
     coupling region."""
 
     # if we're in the coupled regime and using default time step, reject
-    if glbl.adapt.in_coupled_regime(master) and time_step == glbl.propagate['default_time_step']:
+    if glbl.adapt.in_coupled_regime(master) and time_step == glbl.properties['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
 
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
     dpop = abs(sum(master0.pop()) - sum(master.pop()))
-    if dpop > glbl.propagate['pop_jump_toler']:
+    if dpop > glbl.properties['pop_jump_toler']:
         return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
 
     # this is largely what the above check is checking -- but is more direct. I would say
     # we should remove the above check...
     dnorm = master.norm()
-    if abs(dnorm-1.) > glbl.propagate['norm_thresh']:
+    if abs(dnorm-1.) > glbl.properties['norm_thresh']:
         return False, 'Wfn norm threshold exceeded, |norm|-1. = {:8.4f}'.format(dnorm-1.)
 
     #  ... or energy conservation (only need to check traj which exist in
@@ -193,7 +193,7 @@ def check_step_wfn(master0, master, time_step):
             energy_new = (master.traj[i].potential() +
                           master.traj[i].kinetic())
             dener = abs(energy_old - energy_new)
-            if dener > glbl.propagate['energy_jump_toler']:
+            if dener > glbl.properties['energy_jump_toler']:
                 return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)
     return True, ' success'
 
@@ -210,4 +210,4 @@ def check_step_trajectory(traj0, traj):
     energy_new = traj.classical()
 
     # If we pass all the tests, return 'success'
-    return abs(energy_old - energy_new) <= glbl.propagate['energy_jump_toler']
+    return abs(energy_old - energy_new) <= glbl.properties['energy_jump_toler']

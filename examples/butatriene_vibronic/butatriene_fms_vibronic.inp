@@ -1,0 +1,31 @@
+begin methods
+    adapt_basis        optimal_spawn
+    init_conds         wigner
+    integral_eval      saddle_point
+    interface          vibronic
+    propagator         velocity_verlet
+    surface            adiabatic
+end methods
+
+begin vibronic
+    opfile             butatriene.op
+end vibronic
+
+begin properties
+    seed               0
+    init_coords
+        5
+       5-mode model
+       Q5   0. 0.
+       Q8   0. 0.
+       Q12  0. 0.
+       Q14  0. 0.
+       Q15  0. 0.
+    n_states           2
+    init_state         1
+    simulation_time    1000
+    default_time_step  2
+    coupled_time_step  1
+    spawn_coup_thresh  0.001
+    virtual_basis
+end properties

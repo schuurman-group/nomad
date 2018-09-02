@@ -11,7 +11,7 @@ import nomad.core.timings as timings
 import nomad.core.surface as evaluate
 
 
-propphase = glbl.propagate['phase_prop']
+propphase = glbl.properties['phase_prop']
 
 
 @timings.timed

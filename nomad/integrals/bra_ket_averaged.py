@@ -29,7 +29,7 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         Sij = nuc_ovrlp
     Sji = Sij.conjugate()
 
-    if glbl.propagate['integral_order'] > 2:
+    if glbl.properties['integral_order'] > 2:
         raise ValueError('Integral_order > 2 not implemented for bra_ket_averaged')
 
     if t1.state == t2.state:
@@ -38,21 +38,21 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         vij = t1.energy(state) * Sij
         vji = t2.energy(state) * Sji
 
-        if glbl.propagate['integral_order'] > 0:
+        if glbl.properties['integral_order'] > 0:
 
-            o1_ij = vibronic.qn_vector(1,t1.widths(),t1.x(),t1.p(),
-                                         t2.widths(),t2.x(),t2.p())
-            o1_ji = vibronic.qn_vector(1,t2.widths(),t2.x(),t2.p(),
-                                         t1.widths(),t1.x(),t1.p())
+            o1_ij = vibronic.qn_vector(1, t1.widths(), t1.x(), t1.p(),
+                                          t2.widths(), t2.x(), t2.p())
+            o1_ji = vibronic.qn_vector(1, t2.widths(), t2.x(), t2.p(),
+                                          t1.widths(), t1.x(), t1.p())
             vij += np.dot(o1_ij - t1.x()*Sij, t1.derivative(state,state))
             vji += np.dot(o1_ji - t2.x()*Sji, t2.derivative(state,state))
 
-        if glbl.propagate['integral_order'] > 1:
+        if glbl.properties['integral_order'] > 1:
             xcen  = (t1.widths()*t1.x() + t2.widths()*t2.x()) / (t1.widths()+t2.widths())
-            o2_ij = vibronic.qn_vector(2, t1.widths(),t1.x(),t1.p(),
-                                          t2.widths(),t2.x(),t2.p())
-            o2_ji = vibronic.qn_vector(2, t2.widths(),t2.x(),t2.p(),
-                                          t1.widths(),t1.x(),t1.p())
+            o2_ij = vibronic.qn_vector(2, t1.widths(), t1.x(), t1.p(),
+                                          t2.widths(), t2.x(), t2.p())
+            o2_ji = vibronic.qn_vector(2, t2.widths(), t2.x(), t2.p(),
+                                          t1.widths(), t1.x(), t1.p())
 
             for k in range(t1.dim):
                 vij += 0.5*o2_ij[k]*t1.hessian(state)[k,k]
@@ -82,4 +82,3 @@ def v_integral(t1, t2, nuc_ovrlp=None):
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())
-

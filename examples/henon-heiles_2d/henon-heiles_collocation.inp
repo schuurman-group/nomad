@@ -1,0 +1,30 @@
+begin methods
+    adapt_basis        optimal_spawn
+    init_conds         wigner
+    integral_eval      collocation
+    interface          vibronic
+    propagator         velocity_verlet
+    surface            adiabatic
+end methods
+
+begin vibronic
+    opfile             henon-heiles.op
+end vibronic
+
+begin properties
+    seed               0
+    init_coords
+        2
+        # 2D Henon-Heiles model
+        x1 2.0
+        x2 2.0
+    n_states           2
+    n_init_traj        10
+    init_state         1
+    simulation_time    1000
+    default_time_step  0.05
+    coupled_time_step  0.05
+    spawn_coup_thresh  0.001
+    spawn_olap_thresh  0.8
+    auto
+end properties

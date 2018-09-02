@@ -1,0 +1,241 @@
+ ---------------------------------------------------
+ NOMAD: Nonadiabatic Multistate Adaptive Dynamics    
+ ---------------------------------------------------
+
+ *************
+ input summary
+ *************
+
+ file paths
+ ---------------------------------------
+ home_path   = chandr:/home/rymac/Projects/nomad_dev/examples/spin_boson/weak
+ log_file    = chandr:/home/rymac/Projects/nomad_dev/examples/spin_boson/weak/spin_boson_weak.log
+ chkpt_file  = chandr:/home/rymac/Projects/nomad_dev/examples/spin_boson/weak/spin_boson_weak.hdf5
+
+ nomad simulation keywords
+ ----------------------------------------
+
+ ** method variables **
+ adapt_basis          = continuous_spawn    
+ init_conds           = wigner              
+ integral_eval        = diabatic            
+ interface            = vibronic            
+ propagator           = velocity_verlet     
+ surface              = diabatic            
+
+
+ ** property variables **
+ init_coords          = [[[0. 0. 0. 0.]
+  [0. 0. 0. 0.]]]
+ crd_widths           = [0.70710678 0.70710678 0.70710678 0.70710678]
+ crd_masses           = [1. 1. 1. 1.]       
+ n_states             = 2                   
+ n_init_traj          = 10                  
+ init_state           = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+ init_brightest       = False               
+ init_mode_min_olap   = 0.0                 
+ virtual_basis        = True                
+ use_atom_lib         = True                
+ distrib_compression  = 1.0                 
+ seed                 = 0                   
+ restart              = False               
+ restart_time         = -1                  
+ simulation_time      = 30                  
+ default_time_step    = 0.02                
+ coupled_time_step    = 0.01                
+ integral_order       = 1                   
+ energy_jump_toler    = 0.0001              
+ pop_jump_toler       = 0.0001              
+ pot_shift            = 0.0                 
+ renorm               = False               
+ sinv_thrsh           = -1.0                
+ norm_thresh          = 1.1                 
+ auto                 = True                
+ phase_prop           = False               
+ sij_thresh           = 0.7                 
+ hij_coup_thresh      = 0.001               
+ matching_pursuit     = False               
+ spawn_pop_thresh     = 0.025               
+ spawn_coup_thresh    = 0.02                
+ spawn_olap_thresh    = 0.7                 
+ continuous_min_overlap = 0.3                 
+ init_amps            = [(1+0j)]            
+ init_amp_overlap     = True                
+ print_level          = 1                   
+
+
+ ** vibronic variables **
+ opfile               = spin_boson4_weak.op 
+ mem_per_core         = 1000.0              
+ coupling_order       = 1                   
+ ordr_max             = 1                   
+
+
+ ***********
+ propagation
+ ***********
+
+ > time:         0.0000 step:  0.0200 [  20 trajectories]
+ > time:         0.0013 step:  0.0013 [  20 trajectories]
+ > time:         0.0025 step:  0.0013 [  20 trajectories]
+ > time:         0.0037 step:  0.0013 [  20 trajectories]
+ > time:         0.0050 step:  0.0013 [  20 trajectories]
+ > time:         0.0063 step:  0.0013 [  20 trajectories]
+ > time:         0.0075 step:  0.0013 [  20 trajectories]
+ > time:         0.0088 step:  0.0013 [  20 trajectories]
+ > time:         0.0100 step:  0.0013 [  20 trajectories]
+ > time:         0.0112 step:  0.0013 [  20 trajectories]
+ > time:         0.0125 step:  0.0013 [  20 trajectories]
+ > time:         0.0137 step:  0.0013 [  20 trajectories]
+ > time:         0.0150 step:  0.0013 [  20 trajectories]
+ > time:         0.0162 step:  0.0013 [  20 trajectories]
+ > time:         0.0175 step:  0.0013 [  20 trajectories]
+ > time:         0.0187 step:  0.0013 [  20 trajectories]
+ > time:         0.0200 step:  0.0013 [  20 trajectories]
+ > time:         0.0213 step:  0.0013 [  20 trajectories]
+ > time:         0.0225 step:  0.0013 [  20 trajectories]
+ > time:         0.0238 step:  0.0013 [  20 trajectories]
+ > time:         0.0250 step:  0.0013 [  20 trajectories]
+ > time:         0.0263 step:  0.0013 [  20 trajectories]
+ > time:         0.0275 step:  0.0013 [  20 trajectories]
+ > time:         0.0288 step:  0.0013 [  20 trajectories]
+ > time:         0.0300 step:  0.0013 [  20 trajectories]
+ > time:         0.0313 step:  0.0013 [  20 trajectories]
+ > time:         0.0325 step:  0.0013 [  20 trajectories]
+ > time:         0.0338 step:  0.0013 [  20 trajectories]
+ > time:         0.0350 step:  0.0013 [  20 trajectories]
+ > time:         0.0363 step:  0.0013 [  20 trajectories]
+ > time:         0.0375 step:  0.0013 [  20 trajectories]
+ > time:         0.0388 step:  0.0013 [  20 trajectories]
+ > time:         0.0400 step:  0.0012 [  20 trajectories]
+ > time:         0.0413 step:  0.0012 [  20 trajectories]
+ > time:         0.0425 step:  0.0012 [  20 trajectories]
+ > time:         0.0438 step:  0.0012 [  20 trajectories]
+ > time:         0.0450 step:  0.0012 [  20 trajectories]
+ > time:         0.0463 step:  0.0012 [  20 trajectories]
+ > time:         0.0475 step:  0.0012 [  20 trajectories]
+ > time:         0.0488 step:  0.0012 [  20 trajectories]
+ > time:         0.0500 step:  0.0012 [  20 trajectories]
+ > time:         0.0513 step:  0.0012 [  20 trajectories]
+ > time:         0.0525 step:  0.0012 [  20 trajectories]
+ > time:         0.0538 step:  0.0012 [  20 trajectories]
+ > time:         0.0550 step:  0.0012 [  20 trajectories]
+ > time:         0.0563 step:  0.0012 [  20 trajectories]
+ > time:         0.0575 step:  0.0012 [  20 trajectories]
+ > time:         0.0588 step:  0.0012 [  20 trajectories]
+ > time:         0.0600 step:  0.0012 [  20 trajectories]
+ > time:         0.0612 step:  0.0013 [  20 trajectories]
+ > time:         0.0625 step:  0.0013 [  20 trajectories]
+ > time:         0.0638 step:  0.0013 [  20 trajectories]
+ > time:         0.0650 step:  0.0013 [  20 trajectories]
+ > time:         0.0663 step:  0.0013 [  20 trajectories]
+ > time:         0.0675 step:  0.0013 [  20 trajectories]
+ > time:         0.0688 step:  0.0013 [  20 trajectories]
+ > time:         0.0700 step:  0.0013 [  20 trajectories]
+ > time:         0.0713 step:  0.0013 [  20 trajectories]
+ > time:         0.0725 step:  0.0013 [  20 trajectories]
+ > time:         0.0738 step:  0.0013 [  20 trajectories]
+ > time:         0.0750 step:  0.0013 [  20 trajectories]
+ > time:         0.0763 step:  0.0013 [  20 trajectories]
+ > time:         0.0775 step:  0.0013 [  20 trajectories]
+ > time:         0.0788 step:  0.0013 [  20 trajectories]
+ > time:         0.0800 step:  0.0012 [  20 trajectories]
+ > time:         0.0813 step:  0.0013 [  20 trajectories]
+ > time:         0.0825 step:  0.0013 [  20 trajectories]
+ > time:         0.0838 step:  0.0013 [  20 trajectories]
+ > time:         0.0850 step:  0.0013 [  20 trajectories]
+ > time:         0.0863 step:  0.0013 [  20 trajectories]
+ > time:         0.0875 step:  0.0013 [  20 trajectories]
+ > time:         0.0888 step:  0.0013 [  20 trajectories]
+ > time:         0.0900 step:  0.0013 [  20 trajectories]
+ > time:         0.0913 step:  0.0013 [  20 trajectories]
+ > time:         0.0925 step:  0.0013 [  20 trajectories]
+ > time:         0.0938 step:  0.0013 [  20 trajectories]
+ > time:         0.0950 step:  0.0013 [  20 trajectories]
+ > time:         0.0963 step:  0.0013 [  20 trajectories]
+ > time:         0.0975 step:  0.0013 [  20 trajectories]
+ > time:         0.0988 step:  0.0013 [  20 trajectories]
+ > time:         0.1000 step:  0.0012 [  20 trajectories]
+ > time:         0.1013 step:  0.0013 [  20 trajectories]
+ > time:         0.1025 step:  0.0013 [  20 trajectories]
+ > time:         0.1038 step:  0.0013 [  20 trajectories]
+ > time:         0.1050 step:  0.0013 [  20 trajectories]
+ > time:         0.1063 step:  0.0013 [  20 trajectories]
+ > time:         0.1075 step:  0.0013 [  20 trajectories]
+ > time:         0.1088 step:  0.0013 [  20 trajectories]
+ > time:         0.1100 step:  0.0013 [  20 trajectories]
+ > time:         0.1113 step:  0.0013 [  20 trajectories]
+ > time:         0.1125 step:  0.0013 [  20 trajectories]
+ > time:         0.1138 step:  0.0013 [  20 trajectories]
+ > time:         0.1150 step:  0.0013 [  20 trajectories]
+ > time:         0.1163 step:  0.0013 [  20 trajectories]
+ > time:         0.1175 step:  0.0013 [  20 trajectories]
+ > time:         0.1188 step:  0.0013 [  20 trajectories]
+ > time:         0.1200 step:  0.0012 [  20 trajectories]
+ > time:         0.1213 step:  0.0013 [  20 trajectories]
+ > time:         0.1225 step:  0.0013 [  20 trajectories]
+ > time:         0.1238 step:  0.0013 [  20 trajectories]
+ > time:         0.1250 step:  0.0013 [  20 trajectories]
+ > time:         0.1263 step:  0.0013 [  20 trajectories]
+ > time:         0.1275 step:  0.0013 [  20 trajectories]
+ > time:         0.1288 step:  0.0013 [  20 trajectories]
+ > time:         0.1300 step:  0.0013 [  20 trajectories]
+ > time:         0.1313 step:  0.0013 [  20 trajectories]
+ > time:         0.1325 step:  0.0013 [  20 trajectories]
+ > time:         0.1338 step:  0.0013 [  20 trajectories]
+ > time:         0.1350 step:  0.0013 [  20 trajectories]
+ > time:         0.1363 step:  0.0013 [  20 trajectories]
+ > time:         0.1375 step:  0.0013 [  20 trajectories]
+ > time:         0.1388 step:  0.0013 [  20 trajectories]
+ > time:         0.1400 step:  0.0013 [  20 trajectories]
+ > time:         0.1413 step:  0.0012 [  20 trajectories]
+ > time:         0.1425 step:  0.0012 [  20 trajectories]
+ > time:         0.1438 step:  0.0012 [  20 trajectories]
+ > time:         0.1450 step:  0.0012 [  20 trajectories]
+ > time:         0.1463 step:  0.0012 [  20 trajectories]
+ > time:         0.1475 step:  0.0012 [  20 trajectories]
+ > time:         0.1488 step:  0.0012 [  20 trajectories]
+ > time:         0.1500 step:  0.0012 [  20 trajectories]
+ > time:         0.1513 step:  0.0012 [  20 trajectories]
+ > time:         0.1525 step:  0.0012 [  20 trajectories]
+
+Traceback (most recent call last):
+  File "/home/rymac/.anaconda3/bin/nomad_driver", line 6, in <module>
+    exec(compile(open(__file__).read(), __file__, 'exec'))
+  File "/home/rymac/Projects/nomad_dev/bin/nomad_driver", line 108, in <module>
+    main()
+  File "/home/rymac/Projects/nomad_dev/bin/nomad_driver", line 82, in main
+    master = step.step_wavefunction(master, time_step)
+  File "/home/rymac/Projects/nomad_dev/nomad/core/step.py", line 98, in step_wavefunction
+    raise ValueError('Bundle minimum step exceeded.')
+ValueError: Bundle minimum step exceeded.
+
+ ------- simulation terminated  --------
+
+--------------------------------------- timings summary --------------------------------------- 
+routine                                   calls       wall time   frac.        cpu time   frac.
+Integral.v_integral                       32760          5.1351    0.31         51.0962    0.33
+velocity_verlet.propagate_wfn               155          2.9488    0.18         29.3883    0.19
+Matrices.build                              156          2.3256    0.14         23.2179    0.15
+Integral.sdot_integral                    62400          1.6330    0.10         16.2462    0.11
+Integral.nuc_overlap                      57170          0.3877    0.02          3.7446    0.02
+Wavefunction.pop                            318          0.3264    0.02          3.2393    0.02
+Trajectory.copy                            3780          0.2183    0.01          2.0262    0.01
+Wavefunction.update_amplitudes              310          0.2001    0.01          1.8460    0.01
+Integral.t_integral                       32760          0.1941    0.01          1.9156    0.01
+continuous_spawn.spawn                      122          0.1506    0.01          1.5251    0.01
+Integral.traj_overlap                     32815          0.1322    0.01          1.2969    0.01
+Integral.s_integral                       32760          0.1026    0.01          0.9773    0.01
+Wavefunction.copy                           188          0.0501    0.00          0.4686    0.00
+linalg.pinvh                                156          0.0371    0.00          0.3890    0.00
+Wavefunction.update_matrices                156          0.0100    0.00          0.0949    0.00
+Wavefunction.norm                           156          0.0064    0.00          0.0610    0.00
+Wavefunction.pot_classical                    8          0.0015    0.00          0.0109    0.00
+Wavefunction.kin_classical                    8          0.0005    0.00          0.0039    0.00
+Wavefunction.pot_quantum                      8          0.0003    0.00          0.0025    0.00
+Wavefunction.kin_quantum                      8          0.0002    0.00          0.0018    0.00
+Wavefunction.add_trajectory                  20          0.0001    0.00          0.0001    0.00
+Wavefunction.renormalize                      1          0.0000    0.00          0.0000    0.00
+-----------------------------------------------------------------------------------------------
+**total**                                               16.6860    0.83        154.0229    0.89
+

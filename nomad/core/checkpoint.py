@@ -729,5 +729,5 @@ def package_centroid(cent, time):
 
 def default_blk_size(time):
     """Documentation to come"""
-    return int(2.1 * (glbl.propagate['simulation_time']-time) /
-                      glbl.propagate['default_time_step'])
+    return int(2.1 * (glbl.properties['simulation_time']-time) /
+                      glbl.properties['default_time_step'])

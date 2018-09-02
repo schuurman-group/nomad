@@ -93,7 +93,7 @@ class Trajectory:
     #---------------------------------------------------------------------
     def set_mass(self, m_vec):
         """Set the mass vector and update kinetic energy coefficient"""
-        self.mass   = m_vec
+        self.mass = m_vec
 
     def set_width(self, w_vec):
         """Set the width vector"""
@@ -109,18 +109,16 @@ class Trajectory:
     #
     #----------------------------------------------------------------------
     def update_x(self, pos):
-        """Updates the position of the trajectory.
-        """
+        """Updates the position of the trajectory."""
         self.pos = np.array(pos)
 
     def update_p(self, mom):
-        """Updates the momentum of the trajectory.
-        """
+        """Updates the momentum of the trajectory."""
         self.mom = np.array(mom)
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
-#        self.gamma = 0.5 * np.dot(self.x(), self.p())
+        #self.gamma = 0.5 * np.dot(self.x(), self.p())
         self.gamma = phase
         if abs(self.gamma) > 2*np.pi:
             self.gamma = self.gamma % 2*np.pi
@@ -173,7 +171,7 @@ class Trajectory:
             print('WARNING: trajectory.energy() called, ' +
                   'but pes_geom != trajectory.x(). ID=' + str(self.label)+
                   '\ntraj.x()='+str(self.x())+"\npes_geom="+str(self.pes.get_data('geom')))
-        #return self.pes.get_data('potential')[state] + glbl.propagate['pot_shift']
+        #return self.pes.get_data('potential')[state] + glbl.properties['pot_shift']
         return self.pes.get_data('potential')[state]
 
     def derivative(self, state_i, state_j, geom_chk=True):
