@@ -310,6 +310,9 @@ def create(file_name, wfn):
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 
+    chkpt.create_group('keywords')
+    write_keywords()
+
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
     chkpt['wavefunction'].attrs['n_rows']      = -1
@@ -328,6 +331,15 @@ def create(file_name, wfn):
 
     # close following initialization
     chkpt.close()
+
+def write_keywords()
+    """Writes the contents of glbl to the checkpoint file. This 
+       is only done once upon the creation of the file"""
+    
+    # methods section
+
+    # 
+
 
 
 def write_wavefunction(chkpt, wfn, time):
