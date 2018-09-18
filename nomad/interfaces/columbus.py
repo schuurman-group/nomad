@@ -95,10 +95,13 @@ def init_interface():
 
     # setup working directories
     # input and restart are shared
-    input_path    = glbl.home_path + '/input'
-    restart_path  = glbl.home_path + '/restart'
+#    input_path    = glbl.home_path + '/input'
+#    restart_path  = glbl.home_path + '/restart'
+    input_path    = 'input'
+    restart_path  = 'restart'
     # ...but each process has it's own work directory
-    work_path     = glbl.home_path + '/work.'+str(glbl.mpi['rank'])
+#    work_path     = glbl.home_path + '/work.'+str(glbl.mpi['rank'])
+    work_path     = 'work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -1060,7 +1063,8 @@ def append_log(label, listing_file, time):
         tstr = str(time)
 
     # open the running log for this process
-    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
+#    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
+    log_file = open(columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(' time='+tstr+' trajectory='+str(label)+
                    ': '+str(listing_file)+' summary -------------\n')

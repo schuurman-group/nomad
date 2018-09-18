@@ -2,31 +2,20 @@
 Global variables used throughout nomad
 """
 
-sections = dict(
-    'modules' = modules
-    'paths'   = paths
-    'mpi'     = mpi
-    'methods' = methods
-    'columbus' = columbus
-    'vibronic' = vibronic
-    'interfaces' = interfaces
-    'properties' = properies
-               )
-
 modules = dict(
-    interface  = None
-    init_conds = None
-    adapt      = None
-    integrator = None
-    matrices   = None
-    integrals  = None
+    interface  = None,
+    init_conds = None,
+    adapt      = None,
+    integrator = None,
+    matrices   = None,
+    integrals  = None,
     wfn0       = None
             )
 
 paths = dict(
-    home_path  = ''
-    log_file   = ''
+    log_file   = '',
     chkpt_file = ''
+#    home_path
             )
 
 # MPI variables (set by nomad_driver)
@@ -39,6 +28,7 @@ mpi = dict(
 
 # Method variables (no default values)
 methods = dict(
+    ansatz        = None,
     adapt_basis   = None,
     init_conds    = None,
     integral_eval = None,
@@ -66,7 +56,7 @@ properties = dict(
     init_coords         = None, # required, can be filename or XYZ format
     crd_widths          = None,
     crd_masses          = None,
-    crd_labels          = None
+    crd_labels          = None,
     n_states            = 2,
     n_init_traj         = 1,
     init_state          = -1,
@@ -101,3 +91,16 @@ properties = dict(
     init_amp_overlap    = True,
     print_level         = 1
                   )
+
+sections =  {
+    'modules' : modules,
+    'paths'   : paths,
+    'mpi'     : mpi,
+    'methods' : methods,
+    'columbus' : columbus,
+    'vibronic' : vibronic,
+    'interfaces' : columbus,
+    'vibronic'   : vibronic,
+    'properties' : properties
+             }
+

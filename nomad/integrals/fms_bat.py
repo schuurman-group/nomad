@@ -17,16 +17,13 @@ hermitian = True
 basis = 'gaussian'
 
 # evaluates potential integral using bra_ket averaged approach
-def v_integral(t1, t2, nuc_ovrlp=None):
+def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
     """Returns potential coupling matrix element between two trajectories.
 
     If we are passed a single trajectory, this is a diagonal matrix
     element -- simply return potential energy of trajectory.
     """
-    if nuc_ovrlp is None:
-        Sij = nuc_overlap(t1, t2)
-    else:
-        Sij = nuc_ovrlp
+    Sij = nuc_ovrlp
     Sji = Sij.conjugate()
 
     if glbl.properties['integral_order'] > 2:
@@ -75,10 +72,10 @@ def v_integral(t1, t2, nuc_ovrlp=None):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
         fji = t2.derivative(t2.state, t1.state)
-        vij = 2.*np.vdot(fij, t1.kecoef *
+        vij = 2.*np.vdot(fij, kecoef *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(fji, t2.kecoef *
+        vji = 2.*np.vdot(fji, kecoef *
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
     return 0.5*(vij + vji.conjugate())

@@ -144,10 +144,8 @@ def init_interface():
     ham.nmode_active = len(glbl.crd_labels)
 
     # operator file will always be a separate file
-    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
-
-    # (re)set the kinetic energy coefficient
-    glbl.kecoef = 0.5 * ham.freq
+#    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
+    ham.rdoperfile(glbl.vibronic['opfile'])
 
     # Ouput some information about the Hamiltonian
     log.print_message('string', ['*'*72])

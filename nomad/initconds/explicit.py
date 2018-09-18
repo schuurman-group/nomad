@@ -15,7 +15,7 @@ def set_initial_coords(master):
         itraj = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                       width=glbl.properties['crd_widths'],
                                       mass=glbl.properties['crd_masses'],
-                                      parent=0, kecoef=glbl.kecoef)
+                                      parent=0, kecoef=glbl.modules['integrals'].kecoef)
 
         # set position and momentum
         itraj.update_x(np.array(coord[0]))

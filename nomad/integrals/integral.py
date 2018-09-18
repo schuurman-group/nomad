@@ -7,12 +7,23 @@ import nomad.integrals.centroid as centroid
 
 class Integral:
     """Class constructor for the Bundle object."""
-    def __init__(self, ansatz):
-        self.type     = ansatz
-        self.centroid = []
+    def __init__(self, kecoef, ansatz, numerical_eval):
+        self.kecoef    = kecoef
+        self.ansatz    = ansatz
+        self.numerical = numerical_eval
+        self.centroid  = []
         self.centroid_required = []
-        self.ints = __import__('nomad.integrals.gaussian_global', fromlist=['a'])
-        self.ints_eval = __import__('nomad.integrals.'+str(self.type),fromlist=['a'])
+
+        # some logic to determine how to evaluate integrals
+        # over basis functions.
+        # ansatz can be: fms, mce, mca, diabatic
+        # numerical can: bat, saddle_point, vibronic, dirac
+        if self.numerical == 'dirac':
+            self.ints      = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical), fromlist=['a'])
+            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical),fromlist=['a'])
+        else:
+            self.ints      = __import__('nomad.integrals.'+str(self.ansatz), fromlist=['a'])
+            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical),fromlist=['a'])
 
         self.hermitian            = self.ints.hermitian
         self.require_centroids    = self.ints_eval.require_centroids
@@ -29,30 +40,43 @@ class Integral:
         return self.ints.nuc_overlap(bra_traj, ket_traj)
 
     @timings.timed
-    def traj_overlap(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def traj_overlap(self, bra_traj, ket_traj):
         """Calculates the trajectory overlap."""
-        return self.ints.traj_overlap(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+        return self.ints.traj_overlap(bra_traj, ket_traj) 
 
     @timings.timed
-    def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
         """Calculates the overlap integral between two trajectories."""
-        return self.ints.s_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        if elec_ovrlp is None:
+            elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
+
+        return self.ints.s_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
-    def t_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def t_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
         """Calculates the kinetic energy integral between two trajectories."""
-        return self.ints.t_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        if elec_ovrlp is None:
+            elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
+
+        return self.ints.t_integral(bra_traj, ket_traj, self.kecoef, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
-    def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
         """Calculates the potential energy integral between two
         trajectories."""
         if self.require_centroids:
             return self.ints_eval.v_integral(bra_traj, ket_traj,
                                         self.centroid[bra_traj.label][ket_traj.label],
+                                        self.kecoef,
                                         nuc_ovrlp=nuc_ovrlp)
         else:
-            return self.ints_eval.v_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+            return self.ints_eval.v_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):

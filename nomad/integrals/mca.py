@@ -41,78 +41,40 @@ def nuc_overlap(traj1, traj2):
                            traj2.widths(),traj2.x(),traj2.p())
 
 
-def traj_overlap(traj1, traj2, nuc_ovrlp=None):
-    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
+def traj_overlap(traj1, traj2):
+    """ Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
 
-    return s_integral(traj1, traj2, nuc_ovrlp)
+    return elec_overlap(traj1, traj2) * nuc_overlap(traj1, traj2)
 
 
-def s_integral(traj1, traj2, nuc_ovrlp=None):
+def s_integral(traj1, traj2, nuc_ovrlp, elec_ovrlp):
     """ Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
 
-    if nuc_ovrlp is None:
-        nuc_ovrlp = nuc_overlap(traj1, traj2)
-
-    return elec_overlap(traj1, traj2) * nuc_ovrlp
+    return nuc_ovrlp * elec_ovrlp
 
 
-def v_integral(traj1, traj2, nuc_ovrlp=None):
-    """Returns potential coupling matrix element between two trajectories."""
-    # evaluate just the nuclear component (for re-use)
-    if nuc_ovrlp is None:
-        nuc_ovrlp = nuc_overlap(traj1, traj2)
-
-    # get the linear combinations corresponding to the adiabatic states
-    nst   = traj1.nstates
-    v_mat = np.zeros((nst,nst),dtype=complex)
-
-    # adiabatic states in diabatic basis -- cross terms between orthogonal
-    # diabatic states are zero
-    for i in range(glbl.interface.ham.nterms):
-        [s1,s2] = glbl.interface.ham.stalbl[i,:]-1
-        v_term = complex(1.,0.) * glbl.interface.ham.coe[i]
-        for q in range(len(glbl.interface.ham.order[i])):
-            qi      =  glbl.interface.ham.mode[i][q]
-            v_term *=  vibronic.qn_integral(glbl.interface.ham.order[i][q],
-                       traj1.widths()[qi],traj1.x()[qi],traj1.p()[qi],
-                       traj2.widths()[qi],traj2.x()[qi],traj2.p()[qi])
-        v_mat[s1,s2] += v_term
-
-    # Fill in the upper-triangle
-    v_mat += (v_mat.T - np.diag(v_mat.diagonal()))
-
-    return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp
-
-
-def t_integral(traj1, traj2, nuc_ovrlp=None):
+def t_integral(traj1, traj2, kecoef, nuc_ovrlp, elec_ovrlp):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if nuc_ovrlp is None:
-        nuc_ovrlp = nuc_overlap(traj1, traj2)
 
     # < chi | del^2 / dx^2 | chi'>
     ke = nuclear.deld2x(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
                                   traj2.widths(),traj2.x(),traj2.p())
 
-    return -np.dot(traj1.kecoef,ke)*elec_overlap(traj1,traj2)
+    return -np.dot(kecoef,ke) * elec_ovrlp
 
 
-def sdot_integral(traj1, traj2, nuc_ovrlp=None):
+def sdot_integral(traj1, traj2, nuc_ovrlp, elec_ovrlp):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
-    if nuc_ovrlp is None:
-        nuc_ovrlp = nuc_overlap(traj1, traj2)
-
-    # overlap of electronic functions
-    elec_ovrlp = elec_overlap(traj1, traj2)
 
     # < chi | d / dx | chi'>
-    deldx = nuclear.deldx(elec_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
-                                     traj2.widths(),traj2.x(),traj2.p())
+    deldx = nuclear.deldx(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
+                                    traj2.widths(),traj2.x(),traj2.p())
     # < chi | d / dp | chi'>
-    deldp = nuclear.deldp(elec_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
-                                     traj2.widths(),traj2.x(),traj2.p())
+    deldp = nuclear.deldp(nuc_ovrlp,traj1.widths(),traj1.x(),traj1.p(),
+                                    traj2.widths(),traj2.x(),traj2.p())
 
     # the nuclear contribution to the sdot matrix
     sdot = ( np.dot(deldx, traj2.velocity())

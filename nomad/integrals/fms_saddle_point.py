@@ -18,7 +18,7 @@ hermitian = False
 basis = 'gaussian'
 
 
-def v_integral(t1, t2, centroid, nuc_ovrlp=None):
+def v_integral(t1, t2, centroid, kecoef, nuc_ovrlp, elec_ovrlp):
     """Returns potential coupling matrix element between two trajectories."""
     # if we are passed a single trajectory, this is a diagonal
     # matrix element -- simply return potential energy of trajectory
@@ -48,7 +48,7 @@ def v_integral(t1, t2, centroid, nuc_ovrlp=None):
     elif t1.state != t2.state:
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
-        v = 2.*np.vdot(fij, t1.kecoef *
+        v = 2.*np.vdot(fij, kecoef *
                        nuclear.deldx(nuc_ovrlp, t1.widths(), t1.x(), t1.p(),
                                                 t2.widths(), t2.x(), t2.p()))
         # Scalar coupling

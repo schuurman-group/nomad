@@ -84,7 +84,7 @@ def overlap_with_bundle(traj, bundle):
             if traj.state != bundle.traj[i].state:
                 sij = 0j
             else:
-                sij = glbl.master_int.traj_overlap(traj, bundle.traj[i])
+                sij = glbl.modules['integrals'].traj_overlap(traj, bundle.traj[i])
             if abs(sij) > glbl.properties['sij_thresh']:
                 t_overlap_bundle = True
                 break
@@ -103,7 +103,7 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
     for j in range(bundle.n_traj()):
         if bundle.traj[j].alive and j != overlap_traj:
             if overlap_state is None or bundle.traj[j].state == overlap_state:
-                max_sij = max(max_sij, abs(glbl.master_int.nuc_overlap(
+                max_sij = max(max_sij, abs(glbl.modules['integrals'].nuc_overlap(
                                                  bundle.traj[overlap_traj],
                                                  bundle.traj[j])))
 

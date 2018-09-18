@@ -9,14 +9,40 @@ import nomad.core.trajectory as trajectory
 import nomad.core.wavefunction as wavefunction
 import nomad.core.surface as evaluate
 import nomad.core.checkpoint as checkpoint
-
+import nomad.core.matrices as matrices
+import nomad.integrals.integral as integral
 
 def init_wavefunction(master):
     """Initializes the trajectories."""
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
+
+    glbl.modules['interface']  = __import__('nomad.interfaces.' + glbl.methods['interface'],
+                                 fromlist=['NA'])
     glbl.interface.init_interface()
+
+    # create glbl modules
+    glbl.modules['matrices']   = matrices.Matrices()
+
+    glbl.modules['init_conds'] = __import__('nomad.initconds.' + glbl.methods['init_conds'],
+                                 fromlist=['NA'])
+    glbl.modules['adapt']      = __import__('nomad.adapt.' + glbl.methods['adapt_basis'],
+                                 fromlist=['a'])
+    glbl.modules['propagator'] = __import__('nomad.propagators.' + glbl.methods['propagator'],
+                                 fromlist=['a'])
+
+    # WARNING: this should be done more eloquently
+    # need to determine form of the coefficients on the kinetic energy
+    # operator, i.e. cartesian vs. normal mode coordinate basis
+    if glbl.methods['interface'] == 'vibronic':
+        # if normal modes, read frequencies from vibronic interface
+        kecoef = 0.5 * glbl.modules['interface'].ham.freq
+    else:
+        kecoef = 0.5 / glbl.properties['crd_masses']
+    glbl.modules['integrals']  = integral.Integral(kecoef, 
+                                                   glbl.methods['ansatz'],
+                                                   glbl.methods['integral_eval'])
 
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
@@ -33,7 +59,7 @@ def init_wavefunction(master):
     else:
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
-        glbl.init_conds.set_initial_coords(master)
+        glbl.modules['init_conds'].set_initial_coords(master)
 
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
@@ -201,7 +227,7 @@ def make_origin_traj():
 
     origin = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                    width=w_vec, mass=m_vec, parent=0,
-                                   kecoef=glbl.kecoef)
+                                   kecoef=glbl.modules['integrals'].kecoef)
 
     origin.update_x(x_vec)
     origin.update_p(p_vec)

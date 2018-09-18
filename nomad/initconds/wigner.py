@@ -31,7 +31,7 @@ def set_initial_coords(master):
                                      width=w_vec,
                                      mass=m_vec,
                                      parent=0,
-                                     kecoef=glbl.kecoef)
+                                     kecoef=glbl.modules['integrals'].kecoef)
     template.update_x(x_ref)
     template.update_p(p_ref)
 

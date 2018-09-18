@@ -30,7 +30,7 @@ def print_message(otype, data):
             print('CANNOT WRITE otype=' + str(otype) + '\n')
 
         elif glbl.properties['print_level'] >= print_level[otype]:
-            with open(glbl.log_file, 'a') as logfile:
+            with open(glbl.paths['log_file'], 'a') as logfile:
                 logfile.write(log_format[otype].format(*data))
 
 
@@ -104,7 +104,7 @@ def cleanup_exc(etyp, val, tb):
 def print_header():
     """Documentation to come"""
     # ------------------------- log file formats --------------------------
-    with open(glbl.log_file, 'w') as logfile:
+    with open(glbl.paths['log_file'], 'w') as logfile:
         log_str = (' ---------------------------------------------------\n' +
                    ' NOMAD: Nonadiabatic Multistate Adaptive Dynamics    \n' +
                    ' ---------------------------------------------------\n' +
@@ -115,9 +115,9 @@ def print_header():
                    '\n' +
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
-                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.home_path) + '\n' +
-                   ' log_file    = ' + os.uname()[1] + ':' + glbl.log_file + '\n' +
-                   ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.chkpt_file + '\n')
+#                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.paths['home_path']) + '\n' +
+                   ' log_file    = ' + os.uname()[1] + ':' + glbl.paths['log_file'] + '\n' +
+                   ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.paths['chkpt_file'] + '\n')
         logfile.write(log_str)
 
         logfile.write('\n nomad simulation keywords\n' +
@@ -137,7 +137,7 @@ def print_header():
 
         logfile.write('\n ** '+glbl.methods['interface']+' variables **\n')
         log_str = ''
-        for k,v in glbl.interfaces[glbl.methods['interface']].items():
+        for k,v in glbl.sections[glbl.methods['interface']].items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
 

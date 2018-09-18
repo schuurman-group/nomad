@@ -24,33 +24,26 @@ def elec_overlap(t1, t2):
     else:
         return 0.
 
-def traj_overlap(traj1, traj2, nuc_only=False):
-    """ Returns < Psi | Psi' >, the overlap integral of two trajectories"""
-    if traj1.state != traj2.state and not nuc_only:
-        return 0j
-    else:
-        return gauss.overlap(traj1.phase(),traj1.widths(),traj1.x(),traj1.p(),
-                             traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
+def nuc_overlap(t1, t2):
+    """ Returns < Chi | Psi >, the nuclear overlap integral under the pseudospectral projection"""
+    return dirac.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                         t2.phase(),t2.widths(),t2.x(),t2.p())
+
+def traj_overlap(t1, t2):
+    """ Returns < Chi | Chi' >, the overlap integral of two trajectories"""
+    return elec_overlap(t1,t2) * gauss.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
+                                               t2.phase(),t2.widths(),t2.x(),t2.p())
 
 
-def s_integral(traj1, traj2, nuc_only=False, nuc_ovrlp=None):
+def s_integral(traj1, traj2, nuc_ovrlp, elec_ovrlp):
     """ Returns < chi | Psi' >, the overlap integral under the pseudospectral
     projection."""
-    if traj1.state != traj2.state and not nuc_only:
-        return 0j
-    else:
-        if nuc_ovrlp is None:
-            return dirac.overlap(traj1.x(),
-                                 traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
-        else:
-            return nuc_ovrlp
+    return nuc_ovrlp * elec_ovrlp
 
-def v_integral(traj1, traj2, centroid=None, nuc_ovrlp=None):
+
+def v_integral(traj1, traj2, kecoef, nuc_ovrlp, elec_ovrlp):
     """ Returns < delta(R-R1) | V | g2 > if state1 = state2, else
     returns < delta(R-R1) | F . d/dR | g2 > """
-    if nuc_ovrlp is None:
-        nuc_ovrlp = dirac.overlap(traj1.x(),
-                             traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
 
     # Off-diagonal element between trajectories on the same adiabatic
     # state
@@ -63,29 +56,25 @@ def v_integral(traj1, traj2, centroid=None, nuc_ovrlp=None):
     elif traj1.state != traj2.state:
         # Derivative coupling
         fij = traj1.derivative(traj2.state)
-        v = np.dot(fij, 2.*traj1.kecoef*
+        v = np.dot(fij, 2. *kecoef*
                           dirac.deldx(nuc_ovrlp,traj1.x(),
-                                       traj2.widths(),traj2.x(),traj2.p()))
+                                      traj2.widths(),traj2.x(),traj2.p()))
         return v * nuc_ovrlp
     else:
         print('ERROR in v_integral -- argument disagreement')
         return 0j
 
 
-def ke_integral(traj1, traj2, nuc_ovrlp=None):
+def t_integral(traj1, traj2, kecoef, nuc_ovrlp, elec_ovrlp):
     """ Returns < delta(R-R1) | T | g2 > """
-    if traj1.state != traj2.state:
+    if elec_ovrlp == 0.:
         return 0j
 
     else:
-        if nuc_ovrlp is None:
-            nuc_ovrlp = dirac.overlap(traj1.x(),
-                                 traj2.phase(),traj2.widths(),traj2.x(),traj2.p())
-
         ke = dirac.deld2x(nuc_ovrlp,traj1.x(),
                                  traj2.widths(),traj2.x(),traj2.p())
 
-        return -sum(ke * traj1.kecoef)
+        return -sum(ke * kecoef)
 
 
 def sdot_integral(traj1, traj2, nuc_ovrlp=None):

@@ -28,7 +28,8 @@ def read_input(fname):
     the 'geometry' keyword.
     """
     # Read input file. Small enough to gulp the whole thing
-    with open(glbl.home_path + '/' + fname, 'r') as infile:
+#    with open(glbl.paths['home_path'] + fname, 'r') as infile:
+    with open(fname, 'r') as infile:
         nomad_input = infile.readlines()
 
     # remove comment lines marked with '#' or '!'
@@ -193,7 +194,7 @@ def parse_coords(valstr):
         coords[:,1] *= pconv
 
     # set atomic labels
-    glbl.crd_labels = np.repeat(labels[0], dcoord//2)
+    glbl.properties['crd_labels'] = np.repeat(labels[0], dcoord//2)
 
     return coords
 
@@ -279,26 +280,14 @@ def convert_array(val_list):
 
 def setup_input():
     """Sets up global methods and properties based on the input."""
-    # import method objects
-    glbl.master_int = integral.Integral(glbl.methods['integral_eval'])
-    glbl.master_mat = matrices.Matrices()
-
-    glbl.interface = __import__('nomad.interfaces.' + glbl.methods['interface'],
-                                fromlist=['NA'])
-    glbl.init_conds = __import__('nomad.initconds.' + glbl.methods['init_conds'],
-                                 fromlist=['NA'])
-    glbl.adapt = __import__('nomad.adapt.' + glbl.methods['adapt_basis'],
-                            fromlist=['a'])
-    glbl.propagator = __import__('nomad.propagators.' + glbl.methods['propagator'],
-                                 fromlist=['a'])
 
     # set atomic widths and masses unless they are given in the input file
-    natm = len(glbl.crd_labels)
+    natm = len(glbl.properties['crd_labels'])
     if glbl.methods['interface'] == 'vibronic':
         wlst = np.array([np.sqrt(2) / 2 for i in range(natm)])
         mlst = np.array([1. for i in range(natm)])
     elif glbl.properties['use_atom_lib']:
-        labels = glbl.crd_labels
+        labels = glbl.properties['crd_labels']
         wlst = np.empty(len(labels))
         mlst = np.empty(len(labels))
         for i, l in enumerate(labels):
@@ -317,10 +306,6 @@ def setup_input():
     elif isinstance(glbl.properties['crd_masses'], (int, float)):
         glbl.properties['crd_masses'] = np.array([glbl.properties['crd_masses']
                                                   for i in range(natm)], dtype=float)
-
-    # set the kinetic energy coefficient
-    # this value is reset if the vibronic interface is used
-    glbl.kecoef = 0.5 / np.array(glbl.properties['crd_masses'])
 
     # set init_state for all trajectories
     istate = glbl.properties['init_state']

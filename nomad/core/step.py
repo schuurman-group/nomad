@@ -10,7 +10,7 @@ import nomad.core.surface as evaluate
 
 def time_step(master):
     """ Determine time step based on whether in coupling regime"""
-    if glbl.adapt.in_coupled_regime(master):
+    if glbl.modules['adapt'].in_coupled_regime(master):
         return float(glbl.properties['coupled_time_step'])
 
     else:
@@ -39,15 +39,15 @@ def step_wavefunction(master, dt):
         master.update_amplitudes(0.5*dt)
 
         # the propagators update the potential energy surface as need be.
-        glbl.propagator.propagate_wfn(master, time_step)
+        glbl.modules['propagator'].propagate_wfn(master, time_step)
 
         # update the couplings for all the trajectories
         for i in range(master.n_traj()):
-            glbl.interface.evaluate_coupling(master.traj[i])
+            glbl.modules['interface'].evaluate_coupling(master.traj[i])
 
         # propagate amplitudes for 1/2 time step using x1
-        glbl.master_mat.build(master, glbl.master_int)
-        master.update_matrices(glbl.master_mat)
+        glbl.modules['matrices'].build(master, glbl.master_int)
+        master.update_matrices(glbl.modules['mtrices'])
         master.update_amplitudes(0.5*dt)
 
         # Renormalization
@@ -62,7 +62,7 @@ def step_wavefunction(master, dt):
             # update the wavefunction time
             master.time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = glbl.adapt.spawn(master, time_step)
+            basis_grown  = glbl.modules['adapt'].spawn(master, time_step)
             # kill the dead trajectories
             basis_pruned = master.prune()
 
@@ -70,15 +70,15 @@ def step_wavefunction(master, dt):
             # to get the electronic structure information at the associated
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
-            if basis_grown and glbl.master_int.require_centroids:
+            if basis_grown and glbl.modules['integrals'].require_centroids:
                 evaluate.update_pes(master)
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.master_mat.build(master, glbl.master_int)
-                 master.update_matrices(glbl.master_mat)
+                 glbl.modules['matrices'].build(master, glbl.modules['integrals'])
+                 master.update_matrices(glbl.modules['matrices'])
                  for i in range(master.n_traj()):
-                     glbl.interface.evaluate_coupling(master.traj[i])
+                     glbl.modules['interface'].evaluate_coupling(master.traj[i])
 
             # re-expression of the basis using the matching pursuit
             # algorithm
@@ -121,10 +121,10 @@ def step_trajectory(traj, init_time, dt):
         traj0 = traj.copy()
 
         # propagate single trajectory
-        glbl.propagator.propagate_trajectory(traj, time_step)
+        glbl.modules['propagator'].propagate_trajectory(traj, time_step)
 
         # update the couplings for the trajectory
-        glbl.interface.evaluate_coupling(traj)
+        glbl.modules['interface'].evaluate_coupling(traj)
 
         # update current time
         proposed_time = current_time + time_step
@@ -169,7 +169,7 @@ def check_step_wfn(master0, master, time_step):
     coupling region."""
 
     # if we're in the coupled regime and using default time step, reject
-    if glbl.adapt.in_coupled_regime(master) and time_step == glbl.properties['default_time_step']:
+    if glbl.modules['adapt'].in_coupled_regime(master) and time_step == glbl.properties['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
 
     # ...or if there's a numerical error in the simulation:

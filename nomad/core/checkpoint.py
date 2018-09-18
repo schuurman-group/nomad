@@ -28,8 +28,12 @@ def archive_simulation(wfn, integrals=None, time=None, file_name=None):
         write(integrals, file_name=file_name, time=time)
 
 
-def retrieve_simulation(wfn, integrals=None, time=None, file_name=None):
+def retrieve_simulation(wfn, integrals=None, time=None, file_name=None, key_words=False):
     """Dochumentation to come"""
+
+    if key_words:
+        read_keywords(file_name=file_name)
+
     read(wfn, file_name=file_name, time=time)
     if integrals is not None:
         read(integrals, file_name=file_name, time=time)
@@ -71,12 +75,17 @@ def write(data_obj, file_name=None, time=None):
     chkpt.close()
 
 
-def read(data_obj, file_name, time=None):
+def read(data_obj, file_name=None, time=None):
     """Reads the checkpoint file.
 
     Called when an old checkpoint file is used to populate the
     contents of a bundle, if no time given, read last bundle.
     """
+
+    # default is to use file name from previous write
+    if file_name is not None:
+        glbl.chkpt_file = file_name.strip()
+
     # string name of checkpoint file
     glbl.chkpt_file = file_name.strip()
 
@@ -310,8 +319,7 @@ def create(file_name, wfn):
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 
-    chkpt.create_group('keywords')
-    write_keywords()
+    write_keywords(chkpt)
 
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
@@ -332,14 +340,67 @@ def create(file_name, wfn):
     # close following initialization
     chkpt.close()
 
-def write_keywords()
+#
+def write_keywords(chkpt):
     """Writes the contents of glbl to the checkpoint file. This 
        is only done once upon the creation of the file"""
     
-    # methods section
+    #loop over the dictionaries in glbl
+    for keyword_section in glbl.sections.keys():
+    
+        #if module/class objects, skip
+        if keyword_section == 'modules':
+            continue
+    
+        grp_name = 'keywords_'+keyword_section
+        chkpt.create_group(grp_name)
+        for keyword in glbl.sections[keyword_section].keys():
+            write_keyword(chkpt, grp_name, keyword, 
+                          glbl.sections[keyword_section][keyword])
 
-    # 
+    return
 
+#
+def write_keyword(chkpt, grp, kword, val):
+    """Write a keyword to simulation archive"""
+    
+    try:
+        chkpt[grp].attrs[kword] = val
+
+    except:
+        print("error setting kword="+str(kword)+" = "+str(val)+"\n")
+
+
+    return
+
+
+def read_keywords(file_name=None):
+    """Read keywords from archive file"""
+
+    # default is to use file name from previous write
+    if file_name is not None:
+        glbl.chkpt_file = file_name.strip()
+
+    # open chkpoint file
+    chkpt = h5py.File(glbl.chkpt_file, 'r', libver='latest')
+
+    #loop over the dictionaries in glbl
+    for keyword_section in glbl.sections.keys():
+
+        #if module/class objects, skip
+        if keyword_section == 'modules':
+            continue
+
+        grp_name = 'keywords_'+keyword_section
+        for keyword in glbl.sections[keyword_section].keys():
+            try:
+                glbl.sections[keyword_section][keyword] = chkpt[grp_name].attrs[keyword]
+            except:
+                print("error reading kword="+str(keyword)+" from chkpt\n")
+
+    chkpt.close()
+
+    return
 
 
 def write_wavefunction(chkpt, wfn, time):
