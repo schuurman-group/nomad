@@ -46,16 +46,20 @@ def init_wavefunction(master):
 
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
-        checkpoint.retrieve_simulation(master, integrals=glbl.methods['integrals'],
-                                       time=glbl.properties['restart_time'],
+
+        # retrieve current wave function
+        checkpoint.retrieve_simulation(master, integrals=glbl.modules['integrals'],
                                        file_name=glbl.paths['chkpt_file'])
-        if glbl.properties['restart_time'] != 0.:
-            master0 = wavefunction.Wavefunction()
-            checkpoint.retrieve_simulation(master0, integrals=None, time=0.,
-                                           file_name=glbl.paths['chkpt_file'])
-            save_initial_wavefunction(master0)
-        else:
-            save_initial_wavefunction(master)
+        # build the necessary matrices
+        glbl.modules['matrices'].build(master, glbl.modules['integrals'])
+        master.update_matrices(glbl.modules['matrices'])
+
+        # retrieve time t=0 wave function
+        master0 = wavefunction.Wavefunction()
+        checkpoint.retrieve_simulation(master0, integrals=None, time=0.,
+                                       file_name=glbl.paths['chkpt_file'])
+        save_initial_wavefunction(master0)
+
     else:
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
