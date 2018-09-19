@@ -46,8 +46,8 @@ def step_wavefunction(master, dt):
             glbl.modules['interface'].evaluate_coupling(master.traj[i])
 
         # propagate amplitudes for 1/2 time step using x1
-        glbl.modules['matrices'].build(master, glbl.master_int)
-        master.update_matrices(glbl.modules['mtrices'])
+        glbl.modules['matrices'].build(master, glbl.modules['integrals'])
+        master.update_matrices(glbl.modules['matrices'])
         master.update_amplitudes(0.5*dt)
 
         # Renormalization

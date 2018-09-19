@@ -140,8 +140,8 @@ def init_interface():
     # Read in operator file
     ham = VibHam()
 
-    ham.mlbl_active  = [lbl.lower() for lbl in glbl.crd_labels]
-    ham.nmode_active = len(glbl.crd_labels)
+    ham.mlbl_active  = [lbl.lower() for lbl in glbl.properties['crd_labels']]
+    ham.nmode_active = len(glbl.properties['crd_labels'])
 
     # operator file will always be a separate file
 #    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])

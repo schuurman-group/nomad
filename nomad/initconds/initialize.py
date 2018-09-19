@@ -20,7 +20,7 @@ def init_wavefunction(master):
 
     glbl.modules['interface']  = __import__('nomad.interfaces.' + glbl.methods['interface'],
                                  fromlist=['NA'])
-    glbl.interface.init_interface()
+    glbl.modules['interface'].init_interface()
 
     # create glbl modules
     glbl.modules['matrices']   = matrices.Matrices()
@@ -46,13 +46,13 @@ def init_wavefunction(master):
 
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
-        checkpoint.retrieve_simulation(master, integrals=glbl.master_int,
+        checkpoint.retrieve_simulation(master, integrals=glbl.methods['integrals'],
                                        time=glbl.properties['restart_time'],
-                                       file_name=glbl.chkpt_file)
+                                       file_name=glbl.paths['chkpt_file'])
         if glbl.properties['restart_time'] != 0.:
             master0 = wavefunction.Wavefunction()
             checkpoint.retrieve_simulation(master0, integrals=None, time=0.,
-                                           file_name=glbl.chkpt_file)
+                                           file_name=glbl.paths['chkpt_file'])
             save_initial_wavefunction(master0)
         else:
             save_initial_wavefunction(master)
@@ -73,7 +73,7 @@ def init_wavefunction(master):
             virtual_basis(master)
 
         # update the integrals
-        glbl.master_int.update(master)
+        glbl.modules['integrals'].update(master)
 
         # once phase space position and states of the basis functions
         # are set, update the potential information
@@ -81,11 +81,11 @@ def init_wavefunction(master):
 
         # update the couplings for all the trajectories
         for i in range(master.n_traj()):
-            glbl.interface.evaluate_coupling(master.traj[i])
+            glbl.modules['interface'].evaluate_coupling(master.traj[i])
 
         # compute the hamiltonian matrix...
-        glbl.master_mat.build(master, glbl.master_int)
-        master.update_matrices(glbl.master_mat)
+        glbl.modules['matrices'].build(master, glbl.modules['integrals'])
+        master.update_matrices(glbl.modules['matrices'])
 
         # so that we may appropriately renormalize to unity
         master.renormalize()
@@ -96,8 +96,8 @@ def init_wavefunction(master):
 
     # write the wavefunction to the archive
     if glbl.mpi['rank'] == 0:
-        checkpoint.archive_simulation(master, integrals=glbl.master_int,
-                                      time=master.time, file_name=glbl.chkpt_file)
+        checkpoint.archive_simulation(master, integrals=glbl.modules['integrals'],
+                                      time=master.time, file_name=glbl.paths['chkpt_file'])
 
     log.print_message('t_step', [master.time, glbl.properties['default_time_step'],
                                       master.nalive])
@@ -159,12 +159,12 @@ def set_initial_amplitudes(master):
         # the initial wavefunction that we are sampling
         ovec = np.zeros(master.n_traj(), dtype=complex)
         for i in range(master.n_traj()):
-            ovec[i] = glbl.master_int.nuc_overlap(master.traj[i], origin)
+            ovec[i] = glbl.modules['integrals'].nuc_overlap(master.traj[i], origin)
         smat = np.zeros((master.n_traj(), master.n_traj()), dtype=complex)
         for i in range(master.n_traj()):
             for j in range(i+1):
-                smat[i,j] = glbl.master_int.traj_overlap(master.traj[i],
-                                                         master.traj[j])
+                smat[i,j] = glbl.modules['integrals'].traj_overlap(master.traj[i],
+                                                                   master.traj[j])
                 if i != j:
                     smat[j,i] = smat[i,j].conjugate()
         sinv = sp_linalg.pinvh(smat)
@@ -189,14 +189,14 @@ def set_initial_amplitudes(master):
 def save_initial_wavefunction(master):
     """Sets the intial t=0 bundle in order to compute the autocorrelation
     function for subsequent time steps"""
-    glbl.bundle0 = master.copy()
+    glbl.modules['wfn0'] = master.copy()
     # change the trajectory labels in this bundle to differentiate
     # them from trajctory labels in the master bundle. This avoids
     # cache collisions between trajetories in 'bundle0' and trajectories
     # in 'master'
-    for i in range(glbl.bundle0.n_traj()):
-        new_label = str(glbl.bundle0.traj[i].label)+'_0'
-        glbl.bundle0.traj[i].label = new_label
+    for i in range(glbl.modules['wfn0'].n_traj()):
+        new_label = str(glbl.modules['wfn0'].traj[i].label)+'_0'
+        glbl.modules['wfn0'].traj[i].label = new_label
 
 
 def virtual_basis(master):
@@ -233,7 +233,7 @@ def make_origin_traj():
     origin.update_p(p_vec)
     origin.state = 0
     # if we need pes data to evaluate overlaps, determine that now
-    if glbl.master_int.overlap_requires_pes:
+    if glbl.modules['integrals'].overlap_requires_pes:
         evaluate.update_pes_traj(origin)
 
     return origin

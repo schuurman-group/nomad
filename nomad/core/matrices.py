@@ -29,6 +29,7 @@ class Matrices:
             h      = np.empty((0, 0)),
             s_traj = np.empty((0, 0)),
             s_nuc  = np.empty((0, 0)),
+            s_elec = np.empty((0, 0)),
             s      = np.empty((0, 0)),
             sinv   = np.empty((0, 0)),
             sdot   = np.empty((0, 0)),
@@ -65,6 +66,7 @@ class Matrices:
             self.mat_dict['h']       = np.zeros((n_alive, n_alive), dtype=complex)
             self.mat_dict['s_traj']  = np.zeros((n_alive, n_alive), dtype=complex)
             self.mat_dict['s_nuc']   = np.zeros((n_alive, n_alive), dtype=complex)
+            self.mat_dict['s_elec']  = np.zeros((n_alive, n_alive), dtype=complex)
             self.mat_dict['s']       = np.zeros((n_alive, n_alive), dtype=complex)
             self.mat_dict['sinv']    = np.zeros((n_alive, n_alive), dtype=complex)
             self.mat_dict['sdot']    = np.zeros((n_alive, n_alive), dtype=complex)
@@ -80,29 +82,34 @@ class Matrices:
             ii = wfn.alive[i]
             jj = wfn.alive[j]
 
+            s_nuc  = integrals.nuc_overlap(wfn.traj[ii],wfn.traj[jj])
+            s_elec = integrals.elec_overlap(wfn.traj[ii],wfn.traj[jj])
+
             # nuclear overlap matrix (excluding electronic component)
-            self.mat_dict['s_nuc'][i,j]  = integrals.nuc_overlap(wfn.traj[ii],wfn.traj[jj])
+            self.mat_dict['s_nuc'][i,j]  = s_nuc
+
+            # nuclear overlap matrix (excluding electronic component)
+            self.mat_dict['s_elec'][i,j] = s_elec
 
             # compute overlap of trajectories (different from S, which may or may
             # not involve integration in a gaussian basis
-            self.mat_dict['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj],
-                                                                  nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
+            self.mat_dict['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj])
 
             # overlap matrix (including electronic component)
             self.mat_dict['s'][i,j]      = integrals.s_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
+                                                                nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # time-derivative of the overlap matrix (not hermitian in general)
             self.mat_dict['sdot'][i,j]   = integrals.sdot_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                   nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
+                                                                   nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # kinetic energy matrix
             self.mat_dict['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
+                                                                nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # potential energy matrix
             self.mat_dict['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                nuc_ovrlp=self.mat_dict['s_nuc'][i,j])
+                                                                nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # Hamiltonian matrix in non-orthogonal basis
             self.mat_dict['h'][i,j]      = self.mat_dict['t'][i,j] + self.mat_dict['v'][i,j]
@@ -110,10 +117,12 @@ class Matrices:
             # if hermitian matrix, set (j,i) indices
             if integrals.hermitian and i!=j:
                 self.mat_dict['s_nuc'][j,i]   = self.mat_dict['s_nuc'][i,j].conjugate()
+                self.mat_dict['s_elec'][j,i]  = self.mat_dict['s_elec'][i,j].conjugate()
                 self.mat_dict['s_traj'][j,i]  = self.mat_dict['s_traj'][i,j].conjugate()
                 self.mat_dict['s'][j,i]       = self.mat_dict['s'][i,j].conjugate()
-                self.mat_dict['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj],
-                                                   wfn.traj[ii], nuc_ovrlp=self.mat_dict['s_nuc'][j,i])
+                self.mat_dict['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj], wfn.traj[ii],
+                                                nuc_ovrlp=self.mat_dict['s_nuc'][j,i], 
+                                                elec_ovrlp=self.mat_dict['s_elec'][j,i])
                 self.mat_dict['t'][j,i]       = self.mat_dict['t'][i,j].conjugate()
                 self.mat_dict['v'][j,i]       = self.mat_dict['v'][i,j].conjugate()
                 self.mat_dict['h'][j,i]       = self.mat_dict['h'][i,j].conjugate()

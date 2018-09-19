@@ -70,18 +70,30 @@ class Integral:
     def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
         """Calculates the potential energy integral between two
         trajectories."""
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        if elec_ovrlp is None:
+            elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
+
         if self.require_centroids:
             return self.ints_eval.v_integral(bra_traj, ket_traj,
                                         self.centroid[bra_traj.label][ket_traj.label],
-                                        self.kecoef,
-                                        nuc_ovrlp=nuc_ovrlp)
+                                        self.kecoef, nuc_ovrlp, elec_ovrlp)
         else:
-            return self.ints_eval.v_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
+            return self.ints_eval.v_integral(bra_traj, ket_traj, 
+                                        self.kecoef, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
-    def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+    def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
         """Calculates the time derivative of the nuclear overlap."""
-        return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp=nuc_ovrlp)
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        if elec_ovrlp is None:
+            elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
+
+        return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
     def wfn_overlap(self, bra_wfn, ket_wfn):
         """Calculates the overall wavefunction overlap."""
