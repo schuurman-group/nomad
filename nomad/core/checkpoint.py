@@ -3,6 +3,7 @@ Routines for reading input files and writing log files.
 """
 import os
 import h5py
+import ast as ast
 import numpy as np
 import nomad.integrals.integral as integral
 import nomad.core.glbl as glbl
@@ -364,12 +365,27 @@ def write_keywords(chkpt):
 def write_keyword(chkpt, grp, kword, val):
     """Write a keyword to simulation archive"""
     
+    # try writing variable to h5py attribute using native format 
     try:
         chkpt[grp].attrs[kword] = val
+        return
 
     except:
-        print("error setting kword="+str(kword)+" = "+str(val)+"\n")
+        pass
 
+    # that fails, write as a string
+    try:
+        #..and if an array, preserve commas
+        if isinstance(val, np.ndarray):
+            sval = ','.join([val[i] for i in range(len(val))])
+        else:
+            sval = str(val)
+        d_type = h5py.special_dtype(vlen=str) 
+        chkpt[grp].attrs.create(kword, sval, dtype=d_type)
+
+    except Exception as e: 
+        print("Failed to write keyword:"+str(kword)+" = val:"+str(val)+
+              " -- "+str(e)+"\n")
 
     return
 
@@ -393,15 +409,46 @@ def read_keywords(file_name=None):
 
         grp_name = 'keywords_'+keyword_section
         for keyword in glbl.sections[keyword_section].keys():
+            val = read_keyword(chkpt, grp_name, keyword)
             try:
-                glbl.sections[keyword_section][keyword] = chkpt[grp_name].attrs[keyword]
-            except:
-                print("error reading kword="+str(keyword)+" from chkpt\n")
+                glbl.sections[keyword_section][keyword] = val
+            except Exception as e:     
+                print("Failed to set keyword:"+str(keyword)+" -- "+str(e)+"\n")
 
     chkpt.close()
 
     return
 
+def read_keyword(chkpt, grp, kword):
+    """Read a particular keyword attribute"""
+
+    # try writing variable to h5py attribute using native format 
+    try:
+        val = chkpt[grp].attrs[kword]
+        return convert_value(kword, val)
+
+    except Exception as e:     
+        print("Failed to read keyword:"+str(kword)+" -- "+str(e)+"\n")
+
+    return
+
+
+def convert_value(kword, val):
+    """Converts a string value to NoneType, bool, int, float or string."""
+
+    cval = val
+    # we have some items that are lists of strings which are converted
+    # to simple strings. Try to interpret as list, and if that fails, return
+    # the value unchanged
+    if type(val) is str and 'file' not in kword.lower():
+        try:
+            cval = ast.literal_eval(val)
+            if isinstance(cval, list):
+                cval = np.ndarray(cval)
+        except ValueError:
+            pass 
+
+    return cval
 
 def write_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
