@@ -23,52 +23,52 @@ import nomad.adapt.utilities as utils
 
 coup_hist = []
 
-def spawn(master, dt):
+def spawn(wfn, dt):
     """Propagates to the point of maximum coupling, spawns a new
     basis function, then propagates the function to the current time."""
     global coup_hist
 
     basis_grown   = False
-    current_time  = master.time
+    current_time  = wfn.time
     # list of added trajectories
 
     # we want to know the history of the coupling for each trajectory
     # in order to assess spawning criteria -- make sure coup_hist has a slot
     # for every trajectory
-    if len(coup_hist) < master.n_traj():
-        n_add = master.n_traj() - len(coup_hist)
+    if len(coup_hist) < wfn.n_traj():
+        n_add = wfn.n_traj() - len(coup_hist)
         for i in range(n_add):
             coup_hist.append(np.zeros((glbl.properties['n_states'], 3)))
 
     #--------------- iterate over all trajectories in bundle ---------------------
-    for i in range(master.n_traj()):
+    for i in range(wfn.n_traj()):
         # only live trajectories can spawn
-        if not master.traj[i].alive:
+        if not wfn.traj[i].alive:
             continue
 
         for st in range(glbl.properties['n_states']):
             # can only spawn to different electronic states
-            if master.traj[i].state == st:
+            if wfn.traj[i].state == st:
                 continue
 
             # compute magnitude of coupling to state j
-            coup = abs(master.traj[i].coupling(master.traj[i].state, st))
+            coup = abs(wfn.traj[i].coupling(wfn.traj[i].state, st))
             coup_hist[i][st,:] = np.roll(coup_hist[i][st,:],1)
             coup_hist[i][st,0] = coup
 
             # if we satisfy spawning conditions, begin spawn process
-            if spawn_trajectory(master, i, st, coup_hist[i][st,:],
+            if spawn_trajectory(wfn, i, st, coup_hist[i][st,:],
                                 current_time):
                 # we're going to messing with this trajectory -- mess with a copy
-                parent = master.traj[i].copy()
+                parent = wfn.traj[i].copy()
 
                 # propagate the parent forward in time until coupling maximized
                 [success, child, parent_spawn, spawn_time,
                  exit_time] = spawn_forward(parent, st, current_time, dt)
 
-                # set the spawn attempt in master, even if spawn failed (avoid repeated fails)
-                master.traj[i].last_spawn[st] = spawn_time
-                master.traj[i].exit_time[st]  = exit_time
+                # set the spawn attempt in wfn, even if spawn failed (avoid repeated fails)
+                wfn.traj[i].last_spawn[st] = spawn_time
+                wfn.traj[i].exit_time[st]  = exit_time
 
                 if success:
                     # at this point, child is at the spawn point. Propagate
@@ -77,11 +77,11 @@ def spawn(master, dt):
                     # need electronic structure at current geometry -- on correct state
                     evaluate.update_pes_traj(child)
                     spawn_backward(child, spawn_time, current_time, -dt)
-                    bundle_overlap = utils.overlap_with_bundle(child, master)
+                    bundle_overlap = utils.overlap_with_bundle(child, wfn)
                     if not bundle_overlap:
                         basis_grown = True
-                        master.add_trajectory(child)
-                        child_spawn.label = master.traj[-1].label # a little hacky...
+                        wfn.add_trajectory(child)
+                        child_spawn.label = wfn.traj[-1].label # a little hacky...
                         utils.write_spawn_log(current_time, spawn_time, exit_time,
                                                   parent_spawn, child_spawn)
                     else:

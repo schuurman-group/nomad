@@ -47,11 +47,11 @@ kmax_traj = np.copy(kopt)
 
 
 @timings.timed
-def propagate_wfn(master, dt):
+def propagate_wfn(wfn, dt):
     """Propagates the Bundle object with BS."""
     global h
-    ncrd  = master.traj[0].dim
-    ntraj = master.n_traj()
+    ncrd  = wfn.traj[0].dim
+    ntraj = wfn.n_traj()
 
     t = 0.
     if h is None:
@@ -66,7 +66,7 @@ def propagate_wfn(master, dt):
         Tg = np.zeros((kmax, ntraj))
 
         for k in range(kmax):
-            tmp_wfn = master.copy()
+            tmp_wfn = wfn.copy()
 
             x0 = np.zeros((ntraj, ncrd))
             p0 = np.zeros((ntraj, ncrd))
@@ -85,7 +85,7 @@ def propagate_wfn(master, dt):
 
             # compute the modified midpoint estimate
             for i in range(ntraj):
-                if master.traj[i].active:
+                if wfn.traj[i].active:
                     x1[i] = 0.5*(x1[i] + x0[i] +
                                  hstep/nstep[k]*tmp_wfn.traj[i].velocity())
                     p1[i] = 0.5*(p1[i] + p0[i] +
@@ -117,12 +117,12 @@ def propagate_wfn(master, dt):
                         pnew = np.sum(Tp, axis=0)
                         gnew = np.sum(Tg, axis=0)
                         for i in range(ntraj):
-                            if master.traj[i].active:
-                                master.traj[i].update_x(xnew[i])
-                                master.traj[i].update_p(pnew[i])
+                            if wfn.traj[i].active:
+                                wfn.traj[i].update_x(xnew[i])
+                                wfn.traj[i].update_p(pnew[i])
                                 if propphase:
-                                    master.traj[i].update_phase(gnew[i])
-                        evaluate.update_pes(master,
+                                    wfn.traj[i].update_phase(gnew[i])
+                        evaluate.update_pes(wfn,
                                            update_integrals=(abs(t)>=abs(dt)))
                         break
 

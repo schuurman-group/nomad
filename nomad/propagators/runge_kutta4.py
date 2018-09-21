@@ -23,16 +23,16 @@ propphase = glbl.properties['phase_prop']
 
 
 @timings.timed
-def propagate_wfn(master, dt):
+def propagate_wfn(wfn, dt):
     """Propagates the Bundle object with RK4."""
-    ncrd = master.traj[0].dim
-    ntraj = master.n_traj()
+    ncrd = wfn.traj[0].dim
+    ntraj = wfn.n_traj()
     kx = np.zeros((ntraj, rk_ordr, ncrd))
     kp = np.zeros((ntraj, rk_ordr, ncrd))
     kg = np.zeros((ntraj, rk_ordr))
 
     for rk in range(rk_ordr):
-        tmp_wfn = master.copy()
+        tmp_wfn = wfn.copy()
         for i in range(ntraj):
             if tmp_wfn.traj[i].active:
                 propagate_rk(tmp_wfn.traj[i], dt, rk, kx[i], kp[i], kg[i])
@@ -43,15 +43,15 @@ def propagate_wfn(master, dt):
 
     # update to the final position
     for i in range(ntraj):
-        if master.traj[i].active:
-            master.traj[i].update_x(master.traj[i].x() +
+        if wfn.traj[i].active:
+            wfn.traj[i].update_x(wfn.traj[i].x() +
                                     np.sum(wgt[:,np.newaxis]*kx[i], axis=0))
-            master.traj[i].update_p(master.traj[i].p() +
+            wfn.traj[i].update_p(wfn.traj[i].p() +
                                     np.sum(wgt[:,np.newaxis]*kp[i], axis=0))
             if propphase:
-                master.traj[i].update_phase(master.traj[i].phase() +
+                wfn.traj[i].update_phase(wfn.traj[i].phase() +
                                             np.sum(wgt*kg[i,:]))
-    evaluate.update_pes(master)
+    evaluate.update_pes(wfn)
 
 
 @timings.timed

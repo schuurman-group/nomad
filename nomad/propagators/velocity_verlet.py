@@ -15,21 +15,21 @@ propphase = glbl.properties['phase_prop']
 
 
 @timings.timed
-def propagate_wfn(master, dt):
+def propagate_wfn(wfn, dt):
     """Propagates the Bundle object with VV."""
     # update position
-    for i in range(master.n_traj()):
-        if master.traj[i].active:
-            propagate_position(master.traj[i], dt)
+    for i in range(wfn.n_traj()):
+        if wfn.traj[i].active:
+            propagate_position(wfn.traj[i], dt)
 
     # update electronic structure for all trajectories
     # and centroids (where necessary)
-    evaluate.update_pes(master)
+    evaluate.update_pes(wfn)
 
     # finish update of momentum and phase
-    for i in range(master.n_traj()):
-        if master.traj[i].active:
-            propagate_momentum(master.traj[i], dt)
+    for i in range(wfn.n_traj()):
+        if wfn.traj[i].active:
+            propagate_momentum(wfn.traj[i], dt)
 
 
 @timings.timed

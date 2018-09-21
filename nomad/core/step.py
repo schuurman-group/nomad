@@ -8,77 +8,75 @@ import nomad.core.surface as evaluate
 #import nomad.core.matching_pursuit as mp
 
 
-def time_step(master):
+def time_step():
     """ Determine time step based on whether in coupling regime"""
-    if glbl.modules['adapt'].in_coupled_regime(master):
+    if glbl.modules['adapt'].in_coupled_regime(glbl.modules['wfn']):
         return float(glbl.properties['coupled_time_step'])
 
     else:
         return float(glbl.properties['default_time_step'])
 
 
-def step_wavefunction(master, dt):
+def step_wavefunction(dt):
     """Propagates the wave packet using a run-time selected propagator."""
     # save the wavefunction from previous step in case step rejected
-    end_time      = master.time + dt
-    time_step     = dt
+    end_time      = min(glbl.modules['wfn'].time + dt,
+                        glbl.properties['simulation_time'])
+    time_step     = min(dt, glbl.properties['simulation_time'] - 
+                            glbl.modules['wfn'].time)
     min_time_step = dt / 2.**5
 
-    while not step_complete(master.time, end_time, dt):
+    while not step_complete(glbl.modules['wfn'].time, end_time, dt):
         # save the wavefunction from previous step in case step rejected
-        #try:
-        #    del master0
-        #except NameError:
-        #    pass
-        master0 = master.copy()
+        wfn_start = glbl.modules['wfn'].copy()
 
         # propagate each trajectory in the wavefunction
-        time_step = min(time_step, end_time-master.time)
+        time_step = min(time_step, end_time-glbl.modules['wfn'].time)
 
         # propagate amplitudes for 1/2 time step using x0
-        master.update_amplitudes(0.5*dt)
+        glbl.modules['wfn'].update_amplitudes(0.5*dt)
 
         # the propagators update the potential energy surface as need be.
-        glbl.modules['propagator'].propagate_wfn(master, time_step)
+        glbl.modules['propagator'].propagate_wfn(glbl.modules['wfn'], time_step)
 
         # update the couplings for all the trajectories
-        for i in range(master.n_traj()):
-            glbl.modules['interface'].evaluate_coupling(master.traj[i])
+        for i in range(glbl.modules['wfn'].n_traj()):
+            glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
         # propagate amplitudes for 1/2 time step using x1
-        glbl.modules['matrices'].build(master, glbl.modules['integrals'])
-        master.update_matrices(glbl.modules['matrices'])
-        master.update_amplitudes(0.5*dt)
+        glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+        glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
+        glbl.modules['wfn'].update_amplitudes(0.5*dt)
 
         # Renormalization
         if glbl.properties['renorm'] == 1:
-            master.renormalize()
+            glbl.modules['wfn'].renormalize()
 
         # check time_step is fine, energy/amplitude conserved
-        accept, error_msg = check_step_wfn(master0, master, time_step)
+        accept, error_msg = check_step_wfn(wfn_start, glbl.modules['wfn'], time_step)
 
         # if everything is ok..
         if accept:
             # update the wavefunction time
-            master.time += time_step
+            glbl.modules['wfn'].time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = glbl.modules['adapt'].spawn(master, time_step)
+            basis_grown  = glbl.modules['adapt'].spawn(glbl.modules['wfn'], time_step)
             # kill the dead trajectories
-            basis_pruned = master.prune()
+            basis_pruned = glbl.modules['wfn'].prune()
 
             # if a trajectory has been added, then call update_pes
             # to get the electronic structure information at the associated
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
             if basis_grown and glbl.modules['integrals'].require_centroids:
-                evaluate.update_pes(master)
+                evaluate.update_pes(glbl.modules['wfn'])
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.modules['matrices'].build(master, glbl.modules['integrals'])
-                 master.update_matrices(glbl.modules['matrices'])
-                 for i in range(master.n_traj()):
-                     glbl.modules['interface'].evaluate_coupling(master.traj[i])
+                 glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+                 glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
+                 for i in range(glbl.modules['wfn'].n_traj()):
+                     glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
             # re-expression of the basis using the matching pursuit
             # algorithm
@@ -86,7 +84,8 @@ def step_wavefunction(master, dt):
             #    mp.reexpress_basis(master)
 
             # update the running log
-            log.print_message('t_step',[master.time, time_step, master.nalive])
+            log.print_message('t_step',[glbl.modules['wfn'].time, time_step, glbl.modules['wfn'].nalive])
+            #del wfn_start
 
         else:
             # recall -- this time trying to propagate to the failed step
@@ -99,9 +98,9 @@ def step_wavefunction(master, dt):
 
             # reset the beginning of the time step and go to beginning of loop
             #del master
-            master = master0.copy()
+            glbl.modules['wfn'] = wfn_start.copy()
 
-    return master
+    return
 
 
 def step_trajectory(traj, init_time, dt):
@@ -164,34 +163,34 @@ def step_complete(current_time, final_time, dt):
         return current_time <= final_time
 
 
-def check_step_wfn(master0, master, time_step):
+def check_step_wfn(wfn_start, wfn, time_step):
     """Checks if we should reject a macro step because we're in a
     coupling region."""
 
     # if we're in the coupled regime and using default time step, reject
-    if glbl.modules['adapt'].in_coupled_regime(master) and time_step == glbl.properties['default_time_step']:
+    if glbl.modules['adapt'].in_coupled_regime(wfn) and time_step == glbl.properties['default_time_step']:
         return False, ' require coupling time step, current step = {:8.4f}'.format(time_step)
 
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
-    dpop = abs(sum(master0.pop()) - sum(master.pop()))
+    dpop = abs(sum(wfn_start.pop()) - sum(wfn.pop()))
     if dpop > glbl.properties['pop_jump_toler']:
         return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
 
     # this is largely what the above check is checking -- but is more direct. I would say
     # we should remove the above check...
-    dnorm = master.norm()
+    dnorm = wfn.norm()
     if abs(dnorm-1.) > glbl.properties['norm_thresh']:
         return False, 'Wfn norm threshold exceeded, |norm|-1. = {:8.4f}'.format(dnorm-1.)
 
     #  ... or energy conservation (only need to check traj which exist in
     # master0. If spawned, will be last entry(ies) in master
-    for i in range(master0.n_traj()):
-        if master0.traj[i].alive:
-            energy_old = (master0.traj[i].potential() +
-                          master0.traj[i].kinetic())
-            energy_new = (master.traj[i].potential() +
-                          master.traj[i].kinetic())
+    for i in range(wfn_start.n_traj()):
+        if wfn_start.traj[i].alive:
+            energy_old = (wfn_start.traj[i].potential() +
+                          wfn_start.traj[i].kinetic())
+            energy_new = (wfn.traj[i].potential() +
+                          wfn.traj[i].kinetic())
             dener = abs(energy_old - energy_new)
             if dener > glbl.properties['energy_jump_toler']:
                 return False, ' jump in trajectory energy, label = {:4d}, delta[ener] = {:10.6f}'.format(i, dener)

@@ -14,7 +14,7 @@ conv = None
 gamma = 0.
 
 
-def reexpress_basis(master):
+def reexpress_basis(wfn):
     """Re-expresses the Gaussian basis using the matching pursuit
     method."""
     # Condition number threshold
@@ -23,12 +23,12 @@ def reexpress_basis(master):
     # If the condition number of the overlap matrix is below
     # threshold, then return, else re-exress the basis using the
     # matching pursuit algorithm
-    Sinv, cond = linalg.pseudo_inverse(master.S)
+    Sinv, cond = linalg.pseudo_inverse(wfn.S)
     if cond > epsilon:
-        matching_pursuit(master)
+        matching_pursuit(wfn)
 
 
-def matching_pursuit(master):
+def matching_pursuit(wfn):
     """Performs the matching pursuit algorithm."""
     global conv, gamma, nbas, selected, coeff
 
@@ -41,18 +41,18 @@ def matching_pursuit(master):
     coeff = []
 
     # Initialise the residual wavefunction
-    residual = master.copy()
+    residual = wfn.copy()
 
     # Perform the MP iterations
     conv = False
     while not conv:
-        mp_1iter(residual, master)
+        mp_1iter(residual, wfn)
 
     # Construct the new wavefunction
-    reset_wavefunction(master)
+    reset_wavefunction(wfn)
 
 
-def mp_1iter(residual, master):
+def mp_1iter(residual, wfn):
     """Performs one iteration of the matching pursuit algorithm."""
     global selected, nbas, coeff, conv
 
@@ -63,15 +63,15 @@ def mp_1iter(residual, master):
 
     # (2) Coefficients for the selected basis functions
     coeff.append(0j)
-    coeff_basfunc(residual,master)
+    coeff_basfunc(residual,wfn)
 
     # Exit if we have reached the
     # maximum number of trajectories
-    if nbas == len(master.traj):
+    if nbas == len(wfn.traj):
         conv = True
     else:
         # (3) Check for convergence
-        check_conv(residual,master)
+        check_conv(residual,wfn)
         if not conv:
             # (4) Update the residual
             update_residual(residual)
@@ -92,7 +92,7 @@ def select_basfunc(residual):
     return indx
 
 
-def coeff_basfunc(residual,master):
+def coeff_basfunc(residual,wfn):
     """Determines the coefficients of basis functions."""
     global selected, nbas
 
@@ -114,11 +114,11 @@ def coeff_basfunc(residual,master):
         for j in range(nbas):
             jindx = selected[j]
             coe += (sinv[i,j] *
-                    residual.traj[jindx].overlap_bundle(master))
+                    residual.traj[jindx].overlap_bundle(wfn))
         coeff[i] = coe
 
 
-def check_conv(residual,master):
+def check_conv(residual,wfn):
     """Checks the convergence and sets conv."""
     global selected, nbas, coeff, conv, gamma
 
@@ -134,7 +134,7 @@ def check_conv(residual,master):
     new.renormalize()
 
     # Check convergence
-    eta = 1.0 - new.overlap(master).real
+    eta = 1.0 - new.overlap(wfn).real
     if eta < gamma:
         conv = True
 
@@ -152,7 +152,7 @@ def update_residual(residual):
     residual.renormalize()
 
 
-def reset_wavefunction(master):
+def reset_wavefunction(wfn):
     """Resets the FMS wavefunction (to what?)."""
     global selected, nbas, coeff
 
@@ -165,21 +165,21 @@ def reset_wavefunction(master):
     selected.sort()
 
     # Kill all trajectories
-    indx = np.copy(master.alive)
+    indx = np.copy(wfn.alive)
     for i in range(len(indx)):
-        master.kill_trajectory(indx[i])
+        wfn.kill_trajectory(indx[i])
 
     # Add the selected trajectories
     for i in range(nbas):
         indx = selected[i]
-        master.revive_trajectory(indx)
+        wfn.revive_trajectory(indx)
 
     # Set the new coefficients
-    for i in range(master.nalive+master.ndead):
-        master.traj[i].amplitude = 0j
+    for i in range(wfn.nalive+wfn.ndead):
+        wfn.traj[i].amplitude = 0j
     for i in range(nbas):
         indx = selected[i]
-        master.traj[indx].amplitude = np.copy(coeff[i])
+        wfn.traj[indx].amplitude = np.copy(coeff[i])
 
     # Re-calculate the overlap matrix for the subset of selected basis
     # functions.
@@ -189,21 +189,21 @@ def reset_wavefunction(master):
     # This incurs one additional (and unecessary) calculation of the
     # S-matix, as this matrix is also calculated in update-matrices,
     # but will do for now.
-    recalc_overlap(master)
+    recalc_overlap(wfn)
 
     # Renormalise
-    master.renormalize()
+    wfn.renormalize()
 
     # Rebuild all matrices T, V, S, Sdot, and Heff now that our basis
     # has changed
-    master.update_matrices()
+    wfn.update_matrices()
 
 
-def recalc_overlap(master):
+def recalc_overlap(wfn):
     """Recalculates the overlap matrix elements."""
-    for i in range(master.nalive):
-        iindx = master.alive[i]
+    for i in range(wfn.nalive):
+        iindx = wfn.alive[i]
         for j in range(i+1):
-            jindx = master.alive[j]
-            master.S[i,j] = master.traj[iindx].nuc_overlap(master.traj[jindx])
-            master.S[j,i] = master.S[i,j].conjugate()
+            jindx = wfn.alive[j]
+            wfn.S[i,j] = wfn.traj[iindx].nuc_overlap(wfn.traj[jindx])
+            wfn.S[j,i] = wfn.S[i,j].conjugate()

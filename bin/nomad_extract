@@ -5,19 +5,21 @@ Module used to extract data from nomad output files.
 import os
 import sys
 import numpy as np
+import nomad.math.constants as constants
+import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
 import nomad.core.wavefunction as wavefunction
 import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
 
-wfn0 = None
-ints = None
-
+wfn0  = None
+ints0 = None
+ints  = None
 
 def main():
     """Runs the main nomad_extract routine."""
-    global wfn0, ints
+    global wfn0, ints0, ints
 
     chkpt_file, time, data = process_arguments(sys.argv)
 
@@ -30,28 +32,24 @@ def main():
     if time is not None and time != -1:
         read_time = time
 
-    # create an integral object in case we need to evaluate
-    # integrals (i.e. autocorrelation function)
-    ints = integral.Integral(data['-integrals'])
-
     # read t=0 wfn to determine autocorrelation function
-    wfn0 = wavefunction.Wavefunction()
-    checkpoint.read(wfn0, chkpt_file, 0.)
-
+    [wfn0, ints0] = checkpoint.retrieve_simulation(time=0., file_name=chkpt_file, key_words=True)
+    if wfn0 is None and data['-auto']:
+        print("Cannot construct autocorrelation function: missing t=0 wavefunction\n")
+   
     # get printing machine ready
-    wfn     = wavefunction.Wavefunction()
     mat     = matrices.Matrices()
-    ncrd    = wfn0.traj[0].dim
-    nstates = wfn0.traj[0].nstates
-    checkpoint.generate_data_formats(ncrd, nstates)
+    checkpoint.generate_data_formats()
 
     # if we want all times, run through all the data
     if time is None:
-        tvals = checkpoint.time_steps('wavefunction',chkpt_file)
+        tvals = checkpoint.time_steps(None, 'wavefunction', chkpt_file)
         for i in range(len(tvals)):
-            wfn = wavefunction.Wavefunction()
-            checkpoint.retrieve_simulation(wfn, integrals=ints,
-                                          time=tvals[i], file_name=chkpt_file)
+
+            # skip the occasional duplicated entry related to restart
+            if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
+                continue
+            [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
             mat.build(wfn, ints)
             wfn.update_matrices(mat)
             extract_data(wfn, mat, data)
@@ -59,8 +57,7 @@ def main():
     # else, print data from current bundle
     else:
         # read bundle for the case of a single time
-        checkpoint.retrieve_simulation(wfn, integrals=ints,
-                                       time=read_time, file_name=chkpt_file)
+        [wfn, ints] = checkpoint.retrieve_simulation(time=read_time, file_name=chkpt_file)
         mat.build(wfn, ints)
         wfn.update_matrices(mat)
         extract_data(wfn, mat, data)

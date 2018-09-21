@@ -52,11 +52,11 @@ h_traj = None
 
 
 @timings.timed
-def propagate_wfn(master, dt):
+def propagate_wfn(wfn, dt):
     """Propagates the Bundle object with RKF45."""
     global h
-    ncrd = master.traj[0].dim
-    ntraj = master.n_traj()
+    ncrd = wfn.traj[0].dim
+    ntraj = wfn.n_traj()
     kx = np.zeros((ntraj, rk_ordr, ncrd))
     kp = np.zeros((ntraj, rk_ordr, ncrd))
     kg = np.zeros((ntraj, rk_ordr))
@@ -67,7 +67,7 @@ def propagate_wfn(master, dt):
     while abs(t) < abs(dt):
         hstep = np.sign(dt) * min(abs(h), abs(dt - t))
         for rk in range(rk_ordr):
-            tmp_wfn = master.copy()
+            tmp_wfn = wfn.copy()
             for i in range(ntraj):
                 if tmp_wfn.traj[i].active:
                     propagate_rk(tmp_wfn.traj[i], hstep, rk,
@@ -78,14 +78,14 @@ def propagate_wfn(master, dt):
                 evaluate.update_pes(tmp_wfn, update_integrals=False)
 
         # calculate the 4th and 5th order changes and the error
-        dx_lo = np.zeros((master.nalive, ncrd))
-        dx_hi = np.zeros((master.nalive, ncrd))
-        dp_lo = np.zeros((master.nalive, ncrd))
-        dp_hi = np.zeros((master.nalive, ncrd))
-        dg_lo = np.zeros((master.nalive))
-        dg_hi = np.zeros((master.nalive))
+        dx_lo = np.zeros((wfn.nalive, ncrd))
+        dx_hi = np.zeros((wfn.nalive, ncrd))
+        dp_lo = np.zeros((wfn.nalive, ncrd))
+        dp_hi = np.zeros((wfn.nalive, ncrd))
+        dg_lo = np.zeros((wfn.nalive))
+        dg_hi = np.zeros((wfn.nalive))
         for i in range(ntraj):
-            if master.traj[i].active:
+            if wfn.traj[i].active:
                 dx_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kx[i], axis=0)
                 dx_hi[i] = np.sum(wgt_hi[:,np.newaxis] * kx[i], axis=0)
                 dp_lo[i] = np.sum(wgt_lo[:,np.newaxis] * kp[i], axis=0)
@@ -93,7 +93,7 @@ def propagate_wfn(master, dt):
 
         if propphase:
             for i in range(ntraj):
-                if master.traj[i].active:
+                if wfn.traj[i].active:
                     dg_lo[i] = np.sum(wgt_lo * kg[i])
                     dg_hi[i] = np.sum(wgt_hi * kg[i])
 
@@ -114,13 +114,13 @@ def propagate_wfn(master, dt):
             err = max(err, tol*1e-5)
             h *= min(safety*(tol/err)**0.2, 5.)
             for i in range(ntraj):
-                if master.traj[i].active:
-                    master.traj[i].update_x(master.traj[i].x() + dx_lo[i])
-                    master.traj[i].update_p(master.traj[i].p() + dp_lo[i])
+                if wfn.traj[i].active:
+                    wfn.traj[i].update_x(wfn.traj[i].x() + dx_lo[i])
+                    wfn.traj[i].update_p(wfn.traj[i].p() + dp_lo[i])
                     if propphase:
-                        master.traj[i].update_phase(master.traj[i].phase() +
+                        wfn.traj[i].update_phase(wfn.traj[i].phase() +
                                                     dg_lo[i])
-            evaluate.update_pes(master, update_integrals=(abs(t)>=abs(dt)))
+            evaluate.update_pes(wfn, update_integrals=(abs(t)>=abs(dt)))
 
 
 @timings.timed

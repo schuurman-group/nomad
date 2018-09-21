@@ -9,7 +9,7 @@ import nomad.core.log as log
 import nomad.core.trajectory as trajectory
 
 
-def set_initial_coords(master):
+def set_initial_coords(wfn):
     """Samples a v=0 Wigner distribution."""
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.methods['interface'] == 'vibronic':
@@ -128,7 +128,7 @@ def set_initial_coords(master):
         new_traj.update_p(p_sample)
 
         # Add the trajectory to the bundle
-        master.add_trajectory(new_traj)
+        wfn.add_trajectory(new_traj)
 
 
 def mode_overlap(alpha, dx, dp):

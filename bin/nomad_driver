@@ -68,30 +68,28 @@ def process_arguments(args):
 
 def main():
     """Runs the main nomad routine."""
-    # Create the collection of trajectories
-    master = wavefunction.Wavefunction()
 
     # set the initial conditions for trajectories
-    initialize.init_wavefunction(master)
+    initialize.init_wavefunction()
 
-    while master.time < glbl.properties['simulation_time']:
+    while glbl.modules['wfn'].time < glbl.properties['simulation_time']:
         # set the time step --> top level time step should always
         # be default time step. fms_step_wfn will decide if/how
         # dt should be shortened for numerics
-        time_step = step.time_step(master)
+        time_step = step.time_step()
 
         # propagate one step forward
-        master = step.step_wavefunction(master, time_step)
+        step.step_wavefunction(time_step)
 
         # if no more live trajectories, simulation is complete
-        if master.nalive == 0:
+        if glbl.modules['wfn'].nalive == 0:
             break
 
         # determine whether it is necessary to update the output logs
         if glbl.mpi['rank'] == 0:
             # update the checkpoint, if necessary
-            checkpoint.archive_simulation(master, integrals=glbl.modules['integrals'],
-                                          time=master.time)
+            checkpoint.archive_simulation(glbl.modules['wfn'],
+                                          glbl.modules['integrals'])
 
     # clean up, stop the global timer and write logs
     log.cleanup_end()

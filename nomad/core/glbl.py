@@ -3,6 +3,7 @@ Global variables used throughout nomad
 """
 
 modules = dict(
+    wfn        = None,
     interface  = None,
     init_conds = None,
     adapt      = None,
@@ -15,7 +16,6 @@ modules = dict(
 paths = dict(
     log_file   = '',
     chkpt_file = ''
-#    home_path
             )
 
 # MPI variables (set by nomad_driver)

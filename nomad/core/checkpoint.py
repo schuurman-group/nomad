@@ -5,12 +5,11 @@ import os
 import h5py
 import ast as ast
 import numpy as np
-import nomad.integrals.integral as integral
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.trajectory as trajectory
 import nomad.core.surface as surface
-
+import nomad.integrals.integral as integral
 
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
@@ -22,102 +21,68 @@ tfile_names = dict()
 bfile_names = dict()
 
 
-def archive_simulation(wfn, integrals=None, time=None, file_name=None):
+def archive_simulation(wfn, integrals, file_name=None):
     """Documentation to come"""
-    write(wfn, file_name=file_name, time=time)
-    if integrals is not None:
-        write(integrals, file_name=file_name, time=time)
 
-
-def retrieve_simulation(wfn, integrals=None, time=None, file_name=None, key_words=False):
-    """Dochumentation to come"""
-
-    if key_words:
-        read_keywords(file_name=file_name)
-
-    read(wfn, file_name=file_name, time=time)
-    if integrals is not None:
-        # update the wfn specific data
-        integrals.update(wfn)
-        read(integrals, file_name=file_name, time=time)
-
-
-def write(data_obj, file_name=None, time=None):
-    """Documentation to come"""
     # default is to use file name from previous write
     if file_name is not None:
-        glbl.chkpt_file = file_name.strip()
+        glbl.paths['chkpt_file'] = file_name.strip()
 
     # if this is the first time we're writing to the archive,
     # create the bundle data set and record the time-independent
     # bundle definitions
-    if not os.path.isfile(glbl.chkpt_file):
-        if isinstance(data_obj, wavefunction.Wavefunction):
-            create(glbl.chkpt_file, data_obj)
-        else:
-            raise TypeError('chkpt file must be created with wavefunction object.')
+    if not os.path.isfile(glbl.paths['chkpt_file']):
+        create(glbl.paths['chkpt_file'], wfn, integrals)
+
+    # pull the time from the wave function to uniquely timestamp
+    # entries
+    time = wfn.time
 
     # open checkpoint file
-    chkpt = h5py.File(glbl.chkpt_file, 'a', libver='latest')
+    chkpt = h5py.File(glbl.paths['chkpt_file'], 'a', libver='latest')
 
-    # this definition of time over-rules all others as far as writing
-    # data is concerned.
-    if time is None:
-        time = data_obj.time
+    # write the wave function to file
+    write_wavefunction(chkpt, wfn, time)
 
-    #------------------------------------------
-    # this data get written for all simulations
-    if isinstance(data_obj, wavefunction.Wavefunction):
-        write_wavefunction(chkpt, data_obj, time)
+    # write the integral information to file
+    write_integral(chkpt, integrals, time)
 
-    elif isinstance(data_obj, integral.Integral):
-        write_integral(chkpt, data_obj, time)
-    else:
-        raise TypeError('data_obj: '+str(data_obj)+' is not recognized by checkpoint.write')
-
+    # close the chkpt file
     chkpt.close()
+    return
 
-
-def read(data_obj, file_name=None, time=None):
-    """Reads the checkpoint file.
-
-    Called when an old checkpoint file is used to populate the
-    contents of a bundle, if no time given, read last bundle.
-    """
+def retrieve_simulation(time=None, file_name=None, key_words=False):
+    """Dochumentation to come"""
 
     # default is to use file name from previous write
     if file_name is not None:
-        glbl.chkpt_file = file_name.strip()
-
-    # string name of checkpoint file
-    glbl.chkpt_file = file_name.strip()
+        glbl.paths['chkpt_file'] = file_name.strip()
 
     # open chkpoint file
-    chkpt = h5py.File(glbl.chkpt_file, 'r', libver='latest')
+    chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
-    if isinstance(data_obj, wavefunction.Wavefunction):
+    if key_words:
+        read_keywords(chkpt)
 
-        read_wavefunction(chkpt, data_obj, time)
+    # read wave function information, including trajectories
+    wfn = read_wavefunction(chkpt, time)
 
-    # if this is an integral objects, it's going to want to load the centroid data
-    # from file
-    elif isinstance(data_obj, integral.Integral):
-        read_integral(chkpt, data_obj, time)
-    else:
-        raise TypeError('data_obj: '+str(data_obj)+' is not recognized by checkpoint.read')
+    # update the wfn specific data
+    ints = read_integral(chkpt, time)
+    ints.update(wfn)
 
-    # close checkpoint file
+    # close the checkpoint file
     chkpt.close()
 
+    return [wfn, ints]
 
-def time_steps(grp_name, file_name=None):
+
+def time_steps(chkpt, grp_name, file_name=None):
     """Documentation to come"""
-    # default is to use file name from previous write
-    if file_name is not None:
-        glbl.chkpt_file = file_name.strip()
-
-    # open chkpoint file
-    chkpt = h5py.File(glbl.chkpt_file, 'r', libver='latest')
+    # if file handle is None, get file stream by opening
+    # file, file_name
+    if chkpt is None and file_name is not None:
+        chkpt = h5py.File(file_name.strip(), 'r', libver='latest') 
 
     # if the group name is in the checkpoint file, return
     # the associated time array
@@ -131,185 +96,11 @@ def time_steps(grp_name, file_name=None):
     else:
         raise ValueError('grp_name: '+str(grp_name)+' not present in checkpoint file')
 
-    chkpt.close()
+    # if opening from file name, close file when done
+    if chkpt is None and file_name is not None:
+        chkpt.close()
 
     return steps
-
-
-def generate_data_formats(ncrd, nst):
-    """Initialized all the output format descriptors."""
-    global dump_header, dump_format, tfile_names, bfile_names
-
-    ncart = 3         # assumes expectation values of transition/permanent dipoles in
-                      # cartesian coordinates
-    natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
-    dstr  = ('x', 'y', 'z')
-    acc1  = 12
-    acc2  = 16
-
-    # ******************* dump formats *******************************
-
-    # ----------------- trajectory data --------------------------------
-    # trajectory output
-    arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
-    arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
-    tfile_names[tkeys[0]] = 'trajectory'
-    dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
-                             ''.join(arr2) + 'Phase'.rjust(acc1) +
-                             'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) +
-                             'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
-                             '\n')
-    dump_format[tkeys[0]] = ('{:12.4f}'+
-                             ''.join('{:12.6f}' for i in range(2*ncrd+5))+
-                             '\n')
-
-    # potential energy
-    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nst)]
-    tfile_names[tkeys[1]] = 'poten'
-    dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[1]] = ('{:12.4f}' +
-                             ''.join('{:16.10f}' for i in range(nst)) + '\n')
-
-    # gradients
-    arr1 = ['            x' + str(i+1) for i in range(ncrd)]
-    tfile_names[tkeys[2]] = 'grad'
-    dump_header[tkeys[2]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[2]] = ('{0:>12.4f}' +
-                             ''.join('{' + str(i) + ':14.8f}'
-                                     for i in range(1, ncrd+1)) + '\n')
-
-    # coupling
-    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
-    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nst)]
-    tfile_names[tkeys[3]] = 'coup'
-    dump_header[tkeys[3]] = ('Time'.rjust(acc1) + ''.join(arr1) +
-                             ''.join(arr2) + '\n')
-    dump_format[tkeys[3]] = ('{:12.4f}' +
-                             ''.join('{:12.5f}' for i in range(2*nst)) + '\n')
-
-
-    # ---------------------- interface data --------------------------------
-    # permanent dipoles
-    arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
-            for i in range(nst) for j in range(ncart)]
-    tfile_names[tkeys[5]] = 'dipole'
-    dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[5]] = ('{:12.4f}' +
-                             ''.join('{:12.5f}'
-                                     for i in range(nst*ncart)) + '\n')
-    # transition dipoles
-    arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
-            for i in range(nst) for j in range(i) for k in range(ncart)]
-    ncol = int(nst*(nst-1)*ncart/2+1)
-    tfile_names[tkeys[6]] = 'tr_dipole'
-    dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[6]] = ('{:12.4f}' +
-                             ''.join('{:12.5f}'
-                                     for i in range(1, ncol)) + '\n')
-
-    # second moments
-    arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
-            for i in range(nst) for j in range(ncart)]
-    tfile_names[tkeys[7]] = 'sec_mom'
-    dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[7]] = ('{:12.4f}' +
-                             ''.join('{:12.5f}'
-                                     for i in range(nst*ncart)) + '\n')
-
-    # atomic populations
-    arr1 = ['    st' + str(i) + '_a' + str(j+1)
-            for i in range(nst) for j in range(natm)]
-    tfile_names[tkeys[8]] = 'atom_pop'
-    dump_header[tkeys[8]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format[tkeys[8]] = ('{:12.4f}' +
-                             ''.join('{:10.5f}'
-                                     for i in range(nst*natm)) + '\n')
-
-    # ----------------- dump formats (wavefunction files) -----------------
-
-    # adiabatic state populations
-    arr1 = ['     state.' + str(i) for i in range(nst)]
-    bfile_names['pop'] = 'n.dat'
-    dump_header['pop'] = ('Time'.rjust(acc1) + ''.join(arr1) +
-                             'Norm'.rjust(acc1) + '\n')
-    dump_format['pop']  = ('{:12.4f}' +
-                             ''.join('{:12.6f}' for i in range(nst)) +
-                             '{:12.6f}\n')
-
-    # the bundle energy
-    arr1 = ('   potential(QM)', '     kinetic(QM)', '       total(QM)',
-            '  potential(Cl.)', '    kinetic(Cl.)', '      total(Cl.)')
-    bfile_names['energy'] = 'e.dat'
-    dump_header['energy'] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format['energy'] = ('{:12.4f}' +
-                             ''.join('{:16.10f}' for i in range(6)) + '\n')
-
-    # autocorrelation function
-    arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
-    bfile_names['auto'] = 'auto.dat'
-    dump_header['auto'] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
-    dump_format['auto'] = ('{:12.4f}' +
-                             ''.join('{:16.10f}' for i in range(3)) + '\n')
-
-    # trajectory matrices
-    tfile_names['hessian']   = 'hessian.dat'
-
-    # bundle matrices
-    bfile_names['t']         = 't.dat'
-    bfile_names['v']         = 'v.dat'
-    bfile_names['s']         = 's.dat'
-    bfile_names['sdot']      = 'sdot.dat'
-    bfile_names['h']         = 'h.dat'
-    bfile_names['heff']      = 'heff.dat'
-    bfile_names['t_overlap'] = 't_overlap.dat'
-
-
-def print_traj_row(label, key, data):
-    """Appends a row of data, formatted by entry 'fkey' in formats to
-    file 'filename'."""
-    filename = tfile_names[key] + '.' + str(label)
-
-    if not os.path.isfile(filename):
-        with open(filename, 'x') as outfile:
-            outfile.write(dump_header[key])
-            outfile.write(dump_format[key].format(*data))
-    else:
-        with open(filename, 'a') as outfile:
-            outfile.write(dump_format[key].format(*data))
-
-
-def print_traj_mat(time, key, mat):
-    """Prints a matrix to file with a time label."""
-    filename = tfile_names[key]
-
-    with open(filename, 'a') as outfile:
-        outfile.write('{:9.2f}\n'.format(time))
-        outfile.write(np.array2string(mat,
-                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
-
-
-def print_wfn_row(key, data):
-    """Appends a row of data, formatted by entry 'fkey' in formats to
-    file 'filename'."""
-    filename = bfile_names[key]
-
-    if not os.path.isfile(filename):
-        with open(filename, 'x') as outfile:
-            outfile.write(dump_header[key])
-            outfile.write(dump_format[key].format(*data))
-    else:
-        with open(filename, 'a') as outfile:
-            outfile.write(dump_format[key].format(*data))
-
-
-def print_wfn_mat(time, key, mat):
-    """Prints a matrix to file with a time label."""
-    filename = bfile_names[key]
-
-    with open(filename, 'a') as outfile:
-        outfile.write('{:9.2f}\n'.format(time))
-        outfile.write(np.array2string(mat,
-                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
 
 
 #------------------------------------------------------------------------------------
@@ -317,28 +108,32 @@ def print_wfn_mat(time, key, mat):
 # Should not be called outside the module
 #
 #------------------------------------------------------------------------------------
-def create(file_name, wfn):
+def create(file_name, wfn, ints):
     """Creates a new checkpoint file."""
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 
     write_keywords(chkpt)
 
+    # wfn group -- row information
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
     chkpt['wavefunction'].attrs['n_rows']      = 0 
 
+    # wfn group -- time independent obj properties
+    # (None)
+
+    # integral group -- row information
     chkpt.create_group('integral')
     chkpt['integral'].attrs['current_row']     = -1
     chkpt['integral'].attrs['n_rows']          = 0
 
-    traj0 = wfn.traj[0]
-    chkpt.create_group('simulation')
-    chkpt['simulation'].attrs['nstates']  = traj0.nstates
-    chkpt['simulation'].attrs['dim']      = traj0.dim
-    chkpt['simulation'].attrs['widths']   = traj0.widths()
-    chkpt['simulation'].attrs['masses']   = traj0.masses()
-    chkpt['simulation'].attrs['kecoef']   = traj0.kecoef
+    # integral group -- time independent obj properties
+    chkpt['integral'].attrs['kecoef']            = ints.kecoef
+    chkpt['integral'].attrs['ansatz']            = ints.ansatz
+    chkpt['integral'].attrs['numerical']         = ints.numerical
+    chkpt['integral'].attrs['hermitian']         = ints.hermitian
+    chkpt['integral'].attrs['require_centroids'] = ints.require_centroids
 
     # close following initialization
     chkpt.close()
@@ -392,15 +187,11 @@ def write_keyword(chkpt, grp, kword, val):
     return
 
 
-def read_keywords(file_name=None):
+def read_keywords(chkpt):
     """Read keywords from archive file"""
 
-    # default is to use file name from previous write
-    if file_name is not None:
-        glbl.chkpt_file = file_name.strip()
-
     # open chkpoint file
-    chkpt = h5py.File(glbl.chkpt_file, 'r', libver='latest')
+    chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
     #loop over the dictionaries in glbl
     for keyword_section in glbl.sections.keys():
@@ -533,6 +324,7 @@ def write_integral(chkpt, integral, time):
                  if integral.centroid[i][j] is not None:
                      write_centroid(chkpt, integral.centroid[i][j], time)
 
+
 def write_trajectory(chkpt, traj, time):
     """Documentation to come"""
     # open the trajectory file
@@ -637,23 +429,27 @@ def write_centroid(chkpt, cent, time):
             chkpt[dset][current_row] = c_data[data_label]
 
 
-def read_wavefunction(chkpt, wfn, time):
+def read_wavefunction(chkpt, time):
     """Documentation to come"""
-    nstates = chkpt['simulation'].attrs['nstates']
-    dim     = chkpt['simulation'].attrs['dim']
-    widths  = chkpt['simulation'].attrs['widths']
-    masses  = chkpt['simulation'].attrs['masses']
-    kecoef  = chkpt['simulation'].attrs['kecoef']
+
+    nstates  = glbl.properties['n_states']
+    widths   = glbl.properties['crd_widths']
+    masses   = glbl.properties['crd_masses']
+    dim      = len(widths)
+    kecoef   = chkpt['integral'].attrs['kecoef'] #indicative of wrongess.
+                                                 #trajectory should be purged of kecoef...
 
     # check that we have the desired time:
-
     read_row = get_time_index(chkpt, 'wavefunction', time)
 
     if read_row is None:
-        raise ValueError('time='+str(time)+' requested, but not in checkpoint file')
+        ValueError('time='+str(time)+' requested, but not in checkpoint file')
+        return None
+
+    # create the wavefunction object to hold the data
+    wfn = wavefunction.Wavefunction()
 
     # dimensions of these objects are not time-dependent
-    wfn.nstates = nstates
     wfn.time    = chkpt['wavefunction/time'][read_row,0]
 
     for label in chkpt['wavefunction']:
@@ -675,21 +471,29 @@ def read_wavefunction(chkpt, wfn, time):
         read_trajectory(chkpt, new_traj, t_grp, t_row)
         wfn.add_trajectory(new_traj.copy())
 
+    return wfn
 
-def read_integral(chkpt, integral, time):
+def read_integral(chkpt, time):
     """Documentation to come"""
-    nstates = chkpt['simulation'].attrs['nstates']
-    dim     = chkpt['simulation'].attrs['dim']
-    widths  = chkpt['simulation'].attrs['widths']
-    masses  = chkpt['simulation'].attrs['masses']
+
+    nstates  = glbl.properties['n_states']
+    widths   = glbl.properties['crd_widths']
+    dim      = len(widths)
+   
+    ansatz   = glbl.methods['ansatz']
+    numerics = glbl.methods['integral_eval'] 
+    kecoef   = chkpt['integral'].attrs['kecoef'] 
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, 'integral', time)
 
     if read_row is None:
         raise ValueError('time='+str(time)+' requested, but not in checkpoint file')
+        return None
 
-    if integral.require_centroids:
+    ints = integral.Integral(kecoef, ansatz, numerics)
+
+    if ints.require_centroids:
         for label in chkpt['integral']:
 
             if label == 'time':
@@ -703,7 +507,9 @@ def read_integral(chkpt, integral, time):
 
             new_cent = integral.Centroid(nstates=nstates, dim=dim, width=widths)
             read_centroid(chkpt, new_cent, c_grp, c_row)
-            integral.add_centroid(new_cent)
+            ints.add_centroid(new_cent)
+
+    return ints
 
 
 def read_trajectory(chkpt, new_traj, t_grp, t_row):
@@ -761,7 +567,7 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
 
 def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
-    time_vals = time_steps(grp_name)
+    time_vals = time_steps(chkpt, grp_name)
 
     if time is None:
         return chkpt[grp_name].attrs['current_row']
@@ -843,3 +649,187 @@ def default_blk_size(time):
     # let's just keep this to small default size: 25
     # need to look into optimizing this more
     return 25
+
+
+#-----------------------------------------------------------------------------
+#
+#  printing routines 
+#
+#-----------------------------------------------------------------------------
+def generate_data_formats():
+    """Initialized all the output format descriptors."""
+    global dump_header, dump_format, tfile_names, bfile_names
+
+    nst   = glbl.properties['n_states']
+    ncrd  = len(glbl.properties['crd_widths'])
+    ncart = 3         # assumes expectation values of transition/permanent dipoles in
+                      # cartesian coordinates
+    natm  = max(1,int(ncrd / ncart)) # dirty -- in case we have small number of n.modes
+    dstr  = ('x', 'y', 'z')
+    acc1  = 12
+    acc2  = 16
+
+    # ******************* dump formats *******************************
+
+    # ----------------- trajectory data --------------------------------
+    # trajectory output
+    arr1 = ['{:>12s}'.format('    x' + str(i+1)) for i in range(ncrd)]
+    arr2 = ['{:>12s}'.format('    p' + str(i+1)) for i in range(ncrd)]
+    tfile_names[tkeys[0]] = 'trajectory'
+    dump_header[tkeys[0]] = ('Time'.rjust(acc1) + ''.join(arr1) +
+                             ''.join(arr2) + 'Phase'.rjust(acc1) +
+                             'Re[Amp]'.rjust(acc1) + 'Im[Amp]'.rjust(acc1) +
+                             'Norm[Amp]'.rjust(acc1) + 'State'.rjust(acc1) +
+                             '\n')
+    dump_format[tkeys[0]] = ('{:12.4f}'+
+                             ''.join('{:12.6f}' for i in range(2*ncrd+5))+
+                             '\n')
+
+    # potential energy
+    arr1 = ['{:>16s}'.format('potential.' + str(i)) for i in range(nst)]
+    tfile_names[tkeys[1]] = 'poten'
+    dump_header[tkeys[1]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[1]] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(nst)) + '\n')
+
+    # gradients
+    arr1 = ['            x' + str(i+1) for i in range(ncrd)]
+    tfile_names[tkeys[2]] = 'grad'
+    dump_header[tkeys[2]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[2]] = ('{0:>12.4f}' +
+                             ''.join('{' + str(i) + ':14.8f}'
+                                     for i in range(1, ncrd+1)) + '\n')
+
+    # coupling
+    arr1 = ['{:>12s}'.format('coupling.' + str(i)) for i in range(nst)]
+    arr2 = ['{:>12s}'.format('c * v .' + str(i)) for i in range(nst)]
+    tfile_names[tkeys[3]] = 'coup'
+    dump_header[tkeys[3]] = ('Time'.rjust(acc1) + ''.join(arr1) +
+                             ''.join(arr2) + '\n')
+    dump_format[tkeys[3]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}' for i in range(2*nst)) + '\n')
+
+    # ---------------------- interface data --------------------------------
+    # permanent dipoles
+    arr1 = ['{:>12s}'.format('dip_st' + str(i) + '.' + dstr[j])
+            for i in range(nst) for j in range(ncart)]
+    tfile_names[tkeys[5]] = 'dipole'
+    dump_header[tkeys[5]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[5]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
+                                     for i in range(nst*ncart)) + '\n')
+    # transition dipoles
+    arr1 = ['  td_s' + str(j) + '.s' + str(i) + '.' + dstr[k]
+            for i in range(nst) for j in range(i) for k in range(ncart)]
+    ncol = int(nst*(nst-1)*ncart/2+1)
+    tfile_names[tkeys[6]] = 'tr_dipole'
+    dump_header[tkeys[6]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[6]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
+                                     for i in range(1, ncol)) + '\n')
+
+    # second moments
+    arr1 = ['   sec_s' + str(i) + '.' + dstr[j] + dstr[j]
+            for i in range(nst) for j in range(ncart)]
+    tfile_names[tkeys[7]] = 'sec_mom'
+    dump_header[tkeys[7]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[7]] = ('{:12.4f}' +
+                             ''.join('{:12.5f}'
+                                     for i in range(nst*ncart)) + '\n')
+
+    # atomic populations
+    arr1 = ['    st' + str(i) + '_a' + str(j+1)
+            for i in range(nst) for j in range(natm)]
+    tfile_names[tkeys[8]] = 'atom_pop'
+    dump_header[tkeys[8]] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format[tkeys[8]] = ('{:12.4f}' +
+                             ''.join('{:10.5f}'
+                                     for i in range(nst*natm)) + '\n')
+
+    # ----------------- dump formats (wavefunction files) -----------------
+
+    # adiabatic state populations
+    arr1 = ['     state.' + str(i) for i in range(nst)]
+    bfile_names['pop'] = 'n.dat'
+    dump_header['pop'] = ('Time'.rjust(acc1) + ''.join(arr1) +
+                             'Norm'.rjust(acc1) + '\n')
+    dump_format['pop']  = ('{:12.4f}' +
+                             ''.join('{:12.6f}' for i in range(nst)) +
+                             '{:12.6f}\n')
+
+    # the bundle energy
+    arr1 = ('   potential(QM)', '     kinetic(QM)', '       total(QM)',
+            '  potential(Cl.)', '    kinetic(Cl.)', '      total(Cl.)')
+    bfile_names['energy'] = 'e.dat'
+    dump_header['energy'] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format['energy'] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(6)) + '\n')
+
+    # autocorrelation function
+    arr1 = ('      Re a(t)','         Im a(t)','         abs a(t)')
+    bfile_names['auto'] = 'auto.dat'
+    dump_header['auto'] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
+    dump_format['auto'] = ('{:12.4f}' +
+                             ''.join('{:16.10f}' for i in range(3)) + '\n')
+
+    # trajectory matrices
+    tfile_names['hessian']   = 'hessian.dat'
+
+    # bundle matrices
+    bfile_names['t']         = 't.dat'
+    bfile_names['v']         = 'v.dat'
+    bfile_names['s']         = 's.dat'
+    bfile_names['sdot']      = 'sdot.dat'
+    bfile_names['h']         = 'h.dat'
+    bfile_names['heff']      = 'heff.dat'
+    bfile_names['t_overlap'] = 't_overlap.dat'
+
+    return
+
+def print_traj_row(label, key, data):
+    """Appends a row of data, formatted by entry 'fkey' in formats to
+    file 'filename'."""
+    filename = tfile_names[key] + '.' + str(label)
+
+    if not os.path.isfile(filename):
+        with open(filename, 'x') as outfile:
+            outfile.write(dump_header[key])
+            outfile.write(dump_format[key].format(*data))
+    else:
+        with open(filename, 'a') as outfile:
+            outfile.write(dump_format[key].format(*data))
+
+
+def print_traj_mat(time, key, mat):
+    """Prints a matrix to file with a time label."""
+    filename = tfile_names[key]
+
+    with open(filename, 'a') as outfile:
+        outfile.write('{:9.2f}\n'.format(time))
+        outfile.write(np.array2string(mat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+
+
+def print_wfn_row(key, data):
+    """Appends a row of data, formatted by entry 'fkey' in formats to
+    file 'filename'."""
+    filename = bfile_names[key]
+
+    if not os.path.isfile(filename):
+        with open(filename, 'x') as outfile:
+            outfile.write(dump_header[key])
+            outfile.write(dump_format[key].format(*data))
+    else:
+        with open(filename, 'a') as outfile:
+            outfile.write(dump_format[key].format(*data))
+
+
+def print_wfn_mat(time, key, mat):
+    """Prints a matrix to file with a time label."""
+    filename = bfile_names[key]
+
+    with open(filename, 'a') as outfile:
+        outfile.write('{:9.2f}\n'.format(time))
+        outfile.write(np.array2string(mat,
+                      formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
+

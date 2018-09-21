@@ -20,25 +20,25 @@ import nomad.adapt.utilities as utilities
 
 
 @timings.timed
-def spawn(master, dt):
+def spawn(wfn, dt):
     """Spawns a basis function if the minimum overlap drops below a given
     threshold."""
     basis_grown  = False
-    current_time = master.time
-    for i in range(master.n_traj()):
-        if not master.traj[i].alive:
+    current_time = wfn.time
+    for i in range(wfn.n_traj()):
+        if not wfn.traj[i].alive:
             continue
 
-        parent = master.traj[i]
+        parent = wfn.traj[i]
         for st in range(glbl.properties['n_states']):
             # don't check overlap with basis functions on same state
             if st == parent.state:
                 continue
 
-            s_array = [abs(glbl.modules['integrals'].nuc_overlap(parent, master.traj[j]))
-                       if master.traj[j].state == st
-                       and master.traj[j].alive else 0.
-                       for j in range(master.n_traj())]
+            s_array = [abs(glbl.modules['integrals'].nuc_overlap(parent, wfn.traj[j]))
+                       if wfn.traj[j].state == st
+                       and wfn.traj[j].alive else 0.
+                       for j in range(wfn.n_traj())]
             if max(s_array, key=abs) < glbl.properties['continuous_min_overlap']:
                 child           = parent.copy()
                 child.amplitude = 0j
@@ -65,15 +65,15 @@ def spawn(master, dt):
                     parent.last_spawn[child.state] = spawn_time
                     child.last_spawn[parent.state] = spawn_time
 
-                    bundle_overlap = utilities.overlap_with_bundle(child, master)
+                    bundle_overlap = utilities.overlap_with_bundle(child, wfn)
                     if not bundle_overlap:
                         basis_grown = True
-                        master.add_trajectory(child)
+                        wfn.add_trajectory(child)
                         log.print_message('spawn_success',
                                           [current_time, parent.label, st])
                         utilities.write_spawn_log(current_time, current_time,
                                                   current_time, parent,
-                                                  master.traj[-1])
+                                                  wfn.traj[-1])
                     else:
                         err_msg = ('Traj ' + str(parent.label) + ' from state ' +
                                    str(parent.state) + ' to state ' + str(st) +
