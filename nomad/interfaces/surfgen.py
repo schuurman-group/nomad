@@ -173,13 +173,11 @@ def set_phase(traj, new_grads):
 
     n_states = int(traj.nstates)
 
-    print("n-states="+str(n_states))
-
     # pull data to make consistent
     if traj.pes is not None:
-        arr       =  np.array([[traj.derivative(i,j,geom_chk=False)
-                              for i in range(n_states)] for j in range(n_states)])
-        old_grads = np.transpose(arr, axes=(2,0,1))
+        old_grads = np.transpose(np.array([[traj.derivative(i,j,geom_chk=False)
+                                 for i in range(n_states)] for j in range(n_states)]), 
+                                 axes=(2,0,1))
     else:
         old_grads = np.zeros((traj.dim, n_states, n_states))
 
