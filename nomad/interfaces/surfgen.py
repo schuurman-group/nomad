@@ -8,9 +8,9 @@ import shutil
 import copy
 import pathlib
 import numpy as np
-import src.fmsio.glbl as glbl
-import src.fmsio.fileio as fileio
-import src.basis.trajectory as trajectory
+import nomad.core.glbl as glbl
+import nomad.core.surface as surface
+import nomad.math.constants as constants
 from ctypes import *
 
 # surfgen library
@@ -75,13 +75,14 @@ def evaluate_trajectory(traj, t=None):
     libsurf.evaluatesurfgen77_(byref(na), byref(ns), cgeom,
                                energy, cgrads, hmat, dgrads)
     cartgrd = np.array(np.reshape(cgrads,(na3,n_states,n_states)))
+    potential = np.array(energy)
 
     # populate the surface object
     surf_gen = surface.Surface()
     surf_gen.add_data('geom', traj.x())
-    surf_gen.add_data('potential', energy + glbl.properties['pot_shift'])
+    surf_gen.add_data('potential', potential + glbl.properties['pot_shift'])
 
-    cgrad_phase = set_phase(cartgrd)
+    cgrad_phase = set_phase(traj, cartgrd)
     surf_gen.add_data('derivative', cgrad_phase)     
 
     return surf_gen
@@ -126,14 +127,13 @@ def evaluate_coupling(traj):
 #
 def initialize_surfgen_potential():
     global libsurf
+
     print("\n --- INITIALIZING SURFGEN SURFACE --- \n")
     os.chdir('./input')
     libsurf.initpotential_()
-    n_atoms = c_longlong.in_dll(libsurf,'progdata_mp_natoms_').value
-    n_states= c_longlong.in_dll(libsurf,'hddata_mp_nstates_').value
     os.chdir('../')
 
-    return [n_atoms, n_states]
+    return
 
 #
 # check_surfgen_input: check for all files necessary for successful
@@ -171,11 +171,15 @@ def check_file_exists(fname):
 #
 def set_phase(traj, new_grads):
 
+    n_states = int(traj.nstates)
+
+    print("n-states="+str(n_states))
+
     # pull data to make consistent
     if traj.pes is not None:
-        old_grads = np.transpose(
-                    np.ndarray([[traj.derivative(i,j,geom_chk=False)
-                              for i in range(traj.nstates)] for j in range(traj.nstates)]), (2,0,1))
+        arr       =  np.array([[traj.derivative(i,j,geom_chk=False)
+                              for i in range(n_states)] for j in range(n_states)])
+        old_grads = np.transpose(arr, axes=(2,0,1))
     else:
         old_grads = np.zeros((traj.dim, n_states, n_states))
 
@@ -183,7 +187,7 @@ def set_phase(traj, new_grads):
     for i in range(n_states):
         for j in range(i):
             # if the previous coupling is vanishing, phase of new coupling is arbitrary
-            if np.linalg.norm(old_grads[:,i,j]) > glbl.constants['fpzero']:
+            if np.linalg.norm(old_grads[:,i,j]) > constants.fpzero:
                 # check the difference between the vectors assuming phases of +1/-1
                 norm_pos = np.linalg.norm( new_grads[:,i,j] - old_grads[:,i,j])
                 norm_neg = np.linalg.norm(-new_grads[:,i,j] - old_grads[:,i,j])

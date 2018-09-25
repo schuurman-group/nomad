@@ -183,8 +183,11 @@ def parse_coords(valstr):
 
     # parse comment line to get units
     for i in range(nmol):
-        xconv = 1. / constants.bohr2ang
-        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
+        # for time being, assume coords ALWAYS in au
+#        xconv = 1. / constants.bohr2ang
+#        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
+        xconv = 1.
+        pconv = 1.
         if 'units=' in comms[i]:
             unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i])
             if unit == 'bohr':

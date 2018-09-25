@@ -51,6 +51,11 @@ vibronic = dict(
     ordr_max       = 1
                 )
 
+surfgen = dict(
+    hessian        = None,
+    mem_per_core   = 100.
+    )
+
 # Remaining properties (mostly optional)
 properties = dict(
     init_coords         = None, # required, can be filename or XYZ format
@@ -98,6 +103,7 @@ sections =  {
     'methods' : methods,
     'columbus' : columbus,
     'vibronic' : vibronic,
+    'surfgen' : surfgen,
     'interfaces' : columbus,
     'vibronic'   : vibronic,
     'properties' : properties
