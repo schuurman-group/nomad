@@ -29,7 +29,6 @@ def init_interface():
     err = 0
 
     # Check that $SURFGEN is set and load library, then check for input files.
-    print("value LD_LIBRARY_PATH: "+str(os.environ['LD_LIBRARY_PATH'])+'\n')
     libsurfgen_path = os.environ['LIBSURFGEN']
     if not os.path.isfile(libsurfgen_path):
         print("Surfgen library not found: "+libsurfgen_path)
@@ -132,10 +131,8 @@ def evaluate_coupling(traj):
 def initialize_surfgen_potential():
     global libsurf
 
-    print("\n --- INITIALIZING SURFGEN SURFACE --- \n")
     os.chdir('./input')
     libsurf.initpotential_()
-    print("\n --- INITIALIZATION COMPLETE --- \n")
     os.chdir('../')
 
     return
