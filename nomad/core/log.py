@@ -61,7 +61,7 @@ def print_spawn_log(data):
 
         else:
             with open(file_name, 'x') as outfile:
-                outfile.write(''.join(spawn_header))
+                outfile.write(''.join(spawn_header)+'\n')
                 outfile.write(spawn_format.format(*data))
 
 
