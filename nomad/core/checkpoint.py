@@ -69,7 +69,8 @@ def retrieve_simulation(time=None, file_name=None, key_words=False):
 
     # update the wfn specific data
     ints = read_integral(chkpt, time)
-    ints.update(wfn)
+    if ints is not None:
+        ints.update(wfn)
 
     # close the checkpoint file
     chkpt.close()

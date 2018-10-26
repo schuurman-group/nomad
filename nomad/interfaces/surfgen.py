@@ -29,11 +29,12 @@ def init_interface():
     err = 0
 
     # Check that $SURFGEN is set and load library, then check for input files.
-    sgen_path = os.environ['SURFGEN']
-    if not os.path.isfile(sgen_path+'/lib/libsurfgen.so'):
-        print("Surfgen library not found in: "+sgen_path)
+    print("value LD_LIBRARY_PATH: "+str(os.environ['LD_LIBRARY_PATH'])+'\n')
+    libsurfgen_path = os.environ['LIBSURFGEN']
+    if not os.path.isfile(libsurfgen_path):
+        print("Surfgen library not found: "+libsurfgen_path)
         sys.exit()
-    libsurf = cdll.LoadLibrary(sgen_path+'/lib/libsurfgen.so')
+    libsurf = cdll.LoadLibrary(libsurfgen_path)
 
     err = check_surfgen_input('./input')
     if err != 0:
@@ -74,7 +75,7 @@ def evaluate_trajectory(traj, t=None):
 
     libsurf.evaluatesurfgen77_(byref(na), byref(ns), cgeom,
                                energy, cgrads, hmat, dgrads)
-    cartgrd = np.array(np.reshape(cgrads,(na3,n_states,n_states)))
+    cartgrd = np.array(np.reshape(cgrads,(na3,n_states,n_states),order='F'))
     potential = np.array(energy)
 
     # populate the surface object
@@ -82,7 +83,10 @@ def evaluate_trajectory(traj, t=None):
     surf_gen.add_data('geom', traj.x())
     surf_gen.add_data('potential', potential + glbl.properties['pot_shift'])
 
+    # make sure the phase of Fij is consistent from one point to the next
     cgrad_phase = set_phase(traj, cartgrd)
+
+    # add to the derivative object
     surf_gen.add_data('derivative', cgrad_phase)     
 
     return surf_gen
@@ -131,6 +135,7 @@ def initialize_surfgen_potential():
     print("\n --- INITIALIZING SURFGEN SURFACE --- \n")
     os.chdir('./input')
     libsurf.initpotential_()
+    print("\n --- INITIALIZATION COMPLETE --- \n")
     os.chdir('../')
 
     return

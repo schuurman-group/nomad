@@ -46,7 +46,8 @@ def main():
         tvals = checkpoint.time_steps(None, 'wavefunction', chkpt_file)
         # try reading last time -- if anything fails, read up to the penultimate
         # time, i.e. we grabbed this checkpoint file during a write
-        status = chk_last_write(tvals[-1])
+#        status = chk_last_write(tvals[-1])
+        status = True
 
         for i in range(len(tvals)):
 
