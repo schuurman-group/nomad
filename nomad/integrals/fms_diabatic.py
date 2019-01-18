@@ -28,15 +28,15 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
     v_total = complex(0.,0.)
 
     # roll through terms in the hamiltonian
-    for i in range(glbl.interface.ham.nterms):
-        if np.array_equal(states,glbl.interface.ham.stalbl[i,:]-1):
+    for i in range(glbl.modules['interface'].ham.nterms):
+        if np.array_equal(states,glbl.modules['interface'].ham.stalbl[i,:]-1):
             # adiabatic states in diabatic basis -- cross terms between orthogonal
             # diabatic states are zero
-            [s1,s2] = glbl.interface.ham.stalbl[i,:]-1
-            v_term = complex(1.,0.) * glbl.interface.ham.coe[i]
-            for q in range(len(glbl.interface.ham.order[i])):
-                qi      =  glbl.interface.ham.mode[i][q]
-                v_term *=  vibronic.qn_integral(glbl.interface.ham.order[i][q],
+            [s1,s2] = glbl.modules['interface'].ham.stalbl[i,:]-1
+            v_term = complex(1.,0.) * glbl.modules['interface'].ham.coe[i]
+            for q in range(len(glbl.modules['interface'].ham.order[i])):
+                qi      =  glbl.modules['interface'].ham.mode[i][q]
+                v_term *=  vibronic.qn_integral(glbl.modules['interface'].ham.order[i][q],
                                                 t1.widths()[qi], t1.x()[qi], t1.p()[qi],
                                                 t2.widths()[qi], t2.x()[qi], t2.p()[qi])
             v_total += v_term

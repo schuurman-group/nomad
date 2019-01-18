@@ -14,7 +14,7 @@ def set_initial_coords(wfn):
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.methods['interface'] == 'vibronic':
         coordtype = 'normal'
-        ham       = glbl.interface.ham
+        ham       = glbl.modules['interface'].ham
     else:
         coordtype = 'cart'
 
