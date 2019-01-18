@@ -5,6 +5,7 @@ begin methods
     interface          vibronic
     propagator         velocity_verlet
     surface            adiabatic
+    ansatz             fms
 end methods
 
 begin vibronic
