@@ -201,7 +201,7 @@ def read_keywords(chkpt):
         if keyword_section == 'modules':
             continue
 
-        grp_name = 'keywords_'+keyword_section
+        grp_name = 'kwds_'+keyword_section
         for keyword in glbl.sections[keyword_section].keys():
             val = read_keyword(chkpt, grp_name, keyword)
             try:
