@@ -55,8 +55,8 @@ module libchkpt
 
    integer                          :: nfiles
    integer                          :: error
-   type(c_ptr)                      :: null_ptr
-   type(c_funptr)                   :: read_group_ptr
+   type(c_ptr)                      :: params_ptr
+   type(c_funptr)                   :: parse_params_ptr
    type(h5o_info_t)                 :: infobuf
    integer(hid_t)                   :: file_id
    integer(hsize_t)                 :: idx
@@ -82,30 +82,10 @@ module libchkpt
    grp_data%root_name = "/"
    ! Iterate over the groups in root
    !
-   idx             = 0
-   read_group_ptr  = c_funloc(read_group)
-   null_ptr        = C_NULL_PTR
-   call h5literate_f(file_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, read_group_ptr, null_ptr, ret_value, error) 
-
-   do igrp = 1,grp_data%ngrp
-    ! if this is a keyword section.
-    if(index(grp_data%grp_names(igrp),'keywords').ne.0) then
-     print *,'keyword=',grp_data%grp_names(igrp)
-!     call h5dopen_f(file, dataset, dset, hdferr)
-!     call h5aopen_f(grp_data%grp_ids(igrp), attribute, attr, error)
-
-     ! get the number of keywords
-!     call h5aget_num_attrs_f(grp_data%grp_ids(igrp), nkey, error)
-!     print *,'nattr=',nkey
-     ! loop over attribles
-!    do ikey = 1,nkey  
-!     call 
-
-
-    endif 
-   enddo
-
-!   params%n_keys = params%n_keys+1
+   idx              = 0
+   parse_params_ptr = c_funloc(parse_params)
+   null_ptr         = c_loc(params)
+   call h5literate_f(file_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_params_ptr, params_ptr, ret_value, error) 
 
    call h5fclose_f(file_id, error)
 
@@ -176,20 +156,22 @@ module libchkpt
  !
  !
  !
- function parse_simulation(loc, item_name, info, null_ptr) result(return_val) bind(c)
+ function parse_params(obj_id, item_name, info, params_ptr) result(return_val) bind(c)
    use hdf5
    use iso_c_binding
    implicit none
 
-   integer(hid_t), value, intent(in)           :: loc
+   integer(hid_t), value, intent(in)           :: obj_id
    character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
    type(c_ptr),value, intent(in)               :: info
-   type(c_ptr),value, intent(in)               :: null_ptr
+   type(c_ptr),value, intent(in)               :: params_ptr
 
    integer                                     :: stat, return_val
    integer                                     :: indx, len
+   type(keyword_list),pointer                  :: keywords
    type(h5o_info_t), target                    :: infobuf
    character(len=20)                           :: name_string
+   integer(hsize_t)                            :: nkey,ikey
 
     !
     ! Initialize FORTRAN interface.
@@ -208,25 +190,26 @@ module libchkpt
     len = len - 1 ! subtract NULL character
     print *,'name_string=|',name_string(1:len),'|'
 
-!    call c_f_pointer(g_data_ptr, g_data)
+    call c_f_pointer(params_ptr, keywords)
     !
     ! Get type of the object and display its name and type.
     ! The name of the object is passed to this function by
     ! the Library.
     !
-    call H5Oget_info_by_name_f(loc, name_string(1:len), infobuf, stat)
+    call H5Oget_info_by_name_f(obj_id, name_string(1:len), infobuf, stat)
     return_val = return_val.and.stat
 
-    if(infobuf%type.eq.H5O_TYPE_GROUP_F) then
-      indx                      = grp_data%ngrp + 1
-      grp_data%ngrp             = indx
-      grp_data%grp_ids(indx)    = loc
-      grp_data%grp_names(indx)  = name_string      
+    ! if this is a keyword group, read all the attributes
+    if(infobuf%type.eq.H5O_TYPE_GROUP_F .and. index(name_string(1:len),'keywords').ne.0) then
+     nkey = infobuf%num_attrs
+     do ikey = 1,nkey
+       call h5aopen_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, attr_id, stat)  
+       call h5aget_name_f(attr_id, size, buf, hdferr)
+       call 
+
+     enddo
     elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
-      indx                      = grp_data%ndset + 1
-      grp_data%ndset            = indx
-      grp_data%dset_ids(indx)   = loc
-      grp_data%dset_names(indx) = name_string
+      return
     else 
       stop 'ERROR -- cannot identify section...'
     endif
