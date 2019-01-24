@@ -151,6 +151,9 @@ def init_interface():
     # generate one time input files for columbus calculations
     make_one_time_input()
 
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
+    return
 
 def evaluate_trajectory(traj, t=None):
     """Computes MCSCF/MRCI energy and computes all couplings.
@@ -229,6 +232,9 @@ def evaluate_trajectory(traj, t=None):
     # save restart files
     make_col_restart(traj)
 
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
+
     return col_surf
 
 
@@ -282,6 +288,9 @@ def evaluate_centroid(cent, t=None):
 
     # save restart files
     make_col_restart(cent)
+
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
 
     return col_surf
 
@@ -338,7 +347,6 @@ def make_one_time_input():
 
     # make sure ciudgin file exists
     shutil.copy('ciudgin.drt1', 'ciudgin')
-
 
 def generate_integrals(label, t):
     """Runs Dalton to generate AO integrals."""
