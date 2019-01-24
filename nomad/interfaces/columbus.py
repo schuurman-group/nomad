@@ -67,8 +67,8 @@ def init_interface():
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     # set atomic symbol, number, mass,
-    natm    = len(glbl.crd_labels) // p_dim
-    a_sym   = glbl.crd_labels[::p_dim]
+    natm    = len(glbl.properties['crd_labels']) // p_dim
+    a_sym   = glbl.properties['crd_labels'][::p_dim]
 
     a_data  = []
     # we need to go through this to pull out the atomic numbers for
@@ -97,11 +97,10 @@ def init_interface():
     # input and restart are shared
 #    input_path    = glbl.home_path + '/input'
 #    restart_path  = glbl.home_path + '/restart'
-    input_path    = 'input'
-    restart_path  = 'restart'
+    input_path    = glbl.paths['cwd']+'/input'
+    restart_path  = glbl.paths['cwd']+'/restart'
     # ...but each process has it's own work directory
-#    work_path     = glbl.home_path + '/work.'+str(glbl.mpi['rank'])
-    work_path     = 'work.'+str(glbl.mpi['rank'])
+    work_path     = glbl.paths['cwd']+'/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -1064,7 +1063,7 @@ def append_log(label, listing_file, time):
 
     # open the running log for this process
 #    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
-    log_file = open(columbus.log.'+str(glbl.mpi['rank']), 'a')
+    log_file = open('columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(' time='+tstr+' trajectory='+str(label)+
                    ': '+str(listing_file)+' summary -------------\n')

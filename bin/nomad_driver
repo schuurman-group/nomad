@@ -47,7 +47,8 @@ def init():
 def process_arguments(args):
     """Process command line arguments."""
     #glbl.home_path = os.getcwd()
-    proj = args[1].split('.inp')[0]
+    proj              = args[1].split('.inp')[0]
+    glbl.paths['cwd'] = os.getcwd()
 
     if '-o' in sys.argv:
         log_path = args[args.index('-o')+1]

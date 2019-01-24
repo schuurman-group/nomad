@@ -14,6 +14,7 @@ modules = dict(
             )
 
 paths = dict(
+    cwd        = '',
     log_file   = '',
     chkpt_file = ''
             )
