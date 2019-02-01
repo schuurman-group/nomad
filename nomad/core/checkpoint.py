@@ -10,6 +10,7 @@ import nomad.core.wavefunction as wavefunction
 import nomad.core.trajectory as trajectory
 import nomad.core.surface as surface
 import nomad.integrals.integral as integral
+import nomad.integrals.centroid as centroid
 
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
@@ -320,10 +321,10 @@ def write_integral(chkpt, integral, time):
 
     # now step through centroids, if they're present
     if integral.require_centroids:
-        for i in range(len(integral.centroid)):
+        for i in range(len(integral.centroids)):
             for j in range(i):
-                 if integral.centroid[i][j] is not None:
-                     write_centroid(chkpt, integral.centroid[i][j], time)
+                 if integral.centroids[i][j] is not None:
+                     write_centroid(chkpt, integral.centroids[i][j], time)
 
 
 def write_trajectory(chkpt, traj, time):
@@ -506,7 +507,7 @@ def read_integral(chkpt, time):
             if c_row is None:
                 continue
 
-            new_cent = integral.Centroid(nstates=nstates, dim=dim, width=widths)
+            new_cent = centroid.Centroid(nstates=nstates, dim=dim, width=widths)
             read_centroid(chkpt, new_cent, c_grp, c_row)
             ints.add_centroid(new_cent)
 
@@ -556,14 +557,14 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
             pes.add_data(data_label, dset[c_row])
 
     # currently, momentum has to be read in separately
-    momt    = chkpt[c_grp+'/momentum'][t_row]
+    momt    = chkpt[c_grp+'/momentum'][c_row]
 
-    new_cent.parents = int(parent)
-    new_cent.states  = int(states)
+    new_cent.parents = [int(i) for i in parent]
+    new_cent.states  = [int(i) for i in states]
 
     new_cent.update_pes_info(pes)
-    new_cent.update_x(new_cent.pes.get_data('geom'))
-    new_cent.update_p(momt)
+    new_cent.pos = new_cent.pes.get_data('geom')
+    new_cent.mom = momt
 
 
 def get_time_index(chkpt, grp_name, time):

@@ -11,7 +11,7 @@ class Integral:
         self.kecoef    = kecoef
         self.ansatz    = ansatz
         self.numerical = numerical_eval
-        self.centroid  = []
+        self.centroids = []
         self.centroid_required = []
 
         # some logic to determine how to evaluate integrals
@@ -78,7 +78,7 @@ class Integral:
 
         if self.require_centroids:
             return self.ints_eval.v_integral(bra_traj, ket_traj,
-                                        self.centroid[bra_traj.label][ket_traj.label],
+                                        self.centroids[bra_traj.label][ket_traj.label],
                                         self.kecoef, nuc_ovrlp, elec_ovrlp)
         else:
             return self.ints_eval.v_integral(bra_traj, ket_traj, 
@@ -131,20 +131,20 @@ class Integral:
         """
         # minimum dimension required to hold this centroid
         ij           = new_cent.parents
-        new_dim_cent = max(ij)
-        dim_cent     = len(self.centroid)
+        new_dim_cent = max(ij)+1 # index of last trajectory is traj_id, dimension == traj_id+1
+        dim_cent     = len(self.centroids)
 
         # if current array is too small, expand by necessary number of dimensions
         if new_dim_cent > dim_cent:
             for i in range(dim_cent):
-                self.centroid[i].extend([None for j in range(new_dim_cent -
+                self.centroids[i].extend([None for j in range(new_dim_cent -
                                                                  dim_cent)])
 
             for i in range(new_dim_cent - dim_cent):
-                self.centroid.append([None for j in range(new_dim_cent)])
+                self.centroids.append([None for j in range(new_dim_cent)])
 
-        self.centroid[ij[0]][ij[1]] = new_cent
-        self.centroid[ij[1]][ij[0]] = new_cent
+        self.centroids[ij[0]][ij[1]] = new_cent
+        self.centroids[ij[1]][ij[0]] = new_cent
 
     #------------------------------------------------------
     #
@@ -159,7 +159,7 @@ class Integral:
         AND dead trajectories -- therefore it can only increase. So, only
         need to check n_traj > dim_cent condition.
         """
-        dim_cent = len(self.centroid)
+        dim_cent = len(self.centroids)
 
         # number of centroids already correct
         if wfn.n_traj() == dim_cent:
@@ -172,13 +172,13 @@ class Integral:
         # ...else we need to add more centroids
         if wfn.n_traj() > dim_cent:
             for i in range(dim_cent):
-                self.centroid[i].extend([None for j in range(wfn.n_traj() -
+                self.centroids[i].extend([None for j in range(wfn.n_traj() -
                                                              dim_cent)])
-                self.centroid_required[i].extend([None for j in range(wfn.n_traj() -
+                self.centroids_required[i].extend([None for j in range(wfn.n_traj() -
                                                                       dim_cent)])
 
             for i in range(wfn.n_traj() - dim_cent):
-                self.centroid.append([None for j in range(wfn.n_traj())])
+                self.centroids.append([None for j in range(wfn.n_traj())])
                 self.centroid_required.append([None for j in range(wfn.n_traj())])
 
         for i in range(wfn.n_traj()):
@@ -186,12 +186,12 @@ class Integral:
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
                 # required slots
-                if self.centroid[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
-                    self.centroid[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
+                if self.centroids[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
+                    self.centroids[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
                                                             traj_j=wfn.traj[j])
-                    self.centroid[i][j].update_x(wfn.traj[i],wfn.traj[j])
-                    self.centroid[i][j].update_p(wfn.traj[i],wfn.traj[j])
-                    self.centroid[j][i] = self.centroid[i][j]
+                    self.centroids[i][j].update_x(wfn.traj[i],wfn.traj[j])
+                    self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
+                    self.centroids[j][i] = self.centroids[i][j]
                 self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
                 self.centroid_required[j][i] = self.is_required(wfn.traj[j],wfn.traj[i])
 
