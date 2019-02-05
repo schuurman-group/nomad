@@ -232,17 +232,27 @@ def convert_value(kword, val):
     """Converts a string value to NoneType, bool, int, float or string."""
 
     cval = val
+   
+    # if we can't interpret this as a list, return the string
+    if str(cval).find(',',0) == -1:
+        return cval
+
     # we have some items that are lists of strings which are converted
     # to simple strings. Try to interpret as list, and if that fails, return
     # the value unchanged
-    if type(val) is str and 'file' not in kword.lower():
-        try:
-            cval = ast.literal_eval(val)
-            if isinstance(cval, list):
-                cval = np.ndarray(cval)
-        except ValueError:
-            pass 
+    try:
+        cval = ast.literal_eval(val)
+        if isinstance(cval, list):
+            cval = np.ndarray(cval)
+            return cval
+    except ValueError:
+        pass 
+    try:
+        cval = str(cval).split(',')
+    except ValueError:
+        pass
 
+    # else just a string and return as-is
     return cval
 
 def write_wavefunction(chkpt, wfn, time):

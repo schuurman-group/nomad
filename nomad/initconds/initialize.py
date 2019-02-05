@@ -117,6 +117,10 @@ def init_wavefunction():
 #----------------------------------------------------------------------------
 def set_initial_state(wfn):
     """Sets the initial state of the trajectories in the bundle."""
+
+    print("glbl.properties['init_state']="+str(glbl.properties['init_state']))
+    print("n_traj = "+str(wfn.n_traj()))
+    print("len[init_state] = "+str(len(glbl.properties['init_state'])))
     if glbl.properties['init_brightest']:
         # initialize to the state with largest transition dipole moment
         # set all states to the ground state

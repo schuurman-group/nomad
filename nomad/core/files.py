@@ -133,6 +133,7 @@ def parse_coords(valstr):
         # filename given, read in XYZ file
         with open(all_lines[0], 'r') as f:
             all_lines = f.read().split('\n')
+            nlines = len(all_lines)
 
     # read the geometries and momenta if applicable
     natms = []
@@ -140,14 +141,14 @@ def parse_coords(valstr):
     labels = []
     coords = []
     i = 0
-    while i < nlines:
+    while i < nlines-1:
         natm = int(all_lines[i])
         natms.append(natm)
         comms.append(all_lines[i+1].lower())
-        icoord = np.array([line.split() for line in all_lines[i+2:i+natm+2]])
-        labels.append(icoord[:,0])
-        coords.append(icoord[:,1:])
-        i += natm + 2
+        icoord = [line.split() for line in all_lines[i+2:i+natm+1]]
+        labels.append([atm[0] for atm in icoord])
+        coords.append(np.array([atm[1:] for atm in icoord]))
+        i += natm + 1 
 
     nmol = len(natms)
     natms = np.array(natms)

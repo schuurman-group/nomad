@@ -63,7 +63,7 @@ class Surface:
         return new_surface
 
 
-def update_pes(update_integrals=True):
+def update_pes(wfn, update_integrals=True):
     """Updates the potential energy surface."""
     global pes_cache
     success = True
