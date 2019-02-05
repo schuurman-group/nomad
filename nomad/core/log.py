@@ -115,7 +115,7 @@ def print_header():
                    '\n' +
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
-#                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.paths['home_path']) + '\n' +
+                   ' cwd         = ' + os.uname()[1] + ':' + str(glbl.paths['cwd']) + '\n' +
                    ' log_file    = ' + os.uname()[1] + ':' + glbl.paths['log_file'] + '\n' +
                    ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.paths['chkpt_file'] + '\n')
         logfile.write(log_str)

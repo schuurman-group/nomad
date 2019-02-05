@@ -132,7 +132,7 @@ def parse_coords(valstr):
     if nlines == 1:
         # filename given, read in XYZ file
         with open(all_lines[0], 'r') as f:
-            all_lines = f.read().split('\n')
+            all_lines = f.read().split('\n')[:-1]
             nlines = len(all_lines)
 
     # read the geometries and momenta if applicable
@@ -141,14 +141,14 @@ def parse_coords(valstr):
     labels = []
     coords = []
     i = 0
-    while i < nlines-1:
+    while i < nlines:
         natm = int(all_lines[i])
         natms.append(natm)
         comms.append(all_lines[i+1].lower())
-        icoord = [line.split() for line in all_lines[i+2:i+natm+1]]
-        labels.append([atm[0] for atm in icoord])
-        coords.append(np.array([atm[1:] for atm in icoord]))
-        i += natm + 1 
+        icoord = np.array([line.split() for line in all_lines[i+2:i+natm+2]])
+        labels.append(icoord[:,0])
+        coords.append(icoord[:,1:])
+        i += natm + 2
 
     nmol = len(natms)
     natms = np.array(natms)
@@ -182,13 +182,10 @@ def parse_coords(valstr):
         mom = coords[:,:,dcoord//2:].reshape(cshape[0], cshape[1]*cshape[2]//2)
         coords = np.array([[xi, pi] for xi, pi in zip(xyz, mom)])
 
-    # parse comment line to get units
+    # parse comment line to get units (Angstrom default in XYZ format)
     for i in range(nmol):
-        # for time being, assume coords ALWAYS in au
-#        xconv = 1. / constants.bohr2ang
-#        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
-        xconv = 1.
-        pconv = 1.
+        xconv = 1. / constants.bohr2ang
+        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
         if 'units=' in comms[i]:
             unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i])
             if unit == 'bohr':
@@ -225,7 +222,6 @@ def parse_value(valstr):
     By default, spaces and newlines will be treated as delimiters. The
     combination of both will be treated as a 2D array.
     """
-    # how is the Hessian handled?
     all_lines = valstr.split('\n')[:-1]
     split_lines = [line.split() for line in all_lines]
 

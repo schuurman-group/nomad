@@ -18,6 +18,7 @@ wfn0  = None
 ints0 = None
 ints  = None
 
+
 def main():
     """Runs the main nomad_extract routine."""
     global wfn0, ints0, ints
@@ -44,7 +45,6 @@ def main():
     # if this is a vibronic model, we need to load the vibronic Hamiltonian in order
     # to evaluate the integrals
     if glbl.methods['interface'] == 'vibronic':
-        
         glbl.modules['interface']  = __import__('nomad.interfaces.vibronic',
                                                 fromlist=['NA'])
         glbl.modules['interface'].init_interface()
@@ -58,7 +58,7 @@ def main():
         tvals = checkpoint.time_steps(None, 'wavefunction', chkpt_file)
         # try reading last time -- if anything fails, read up to the penultimate
         # time, i.e. we grabbed this checkpoint file during a write
-#        status = chk_last_write(tvals[-1])
+        # status = chk_last_write(tvals[-1])
         status = True
 
         for i in range(len(tvals)):
@@ -79,10 +79,9 @@ def main():
         wfn.update_matrices(mat)
         extract_data(wfn, mat, data)
 
+
 def chk_read(time):
     """try reading at time, if anything fails, return False"""
-
-
     return True
 
 
