@@ -8,12 +8,12 @@
  NBKITR = 1
  NVBKMN = 3
  RTOLBK = 1e-5,1e-5,1e-5,
- NITER = 120
+ NITER = 360
  NVCIMN = 5
  RTOLCI = 1e-5,1e-5,1e-5,
- NVCIMX = 10
- NVRFMX = 10
- NVBKMX = 10
+ NVCIMX = 12
+ NVRFMX = 12
+ NVBKMX = 12
   iden=2
  CSFPRN = 10, 
 /&end
