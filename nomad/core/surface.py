@@ -71,37 +71,37 @@ def update_pes(wfn, update_integrals=True):
     # this conditional checks to see if we actually need centroids,
     # even if propagator requests them
     if update_integrals:
-        glbl.modules['integrals'].update(glbl.modules['wfn'])
+        glbl.modules['integrals'].update(wfn)
 
     if glbl.mpi['parallel']:
         # update electronic structure
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
-        for i in range(glbl.modules['wfn'].n_traj()):
-            if glbl.modules['wfn'].traj[i].active and not cached(glbl.modules['wfn'].traj[i].label,
-                                                    glbl.modules['wfn'].traj[i].x()):
+        for i in range(wfn.n_traj()):
+            if wfn.traj[i].active and not cached(wfn.traj[i].label,
+                                                    wfn.traj[i].x()):
                 n_total += 1
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
-                    exec_list.append(glbl.modules['wfn'].traj[i])
+                    exec_list.append(wfn.traj[i])
 
         if update_integrals and glbl.modules['integrals'].require_centroids:
             # now update electronic structure in a controled way to allow for
             # parallelization
-            for i in range(glbl.modules['wfn'].n_traj()):
+            for i in range(wfn.n_traj()):
                 for j in range(i):
                     if glbl.modules['integrals'].centroid_required[i][j] and not \
                                              cached(integrals.centroid[i][j].label,
                                                     integrals.centroid[i][j].x()):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
-                            exec_list.append(glbl.modules['wfn'].cent[i][j])
+                            exec_list.append(wfn.cent[i][j])
 
         local_results = []
         for i in range(len(exec_list)):
             if type(exec_list[i]) is trajectory.Trajectory:
-                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i], glbl.modules['wfn'].time)
+                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i], wfn.time)
             elif type(exec_list[i]) is centroid.Centroid:
-                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i], glbl.modules['wfn'].time)
+                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i], wfn.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
@@ -116,13 +116,13 @@ def update_pes(wfn, update_integrals=True):
 
         # update the bundle:
         # live trajectories
-        for i in range(glbl.modules['wfn'].n_traj()):
-            if glbl.modules['wfn'].traj[i].alive:
-                glbl.modules['wfn'].traj[i].update_pes_info(pes_cache[glbl.modules['wfn'].traj[i].label])
+        for i in range(wfn.n_traj()):
+            if wfn.traj[i].alive:
+                wfn.traj[i].update_pes_info(pes_cache[wfn.traj[i].label])
 
         # and centroids
         if update_integrals and glbl.modules['integrals'].require_centroids:
-            for i in range(glbl.modules['wfn'].n_traj()):
+            for i in range(wfn.n_traj()):
                 for j in range(i):
                     c_label = glbl.modules['integrals'].centroid[i][j].label
                     if c_label in pes_cache:
@@ -134,20 +134,20 @@ def update_pes(wfn, update_integrals=True):
     # but unlikely to ever be bottleneck)
     else:
         # iterate over trajectories..
-        for i in range(glbl.modules['wfn'].n_traj()):
-            if glbl.modules['wfn'].traj[i].active:
-                pes_traji = glbl.modules['interface'].evaluate_trajectory(glbl.modules['wfn'].traj[i], glbl.modules['wfn'].time)
-                glbl.modules['wfn'].traj[i].update_pes_info(pes_traji)
+        for i in range(wfn.n_traj()):
+            if wfn.traj[i].active:
+                pes_traji = glbl.modules['interface'].evaluate_trajectory(wfn.traj[i], wfn.time)
+                wfn.traj[i].update_pes_info(pes_traji)
 
         # ...and centroids if need be
         if update_integrals and glbl.modules['integrals'].require_centroids:
 
-            for i in range(glbl.modules['wfn'].n_traj()):
+            for i in range(wfn.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it
                     if glbl.modules['integrals'].centroid_required[i][j]:
                         pes_centij = glbl.modules['interface'].evaluate_centroid(
-                                          glbl.modules['integrals'].centroid[i][j], glbl.modules['wfn'].time)
+                                          glbl.modules['integrals'].centroid[i][j], wfn.time)
                         glbl.modules['integrals'].centroid[i][j].update_pes_info(pes_centij)
                         glbl.modules['integrals'].centroid[j][i] = glbl.modules['integrals'].centroid[i][j]
 
