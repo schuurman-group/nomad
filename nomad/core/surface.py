@@ -90,8 +90,8 @@ def update_pes(wfn, update_integrals=True):
             for i in range(wfn.n_traj()):
                 for j in range(i):
                     if glbl.modules['integrals'].centroid_required[i][j] and not \
-                                             cached(integrals.centroid[i][j].label,
-                                                    integrals.centroid[i][j].x()):
+                                             cached(integrals.centroids[i][j].label,
+                                                    integrals.centroids[i][j].x()):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                             exec_list.append(wfn.cent[i][j])
@@ -124,10 +124,10 @@ def update_pes(wfn, update_integrals=True):
         if update_integrals and glbl.modules['integrals'].require_centroids:
             for i in range(wfn.n_traj()):
                 for j in range(i):
-                    c_label = glbl.modules['integrals'].centroid[i][j].label
+                    c_label = glbl.modules['integrals'].centroids[i][j].label
                     if c_label in pes_cache:
-                        glbl.modules['integrals'].centroid[i][j].update_pes_info(c_label)
-                        glbl.modules['integrals'].centroid[j][i] = glbl.modules['integrals'].centroid[i][j]
+                        glbl.modules['integrals'].centroids[i][j].update_pes_info(c_label)
+                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]
 
     # if parallel overhead not worth the time and effort (eg. pes known in closed form),
     # simply run over trajectories in serial (in theory, this too could be cythonized,
@@ -147,9 +147,9 @@ def update_pes(wfn, update_integrals=True):
                 # if centroid not initialized, skip it
                     if glbl.modules['integrals'].centroid_required[i][j]:
                         pes_centij = glbl.modules['interface'].evaluate_centroid(
-                                          glbl.modules['integrals'].centroid[i][j], wfn.time)
-                        glbl.modules['integrals'].centroid[i][j].update_pes_info(pes_centij)
-                        glbl.modules['integrals'].centroid[j][i] = glbl.modules['integrals'].centroid[i][j]
+                                          glbl.modules['integrals'].centroids[i][j], wfn.time)
+                        glbl.modules['integrals'].centroids[i][j].update_pes_info(pes_centij)
+                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]
 
     return success
 

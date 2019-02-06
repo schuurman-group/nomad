@@ -174,7 +174,7 @@ class Integral:
             for i in range(dim_cent):
                 self.centroids[i].extend([None for j in range(wfn.n_traj() -
                                                              dim_cent)])
-                self.centroids_required[i].extend([None for j in range(wfn.n_traj() -
+                self.centroid_required[i].extend([None for j in range(wfn.n_traj() -
                                                                       dim_cent)])
 
             for i in range(wfn.n_traj() - dim_cent):
