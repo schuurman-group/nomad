@@ -18,10 +18,13 @@ pes_cache  = dict()
 class Surface:
     """Object containing potential energy surface data."""
     def __init__(self):
-        self.standard_objs = ['geom','potential','derivative','hessian','coupling']
-        self.optional_objs = ['mo','dipole','atom_pop','sec_mom',
-                              'diabat_pot','diabat_deriv','diabat_hessian',
-                              'adt_mat','dat_mat','nac','scalar_coup']
+        self.standard_objs   = ['geom','potential','derivative','hessian','coupling']
+        self.mo_objs         = ['mo']
+        self.electronic_objs = ['dipole','atom_pop','sec_mom']
+        self.vibronic_objs   = ['diabat_pot','diabat_deriv','diabat_hessian',
+                                'adt_mat','dat_mat','nac','scalar_coup']
+        self.all_objs      = (self.standard_objs + self.mo_objs + 
+                              self.electronic_objs + self.vibronic_objs)
 
         # these are the standard quantities ALL interface_data objects return
         self.data = dict()
@@ -32,7 +35,7 @@ class Surface:
 
     def add_data(self, key, value):
         """Adds new item to dictionary"""
-        if key in self.standard_objs + self.optional_objs:
+        if key in self.all_objs:
             self.data[key] = value
         else:
             raise KeyError('Cannot add key='+str(key)+' to Surface instance: invalid key')
@@ -50,7 +53,7 @@ class Surface:
 
     def valid_data(self, key):
         """Return true if data is valid for addition to surface object"""
-        return key in self.standard_objs+self.optional_objs
+        return key in self.all_objs
 
     def copy(self):
         """Creates a copy of a Surface object."""

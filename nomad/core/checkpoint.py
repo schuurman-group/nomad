@@ -14,7 +14,7 @@ import nomad.integrals.centroid as centroid
 
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
-               'dipole', 'tr_dipole', 'secm', 'apop']
+               'dipole', 'tr_dipole', 'sec_mom', 'atom_pop']
 bkeys       = ['pop', 'energy', 'auto']
 dump_header = dict()
 dump_format = dict()
@@ -466,6 +466,7 @@ def read_wavefunction(chkpt, time):
 
     for label in chkpt['wavefunction']:
 
+        #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
             continue
 
