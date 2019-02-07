@@ -94,7 +94,7 @@ properties = dict(
     continuous_min_overlap = 0.5,
     init_amps           = [1+0j],
     init_amp_overlap    = True,
-    print_level         = 1
+    print_level         = 3 
                   )
 
 sections = dict(

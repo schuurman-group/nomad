@@ -186,8 +186,8 @@ def parse_coords(valstr):
     for i in range(nmol):
         xconv = 1. / constants.bohr2ang
         pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
-        if 'units=' in comms[i]:
-            unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i])
+        if 'units=' in comms[i].lower():
+            unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i].lower())
             if unit == 'bohr':
                 xconv = 1.
                 pconv = 1.
