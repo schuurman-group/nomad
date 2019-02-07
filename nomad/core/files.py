@@ -182,15 +182,15 @@ def parse_coords(valstr):
         mom = coords[:,:,dcoord//2:].reshape(cshape[0], cshape[1]*cshape[2]//2)
         coords = np.array([[xi, pi] for xi, pi in zip(xyz, mom)])
 
-    # parse comment line to get units (Angstrom default in XYZ format)
+    # parse comment line to get units (Bohr is default in XYZ format)
     for i in range(nmol):
-        xconv = 1. / constants.bohr2ang
-        pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
-        if 'units=' in comms[i].lower():
-            unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i].lower())
-            if unit == 'bohr':
-                xconv = 1.
-                pconv = 1.
+        xconv = 1.
+        pconv = 1.
+        if 'units=' in comms[i] and 'angstrom' in comms[i]:
+            #unit = re.sub(r'units\s*=\s*(.*[a-z])\s.*', r'\1', comms[i])
+            #if unit == 'bohr':
+            xconv = 1. / constants.bohr2ang
+            pconv = constants.amu2au / (constants.fs2au * constants.bohr2ang)
         coords[:,0] *= xconv
         coords[:,1] *= pconv
 
