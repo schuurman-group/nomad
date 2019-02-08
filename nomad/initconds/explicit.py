@@ -4,12 +4,14 @@ Sample a specific geometry or set of geometries.
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.trajectory as trajectory
-
+import nomad.core.log as log
 
 def set_initial_coords(wfn):
     """Takes initial position and momentum from geometry specified in input"""
     coords = glbl.properties['init_coords']
     ndim   = coords.shape[-1]
+
+    log.print_message('string',[' Initial coordinates taken from input file(s).\n'])
 
     for coord in coords:
         itraj = trajectory.Trajectory(glbl.properties['n_states'], ndim,

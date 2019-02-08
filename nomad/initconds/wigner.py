@@ -18,6 +18,8 @@ def set_initial_coords(wfn):
     else:
         coordtype = 'cart'
 
+    log.print_message('string',[' sampling from v=0 Wigner distribution.\n'])
+
     # if multiple geometries, just take the first one
     coords = glbl.properties['init_coords']
     ndim = coords.shape[-1]
@@ -57,7 +59,7 @@ def set_initial_coords(wfn):
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes, np.transpose(modes))
-        log.print_message('string',['\n -- frequencies from hessian.dat --\n'])
+        log.print_message('string',[' -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
     # equal to the total number of modes of the model
@@ -70,7 +72,7 @@ def set_initial_coords(wfn):
         log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies
-    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm)
+    fstr = '\n'.join(['{0:.5f} au == {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm)
                                                        for j in range(n_modes)])
     log.print_message('string',[fstr+'\n'])
 

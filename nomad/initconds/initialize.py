@@ -18,6 +18,10 @@ def init_wavefunction():
     # the PES. There are some details here that trajectories
     # will want to know about
 
+    log.print_message('string',['\n **************\n'+ 
+                                  ' initialization\n'+
+                                  ' **************\n'])
+
     # creat the wave function instance
     glbl.modules['wfn']        = wavefunction.Wavefunction()
 
@@ -37,6 +41,10 @@ def init_wavefunction():
 
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
+
+        # print to logfile that we're restarting simulation
+        log.print_message('string',[' restarting simulation from checkpoint file: '
+                                     +str(glbl.paths['chkpt_file'])+'\n'])
 
         # retrieve current wave function, no arguments defaults to most recent simulation
         [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation()
@@ -103,6 +111,10 @@ def init_wavefunction():
     # write the wavefunction to the archive
     if glbl.mpi['rank'] == 0:
         checkpoint.archive_simulation(glbl.modules['wfn'], glbl.modules['integrals'])
+
+    log.print_message('string',['\n ***********\n'+
+                                  ' propagation\n'+
+                                  ' ***********\n\n'])
 
     log.print_message('t_step', [glbl.modules['wfn'].time, glbl.properties['default_time_step'],
                                       glbl.modules['wfn'].nalive])
