@@ -16,8 +16,7 @@ module propagate_module
  character(len=120)             :: chkpt               
   
  integer                        :: n_sim
- character(len=120),allocatable :: nomad_files(:)
- type(keyword_list)             :: nomad_params
+ type(keyword_list)             :: params
 
 
  contains
@@ -86,11 +85,11 @@ module propagate_module
 
   ! read the simulation parameters, check that all files are
   ! consistent in the ways that matter
-  call init_table(nomad_params, 100)
-  call read_params(nomad_files, nomad_params)
+  call init_table(params, 100)
+  call read_params(chkpt, params)
 
   ! read in the trajectory information
-  call read_trajectories(nomad_files, ti, tf)
+  call read_trajectories(chkpt, ti, tf)
 
 
  end subroutine initialize_prop
@@ -107,38 +106,4 @@ module propagate_module
 
 
 !------------------------------------------------
-
- !
- !
- !
- subroutine build_file_list()
-  implicit none
-  character(len=5)        :: file_index
-  character(len=120)      :: file_name
-  logical                 :: file_exists
-  integer                 :: i
-
-  i = 1
-  file_loop: do
-    write(file_index,'(i5)')i
-    file_name   = trim(adjustl(chkpt))//'.'//trim(adjustl(file_index))
-    inquire(file=file_name, exist=file_exists)
- 
-    if(.not.file_exists) exit file_loop
-    i = i + 1
-  enddo file_loop
- 
-  n_sim = i-1
-  allocate(nomad_files(n_sim))
- 
-  do i=1,n_sim
-    write(file_index,'(i5)')i
-    file_name      = trim(adjustl(chkpt))//'.'//trim(adjustl(file_index))
-    nomad_files(i) = file_name
-  enddo
-
-
- end subroutine build_file_list
-
-end module propagate_module
 

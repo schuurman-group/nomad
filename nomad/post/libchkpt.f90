@@ -48,12 +48,11 @@ module libchkpt
  !
  !
  !
- subroutine read_params(file_list, params)
+ subroutine read_params(chkpt, params)
    implicit none
-   character(len=120),intent(in)    :: file_list(:)
+   character(len=120),intent(in)    :: chkpt
    type(keyword_list),intent(inout) :: params
 
-   integer                          :: nfiles
    integer                          :: error
    type(c_ptr)                      :: params_ptr
    type(c_funptr)                   :: parse_params_ptr
@@ -64,92 +63,36 @@ module libchkpt
    integer                          :: nkey
    integer                          :: igrp,ikey
 
-   ! total number of hdf5 chkpoint files to scan
-   !
-   nfiles = size(file_list)
-
    ! open first file and read in parameter list
    !
-   call h5fopen_f (file_list(1), H5F_ACC_RDONLY_F, file_id, error)
+   call h5fopen_f (chkpt, H5F_ACC_RDONLY_F, file_id, error)
    
    ! Open simulation group
    !
    call h5oget_info_by_name_f(file_id, "/", infobuf, error)
 
-   ! initialize group data pointer
-   grp_data%ngrp      = 0
-   grp_data%ndset     = 0
-   grp_data%root_name = "/"
-   ! Iterate over the groups in root
-   !
    idx              = 0
    parse_params_ptr = c_funloc(parse_params)
-   null_ptr         = c_loc(params)
+   params_ptr       = c_loc(params)
    call h5literate_f(file_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_params_ptr, params_ptr, ret_value, error) 
+
+!   params%n_keys = params%n_keys+1
 
    call h5fclose_f(file_id, error)
 
  end subroutine read_params
 
- subroutine read_trajectories(file_list, ti, tf)
+ !
+ !
+ !
+ subroutine read_trajectories(chkpt, ti, tf)
    implicit none
-   character(len=120),intent(in)  :: file_list(:)
-   double precision, intent(in)               :: ti
-   double precision, intent(in)               :: tf
+   character(len=120),intent(in)  :: chkpt 
+   double precision, intent(in)   :: ti
+   double precision, intent(in)   :: tf
 
-   integer                        :: nfiles
    integer                        :: ret_value, error
    type(c_ptr)                    :: null_ptr
-   type(c_funptr)                 :: parse_wfn_ptr
-   type(h5o_info_t)               :: infobuf
-   integer(hid_t)                 :: file_id, grp_id
-   integer(hsize_t)               :: idx
-   integer                        :: ifile, igrp
-
-
-   ! total number of hdf5 chkpoint files to scan
-   !
-   nfiles = size(file_list)
-
-   do ifile = 1,nfiles
-
-    ! open first file and read in parameter list
-    call h5fopen_f (file_list(1), H5F_ACC_RDONLY_F, file_id, error)
-
-    ! open wavefunction group
-    call h5gopen_f(file_id, "/wavefunction", grp_id, error)
-
-    ! initialize group data pointer
-    grp_data%ngrp      = 0
-    grp_data%ndset     = 0
-    grp_data%root_name = "/wavefunction"
-    ! Iterate over the groups in root
-    !
-    idx             = 0
-    parse_wfn_ptr   = c_funloc(parse_wfn)
-    null_ptr        = C_NULL_PTR
-    call h5literate_f(grp_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_wfn_ptr, null_ptr, ret_value, error)
-   
-    do igrp = 1,grp_data%ngrp
-     ! if this is a keyword section.
-     if(index(grp_data%grp_names(igrp),'trajectory').ne.0) then
-      print *,'trajectory=',grp_data%grp_names(igrp)
- !     call h5dopen_f(file, dataset, dset, hdferr)
- !     call h5aopen_f(grp_data%grp_ids(igrp), attribute, attr, error)
- 
-      ! get the number of keywords
- !     call h5aget_num_attrs_f(grp_data%grp_ids(igrp), nkey, error)
- !     print *,'nattr=',nkey
-      ! loop over attribles
- !    do ikey = 1,nkey  
- !     call 
-
-     endif
-    enddo
-
-    call h5gclose_f(grp_id,error)
-    call h5fclose_f(file_id, error)
-   enddo 
 
  end subroutine read_trajectories
 
@@ -157,7 +100,6 @@ module libchkpt
  !
  !
  function parse_params(obj_id, item_name, info, params_ptr) result(return_val) bind(c)
-   use hdf5
    use iso_c_binding
    implicit none
 
@@ -172,6 +114,9 @@ module libchkpt
    type(h5o_info_t), target                    :: infobuf
    character(len=20)                           :: name_string
    integer(hsize_t)                            :: nkey,ikey
+   integer(hid_t)                              :: attr_id
+   integer(size_t)                             :: n_size
+   character(len=40)                           :: n_buf
 
     !
     ! Initialize FORTRAN interface.
@@ -201,12 +146,15 @@ module libchkpt
 
     ! if this is a keyword group, read all the attributes
     if(infobuf%type.eq.H5O_TYPE_GROUP_F .and. index(name_string(1:len),'keywords').ne.0) then
+     print *,'section: ',name_string(1:len),' is a keyword section'
      nkey = infobuf%num_attrs
-     do ikey = 1,nkey
+     print *,'number of attributes: ',nkey
+     do ikey = 0,nkey-1,1
        call h5aopen_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, attr_id, stat)  
-       call h5aget_name_f(attr_id, size, buf, hdferr)
-       call 
-
+       print *,'attr_id = ',attr_id
+       call h5aget_name_f(attr_id, n_size, n_buf, stat)
+       print *,'size = ',n_size
+       print *,'attribute name=',n_buf
      enddo
     elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
       return
@@ -215,10 +163,12 @@ module libchkpt
     endif
 
     return
- end function parse_simulation
+ end function parse_params
 
- function parse_wfn(obj_id, item_name, info, null_ptr) result(return_val) bind(c)
-   use hdf5
+ !
+ !
+ !
+ function parse_wfn(obj_id, item_name, info, null_ptr) result(ret_val) bind(c)
    use iso_c_binding
    implicit none
 
@@ -226,9 +176,11 @@ module libchkpt
    character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
    type(c_ptr),value, intent(in)               :: info
    type(c_ptr),value, intent(in)               :: null_ptr
+   integer                                     :: ret_val
 
-   integer(hsize_t)                            :: dset_mem, dset_size
-   integer                                     :: stat, return_val
+   type(c_funptr)                              :: parse_traj_ptr
+   integer(hsize_t)                            :: idx, dset_mem, dset_size
+   integer                                     :: stat 
    integer                                     :: indx, len
    type(h5o_info_t), target                    :: infobuf
    character(len=20)                           :: name_string
@@ -239,7 +191,8 @@ module libchkpt
     !
     CALL h5open_f(stat)
 
-    return_val = stat
+    parse_traj_ptr = c_funloc(parse_traj)
+    ret_val = stat
 
     name_string(1:20) = " "
     len = 0
@@ -252,12 +205,12 @@ module libchkpt
     print *,'name_string=|',name_string(1:len),'|'
 
     call H5Oget_info_by_name_f(obj_id, name_string(1:len), infobuf, stat)
-    return_val = return_val.and.stat
+    ret_val = ret_val.and.stat
 
     ! check if this group is a trajectory
     if(infobuf%type.eq.H5O_TYPE_GROUP_F) then
  
-     call h5literate_f(obj_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_traj_ptr, null_ptr, ret_value, error)
+     call h5literate_f(obj_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_traj_ptr, null_ptr, ret_val, stat)
 
     elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
       
@@ -267,7 +220,7 @@ module libchkpt
         dset_size = int(dset_mem/8.)
         print *,'time size, mem=',dset_size,dset_mem
         allocate(tbuf(dset_size))
-        call h5dread_f(obj_id, H5T_NATIVE_FLOAT, tbuf, (/ dset_size /), stat)
+!        call h5dread_f(obj_id, H5T_NATIVE_FLOAT, tbuf, (/ dset_size /), stat)
         print *,'read complete'
 
       elseif(index(name_string,'energy')) then
@@ -280,25 +233,31 @@ module libchkpt
 
       else 
         stop 'error: do not recognize wavefunction group data set'
-  
+      endif
+     
+    else
+      stop 'ERROR: do not recognize data type...'
     endif
 
-    if(allocated)deallocate(tbuf)
+    if(allocated(tbuf))deallocate(tbuf)
     return
  end function parse_wfn
 
  !
  !
  !
- subroutine parse_traj(traj_id, traj_name)
-   implicit none
-   integer(hid_t), value, intent(in)           :: traj_id
-   character(len=20),,intent(in)               :: traj_name
-   type(h5o_info_t), target                    :: info
+ function parse_traj(obj_id, item_name, info, null_ptr) result (ret_val) bind(c)
+  use iso_c_binding
+  implicit none
+  integer(hid_t), value, intent(in)           :: obj_id
+  character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
+  type(c_ptr),value, intent(in)               :: info
+  type(c_ptr),value, intent(in)               :: null_ptr
+  integer                                     :: ret_val
 
-   print *,'should be traj name: ',traj_name
+  print *,'should be traj name: ',item_name
    
- end subroutine
+ end function parse_traj
 
  !
  !
