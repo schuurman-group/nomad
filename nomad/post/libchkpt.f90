@@ -48,6 +48,24 @@ module libchkpt
  !
  !
  !
+ subroutine read_chkpt(t_min, t_max, chkpt_file, traj_list )
+   implicit none
+   real, intent(in)               :: t_min
+   real, intent(in)               :: t_max
+   character(len=120), intent(in) :: chkpt_file
+   type(traj_basis),intent(inout) :: traj_list
+
+   print *,'chkpt_file=',chkpt_file
+
+   if(allocated(traj_list%t_basis))deallocate(traj_list%t_basis)
+   if(allocated(traj_list%times))deallocate(traj_list%times)
+
+   return
+ end subroutine read_chkpt
+
+ !
+ !
+ !
  subroutine read_params(chkpt, params)
    implicit none
    character(len=120),intent(in)    :: chkpt
@@ -55,7 +73,7 @@ module libchkpt
 
    integer                          :: error
    type(c_ptr)                      :: params_ptr
-   type(c_funptr)                   :: parse_params_ptr
+   type(c_funptr)                   :: parse_kwd_ptr
    type(h5o_info_t)                 :: infobuf
    integer(hid_t)                   :: file_id
    integer(hsize_t)                 :: idx
@@ -71,10 +89,10 @@ module libchkpt
    !
    call h5oget_info_by_name_f(file_id, "/", infobuf, error)
 
-   idx              = 0
-   parse_params_ptr = c_funloc(parse_params)
-   params_ptr       = c_loc(params)
-   call h5literate_f(file_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_params_ptr, params_ptr, ret_value, error) 
+   idx           = 0
+   parse_kwd_ptr = c_funloc(parse_keywords)
+   params_ptr    = c_loc(params)
+   call h5literate_f(file_id, H5_INDEX_NAME_F, H5_ITER_NATIVE_F, idx, parse_kwd_ptr, params_ptr, ret_value, error) 
 
 !   params%n_keys = params%n_keys+1
 
@@ -99,14 +117,14 @@ module libchkpt
  !
  !
  !
- function parse_params(obj_id, item_name, info, params_ptr) result(return_val) bind(c)
+ function parse_keywords(obj_id, item_name, info, params_ptr) result(return_val) bind(c)
    use iso_c_binding
    implicit none
 
    integer(hid_t), value, intent(in)           :: obj_id
    character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
-   type(c_ptr),value, intent(in)               :: info
-   type(c_ptr),value, intent(in)               :: params_ptr
+   type(c_ptr),value                           :: info
+   type(c_ptr),value                           :: params_ptr
 
    integer                                     :: stat, return_val
    integer                                     :: indx, len
@@ -124,10 +142,10 @@ module libchkpt
     CALL h5open_f(stat)
 
     return_val = stat
-    
+
     name_string(1:20) = " "
     len = 0
-    do 
+    do
        len = len + 1
        if(item_name(len)(1:1).eq.C_NULL_CHAR) exit
        name_string(len:len) = item_name(len)(1:1)
@@ -150,7 +168,7 @@ module libchkpt
      nkey = infobuf%num_attrs
      print *,'number of attributes: ',nkey
      do ikey = 0,nkey-1,1
-       call h5aopen_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, attr_id, stat)  
+       call h5aopen_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, attr_id, stat)
        print *,'attr_id = ',attr_id
        call h5aget_name_f(attr_id, n_size, n_buf, stat)
        print *,'size = ',n_size
@@ -158,12 +176,13 @@ module libchkpt
      enddo
     elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
       return
-    else 
+    else
       stop 'ERROR -- cannot identify section...'
     endif
 
     return
- end function parse_params
+ end function parse_keywords
+
 
  !
  !
@@ -174,8 +193,8 @@ module libchkpt
 
    integer(hid_t), value, intent(in)           :: obj_id
    character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
-   type(c_ptr),value, intent(in)               :: info
-   type(c_ptr),value, intent(in)               :: null_ptr
+   type(c_ptr),value                           :: info
+   type(c_ptr),value                           :: null_ptr
    integer                                     :: ret_val
 
    type(c_funptr)                              :: parse_traj_ptr
@@ -246,38 +265,21 @@ module libchkpt
  !
  !
  !
- function parse_traj(obj_id, item_name, info, null_ptr) result (ret_val) bind(c)
-  use iso_c_binding
-  implicit none
-  integer(hid_t), value, intent(in)           :: obj_id
-  character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
-  type(c_ptr),value, intent(in)               :: info
-  type(c_ptr),value, intent(in)               :: null_ptr
-  integer                                     :: ret_val
+ function parse_traj(obj_id, item_name, info, null_ptr) result(ret_val) bind(c)
+   use iso_c_binding
+   implicit none
 
-  print *,'should be traj name: ',item_name
+   integer(hid_t), value, intent(in)           :: obj_id
+   character(len=1),dimension(1:20),intent(in) :: item_name ! Must have LEN=1 for bind(C) strings   
+   type(c_ptr),value                           :: info
+   type(c_ptr),value                           :: null_ptr
+   integer                                     :: ret_val
+
+   ret_val = 1
    
  end function parse_traj
 
- !
- !
- !
- subroutine read_chkpt(t_min, t_max, chkpt_file, traj_list )
-   implicit none
-   real, intent(in)               :: t_min
-   real, intent(in)               :: t_max
-   character(len=120), intent(in) :: chkpt_file
-   type(traj_basis),intent(inout) :: traj_list
-
-   print *,'chkpt_file=',chkpt_file
-
-   if(allocated(traj_list%t_basis))deallocate(traj_list%t_basis)
-   if(allocated(traj_list%times))deallocate(traj_list%times)
-
-   return
- end subroutine read_chkpt
-
- end module libchkpt
+end module libchkpt
 
 
 

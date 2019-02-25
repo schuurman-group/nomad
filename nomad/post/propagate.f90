@@ -80,9 +80,6 @@ module propagate_module
   ! initialize HDF5 system
   call h5open_f(ierr)
 
-  ! identify all the checkpont files that are going to be read
-  call build_file_list()
-
   ! read the simulation parameters, check that all files are
   ! consistent in the ways that matter
   call init_table(params, 100)
@@ -105,5 +102,6 @@ module propagate_module
  end subroutine propagate
 
 
+end module propagate_module
 !------------------------------------------------
 
