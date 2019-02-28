@@ -159,27 +159,23 @@ class Integral:
         AND dead trajectories -- therefore it can only increase. So, only
         need to check n_traj > dim_cent condition.
         """
-        dim_cent = len(self.centroids)
 
-        # number of centroids already correct
-        if wfn.n_traj() == dim_cent:
-            return
+        n_traj   = wfn.n_traj()
+        dim_cent = len(self.centroids)
+        dim_req  = len(self.centroid_required)
 
         # n_traj includes living and dead -- this condition should never be satisfied
         if wfn.n_traj() < dim_cent:
             raise ValueError('n_traj() < dim_cent in wfn. Exiting...')
 
-        # ...else we need to add more centroids
-        if wfn.n_traj() > dim_cent:
+        if dim_cent < n_traj:
             for i in range(dim_cent):
-                self.centroids[i].extend([None for j in range(wfn.n_traj() -
-                                                             dim_cent)])
-                self.centroid_required[i].extend([None for j in range(wfn.n_traj() -
-                                                                      dim_cent)])
-
-            for i in range(wfn.n_traj() - dim_cent):
-                self.centroids.append([None for j in range(wfn.n_traj())])
-                self.centroid_required.append([None for j in range(wfn.n_traj())])
+                self.centroids[i].extend([None for j in range(n_traj - dim_cent)])
+            self.centroids.extend([[None for j in range(n_traj - dim_cent)] for k in range(n_traj)])
+        if dim_req < n_traj:
+            for i in range(dim_req):
+                self.centroid_required[i].extend([None for j in range(n_traj - dim_req)])
+            self.centroid_required.extend([[None for j in range(n_traj - dim_req)] for k in range(n_traj)])
 
         for i in range(wfn.n_traj()):
             for j in range(i):
@@ -193,7 +189,7 @@ class Integral:
                     self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
                     self.centroids[j][i] = self.centroids[i][j]
                 self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
-                self.centroid_required[j][i] = self.is_required(wfn.traj[j],wfn.traj[i])
+                self.centroid_required[j][i] = self.centroid_required[i][j]
 
     def is_required(self, traj1, traj2):
         """Documentation to come"""
