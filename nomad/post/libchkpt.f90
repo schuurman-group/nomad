@@ -131,10 +131,13 @@ module libchkpt
    type(keyword_list),pointer                  :: keywords
    type(h5o_info_t), target                    :: infobuf
    character(len=20)                           :: name_string
-   integer(hsize_t)                            :: nkey,ikey
-   integer(hid_t)                              :: attr_id
+   integer(hsize_t)                            :: nkey,ikey,stor_size
+   integer(hid_t)                              :: attr_id, lapl_id, data_type
    integer(size_t)                             :: n_size
-   character(len=40)                           :: n_buf
+   character(len=120)                          :: n_buf
+   character(len=120),target                   :: a_val
+   integer(hsize_t),dimension(1)               :: dims
+   type(c_ptr)                                 :: read_ptr
 
     !
     ! Initialize FORTRAN interface.
@@ -168,11 +171,20 @@ module libchkpt
      nkey = infobuf%num_attrs
      print *,'number of attributes: ',nkey
      do ikey = 0,nkey-1,1
-       call h5aopen_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, attr_id, stat)
-       print *,'attr_id = ',attr_id
-       call h5aget_name_f(attr_id, n_size, n_buf, stat)
-       print *,'size = ',n_size
-       print *,'attribute name=',n_buf
+       call h5aget_name_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, n_buf, stat)
+       print *,"attr_name=",trim(adjustl(n_buf))
+       call h5aopen_by_name_f(obj_id, name_string(1:len), trim(adjustl(n_buf)), attr_id, stat)
+       print *,"stat,attr_id=",stat,attr_id 
+       call h5aget_type_f(attr_id, data_type, stat) 
+       print *,"data_type=",data_type
+       call h5aget_storage_size_f(attr_id, stor_size, stat)
+       dims(1) = 120
+       print *,'storage_size=',stor_size
+       read_ptr = c_loc(a_val(1:1))
+       call h5aread_f(attr_id, data_type, read_ptr, stat)
+       print *,'read stat=',stat
+       print *,"attr_value=",trim(adjustl(a_val))
+       call h5aclose_f(attr_id, stat)
      enddo
     elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
       return

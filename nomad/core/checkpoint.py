@@ -103,6 +103,13 @@ def time_steps(chkpt, grp_name, file_name=None):
 
     return steps
 
+def n_trajectories(chkpt_file):
+    """Documentation to come"""
+
+        # open checkpoint file
+    chkpt = h5py.File(chkpt_file, 'a', libver='latest')
+ 
+
 
 #------------------------------------------------------------------------------------
 #
