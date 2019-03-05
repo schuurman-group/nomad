@@ -171,13 +171,13 @@ class Integral:
         if dim_cent < n_traj:
             for i in range(dim_cent):
                 self.centroids[i].extend([None for j in range(n_traj - dim_cent)])
-            self.centroids.extend([[None for j in range(n_traj - dim_cent)] for k in range(n_traj)])
+            self.centroids.extend([[None for j in range(n_traj)] for k in range(n_traj - dim_cent)])
         if dim_req < n_traj:
             for i in range(dim_req):
                 self.centroid_required[i].extend([None for j in range(n_traj - dim_req)])
-            self.centroid_required.extend([[None for j in range(n_traj - dim_req)] for k in range(n_traj)])
+            self.centroid_required.extend([[None for j in range(n_traj)] for k in range(n_traj - dim_req)])
 
-        for i in range(wfn.n_traj()):
+        for i in range(n_traj):
             for j in range(i):
                 # now check to see if needed index has an existing trajectory
                 # if not, copy trajectory from one of the parents into the
