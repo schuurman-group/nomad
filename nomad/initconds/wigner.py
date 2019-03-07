@@ -102,8 +102,8 @@ def set_initial_coords(wfn):
                         break
                 if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
                     raise ValueError('Cannot get mode overlap > ' +
-				     str(glbl.properties['init_mode_min_olap']) +
-				     ' within ' + str(max_try) + ' attempts. Exiting...')
+                                     str(glbl.properties['init_mode_min_olap']) +
+                                     ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp
 
