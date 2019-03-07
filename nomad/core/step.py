@@ -69,7 +69,10 @@ def step_wavefunction(dt):
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
             if basis_grown and glbl.modules['integrals'].require_centroids:
+                print("update_pes following a spawn event...")
                 evaluate.update_pes(glbl.modules['wfn'])
+                print("ntraj="+str(glbl.modules['wfn'].n_traj())+" len(centroids)="+str(len(glbl.modules['integrals'].centroids)))
+                print("centroids="+str(glbl.modules['integrals'].centroids))
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:

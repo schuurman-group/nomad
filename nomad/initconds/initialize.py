@@ -49,6 +49,33 @@ def init_wavefunction():
         # retrieve current wave function, no arguments defaults to most recent simulation
         [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation()
 
+        # check that we have all the data we need to propagate the first step -- otherwise, we 
+        # need to update the potential
+        update_surface = False
+        for i in range(glbl.modules['wfn'].n_traj()):
+            if glbl.modules['wfn'].traj[i].alive and glbl.modules['wfn'].traj[i].active:
+                pes_data = glbl.modules['wfn'].traj[i].pes
+                if ('potential' not in pes_data.avail_data() or 
+                    'derivative' not in pes_data.avail_data()):
+                    update_suface = True
+            if glbl.modules['integrals'].require_centroids:
+                for j in range(i):
+                    pes_data = glbl.modules['integrals'].centroids[i][j].pes
+                    if glbl.modules['integrals'].centroid_required[i][j]:
+                        if ('potential' not in pes_data.avail_data() and
+                            glbl.modules['wfn'].traj[i].state == 
+                            glbl.modules['wfn'].traj[j].state):
+                            update_surface = True
+                        if ('derivative' not in pes_data.avail_data() and 
+                            glbl.modules['wfn'].traj[i].state != 
+                            glbl.modules['wfn'].traj[j].state):
+                            update_surface = True
+        if update_surface:
+            evaluate.update_pes(glbl.modules['wfn'])
+            # update the couplings for all the trajectories
+            for i in range(glbl.modules['wfn'].n_traj()):
+                glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
+
         # build the necessary matrices
         glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])

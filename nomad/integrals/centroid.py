@@ -4,8 +4,8 @@ The Centroid object and its associated functions.
 import copy
 import numpy as np
 import nomad.core.timings as timings
+import nomad.core.surface as surface
 import nomad.math.constants as constants
-
 
 def cent_label(itraj_id, jtraj_id):
     """Returns the centroid id for centroid between traj_i, traj_j"""
@@ -17,7 +17,7 @@ def cent_label(itraj_id, jtraj_id):
 class Centroid:
     """Class constructor for the Centroid object."""
     def __init__(self, traj_i=None, traj_j=None, nstates=0, states=[-1,-1],
-                 dim=0, width=None, label=-1):
+                 dim=0, width=None, label=None):
         if traj_i is None or traj_j is None:
             # total number of states
             self.nstates = int(nstates)
@@ -45,7 +45,7 @@ class Centroid:
             self.nstates = max(traj_i.nstates,traj_j.nstates)
             self.states  = [traj_i.state, traj_j.state]
             self.dim     = max(traj_i.dim, traj_j.dim)
-            self.label     = -((idi * (idi - 1) // 2) + idj + 1)
+            self.label     = cent_label(idi, idj)
             # now update the position in phase space of the centroid
             # if wid_i == wid_j, this is clearly just the simply mean
             # position.
@@ -56,7 +56,7 @@ class Centroid:
             self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
         # data structure to hold the data from the interface
-        self.pes  = None
+        self.pes  = surface.Surface() 
 
     @timings.timed
     def copy(self):
@@ -65,8 +65,7 @@ class Centroid:
                             dim=self.dim, width=self.width,label=self.label)
         new_cent.pos = copy.deepcopy(self.pos)
         new_cent.mom = copy.deepcopy(self.mom)
-        if self.pes is not None:
-            new_cent.pes = self.pes.copy()
+        new_cent.pes = self.pes.copy()
         return new_cent
 
     #----------------------------------------------------------------------

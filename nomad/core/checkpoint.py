@@ -573,6 +573,10 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
     new_cent.parents = [int(i) for i in parent]
     new_cent.states  = [int(i) for i in states]
 
+    idi              = max(new_cent.parents)
+    idj              = min(new_cent.parents)
+    new_cent.label   = -((idi * (idi - 1) // 2) + idj + 1)
+
     new_cent.update_pes_info(pes)
     new_cent.pos = new_cent.pes.get_data('geom')
     new_cent.mom = momt

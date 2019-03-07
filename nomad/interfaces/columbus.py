@@ -909,7 +909,7 @@ def get_col_restart(traj):
 
     # MOCOEF RESTART FILES
     # if we have some orbitals in memory, write those out
-    if traj.pes is not None and 'mo' in traj.pes.avail_data():
+    if 'mo' in traj.pes.avail_data():
         write_mocoef('mocoef', traj.pes.get_data('mo'))
         mo_restart = True
     # if restart file exists, create symbolic link to it
@@ -985,7 +985,7 @@ def get_adiabatic_phase(traj, new_coup):
         state = min(traj.states)
 
     # pull data to make consistent
-    if traj.pes is not None:
+    if 'derivative' in traj.pes.avail_data():
         old_coup = np.transpose(
                    np.array([traj.derivative(min(state,i),max(state,i),geom_chk=False)
                                              for i in range(traj.nstates)]))

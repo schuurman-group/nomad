@@ -139,9 +139,8 @@ class Integral:
             for i in range(dim_cent):
                 self.centroids[i].extend([None for j in range(new_dim_cent -
                                                                  dim_cent)])
-
-            for i in range(new_dim_cent - dim_cent):
-                self.centroids.append([None for j in range(new_dim_cent)])
+            self.centroids.extend([[None for j in range(new_dim_cent)] 
+                                         for k in range(new_dim_cent-dim_cent)])
 
         self.centroids[ij[0]][ij[1]] = new_cent
         self.centroids[ij[1]][ij[0]] = new_cent
