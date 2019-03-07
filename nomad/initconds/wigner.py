@@ -59,7 +59,7 @@ def set_initial_coords(wfn):
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
         m_chk = np.dot(modes.T, modes)
-	if not np.allclose(m_chk, np.eye(len(m_chk))):
+        if not np.allclose(m_chk, np.eye(len(m_chk))):
             raise ValueError('Internal coordinates not orthonormal.')
         log.print_message('string',[' -- frequencies from hessian.dat --\n'])
 
