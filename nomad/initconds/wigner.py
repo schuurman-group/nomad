@@ -58,7 +58,9 @@ def set_initial_coords(wfn):
         freqs = np.asarray(freq_list)
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
-        m_chk = np.dot(modes, np.transpose(modes))
+        m_chk = np.dot(modes.T, modes)
+        if not np.allclose(m_chk, np.eye(len(m_chk))):
+            raise ValueError('Internal coordinates not orthonormal.')
         log.print_message('string',[' -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
@@ -99,9 +101,9 @@ def set_initial_coords(wfn):
                     if mode_overlap(alpha, dx, dp) > glbl.properties['init_mode_min_olap']:
                         break
                 if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
-                    print('Cannot get mode overlap > ' +
-                      str(glbl.properties['init_mode_min_olap']) +
-                      ' within ' + str(max_try) + ' attempts. Exiting...')
+                    raise ValueError('Cannot get mode overlap > ' +
+                                     str(glbl.properties['init_mode_min_olap']) +
+                                     ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp
 
