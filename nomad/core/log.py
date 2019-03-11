@@ -115,7 +115,7 @@ def print_header():
                    '\n' +
                    ' file paths\n' +
                    ' ---------------------------------------\n' +
-#                   ' home_path   = ' + os.uname()[1] + ':' + str(glbl.paths['home_path']) + '\n' +
+                   ' cwd         = ' + os.uname()[1] + ':' + str(glbl.paths['cwd']) + '\n' +
                    ' log_file    = ' + os.uname()[1] + ':' + glbl.paths['log_file'] + '\n' +
                    ' chkpt_file  = ' + os.uname()[1] + ':' + glbl.paths['chkpt_file'] + '\n')
         logfile.write(log_str)
@@ -140,11 +140,7 @@ def print_header():
         for k,v in glbl.sections[glbl.methods['interface']].items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
-
-        logfile.write ('\n ***********\n' +
-                         ' propagation\n' +
-                         ' ***********\n\n')
-
+        return
 
 def generate_formats():
     """Documentation to come"""
@@ -170,12 +166,12 @@ def generate_formats():
     log_format['error']          = '\n{}\n ------- simulation terminated  --------\n'
     log_format['timings' ]       = '{}'
 
-    print_level['general']        = 5
+    print_level['general']        = 2
     print_level['warning']        = 0
-    print_level['string']         = 5
+    print_level['string']         = 2 
     print_level['t_step']         = 0
-    print_level['coupled']        = 3
-    print_level['new_step']       = 3
+    print_level['coupled']        = 2
+    print_level['new_step']       = 2
     print_level['spawn_start']    = 1
     print_level['spawn_step']     = 1
     print_level['spawn_back']     = 2

@@ -18,6 +18,10 @@ def init_wavefunction():
     # the PES. There are some details here that trajectories
     # will want to know about
 
+    log.print_message('string',['\n **************\n'+ 
+                                  ' initialization\n'+
+                                  ' **************\n'])
+
     # creat the wave function instance
     glbl.modules['wfn']        = wavefunction.Wavefunction()
 
@@ -38,8 +42,39 @@ def init_wavefunction():
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
 
+        # print to logfile that we're restarting simulation
+        log.print_message('string',[' restarting simulation from checkpoint file: '
+                                     +str(glbl.paths['chkpt_file'])+'\n'])
+
         # retrieve current wave function, no arguments defaults to most recent simulation
         [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation()
+
+        # check that we have all the data we need to propagate the first step -- otherwise, we 
+        # need to update the potential
+        update_surface = False
+        for i in range(glbl.modules['wfn'].n_traj()):
+            if glbl.modules['wfn'].traj[i].alive and glbl.modules['wfn'].traj[i].active:
+                pes_data = glbl.modules['wfn'].traj[i].pes
+                if ('potential' not in pes_data.avail_data() or 
+                    'derivative' not in pes_data.avail_data()):
+                    update_suface = True
+            if glbl.modules['integrals'].require_centroids:
+                for j in range(i):
+                    pes_data = glbl.modules['integrals'].centroids[i][j].pes
+                    if glbl.modules['integrals'].centroid_required[i][j]:
+                        if ('potential' not in pes_data.avail_data() and
+                            glbl.modules['wfn'].traj[i].state == 
+                            glbl.modules['wfn'].traj[j].state):
+                            update_surface = True
+                        if ('derivative' not in pes_data.avail_data() and 
+                            glbl.modules['wfn'].traj[i].state != 
+                            glbl.modules['wfn'].traj[j].state):
+                            update_surface = True
+        if update_surface:
+            evaluate.update_pes(glbl.modules['wfn'])
+            # update the couplings for all the trajectories
+            for i in range(glbl.modules['wfn'].n_traj()):
+                glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
         # build the necessary matrices
         glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
@@ -104,6 +139,10 @@ def init_wavefunction():
     if glbl.mpi['rank'] == 0:
         checkpoint.archive_simulation(glbl.modules['wfn'], glbl.modules['integrals'])
 
+    log.print_message('string',['\n ***********\n'+
+                                  ' propagation\n'+
+                                  ' ***********\n\n'])
+
     log.print_message('t_step', [glbl.modules['wfn'].time, glbl.properties['default_time_step'],
                                       glbl.modules['wfn'].nalive])
 
@@ -117,6 +156,7 @@ def init_wavefunction():
 #----------------------------------------------------------------------------
 def set_initial_state(wfn):
     """Sets the initial state of the trajectories in the bundle."""
+
     if glbl.properties['init_brightest']:
         # initialize to the state with largest transition dipole moment
         # set all states to the ground state

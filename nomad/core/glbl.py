@@ -11,12 +11,13 @@ modules = dict(
     matrices   = None,
     integrals  = None,
     wfn0       = None
-            )
+               )
 
 paths = dict(
+    cwd        = '',
     log_file   = '',
     chkpt_file = ''
-            )
+             )
 
 # MPI variables (set by nomad_driver)
 mpi = dict(
@@ -54,7 +55,7 @@ vibronic = dict(
 surfgen = dict(
     hessian        = None,
     mem_per_core   = 100.
-    )
+               )
 
 # Remaining properties (mostly optional)
 properties = dict(
@@ -93,19 +94,16 @@ properties = dict(
     continuous_min_overlap = 0.5,
     init_amps           = [1+0j],
     init_amp_overlap    = True,
-    print_level         = 1
+    print_level         = 3 
                   )
 
-sections =  {
-    'modules' : modules,
-    'paths'   : paths,
-    'mpi'     : mpi,
-    'methods' : methods,
-    'columbus' : columbus,
-    'vibronic' : vibronic,
-    'surfgen' : surfgen,
-    'interfaces' : columbus,
-    'vibronic'   : vibronic,
-    'properties' : properties
-             }
-
+sections = dict(
+    modules    = modules,
+    paths      = paths,
+    mpi        = mpi,
+    methods    = methods,
+    columbus   = columbus,
+    vibronic   = vibronic,
+    surfgen    = surfgen,
+    properties = properties
+                )

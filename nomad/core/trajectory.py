@@ -4,8 +4,8 @@ The Trajectory object and its associated functions.
 import copy
 import numpy as np
 import nomad.core.timings as timings
+import nomad.core.surface as surface
 import nomad.math.constants as constants
-
 
 class Trajectory:
     """Class constructor for the Trajectory object."""
@@ -57,7 +57,7 @@ class Trajectory:
         # time trajectory last left coupling region
         self.exit_time  = np.zeros(self.nstates)
         # data structure to hold the pes data from the interface
-        self.pes        = None
+        self.pes        = surface.Surface()
 
     @timings.timed
     def copy(self):
@@ -73,8 +73,7 @@ class Trajectory:
         new_traj.mom        = copy.deepcopy(self.mom)
         new_traj.last_spawn = copy.deepcopy(self.last_spawn)
         new_traj.exit_time  = copy.deepcopy(self.exit_time)
-        if self.pes is not None:
-            new_traj.pes = self.pes.copy()
+        new_traj.pes        = self.pes.copy()
         return new_traj
 
     #-------------------------------------------------------------------

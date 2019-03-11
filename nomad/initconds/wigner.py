@@ -18,6 +18,8 @@ def set_initial_coords(wfn):
     else:
         coordtype = 'cart'
 
+    log.print_message('string',[' sampling from v=0 Wigner distribution.\n'])
+
     # if multiple geometries, just take the first one
     coords = glbl.properties['init_coords']
     ndim = coords.shape[-1]
@@ -39,7 +41,7 @@ def set_initial_coords(wfn):
     # mass-weighted Hessian and diagonalise to obtain the normal modes
     # and frequencies
     if coordtype == 'cart':
-        iface_dict = glbl.interfaces[glbl.methods['interface']]
+        iface_dict = glbl.sections[glbl.methods['interface']]
         hessian = iface_dict['hessian']
         invmass = np.asarray([1./ np.sqrt(m_vec[i]) if m_vec[i] != 0.
                               else 0 for i in range(len(m_vec))], dtype=float)
@@ -56,8 +58,10 @@ def set_initial_coords(wfn):
         freqs = np.asarray(freq_list)
         modes = np.asarray(mode_list).transpose()
         # confirm that modes * tr(modes) = 1
-        m_chk = np.dot(modes, np.transpose(modes))
-        log.print_message('string',['\n -- frequencies from hessian.dat --\n'])
+        m_chk = np.dot(modes.T, modes)
+        if not np.allclose(m_chk, np.eye(len(m_chk))):
+            raise ValueError('Internal coordinates not orthonormal.')
+        log.print_message('string',[' -- frequencies from hessian.dat --\n'])
 
     # If normal modes are being used, set the no. modes
     # equal to the total number of modes of the model
@@ -70,7 +74,7 @@ def set_initial_coords(wfn):
         log.print_message('string',['\n -- widths employed in coordinate sampling --\n'])
 
     # write out frequencies
-    fstr = '\n'.join(['{0:.5f} au  {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm)
+    fstr = '\n'.join(['{0:.5f} au == {1:10.1f} cm^-1'.format(freqs[j],freqs[j]*constants.au2cm)
                                                        for j in range(n_modes)])
     log.print_message('string',[fstr+'\n'])
 
@@ -97,9 +101,9 @@ def set_initial_coords(wfn):
                     if mode_overlap(alpha, dx, dp) > glbl.properties['init_mode_min_olap']:
                         break
                 if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
-                    print('Cannot get mode overlap > ' +
-                      str(glbl.properties['init_mode_min_olap']) +
-                      ' within ' + str(max_try) + ' attempts. Exiting...')
+                    raise ValueError('Cannot get mode overlap > ' +
+                                     str(glbl.properties['init_mode_min_olap']) +
+                                     ' within ' + str(max_try) + ' attempts. Exiting...')
                 delta_x[j] = dx
                 delta_p[j] = dp
 

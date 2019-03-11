@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import nomad.math.constants as constants
 import nomad.core.glbl as glbl
+import nomad.core.log as log
 import nomad.core.checkpoint as checkpoint
 import nomad.core.wavefunction as wavefunction
 import nomad.core.matrices as matrices
@@ -16,6 +17,7 @@ import nomad.integrals.integral as integral
 wfn0  = None
 ints0 = None
 ints  = None
+
 
 def main():
     """Runs the main nomad_extract routine."""
@@ -36,7 +38,17 @@ def main():
     [wfn0, ints0] = checkpoint.retrieve_simulation(time=0., file_name=chkpt_file, key_words=True)
     if wfn0 is None and data['-auto']:
         print("Cannot construct autocorrelation function: missing t=0 wavefunction\n")
-   
+
+    # generate output formats
+    log.generate_formats()
+
+    # if this is a vibronic model, we need to load the vibronic Hamiltonian in order
+    # to evaluate the integrals
+    if glbl.methods['interface'] == 'vibronic':
+        glbl.modules['interface']  = __import__('nomad.interfaces.vibronic',
+                                                fromlist=['NA'])
+        glbl.modules['interface'].init_interface()
+
     # get printing machine ready
     mat     = matrices.Matrices()
     checkpoint.generate_data_formats()
@@ -46,7 +58,7 @@ def main():
         tvals = checkpoint.time_steps(None, 'wavefunction', chkpt_file)
         # try reading last time -- if anything fails, read up to the penultimate
         # time, i.e. we grabbed this checkpoint file during a write
-#        status = chk_last_write(tvals[-1])
+        # status = chk_last_write(tvals[-1])
         status = True
 
         for i in range(len(tvals)):
@@ -67,10 +79,9 @@ def main():
         wfn.update_matrices(mat)
         extract_data(wfn, mat, data)
 
+
 def chk_read(time):
     """try reading at time, if anything fails, return False"""
-
-
     return True
 
 
@@ -125,6 +136,7 @@ def process_arguments(args):
 
 def extract_data(wfn, mat, dlst):
     """Documentation to come"""
+
     if '-all' in dlst or '-energy' in dlst:
         extract_energy(wfn)
 
@@ -222,7 +234,58 @@ def extract_trajectories(wfn):
 
 def extract_interface_data(wfn):
     """Documentation to come"""
-    pass
+
+    # extract electronic structure information associated with COLUMBUS
+    if glbl.methods['interface'] == 'columbus':
+
+        for i in range(wfn.nalive):
+            traj  = wfn.traj[wfn.alive[i]]
+            label = traj.label
+            state = traj.state
+            nst   = traj.nstates
+            natm  = int(traj.dim/3)
+
+            # print permanent dipoles
+            if 'dipole' in traj.pes.avail_data():
+                dipoles = traj.pes.get_data('dipole')
+                prnt_data = [wfn.time]
+                prnt_data.extend([dipoles[j,k,k] for k in range(nst) for j in range(3)])
+                checkpoint.print_traj_row(label,'dipole',prnt_data)           
+
+                # print transition dipoles
+                prnt_data = [wfn.time]
+                tr_dip    = [-1. for j in range(int(nst*(nst-1)*3/2))]
+                icnt = 0
+                for j in range(nst):
+                    for k in range(j):
+                        for l in range(3):
+                            if k in [0,state] or j==state:
+                                tr_dip[icnt] = dipoles[l,k,j]
+                            icnt += 1
+                prnt_data.extend(tr_dip)
+                checkpoint.print_traj_row(label,'tr_dipole',prnt_data)
+
+            # print second moments
+            if 'sec_mom' in traj.pes.avail_data():
+                sec_mom = traj.pes.get_data('sec_mom')
+                prnt_data = [wfn.time]
+                prnt_data.extend([sec_mom[j,j,k] for k in range(nst) for j in range(3)])
+                checkpoint.print_traj_row(label,'sec_mom',prnt_data) 
+
+            # print mulliken populations
+            if 'atom_pop' in traj.pes.avail_data():
+                atm_pop = traj.pes.get_data('atom_pop')
+                prnt_data = [wfn.time]
+                prnt_data.extend([atm_pop[j,k] for k in range(nst) for j in range(natm)])
+                checkpoint.print_traj_row(label,'atom_pop',prnt_data)
+
+
+    # extract information associated with vibronic models
+    if glbl.methods['interface'] == 'vibronic':
+        pass
+    
+    return
+ 
 
 
 if __name__ == '__main__':
