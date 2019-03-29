@@ -67,8 +67,8 @@ def init_interface():
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
 
     # set atomic symbol, number, mass,
-    natm    = len(glbl.crd_labels) // p_dim
-    a_sym   = glbl.crd_labels[::p_dim]
+    natm    = len(glbl.properties['crd_labels']) // p_dim
+    a_sym   = glbl.properties['crd_labels'][::p_dim]
 
     a_data  = []
     # we need to go through this to pull out the atomic numbers for
@@ -97,11 +97,10 @@ def init_interface():
     # input and restart are shared
 #    input_path    = glbl.home_path + '/input'
 #    restart_path  = glbl.home_path + '/restart'
-    input_path    = 'input'
-    restart_path  = 'restart'
+    input_path    = glbl.paths['cwd']+'/input'
+    restart_path  = glbl.paths['cwd']+'/restart'
     # ...but each process has it's own work directory
-#    work_path     = glbl.home_path + '/work.'+str(glbl.mpi['rank'])
-    work_path     = 'work.'+str(glbl.mpi['rank'])
+    work_path     = glbl.paths['cwd']+'/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -152,6 +151,9 @@ def init_interface():
     # generate one time input files for columbus calculations
     make_one_time_input()
 
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
+    return
 
 def evaluate_trajectory(traj, t=None):
     """Computes MCSCF/MRCI energy and computes all couplings.
@@ -230,6 +232,9 @@ def evaluate_trajectory(traj, t=None):
     # save restart files
     make_col_restart(traj)
 
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
+
     return col_surf
 
 
@@ -283,6 +288,9 @@ def evaluate_centroid(cent, t=None):
 
     # save restart files
     make_col_restart(cent)
+
+    # always return to current working directory
+    os.chdir(glbl.paths['cwd'])
 
     return col_surf
 
@@ -339,7 +347,6 @@ def make_one_time_input():
 
     # make sure ciudgin file exists
     shutil.copy('ciudgin.drt1', 'ciudgin')
-
 
 def generate_integrals(label, t):
     """Runs Dalton to generate AO integrals."""
@@ -902,7 +909,7 @@ def get_col_restart(traj):
 
     # MOCOEF RESTART FILES
     # if we have some orbitals in memory, write those out
-    if traj.pes is not None and 'mo' in traj.pes.avail_data():
+    if 'mo' in traj.pes.avail_data():
         write_mocoef('mocoef', traj.pes.get_data('mo'))
         mo_restart = True
     # if restart file exists, create symbolic link to it
@@ -978,7 +985,7 @@ def get_adiabatic_phase(traj, new_coup):
         state = min(traj.states)
 
     # pull data to make consistent
-    if traj.pes is not None:
+    if 'derivative' in traj.pes.avail_data():
         old_coup = np.transpose(
                    np.array([traj.derivative(min(state,i),max(state,i),geom_chk=False)
                                              for i in range(traj.nstates)]))
@@ -1064,7 +1071,7 @@ def append_log(label, listing_file, time):
 
     # open the running log for this process
 #    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
-    log_file = open(columbus.log.'+str(glbl.mpi['rank']), 'a')
+    log_file = open('columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(' time='+tstr+' trajectory='+str(label)+
                    ': '+str(listing_file)+' summary -------------\n')

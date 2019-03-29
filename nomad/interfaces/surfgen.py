@@ -176,7 +176,7 @@ def set_phase(traj, new_grads):
     n_states = int(traj.nstates)
 
     # pull data to make consistent
-    if traj.pes is not None:
+    if 'derivative' in traj.pes.avail_data():
         old_grads = np.transpose(np.array([[traj.derivative(i,j,geom_chk=False)
                                  for i in range(n_states)] for j in range(n_states)]), 
                                  axes=(2,0,1))
