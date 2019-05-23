@@ -44,7 +44,11 @@ n_orbs       = 0
 # number of states in sate-averaged MCSCF
 n_mcstates   = 0
 # number of CI roots
-n_cistates     = 0
+n_cistates   = 0
+# number of dummy atoms
+n_dummy      = 0
+# list of dummy atom weights
+dummy_lst    = []
 # if DE between two states greater than de_thresh, ignore coupling
 coup_de_thresh = 100.
 # maximum angular momentum in basis set
@@ -63,8 +67,16 @@ mem_str      = ''
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path, log_file
-    global a_sym, a_num, a_mass, n_atoms, n_cart, p_dim, coup_de_thresh
+    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim 
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
+    global coup_de_thresh, dummy_lst
+
+    # setup working directories
+    # input and restart are shared
+    input_path    = glbl.paths['cwd']+'/input'
+    restart_path  = glbl.paths['cwd']+'/restart'
+    # ...but each process has it's own work directory
+    work_path     = glbl.paths['cwd']+'/work.'+str(glbl.mpi['rank'])
 
     # set atomic symbol, number, mass,
     natm    = len(glbl.properties['crd_labels']) // p_dim
@@ -83,6 +95,17 @@ def init_interface():
     a_mass  = [a_data[i][1]/constants.amu2au for i in range(natm)]
     a_num   = [a_data[i][2] for i in range(natm)]
 
+    # check to see if we have any dummy atoms to account for
+    dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain'])
+    if glbl.columbus['dummy_constrain_com'] and a_mass not in dummy_lst:
+        dummy_lst.append(a_mass)
+    # ensure dummy atom count is accurate.
+    n_dummy = len(dummy_lst)
+    if n_dummy != count_dummy(input_path+'/daltaoin'):
+        sys.exit('Number of dummy atoms='+str(n_dummy)+
+                 ' is inconsistent with COLUMBUS input ='+
+                  str(count_dummy(input_path+'/daltaoin')))
+
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
     columbus_path = os.environ['COLUMBUS']
@@ -92,15 +115,6 @@ def init_interface():
     # ensure COLUMBUS input files are present locally
     if not os.path.exists('input'):
         raise FileNotFoundError('Cannot find COLUMBUS input files in: input')
-
-    # setup working directories
-    # input and restart are shared
-#    input_path    = glbl.home_path + '/input'
-#    restart_path  = glbl.home_path + '/restart'
-    input_path    = glbl.paths['cwd']+'/input'
-    restart_path  = glbl.paths['cwd']+'/restart'
-    # ...but each process has it's own work directory
-    work_path     = glbl.paths['cwd']+'/work.'+str(glbl.mpi['rank'])
 
     if os.path.exists(work_path):
         shutil.rmtree(work_path)
@@ -452,7 +466,7 @@ def run_col_mcscf(traj, t):
 
 def run_col_mrci(traj, ci_restart, t):
     """Runs MRCI if running at that level of theory."""
-    global n_atoms, n_cistates, max_l, mem_str
+    global n_atoms, n_dummy, n_cistates, max_l, mem_str
     global work_path
 
     os.chdir(work_path)
@@ -552,13 +566,17 @@ def run_col_mrci(traj, ci_restart, t):
                 if ist == traj.nstates:
                     break
                 pops = []
-                for i in range(int(np.ceil(n_atoms/6.))):
+                iatm = 0
+                for i in range(int(np.ceil((n_atoms+n_dummy)/6.))):
                     for j in range(max_l+3):
                         nxtline = ciudgls.readline()
                         if 'total' in line:
                             break
                     l_arr = nxtline.split()
-                    pops.extend(l_arr[1:])
+                    if i==1:
+                        pops.extend(l_arr[n_dummy+1:])
+                    else:
+                        pops.extend(l_arr[1:])
                 atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
@@ -686,6 +704,7 @@ def run_col_tdipole(label, state_i, state_j):
 def run_col_gradient(traj, t):
     """Performs integral transformation and determine gradient on
     trajectory state."""
+    global n_dummy
     global mrci_lvl, mem_str
     global work_path
 
@@ -728,7 +747,8 @@ def run_col_gradient(traj, t):
 
     with open('cartgrd', 'r') as cartgrd:
         lines = cartgrd.readlines()
-    grad     = [lines[i].split() for i in range(len(lines))]
+    # dummy atoms come first -- and aren't included in gradient
+    grad     = [lines[i].split() for i in range(n_dummy,len(lines))]
     gradient = np.array([item.replace('D', 'e') for row in grad
                          for item in row], dtype=float)
 
@@ -742,7 +762,7 @@ def run_col_gradient(traj, t):
 
 def run_col_coupling(traj, ci_ener, t):
     """Computes couplings to states within prescribed DE window."""
-    global n_cart, coup_de_thresh, mrci_lvl, mem_str
+    global n_cart, n_dummy, coup_de_thresh, mrci_lvl, mem_str
     global input_path, work_path
 
     if type(traj) is trajectory.Trajectory:
@@ -810,7 +830,7 @@ def run_col_coupling(traj, ci_ener, t):
         # read in cartesian gradient and save to array
         with open('cartgrd', 'r') as cartgrd:
             lines = cartgrd.read().splitlines()
-        grad = [lines[i].split() for i in range(len(lines))]
+        grad = [lines[i].split() for i in range(n_dummy,len(lines))]
         coup_vec = np.array([item.replace('D', 'e') for row in grad
                              for item in row], dtype=float)
 
@@ -1127,12 +1147,18 @@ def append_log(label, listing_file, time):
 
 def write_col_geom(geom):
     """Writes a array of atoms to a COLUMBUS style geom file."""
-    global n_atoms, p_dim, a_sym, a_num, a_mass
+    global n_atoms, n_dummy, dummy_lst, p_dim, a_sym, a_num, a_mass
     global work_path
 
     os.chdir(work_path)
 
     f = open('geom', 'w', encoding='utf-8')
+
+    for i in range(n_dummy):
+        xyz = dummy_xyz(geom, dummy_lst[i])
+        f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
+                '\n'.format('X', 0, xyz[0], xyz[1], xyz[2], 0.0))
+
     for i in range(n_atoms):
         f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
                 '\n'.format(a_sym[i], a_num[i],
@@ -1217,6 +1243,27 @@ def ang_mom_dalton(infile):
                     for l in range(nprim * n_line):
                         line = daltaoin.readline()
     return max_l
+
+def count_dummy(daltfile):
+    """Determines the number of dummy atoms in a dalton input file"""
+
+    n_dum = 0
+    with open(daltfile, 'r') as daltaoin:
+        for line in daltaoin:
+            if line[0] == 'X':
+                n_dum += 1
+    return n_dum
+
+def dummy_xyz(geom, dummy_wts):
+    """Determines the xyz coordinates for a dummy atom given a 
+       cartesian geometry and a set of wts"""
+    global n_atoms
+
+    xyz = np.zeros(3) 
+    for i in range(n_atoms):
+        xyz += geom[3*i:3*i+3]*dummy_wts[i]
+    xyz /= sum(dummy_wts)
+    return xyz
 
 
 def file_len(fname):
