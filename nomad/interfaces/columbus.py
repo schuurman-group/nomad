@@ -98,7 +98,7 @@ def init_interface():
     # check to see if we have any dummy atoms to account for
     dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain'])
     if glbl.columbus['dummy_constrain_com'] and a_mass not in dummy_lst:
-        dummy_lst.append(a_mass)
+        dummy_lst = np.append(dummy_lst, [a_mass],axis=0)
     # ensure dummy atom count is accurate.
     n_dummy = len(dummy_lst)
     if n_dummy != count_dummy(input_path+'/daltaoin'):
