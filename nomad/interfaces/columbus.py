@@ -96,11 +96,15 @@ def init_interface():
     a_num   = [a_data[i][2] for i in range(natm)]
 
     # check to see if we have any dummy atoms to account for
-    dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain'])
+    if glbl.columbus['dummy_constrain'] is None:
+        dummy_lst = []
+    else:
+        dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain']).tolist()
+    # if we want to constrain dummy atom to the C.O.M.
     if glbl.columbus['dummy_constrain_com'] and a_mass not in dummy_lst:
-        dummy_lst = np.append(dummy_lst, [a_mass],axis=0)
+        dummy_lst.append(a_mass)
     # ensure dummy atom count is accurate.
-    n_dummy = len(dummy_lst)
+    n_dummy = len(dummy_lst) 
     if n_dummy != count_dummy(input_path+'/daltaoin'):
         sys.exit('Number of dummy atoms='+str(n_dummy)+
                  ' is inconsistent with COLUMBUS input ='+

@@ -44,7 +44,7 @@ columbus = dict(
     mem_per_core        = 1000.,
     coup_de_thresh      = 100.,
     dummy_constrain_com = False,
-    dummy_constrain     = []
+    dummy_constrain     = None
                 )
 
 vibronic = dict(
