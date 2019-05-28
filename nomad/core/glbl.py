@@ -40,9 +40,11 @@ methods = dict(
 
 # Interface-specific variables
 columbus = dict(
-    hessian        = None, # required if init_conds == wigner, can be filename or direct input
-    mem_per_core   = 1000.,
-    coup_de_thresh = 100.
+    hessian             = None, # required if init_conds == wigner, can be filename or direct input
+    mem_per_core        = 1000.,
+    coup_de_thresh      = 100.,
+    dummy_constrain_com = False,
+    dummy_constrain     = None
                 )
 
 vibronic = dict(
