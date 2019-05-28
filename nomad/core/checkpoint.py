@@ -99,13 +99,18 @@ def merge_simulations(file_names=None, new_file=None):
     # then merge all subsequent files into that on
     shutil.copy(file_names[0], new_file)    
     target = h5py.File(new_file, 'a', libver='latest')   
-    target.move('wavefunction','wavefunction.0')
-    target.move('integral',   'integral.0')
-    
+
+    wcnt = sum('wavefunction' in grp for grp in target.keys())
+    icnt = sum('integral' in grp for grp in target.keys())
     for i in range(1,len(file_names)):
         chkpt = h5py.File(file_names[i], 'r', libver='latest')    
-        chkpt.copy('wavefunction',target, name='wavefunction.'+str(i))
-        chkpt.copy('integral',target, name='integral.'+str(i))
+        for grp in chkpt:
+            if 'wavefunction' in grp:
+                chkpt.copy(grp, target, name='wavefunction.'+str(wcnt))
+                wcnt += 1
+            elif 'integral' in grp:
+                chkpt.copy(grp, target, name='integral.'+str(icnt))
+                icnt += 1
         chkpt.close()    
 
     target.close()
@@ -148,33 +153,56 @@ def create(file_name, wfn, ints):
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 
+    # save the contents of glbl.py
     write_keywords(chkpt)
 
-    # simulation level information
-    chkpt.create_group('simulation')
-    chkpt['simulation'].attrs['nsims']      = 1
-    chkpt['simulation'].attrs['final_time'] = 0
-    chkpt['simulation'].attrs['ntraj']      = 0
-
     # wfn group -- row information
-    chkpt.create_group('wavefunction')
-    chkpt['wavefunction'].attrs['current_row'] = -1
-    chkpt['wavefunction'].attrs['n_rows']      = 0 
+    create_wfn(chkpt, name=0)
 
     # integral group -- row information
-    chkpt.create_group('integral')
-    chkpt['integral'].attrs['current_row']     = -1
-    chkpt['integral'].attrs['n_rows']          = 0
-
-    # integral group -- time independent obj properties
-    chkpt['integral'].attrs['kecoef']            = ints.kecoef
-    chkpt['integral'].attrs['ansatz']            = ints.ansatz
-    chkpt['integral'].attrs['numerical']         = ints.numerical
-    chkpt['integral'].attrs['hermitian']         = ints.hermitian
-    chkpt['integral'].attrs['require_centroids'] = ints.require_centroids
+    create_int(chkpt, name=0)
 
     # close following initialization
     chkpt.close()
+
+#
+def create_wfn(chkpt, name=0):
+    """Creates a new wavefunction group, with suffix 'name' """
+
+    wfn_name = 'wavefunction.'+str(name)
+    
+    if wfn_name in chkpt.keys():
+        raise ValueError('wavefunction='+wfn_name+' already exists.'+
+                         'Continuing...') 
+    else:
+        chkpt.create_group(wfn_name)
+        chkpt[wfn_name].attrs['current_row'] = -1
+        chkpt[wfn_name].attrs['n_rows']      = 0
+
+    return
+
+#
+def create_int(chkpt, ints, name=0):
+    """Creates a new integral group, with suffix 'name' """
+
+    int_name = 'integral.'+str(name)
+
+    if int_name in chkpt.keys():
+        raise ValueError('integral='+int_name+' already exists.'+
+                         'Continuing...')
+    else:
+        chkpt.create_group(int_name)
+        chkpt[int_name].attrs['current_row']     = -1
+        chkpt[int_name].attrs['n_rows']          = 0
+
+        # integral group -- time independent obj properties
+        chkpt[int_name].attrs['kecoef']            = ints.kecoef
+        chkpt[int_name].attrs['ansatz']            = ints.ansatz
+        chkpt[int_name].attrs['numerical']         = ints.numerical
+        chkpt[int_name].attrs['hermitian']         = ints.hermitian
+        chkpt[int_name].attrs['require_centroids'] = ints.require_centroids
+
+    return
 
 #
 def write_keywords(chkpt):
@@ -291,25 +319,30 @@ def convert_value(kword, val):
     # else just a string and return as-is
     return cval
 
-def write_wavefunction(chkpt, wfn, time):
+def write_wavefunction(chkpt, wfn, time, name=0):
     """Documentation to come"""
     wfn_data = package_wfn(wfn)
     n_traj   = wfn.n_traj()
     n_blk    = default_blk_size(time)
     resize   = False
+    wfn_name = 'wavefunction.'+str(name)
+
+    # if wfn doesn't exist, add it on the fly
+    if wfn_name not in chkpt.keys():
+        create_wfn(chkpt, name=name)
 
     # update the current row index (same for all data sets)
-    chkpt['wavefunction'].attrs['current_row'] += 1
-    current_row = chkpt['wavefunction'].attrs['current_row']
+    chkpt[wfn_name].attrs['current_row'] += 1
+    current_row = chkpt[wfn_name].attrs['current_row']
 
-    if current_row == chkpt['wavefunction'].attrs['n_rows']:
+    if current_row == chkpt[wfn_name].attrs['n_rows']:
         resize = True
-        chkpt['wavefunction'].attrs['n_rows'] += n_blk
-    n_rows = chkpt['wavefunction'].attrs['n_rows']
+        chkpt[wfn_name].attrs['n_rows'] += n_blk
+    n_rows = chkpt[wfn_name].attrs['n_rows']
 
     # first write items with time-independent dimensions
     for data_label in wfn_data.keys():
-        dset = 'wavefunction/'+data_label
+        dset = wfn_name+'/'+data_label
 
         if dset in chkpt:
             if resize:
@@ -331,24 +364,29 @@ def write_wavefunction(chkpt, wfn, time):
         write_trajectory(chkpt, wfn.traj[i], time)
 
 
-def write_integral(chkpt, integral, time):
+def write_integral(chkpt, integral, time, name=0):
     """Documentation to come"""
     int_data = package_integral(integral, time)
     n_blk    = default_blk_size(time)
     resize   = False
+    int_name = 'integral.'+str(name)
+
+    # if integral doesn't exist, add it on the fly
+    if int_name not in chkpt.keys():
+        create_int(chkpt, integral, name=name)
 
     # update the current row index (same for all data sets)
-    chkpt['integral'].attrs['current_row'] += 1
-    current_row = chkpt['integral'].attrs['current_row']
+    chkpt[grp_name].attrs['current_row'] += 1
+    current_row = chkpt[grp_name].attrs['current_row']
 
-    if current_row == chkpt['integral'].attrs['n_rows']:
+    if current_row == chkpt[grp_name].attrs['n_rows']:
         resize   = True
-        chkpt['integral'].attrs['n_rows'] += n_blk
-    n_rows = chkpt['integral'].attrs['n_rows']
+        chkpt[grp_name].attrs['n_rows'] += n_blk
+    n_rows = chkpt[grp_name].attrs['n_rows']
 
     # first write items with time-independent dimensions
     for data_label in int_data.keys():
-        dset = 'integral/'+data_label
+        dset = grp_name+'/'+data_label
 
         if dset in chkpt:
             if resize:
@@ -373,17 +411,18 @@ def write_integral(chkpt, integral, time):
                      write_centroid(chkpt, integral.centroids[i][j], time)
 
 
-def write_trajectory(chkpt, traj, time):
+def write_trajectory(chkpt, traj, time, name=0):
     """Documentation to come"""
     # open the trajectory file
-    t_data  = package_trajectory(traj, time)
-    t_label = str(traj.label)
-    n_blk   = default_blk_size(time)
-    resize  = False
+    t_data   = package_trajectory(traj, time)
+    t_label  = str(traj.label)
+    n_blk    = default_blk_size(time)
+    resize   = False
+    grp_name = 'wavefunction.'+str(name)
 
     # if trajectory group already exists, just append current
     # time information to existing datasets
-    t_grp = 'wavefunction/'+t_label
+    t_grp = grp_name+'/'+t_label
 
     if t_grp in chkpt:
 
@@ -425,17 +464,18 @@ def write_trajectory(chkpt, traj, time):
             chkpt[dset][current_row] = t_data[data_label]
 
 
-def write_centroid(chkpt, cent, time):
+def write_centroid(chkpt, cent, time, name=0):
     """Documentation to come"""
     # open the trajectory file
     c_data  = package_centroid(cent, time)
     c_label = str(cent.label)
     n_blk   = default_blk_size(time)
     resize  = False
+    grp_name = 'integral.'+str(name)
 
     # if trajectory group already exists, just append current
     # time information to existing datasets
-    c_grp = 'integral/'+c_label
+    c_grp = grp_name+'/'+c_label
 
     if c_grp in chkpt:
 
@@ -477,18 +517,20 @@ def write_centroid(chkpt, cent, time):
             chkpt[dset][current_row] = c_data[data_label]
 
 
-def read_wavefunction(chkpt, time):
+def read_wavefunction(chkpt, time, name=0):
     """Documentation to come"""
 
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     masses   = glbl.properties['crd_masses']
     dim      = len(widths)
-    kecoef   = chkpt['integral'].attrs['kecoef'] #indicative of wrongess.
+    wfn_name = 'wavefunction.'+str(name)
+    int_name = 'integral.'+str(name)
+    kecoef   = chkpt[int_name].attrs['kecoef'] #indicative of wrongess.
                                                  #trajectory should be purged of kecoef...
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt, 'wavefunction', time)
+    read_row = get_time_index(chkpt, wfn_name, time)
 
     if read_row is None:
         ValueError('time='+str(time)+' requested, but not in checkpoint file')
@@ -498,15 +540,15 @@ def read_wavefunction(chkpt, time):
     wfn = wavefunction.Wavefunction()
 
     # dimensions of these objects are not time-dependent
-    wfn.time    = chkpt['wavefunction/time'][read_row,0]
+    wfn.time    = chkpt[wfn_name+'/time'][read_row,0]
 
-    for label in chkpt['wavefunction']:
+    for label in chkpt[wfn_name]:
 
         #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
             continue
 
-        t_grp = 'wavefunction/'+label
+        t_grp = wfn_name+'/'+label
         t_row = get_time_index(chkpt, t_grp, time)
 
         if t_row is None:
@@ -522,19 +564,20 @@ def read_wavefunction(chkpt, time):
 
     return wfn
 
-def read_integral(chkpt, time):
+def read_integral(chkpt, time, name=0):
     """Documentation to come"""
 
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     dim      = len(widths)
-   
+    int_name = 'integral.'+str(name)   
+
     ansatz   = glbl.methods['ansatz']
     numerics = glbl.methods['integral_eval'] 
-    kecoef   = chkpt['integral'].attrs['kecoef'] 
+    kecoef   = chkpt[int_name].attrs['kecoef'] 
 
     # check that we have the desired time:
-    read_row = get_time_index(chkpt, 'integral', time)
+    read_row = get_time_index(chkpt, int_name, time)
 
     if read_row is None:
         raise ValueError('time='+str(time)+' requested, but not in checkpoint file')
@@ -543,12 +586,12 @@ def read_integral(chkpt, time):
     ints = integral.Integral(kecoef, ansatz, numerics)
 
     if ints.require_centroids:
-        for label in chkpt['integral']:
+        for label in chkpt[int_name]:
 
             if label == 'time':
                 continue
 
-            c_grp = 'integral/'+label
+            c_grp = int_name+'/'+label
             c_row = get_time_index(chkpt, c_grp, time)
 
             if c_row is None:
