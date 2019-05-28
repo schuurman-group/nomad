@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+"""
+Module used to extract data from nomad output files.
+"""
+import os
+import sys
+import nomad.core.checkpoint as checkpoint
+
+def main():
+    """Runs the main nomad_extract routine."""
+
+    chkpt_files, target_file = process_arguments(sys.argv)
+    checkpoint.merge_simulations(chkpt_files, target_file)
+
+
+def process_arguments(args):
+    """Processes the command line arguments.
+
+    Determine what data to extract from the checkpoint file, and where
+    to put it.
+    """
+    # a list of valid arguments and the default values
+    chkpt_files = []
+    data_lst = {'-o':'merged.h5'}
+
+    if len(args) == 0:
+        raise ValueError('no files to merge have been specified')
+
+    iarg = 1 
+    while iarg < len(args):
+        #arg_val = args[iarg].strip()
+        arg_val = str(args[iarg])
+
+        # just skip unrecognized commands
+        if arg_val == '-o':
+            data_lst[arg_val] = str(args[iarg+1])
+            iarg += 1
+        else:
+            chkpt_files.append(arg_val)
+
+        iarg += 1
+
+    return chkpt_files, data_lst['-o']
+
+if __name__ == '__main__':
+    # run the main routine
+    main()

@@ -678,7 +678,6 @@ def run_col_tdipole(label, state_i, state_j):
                 line_arr = line.split()
                 for dim in range(p_dim):
                     tran_dip[dim] = float(line_arr[dim+2])
-                    tran_dip[dim] = float(line_arr[dim+2])
 
     return tran_dip
 

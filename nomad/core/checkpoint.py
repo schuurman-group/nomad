@@ -2,8 +2,10 @@
 Routines for reading input files and writing log files.
 """
 import os
+import sys
 import h5py
 import ast as ast
+import shutil as shutil
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
@@ -79,6 +81,37 @@ def retrieve_simulation(time=None, file_name=None, key_words=False):
     return [wfn, ints]
 
 
+def merge_simulations(file_names=None, new_file=None):
+    """Documentation to come"""
+
+    if file_names is None:
+        sys.exit('No files to merge. Exiting...')
+
+    if new_file is None:
+        sys.exit('No target file for merge named. Exiting...')
+
+    for i in range(len(file_names)):
+        if not os.path.isfile(file_names[i]):
+            sys.exit('Cannot merge '+str(file_names[i])+
+                     ': File does not exist. Exiting...')
+
+    # we will copy the first file in file_names to the target,
+    # then merge all subsequent files into that on
+    shutil.copy(file_names[0], new_file)    
+    target = h5py.File(new_file, 'a', libver='latest')   
+    target.move('wavefunction','wavefunction.0')
+    target.move('integral',   'integral.0')
+    
+    for i in range(1,len(file_names)):
+        chkpt = h5py.File(file_names[i], 'r', libver='latest')    
+        chkpt.copy('wavefunction',target, name='wavefunction.'+str(i))
+        chkpt.copy('integral',target, name='integral.'+str(i))
+        chkpt.close()    
+
+    target.close()
+ 
+
+
 def time_steps(chkpt, grp_name, file_name=None):
     """Documentation to come"""
     # if file handle is None, get file stream by opening
@@ -104,13 +137,6 @@ def time_steps(chkpt, grp_name, file_name=None):
 
     return steps
 
-def n_trajectories(chkpt_file):
-    """Documentation to come"""
-
-        # open checkpoint file
-    chkpt = h5py.File(chkpt_file, 'a', libver='latest')
- 
-
 
 #------------------------------------------------------------------------------------
 #
@@ -124,13 +150,16 @@ def create(file_name, wfn, ints):
 
     write_keywords(chkpt)
 
+    # simulation level information
+    chkpt.create_group('simulation')
+    chkpt['simulation'].attrs['nsims']      = 1
+    chkpt['simulation'].attrs['final_time'] = 0
+    chkpt['simulation'].attrs['ntraj']      = 0
+
     # wfn group -- row information
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
     chkpt['wavefunction'].attrs['n_rows']      = 0 
-
-    # wfn group -- time independent obj properties
-    # (None)
 
     # integral group -- row information
     chkpt.create_group('integral')
