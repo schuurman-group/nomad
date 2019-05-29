@@ -16,6 +16,7 @@ child(s',ti) <------------- child(s',ts)
 """
 import numpy as np
 import nomad.core.glbl as glbl
+import nomad.core.checkpoint as checkpoint
 import nomad.core.log as log
 import nomad.core.step as step
 import nomad.core.surface as evaluate
@@ -82,8 +83,7 @@ def spawn(wfn, dt):
                         basis_grown = True
                         wfn.add_trajectory(child)
                         child_spawn.label = wfn.traj[-1].label # a little hacky...
-                        utils.write_spawn_log(current_time, spawn_time, exit_time,
-                                                  parent_spawn, child_spawn)
+                        checkpoint.update_basis(current_time, wfn.traj[i], child)
                     else:
                         log.print_message('spawn_bad_step',
                                                  ['overlap with bundle too large'])

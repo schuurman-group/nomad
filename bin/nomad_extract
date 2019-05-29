@@ -96,6 +96,7 @@ def process_arguments(args):
                 '-energy':False,
                 '-pop':False,
                 '-auto':False,
+                '-spawn':False,
                 '-matrices':False,
                 '-trajectories':False,
                 '-interface_data':False,
@@ -146,6 +147,9 @@ def extract_data(wfn, mat, dlst):
     if '-all' in dlst or '-auto' in dlst:
         extract_auto(wfn)
 
+    if '-all' in dlst or '-spawn' in dlst:
+        extract_spawn(wfn)
+
     if '-all' in dlst or '-matrices' in dlst:
         extract_matrices(wfn, mat)
 
@@ -183,6 +187,12 @@ def extract_auto(wfn):
 
     checkpoint.print_wfn_row('auto', prnt_data)
 
+def extract_spawn(wfn)
+    """print the spawn table"""
+   
+    spawn_data = checkpoint.retrive_basis()
+    for i in range(len(spawn_data)):
+        checkpoint.print_wfn_row('spawn', spawn_data[i])
 
 def extract_matrices(wfn, mat):
     """Documentation to come"""

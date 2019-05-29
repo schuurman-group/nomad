@@ -33,38 +33,6 @@ def print_message(otype, data):
             with open(glbl.paths['log_file'], 'a') as logfile:
                 logfile.write(log_format[otype].format(*data))
 
-
-def print_spawn_log(data):
-    """Print the spawn log.
-
-    This is apparently a 'temporary hack'.
-    """
-    file_name    = 'spawn.log'
-    fwid1        = 12
-    fwid2        = 16
-    lenst        = 7
-    spawn_format = ('{:12.4f}{:12.4f}{:12.4f}{:7d}{:7d}{:7d}{:7d}' +
-                    '{:12.8f}{:12.8f}{:12.8f}{:12.8f}' +
-                    '{:16.8f}{:16.8f}\n')
-    spawn_header = ('time(entry)'.rjust(fwid1), 'time(spawn)'.rjust(fwid1),
-                    'time(exit)'.rjust(fwid1), 'parent'.rjust(lenst),
-                    'state'.rjust(lenst), 'child'.rjust(lenst), 'state'.rjust(lenst),
-                    'ke(parent)'.rjust(fwid1), 'ke(child)'.rjust(fwid1),
-                    'pot(parent)'.rjust(fwid1), 'pot(child)'.rjust(fwid1),
-                    'total(parent)'.rjust(fwid2), 'total(child)'.rjust(fwid2))
-
-    if glbl.mpi['rank'] == 0:
-
-        if os.path.isfile(file_name):
-            with open(file_name, 'a') as outfile:
-                outfile.write(spawn_format.format(*data))
-
-        else:
-            with open(file_name, 'x') as outfile:
-                outfile.write(''.join(spawn_header)+'\n')
-                outfile.write(spawn_format.format(*data))
-
-
 def cleanup_end():
     """Cleans up the FMS log file if calculation completed."""
     # simulation ended

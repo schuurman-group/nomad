@@ -17,7 +17,7 @@ import nomad.integrals.centroid as centroid
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
                'dipole', 'tr_dipole', 'sec_mom', 'atom_pop']
-bkeys       = ['pop', 'energy', 'auto']
+bkeys       = ['pop', 'energy', 'auto', 'spawn']
 dump_header = dict()
 dump_format = dict()
 tfile_names = dict()
@@ -114,9 +114,8 @@ def merge_simulations(file_names=None, new_file=None):
         chkpt.close()    
 
     target.close()
- 
 
-
+# 
 def time_steps(chkpt, grp_name, file_name=None):
     """Documentation to come"""
     # if file handle is None, get file stream by opening
@@ -142,6 +141,42 @@ def time_steps(chkpt, grp_name, file_name=None):
 
     return steps
 
+#
+def update_basis(time, parent, child, file_name=None, name=0):
+    """ Update information regarding new basis functions """
+    
+    basis_name = 'basis.'+str(name)
+    dset       = basis_name+'/adapt_log'
+
+    if file_name is not None:
+        chkpt = h5py.File(file_name.strip(), 'r', libver='latest')
+    else
+        chkpt = h5py.File(glbl.paths['chkpt_file'], 'a', libver='latest')
+
+    data_row = package_basis(time, parent, child) 
+    chkpt[basis_name].attrs['current_row'] += 1
+    chkpt[dset][chkpt[basis_name].attrs['current_row']] = data_row
+
+    return
+
+#
+def retrieve_basis(file_name=None, name=0)
+
+    basis_name = 'basis.'+str(name)
+    dset       = basis_name+'/adapt_log'
+
+    # default is to use file name from previous write
+    if file_name is not None:
+        glbl.paths['chkpt_file'] = file_name.strip()
+
+    # open chkpoint file
+    chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
+
+    basis_data = chkpt[dset][0:chkpt[basis_name].attrs['current_row']]
+
+    chkpt.close()
+
+    return basis_data
 
 #------------------------------------------------------------------------------------
 #
@@ -156,17 +191,48 @@ def create(file_name, wfn, ints):
     # save the contents of glbl.py
     write_keywords(chkpt)
 
+    # create basis group
+    create_basis(chkpt, wfn, name=0)
+
     # wfn group -- row information
-    create_wfn(chkpt, name=0)
+    create_wfn(chkpt, wfn, name=0)
 
     # integral group -- row information
-    create_int(chkpt, name=0)
+    create_int(chkpt, ints, name=0)
 
     # close following initialization
     chkpt.close()
 
+# 
+def create_basis(chkpt, wfn, name=0):
+    """ Creates a new basis group, with suffix 'name' """
+   
+    basis_name = 'basis.'+str(name)
+
+    if basis_name in chkpt.keys():
+        raise ValueError('wavefunction='+wfn_name+' already exists.'+
+                         'Continuing...') 
+    else:
+        chkpt.create_group(basis_name)
+        chkpt[basis_name].attrs['n_traj']      = wfn.ntraj()
+        chkpt[basis_name].attrs['current_row'] = -1
+        chkpt[basis_name].attrs['n_rows']        = 100
+
+        # create the 'spawn.log' table 
+        dset     = basis_name+'/adapt_log'
+        dshape   = (chkpt[basis_name].attrs['n_rows'], 13)
+        chkpt.create_dataset(dset, dshape, dtype=float, compression="gzip")
+
+        # add initial trajectories with a 'born time' of 0
+        for i in range(wfn.ntraj()):
+            data_row  = package_basis(wfn.time, wfn.traj[i], wfn.traj[i]) 
+            chkpt[basis_name].attrs['current_row'] += 1         
+            chkpt[dset][chkpt[basis_name].attrs['current_row']] = data_row
+        
+    return
+
 #
-def create_wfn(chkpt, name=0):
+def create_wfn(chkpt, wfn, name=0):
     """Creates a new wavefunction group, with suffix 'name' """
 
     wfn_name = 'wavefunction.'+str(name)
@@ -685,6 +751,23 @@ def get_time_index(chkpt, grp_name, time):
 
     return read_row
 
+#
+def package_basis(time, parent, child):
+    """Record when and from whom new basis functions are spawned"""
+
+       basis_data = np.zeros(13, dtype=float)
+       basis_data[[0,1,2]]   = [time, 
+                                parent.last_spawn[child.state],
+                                parent.exit_time[child.state]]
+       basis_data[[3,4,5,6]] = [parent.label,      parent.state,
+                                child.label,        child.state]
+       basis_data[[7,8]]     = [parent.kinetic(),   child.kinetic()] 
+       basis_data[[9,10]]    = [parent.potential(), child.potential()]
+       basis_data[[11,12]]   = [parent.classical(), child.classical()]
+
+       return basis_data
+
+#
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
@@ -867,6 +950,21 @@ def generate_data_formats():
     dump_header['auto'] = 'Time'.rjust(acc1) + ''.join(arr1) + '\n'
     dump_format['auto'] = ('{:12.4f}' +
                              ''.join('{:16.10f}' for i in range(3)) + '\n')
+
+    # spawn table
+    lenst        = 7
+    arr1  = ('time(entry','time(spawn)', 'time(exit)')
+    arr2  = ('parent','state','child','state')
+    arr3  = ('ke(parent)','ke(child)',
+             'pot(parent)','pot(child)',
+             'total(parent)','total(child)')
+    bfile_names['spawn'] = 'spawn.log'
+    dump_header['spawn'] = (''.join([arr1[i].rjust(acc1) for i in range(arr1)]) +
+                            ''.join([arr2[i].rjust(7) for i in range(arr2)]) + 
+                            ''.join([arr3[i].rjust(acc2) for i in range(arr3)])
+    dump_format['spawn'] = ('{:12.4f}{:12.4f}{:12.4f}{:7d}{:7d}{:7d}{:7d}' +
+                            '{:12.8f}{:12.8f}{:12.8f}{:12.8f}' +
+                            '{:16.8f}{:16.8f}\n')
 
     # trajectory matrices
     tfile_names['hessian']   = 'hessian.dat'
