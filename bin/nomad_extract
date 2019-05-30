@@ -13,12 +13,11 @@ import nomad.core.wavefunction as wavefunction
 import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
-
 wfn0  = None
 ints0 = None
 ints  = None
 
-
+#
 def main():
     """Runs the main nomad_extract routine."""
     global wfn0, ints0, ints
@@ -53,9 +52,12 @@ def main():
     mat     = matrices.Matrices()
     checkpoint.generate_data_formats()
 
+    # extract the time-indpendent/time-irregular information
+    extract_logs(data)
+
     # if we want all times, run through all the data
     if time is None:
-        tvals = checkpoint.time_steps(None, 'wavefunction', chkpt_file)
+        tvals = checkpoint.time_steps(file_name=chkpt_file)
         # try reading last time -- if anything fails, read up to the penultimate
         # time, i.e. we grabbed this checkpoint file during a write
         # status = chk_last_write(tvals[-1])
@@ -134,9 +136,17 @@ def process_arguments(args):
 
     return chkpt_file, time, data_lst
 
+def extract_logs(dlst):
+    """extracts information from checkpoint that is not uniform in time,
+       generally extracted just once for a simulation"""
+
+    if '-all' in dlst or '-spawn' in dlst:
+        extract_spawn()   
+
 
 def extract_data(wfn, mat, dlst):
-    """Documentation to come"""
+    """extracts 'data' from checkpoint. Data is updated regularly/every time
+       step."""
 
     if '-all' in dlst or '-energy' in dlst:
         extract_energy(wfn)
@@ -147,9 +157,6 @@ def extract_data(wfn, mat, dlst):
     if '-all' in dlst or '-auto' in dlst:
         extract_auto(wfn)
 
-    if '-all' in dlst or '-spawn' in dlst:
-        extract_spawn(wfn)
-
     if '-all' in dlst or '-matrices' in dlst:
         extract_matrices(wfn, mat)
 
@@ -159,7 +166,16 @@ def extract_data(wfn, mat, dlst):
     if '-all' in dlst or '-interface_data' in dlst:
         extract_interface_data(wfn)
 
+#------------------------------------------------------------------------------------
+def extract_spawn():
+    """print the spawn table"""
 
+    spawn_data = checkpoint.retrieve_basis()
+
+    for i in range(len(spawn_data)):
+        checkpoint.print_wfn_row('spawn', spawn_data[i][:])
+
+#
 def extract_energy(wfn):
     """Documentation to come"""
     prnt_data = [wfn.time]
@@ -169,7 +185,7 @@ def extract_energy(wfn):
 
     checkpoint.print_wfn_row('energy', prnt_data)
 
-
+#
 def extract_pop(wfn):
     """Documentation to come"""
     prnt_data = [wfn.time]
@@ -178,7 +194,7 @@ def extract_pop(wfn):
 
     checkpoint.print_wfn_row('pop', prnt_data)
 
-
+#
 def extract_auto(wfn):
     """Documentation to come"""
     global wfn0, ints
@@ -187,13 +203,7 @@ def extract_auto(wfn):
 
     checkpoint.print_wfn_row('auto', prnt_data)
 
-def extract_spawn(wfn)
-    """print the spawn table"""
-   
-    spawn_data = checkpoint.retrive_basis()
-    for i in range(len(spawn_data)):
-        checkpoint.print_wfn_row('spawn', spawn_data[i])
-
+#
 def extract_matrices(wfn, mat):
     """Documentation to come"""
     checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
@@ -204,7 +214,7 @@ def extract_matrices(wfn, mat):
     checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
     checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
 
-
+#
 def extract_trajectories(wfn):
     """Documentation to come"""
     for i in range(wfn.nalive):
@@ -241,7 +251,7 @@ def extract_trajectories(wfn):
         # print hessian
         #checkpoint.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
-
+#
 def extract_interface_data(wfn):
     """Documentation to come"""
 
