@@ -5,7 +5,7 @@
 !
 module libchkpt
  use hdf5
- use lookup
+ use nomad_vars 
 
  implicit none
  
@@ -126,18 +126,25 @@ module libchkpt
    type(c_ptr),value                           :: info
    type(c_ptr),value                           :: params_ptr
 
-   integer                                     :: stat, return_val
+   integer                                     :: i,stat, return_val
    integer                                     :: indx, len
+   integer(size_t),parameter                   :: sdim=120
    type(keyword_list),pointer                  :: keywords
    type(h5o_info_t), target                    :: infobuf
-   character(len=20)                           :: name_string
+   character(len=20)                           :: name_string,var_string
    integer(hsize_t)                            :: nkey,ikey,stor_size
    integer(hid_t)                              :: attr_id, lapl_id, data_type
+   integer(hid_t)                              :: filetype, memtype, space, dset ! Handles
+   integer(hsize_t), DIMENSION(1:1)            :: maxdims
    integer(size_t)                             :: n_size
-   character(len=120)                          :: n_buf
-   character(len=120),target                   :: a_val
-   integer(hsize_t),dimension(1)               :: dims
+   character(len=30)                           :: n_buf
+   character(len=sdim),dimension(:),allocatable,target    :: rdata
+   integer                                     :: i_val
+   double precision                            :: r_val
+   integer(hsize_t), DIMENSION(1:1)            :: dims = (/1/)
    type(c_ptr)                                 :: read_ptr
+   character(len=2),parameter                  :: attribute = "A1"
+   character(len=120)                          :: str_buf
 
     !
     ! Initialize FORTRAN interface.
@@ -167,29 +174,92 @@ module libchkpt
 
     ! if this is a keyword group, read all the attributes
     if(infobuf%type.eq.H5O_TYPE_GROUP_F .and. index(name_string(1:len),'keywords').ne.0) then
-     print *,'section: ',name_string(1:len),' is a keyword section'
      nkey = infobuf%num_attrs
-     print *,'number of attributes: ',nkey
      do ikey = 0,nkey-1,1
        call h5aget_name_by_idx_f(obj_id, name_string(1:len), H5_INDEX_NAME_F, H5_ITER_NATIVE_F, ikey, n_buf, stat)
+      
+       if (.not.var_valid(adjustl(n_buf))) then
+           print *,'keyword ',trim(adjustl(n_buf)),' not valid, continuing...'
+           cycle
+       endif
+
        print *,"attr_name=",trim(adjustl(n_buf))
+       indx = int(ikey)
        call h5aopen_by_name_f(obj_id, name_string(1:len), trim(adjustl(n_buf)), attr_id, stat)
-       print *,"stat,attr_id=",stat,attr_id 
        call h5aget_type_f(attr_id, data_type, stat) 
-       print *,"data_type=",data_type
        call h5aget_storage_size_f(attr_id, stor_size, stat)
-       dims(1) = 120
-       print *,'storage_size=',stor_size
-       read_ptr = c_loc(a_val(1:1))
-       call h5aread_f(attr_id, data_type, read_ptr, stat)
-       print *,'read stat=',stat
-       print *,"attr_value=",trim(adjustl(a_val))
+
+       if(var_type(n_buf) == H5T_STRING_F) then
+  
+         call h5aget_type_f(attr_id, data_type, stat)
+         call h5tget_size_f(data_type, n_size, stat)
+
+         print *,'n_size=',n_size
+         ! Make sure the declared length is large enough
+         if(n_size.gt.120) then
+          print *,'ERROR: String variable length too long to read.'
+          stop
+         endif
+
+         !
+         ! Get dataspace and allocate memory for read buffer.
+         ! 
+         call h5aget_space_f(attr_id, space, stat)
+         print *,'stat=',stat
+         call h5sget_simple_extent_dims_f(space, dims, maxdims, stat)
+         print *,'dims=',dims
+         print *,'space=',space
+
+         allocate(rdata(1:dims(1)))
+         print *,'rdata=',rdata(1:dims(1))
+         !
+         ! Create the memory datatype.
+         !
+         CALL h5tcopy_f(H5T_NATIVE_CHARACTER, memtype, stat)
+         print *,'stat=',stat
+         CALL h5tset_size_f(memtype, sdim, stat)
+         print *,'stat=',stat
+         !
+         ! Read the data.
+         !
+         !read_ptr = C_LOC(rdata(1)(1:1))
+         call h5aread_f(attr_id, memtype, str_buf, dims, stat)
+         !
+         ! Output the data to the screen.
+         !
+         do i = 1, dims(1)
+          write(*,'(A,"(",I0,"): ", A)') attribute, i, rdata(i)
+         enddo
+
+        print *,'rdata=',rdata         
+        var_string(1:dims(1)) = " "
+        len = 0
+        do
+           len = len + 1
+           if(rdata(len)(1:1).eq.C_NULL_CHAR) exit
+           var_string(len:len) = rdata(len)(1:1)
+        enddo
+        len = len - 1 ! subtract NULL character
+        print *,'var_string=|',var_string(1:len),'|'
+
+       elseif(var_type(n_buf) == H5T_INTEGER_F) then
+        read_ptr = c_loc(i_val)
+        dims(1)  = 1
+        call h5aread_f(attr_id, data_type, i_val, dims, stat)
+        print *,'value=',i_val
+       elseif(var_type(n_buf) == H5T_FLOAT_F) then
+        read_ptr = c_loc(r_val)
+        dims(1)  = 1
+        call h5aread_f(attr_id, data_type, r_val, dims, stat)
+        print *,'value=',r_val
+       else
+        print *,'cannot parse '//n_buf//' continuing...'
+        continue      
+       endif
        call h5aclose_f(attr_id, stat)
      enddo
-    elseif(infobuf%type.eq.H5O_TYPE_DATASET_F) then
-      return
     else
-      stop 'ERROR -- cannot identify section...'
+      return
     endif
 
     return

@@ -3,7 +3,7 @@
 !
 module propagate_module
  use hdf5
- use lookup
+ use nomad_vars
  use libchkpt
 
  public keyword_list
@@ -34,9 +34,10 @@ module propagate_module
 
   if(n_arg.lt.1)stop 'need to specify ansatz'
 
-  ! read in ansatz
+  ! read in file name 
   call getarg(1,abuf)
-  ansatz = adjustl(abuf)
+  abuf = trim(adjustl(abuf))
+  read(abuf,*) chkpt
 
   i_arg = 2
   do while (i_arg < n_arg)
@@ -54,11 +55,10 @@ module propagate_module
        abuf = trim(adjustl(abuf))
        read(abuf,*) tf
 
-    elseif (trim(adjustl(abuf)) == '-file') then
+    elseif (trim(adjustl(abuf)) == '-ansatz') then
        i_arg = i_arg + 1
        call getarg(i_arg,abuf)
-       abuf = trim(adjustl(abuf))
-       read(abuf,*) chkpt
+       ansatz = trim(adjustl(abuf))
 
     else
        stop ' command line argument argument not recognized...'
@@ -80,9 +80,8 @@ module propagate_module
   ! initialize HDF5 system
   call h5open_f(ierr)
 
-  ! read the simulation parameters, check that all files are
-  ! consistent in the ways that matter
-  call init_table(params, 100)
+  ! read the simulation parameters
+  call init_table(params)
   call read_params(chkpt, params)
 
   ! read in the trajectory information

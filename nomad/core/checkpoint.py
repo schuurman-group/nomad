@@ -165,7 +165,7 @@ def update_basis(time, parent, child, file_name=None, name=0):
 
 #
 def retrieve_basis(file_name=None, name=0):
-
+    """Pulls information about the dynamic changes to trajectory basis"""
     basis_name = 'basis.'+str(name)
     dset       = basis_name+'/adapt_log'
 
@@ -181,6 +181,37 @@ def retrieve_basis(file_name=None, name=0):
     chkpt.close()
 
     return basis_data
+
+#
+def retrieve_dataset(dset, file_name=None, ti=None, tf=None):
+    """Pulls an entire data set into a numpy array"""
+
+    # default is to use file name from previous write
+    if file_name is None:
+        file_name = glbl.paths['chkpt_file']
+
+    # open chkpoint file
+    chkpt = h5py.File(file_name, 'r', libver='latest')
+    root  = '/'+dset.split('/')[0]
+    tset  = '/'.join(dset.split('/')[0:-1])+'/time'
+    
+    if dset not in chkpt:
+        print("Cannot find "+str(dset)+" in "+str(file_name)+".")
+        return False
+    if (ti is not None or ti is not None) and tset not in chkpt:
+        print("time dataset not found, cannot request specific times")
+        return False
+
+    if ti is None:
+        ti = chkpt[tset][0]
+    start = np.abs(chkpt[tset][:] - ti).argmin()
+ 
+    if tf is None:
+        tf = chkpt[tset][chkpt[root].attrs['current_row']]
+    end   = np.abs(chkpt[tset][:] - tf).argmin()
+
+    return chkpt[dset][start:end,:]
+
 
 #------------------------------------------------------------------------------------
 #
