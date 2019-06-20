@@ -346,18 +346,20 @@ def make_one_time_input():
         rfile.write('  1  0  0\n  0  1  0\n  0  0  1')
 
     # cidrtfil files
-    with open('cidrtmsls', 'w') as cidrtmsls, open('cidrtmsin', 'r') as cidrtmsin:
-        run_prog('init', 'cidrtms.x', args=['-m',mem_str],
-                                   in_pipe=cidrtmsin,
-                                   out_pipe=cidrtmsls)
-    shutil.move('cidrtfl.1', 'cidrtfl.ci')
+    if not os.path.isfile('cidrtfl.ci'):
+        with open('cidrtmsls', 'w') as cidrtmsls, open('cidrtmsin', 'r') as cidrtmsin:
+            run_prog('init', 'cidrtms.x', args=['-m',mem_str],
+                                       in_pipe=cidrtmsin,
+                                       out_pipe=cidrtmsls)
+        shutil.move('cidrtfl.1', 'cidrtfl.ci')
 
-    with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, \
-         open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
-        run_prog('init', 'cidrtms.x', args=['-m',mem_str],
-                                   in_pipe=cidrtmsin_grd,
-                                   out_pipe=cidrtmsls_grd)
-    shutil.move('cidrtfl.1', 'cidrtfl.cigrd')
+    if not os.path.isfile('cidrtfl.cigrd')
+        with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, \
+             open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
+            run_prog('init', 'cidrtms.x', args=['-m',mem_str],
+                                       in_pipe=cidrtmsin_grd,
+                                       out_pipe=cidrtmsls_grd)
+        shutil.move('cidrtfl.1', 'cidrtfl.cigrd')
 
     # check if hermitin exists, if not, copy daltcomm
     if not os.path.exists('hermitin'):
