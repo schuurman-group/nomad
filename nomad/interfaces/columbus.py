@@ -353,7 +353,7 @@ def make_one_time_input():
                                        out_pipe=cidrtmsls)
         shutil.move('cidrtfl.1', 'cidrtfl.ci')
 
-    if not os.path.isfile('cidrtfl.cigrd')
+    if not os.path.isfile('cidrtfl.cigrd'):
         with open('cidrtmsls.cigrd', 'w') as cidrtmsls_grd, \
              open('cidrtmsin.cigrd', 'r') as cidrtmsin_grd:
             run_prog('init', 'cidrtms.x', args=['-m',mem_str],
