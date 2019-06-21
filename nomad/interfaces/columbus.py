@@ -564,26 +564,28 @@ def run_col_mrci(traj, ci_restart, t):
     # now update atom_pops
     ist = -1
     atom_pops = np.zeros((n_atoms, traj.nstates))
-    with open('ciudgls', 'r') as ciudgls:
-        for line in ciudgls:
-            if '   gross atomic populations' in line:
-                ist += 1
-                # only get populations for lowest traj.nstates states
-                if ist == traj.nstates:
-                    break
-                pops = []
-                iatm = 0
-                for i in range(int(np.ceil((n_atoms+n_dummy)/6.))):
-                    for j in range(max_l+3):
-                        nxtline = ciudgls.readline()
-                        if 'total' in line:
-                            break
-                    l_arr = nxtline.split()
-                    if i==1:
-                        pops.extend(l_arr[n_dummy+1:])
-                    else:
-                        pops.extend(l_arr[1:])
-                atom_pops[:, ist] = np.array(pops, dtype=float)
+
+    # these are more trouble than they're worth, commenting out
+    # with open('ciudgls', 'r') as ciudgls:
+    #    for line in ciudgls:
+    #        if '   gross atomic populations' in line:
+    #            ist += 1
+    #            # only get populations for lowest traj.nstates states
+    #            if ist == traj.nstates:
+    #                break
+    #            pops = []
+    #            iatm = 0
+    #            for i in range(int(np.ceil((n_atoms+n_dummy)/6.))):
+    #                for j in range(max_l+3):
+    #                    nxtline = ciudgls.readline()
+    #                    if 'total' in line:
+    #                        break
+    #                l_arr = nxtline.split()
+    #                if i==1:
+    #                    pops.extend(l_arr[n_dummy+1:])
+    #                else:
+    #                    pops.extend(l_arr[1:])
+    #            atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
     append_log(label,'mrci', t)
