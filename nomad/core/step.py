@@ -5,6 +5,7 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import nomad.core.surface as evaluate
+import nomad.adapt.utilities as utilities
 #import nomad.core.matching_pursuit as mp
 
 
@@ -62,7 +63,7 @@ def step_wavefunction(dt):
             # spawn new basis functions if necessary
             basis_grown  = glbl.modules['adapt'].spawn(glbl.modules['wfn'], time_step)
             # kill the dead trajectories
-            basis_pruned = glbl.modules['wfn'].prune()
+            basis_pruned = utilities.prune(glbl.modules['wfn'])
 
             # if a trajectory has been added, then call update_pes
             # to get the electronic structure information at the associated

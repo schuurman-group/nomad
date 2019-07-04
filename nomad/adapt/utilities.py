@@ -110,6 +110,26 @@ def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
     return max_sij
 
 
+def prune(wfn):
+    """
+    Remove trajectories that meet metric for removal.
+    """
+
+    pruned = False
+
+    for traj in wfn.alive:
+        if abs(traj.amplitude) < glbl.properties['min_pop_thresh']:
+            if traj.deadtime == -1:
+                traj.deadtime = wfn.time
+            elif (traj.deadtime - wfn.time >=
+                                 glbl.properties['time_watch_thresh']):
+                wfn.kill_trajectory(traj.label)
+                pruned = True
+        else:
+            traj.deadtime = -1
+
+    return pruned
+
 def write_spawn_log(entry_time, spawn_time, exit_time, parent, child):
     """Packages data to print to the spawn log."""
     # add a line entry to the spawn log
