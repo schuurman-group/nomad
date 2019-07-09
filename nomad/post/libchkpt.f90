@@ -223,15 +223,15 @@ module libchkpt
          ! Read the data.
          !
          !read_ptr = C_LOC(rdata(1)(1:1))
-         call h5aread_f(attr_id, memtype, str_buf, dims, stat)
+         !call h5aread_f(attr_id, memtype, str_buf, dims, stat)
          !
          ! Output the data to the screen.
          !
-         do i = 1, dims(1)
-          write(*,'(A,"(",I0,"): ", A)') attribute, i, rdata(i)
-         enddo
+         !do i = 1, dims(1)
+         ! write(*,'(A,"(",I0,"): ", A)') attribute, i, rdata(i)
+         !enddo
 
-        print *,'rdata=',rdata         
+        !print *,'rdata=',rdata         
         var_string(1:dims(1)) = " "
         len = 0
         do
@@ -245,19 +245,23 @@ module libchkpt
        elseif(var_type(n_buf) == H5T_INTEGER_F) then
         read_ptr = c_loc(i_val)
         dims(1)  = 1
-        call h5aread_f(attr_id, data_type, i_val, dims, stat)
+!        call h5aread_f(attr_id, data_type, i_val, dims, stat)
         print *,'value=',i_val
+
        elseif(var_type(n_buf) == H5T_FLOAT_F) then
         read_ptr = c_loc(r_val)
         dims(1)  = 1
-        call h5aread_f(attr_id, data_type, r_val, dims, stat)
+!        call h5aread_f(attr_id, data_type, r_val, dims, stat)
         print *,'value=',r_val
+
        else
         print *,'cannot parse '//n_buf//' continuing...'
         continue      
        endif
+       print *,'closing...'
        call h5aclose_f(attr_id, stat)
      enddo
+
     else
       return
     endif
