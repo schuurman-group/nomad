@@ -464,7 +464,8 @@ def read_wavefunction(chkpt, time):
     # dimensions of these objects are not time-dependent
     wfn.time    = chkpt['wavefunction/time'][read_row,0]
 
-    for label in chkpt['wavefunction'].keys().sort():
+    wfn_grps = sorted([str(label) for label in chkpt['wavefunction']])
+    for label in wfn_grps:
 
         #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
