@@ -117,16 +117,16 @@ def prune(wfn):
 
     pruned = False
 
-    for traj in wfn.alive:
-        if abs(traj.amplitude) < glbl.properties['min_pop_thresh']:
-            if traj.deadtime == -1:
-                traj.deadtime = wfn.time
-            elif (traj.deadtime - wfn.time >=
+    for t_alive in wfn.alive:
+        if abs(wfn.traj[t_alive].amplitude) < glbl.properties['min_pop_thresh']:
+            if wfn.traj[t_alive].deadtime == -1:
+                wfn.traj[t_alive].deadtime = wfn.time
+            elif (wfn.traj[t_alive].deadtime - wfn.time >=
                                  glbl.properties['time_watch_thresh']):
-                wfn.kill_trajectory(traj.label)
+                wfn.kill_trajectory(wfn.traj[t_alive].label)
                 pruned = True
         else:
-            traj.deadtime = -1
+            wfn.traj[t_alive].deadtime = -1
 
     return pruned
 
