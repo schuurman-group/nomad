@@ -67,9 +67,12 @@ def main():
             if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
                 continue
             [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
-            mat.build(wfn, ints)
-            wfn.update_matrices(mat)
-            extract_data(wfn, mat, data)
+            if wfn is not None:
+                mat.build(wfn, ints)
+                wfn.update_matrices(mat)
+                extract_data(wfn, mat, data)
+            else:
+                print("could not extract wfn for time="+str(tvals[i]))
 
     # else, print data from current bundle
     else:

@@ -483,6 +483,11 @@ def read_wavefunction(chkpt, time):
                                          label=label,
                                          kecoef=kecoef)
         read_trajectory(chkpt, new_traj, t_grp, t_row)
+ 
+        # if there was an error reading the trajectory, return None
+        if new_traj is None:
+            return None 
+
         wfn.add_trajectory(new_traj.copy())
 
     return wfn
@@ -521,6 +526,11 @@ def read_integral(chkpt, time):
 
             new_cent = centroid.Centroid(nstates=nstates, dim=dim, width=widths)
             read_centroid(chkpt, new_cent, c_grp, c_row)
+
+            # if there was an error reading a centroid, return None
+            if new_cent is None:
+                return None
+
             ints.add_centroid(new_cent)
 
     return ints
@@ -529,6 +539,11 @@ def read_integral(chkpt, time):
 def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
     # populate the surface object in the trajectory
+
+    # if this time step doesn't exist, return null trajectory
+    if t_row > len(chkpt[t_grp+'/glbl'])-1:
+        new_traj = None
+        return
 
     # set information about the trajectory itself
     data_row = chkpt[t_grp+'/glbl'][t_row]
@@ -555,6 +570,11 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
 
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
+
+    # if this time step doesn't exist, return null centroid
+    if c_row > len(chkpt[c_grp+'/glbl'])-1:
+        new_cent = None
+        return
 
     # set information about the trajectory itself
     parent = [0.,0.]
@@ -587,6 +607,9 @@ def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
     time_vals = time_steps(chkpt, grp_name)
 
+    if len(time_vals)==0:
+        return None
+
     if time is None:
         return chkpt[grp_name].attrs['current_row']
 
@@ -602,7 +625,7 @@ def get_time_index(chkpt, grp_name, time):
     if read_row < len(time_vals)-1:
         match_chk.extend([time_vals[read_row+1]-time_vals[read_row]])
 
-    if dt[read_row] > 0.5*min(match_chk):
+    if len(match_chk) > 0 and dt[read_row] > 0.5*min(match_chk):
         read_row = None
 
     return read_row
