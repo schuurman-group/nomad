@@ -76,9 +76,11 @@ def update_pes(wfn, update_integrals=True):
         # update electronic structure
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
+
         for i in range(wfn.n_traj()):
             if wfn.traj[i].active and not cached(wfn.traj[i].label,
                                                     wfn.traj[i].x()):
+
                 n_total += 1
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(['traj',wfn.traj[i]])
@@ -89,21 +91,24 @@ def update_pes(wfn, update_integrals=True):
             for i in range(wfn.n_traj()):
                 for j in range(i):
                     if glbl.modules['integrals'].centroid_required[i][j] and not \
-                                             cached(integrals.centroids[i][j].label,
-                                                    integrals.centroids[i][j].x()):
+                                             cached(glbl.modules['integrals'].centroids[i][j].label,
+                                                    glbl.modules['integrals'].centroids[i][j].x()):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
-                            exec_list.append(['cent',wfn.cent[i][j]])
+                            exec_list.append(['cent',glbl.modules['integrals'].centroids[i][j]])
 
         local_results = []
+
+        print("rank="+str(glbl.mpi['rank'])+", length exec_lst="+str(len(exec_list)))
         for i in range(len(exec_list)):
-            if type(exec_list[i][0]) is 'traj':
-                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], wfn.time)
-            elif type(exec_list[i][0]) is 'cent':
-                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], wfn.time)
+            if exec_list[i][0] is 'traj':
+                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], t=wfn.time)
+            elif exec_list[i][0] is 'cent':
+                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], t=wfn.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
+                pes_calc = None
             local_results.append([exec_list[i][1].label,pes_calc])
 
         global_results = glbl.mpi['comm'].allgather(local_results)

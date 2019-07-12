@@ -18,7 +18,8 @@ def init_logfile():
     generate_formats()
 
     # print the log file header, including values of all variables
-    print_header()
+    if glbl.mpi['rank'] == 0:
+        print_header()
 
 
 def print_message(otype, data):
@@ -124,6 +125,12 @@ def print_header():
                    ' ----------------------------------------\n')
 
         logfile.write('\n ** method variables **\n')
+        log_str = ''
+        for k,v in glbl.methods.items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
+
+        logfile.write('\n ** mpi variables **\n')
         log_str = ''
         for k,v in glbl.methods.items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
