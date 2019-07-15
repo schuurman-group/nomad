@@ -75,6 +75,7 @@ properties = dict(
     distrib_compression = 1.,
     seed                = 0,
     restart             = False,
+    restart_time        = None, 
     simulation_time     = 1000.,
     default_time_step   = 10.,
     coupled_time_step   = 5.,

@@ -63,7 +63,7 @@ def init_wavefunction():
         wfn0  = None
         ints0 = None
         if glbl.mpi['rank'] == 0:
-            [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation()
+            [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation(time=glbl.properties['restart_time'])
             [wfn0, ints0]                                    = checkpoint.retrieve_simulation(time=0.)
 
         # only root reads checkpoint file -- then broadcasts contents to other proceses
@@ -73,7 +73,7 @@ def init_wavefunction():
             glbl.modules['wfn']       = glbl.mpi['comm'].bcast(glbl.modules['wfn'], root=0)
             wfn0                      = glbl.mpi['comm'].bcast(wfn0, root=0)
             if glbl.modules['integrals'].require_centroids:
-                glbl.modules['integrals'].centroid_required = glbl.mpi['comm'].bcast(glbl.modules['integrals'].centroid_required, root=0) 
+                glbl.modules['integrals'].centroid_required = glbl.mpi['comm'].bcast(glbl.modules['integrals'].centroid_required, root=0)
                 glbl.modules['integrals'].centroids         = glbl.mpi['comm'].bcast(glbl.modules['integrals'].centroids, root=0)
 
         # save copy of t=0 wfn for autocorrelation function

@@ -52,7 +52,7 @@ def archive_simulation(wfn, integrals, file_name=None):
     chkpt.close()
     return
 
-def retrieve_simulation(time=None, file_name=None, key_words=False):
+def retrieve_simulation(time=None, file_name=None, key_words=False, reset_rows=False):
     """Dochumentation to come"""
 
     # default is to use file name from previous write
@@ -64,6 +64,11 @@ def retrieve_simulation(time=None, file_name=None, key_words=False):
 
     if key_words:
         read_keywords(chkpt)
+  
+    # when restarting from arbitrary time, we may want to overwrite
+    # subsequent time-data, if it exists
+    if reset_rows:
+        reset_datasets(chkpt, time)
 
     # read wave function information, including trajectories
     wfn = read_wavefunction(chkpt, time)
@@ -85,6 +90,11 @@ def time_steps(chkpt, grp_name, file_name=None):
     # file, file_name
     if chkpt is None and file_name is not None:
         chkpt = h5py.File(file_name.strip(), 'r', libver='latest') 
+
+    # if this group doesn't posses a list of times, return
+    # 'none'
+    if grp_name+'/time' not in chkpt:
+        return None
 
     # if the group name is in the checkpoint file, return
     # the associated time array
@@ -139,6 +149,39 @@ def create(file_name, wfn, ints):
 
     # close following initialization
     chkpt.close()
+
+#
+def reset_datasets(chkpt, time):
+    """Resets 'current_row' attribute on all datasets to correspond
+       to 'time', and sets all subsequent data to the equivalent of 
+       'null'."""
+
+    # if time is null, this corresponds to the current time, so there
+    # is nothing to do
+    if time is None:
+        return
+
+    # first go through wavefunction datasets
+    # we are operating on first 'wavefunction' object we come across,
+    # so this is only safe for checkpoints with a single wfn object.
+    # We may decide to allow specficiation of a wfn object in 
+    # a merged chkpt sometime in future
+    for grp in chkpt:
+        # if this group has a 'time' dataset...
+        if time_steps(chkpt, grp) is not None:
+            cur_indx = get_time_index(chkpt, grp, time)
+            chkpt[grp].attrs['current_row'] = cur_indx
+            # if this is wavefunction or integral grp, desend one
+            # level to work on trajectory and centroid objects
+            if 'wavefunction' in grp or 'integral' in grp:
+                for sub_grp in chkpt[grp]:
+                    sub_name = grp+'/'+sub_grp
+                    print("sub_grp="+str(sub_name))
+                    if time_steps(chkpt, sub_name) is not None:
+                        cur_indx = get_time_index(chkpt, sub_name, time)
+                        chkpt[sub_name].attrs['current_row'] = cur_indx
+
+    return
 
 #
 def write_keywords(chkpt):
