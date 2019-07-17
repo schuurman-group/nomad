@@ -67,7 +67,7 @@ def print_spawn_log(data):
 
 
 def cleanup_end():
-    """Cleans up the FMS log file if calculation completed."""
+    """Cleans up the nomad log file if calculation completed."""
     # simulation ended
     print_message('complete', [])
 
@@ -78,7 +78,7 @@ def cleanup_end():
 
 
 def cleanup_exc(etyp, val, tb):
-    """Cleans up the FMS log file if an exception occurs."""
+    """Cleans up the nomad log file if an exception occurs."""
     # print exception
     exception = ''.join(traceback.format_exception(etyp, val, tb))
     print_message('error', [rm_timer(exception)])

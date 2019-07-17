@@ -1066,10 +1066,8 @@ def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
     # bummer file to be sure error code not caught by Columbus
     if not prog_status():
         raise RuntimeError(str(prog_name)+' returned error, traj='+str(tid))
-        if glbl.mpi['parallel']:
-            glbl.mpi['comm'].abort()
 
-
+#
 def prog_status():
     """Opens bummer file, checks to see if fatal error message
     has been written. If so, return False, else, return True"""

@@ -100,7 +100,10 @@ if __name__ == '__main__':
 
     # initialize
     init()
+
     # if an error occurs, cleanup and report the error
     sys.excepthook = log.cleanup_exc
+
     # run the main routine
     main()
+
