@@ -75,6 +75,7 @@ def retrieve_simulation(time=None, file_name=None, key_words=False, reset_rows=F
 
     # update the wfn specific data
     ints = read_integral(chkpt, time)
+
     if ints is not None:
         ints.update(wfn)
 
@@ -176,7 +177,6 @@ def reset_datasets(chkpt, time):
             if 'wavefunction' in grp or 'integral' in grp:
                 for sub_grp in chkpt[grp]:
                     sub_name = grp+'/'+sub_grp
-                    print("sub_grp="+str(sub_name))
                     if time_steps(chkpt, sub_name) is not None:
                         cur_indx = get_time_index(chkpt, sub_name, time)
                         chkpt[sub_name].attrs['current_row'] = cur_indx
@@ -668,8 +668,11 @@ def get_time_index(chkpt, grp_name, time):
     if read_row < len(time_vals)-1:
         match_chk.extend([time_vals[read_row+1]-time_vals[read_row]])
 
-    if len(match_chk) > 0 and dt[read_row] > 0.5*min(match_chk):
-        read_row = None
+    if dt[read_row] != 0.:
+        if len(match_chk) == 0:
+            read_row = None
+        elif dt[read_row] > 0.5*min(match_chk):
+            read_row = None
 
     return read_row
 
