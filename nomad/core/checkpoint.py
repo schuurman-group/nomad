@@ -22,7 +22,7 @@ tfile_names = dict()
 bfile_names = dict()
 
 
-def archive_simulation(wfn, integrals, file_name=None):
+def archive_simulation(wfn, integrals, file_name=None, create_new=False):
     """Documentation to come"""
 
     # default is to use file name from previous write
@@ -32,7 +32,7 @@ def archive_simulation(wfn, integrals, file_name=None):
     # if this is the first time we're writing to the archive,
     # create the bundle data set and record the time-independent
     # bundle definitions
-    if not os.path.isfile(glbl.paths['chkpt_file']):
+    if not os.path.isfile(glbl.paths['chkpt_file']) or create_new:
         create(glbl.paths['chkpt_file'], wfn, integrals)
 
     # pull the time from the wave function to uniquely timestamp
@@ -123,6 +123,11 @@ def time_steps(chkpt, grp_name, file_name=None):
 #------------------------------------------------------------------------------------
 def create(file_name, wfn, ints):
     """Creates a new checkpoint file."""
+
+    # if a file already exists with this name, remove it
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 

@@ -132,7 +132,7 @@ def print_header():
 
         logfile.write('\n ** mpi variables **\n')
         log_str = ''
-        for k,v in glbl.methods.items():
+        for k,v in glbl.mpi.items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
 
