@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Module used to extract data from nomad output files.
+Script used to extract data from nomad output files.
 """
 import os
 import sys
@@ -253,7 +253,7 @@ def extract_interface_data(wfn):
                 dipoles = traj.pes.get_data('dipole')
                 prnt_data = [wfn.time]
                 prnt_data.extend([dipoles[j,k,k] for k in range(nst) for j in range(3)])
-                checkpoint.print_traj_row(label,'dipole',prnt_data)           
+                checkpoint.print_traj_row(label,'dipole',prnt_data)
 
                 # print transition dipoles
                 prnt_data = [wfn.time]
@@ -273,7 +273,7 @@ def extract_interface_data(wfn):
                 sec_mom = traj.pes.get_data('sec_mom')
                 prnt_data = [wfn.time]
                 prnt_data.extend([sec_mom[j,j,k] for k in range(nst) for j in range(3)])
-                checkpoint.print_traj_row(label,'sec_mom',prnt_data) 
+                checkpoint.print_traj_row(label,'sec_mom',prnt_data)
 
             # print mulliken populations
             if 'atom_pop' in traj.pes.avail_data():
@@ -286,9 +286,6 @@ def extract_interface_data(wfn):
     # extract information associated with vibronic models
     if glbl.methods['interface'] == 'vibronic':
         pass
-    
-    return
- 
 
 
 if __name__ == '__main__':

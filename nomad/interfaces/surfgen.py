@@ -1,7 +1,6 @@
-# file: surfgen.py
-# 
-# Routines for running surfgen.x surface evaluation
-#
+"""
+Routines for running surfgen.x surface evaluation
+"""
 import sys
 import os
 import shutil
@@ -13,40 +12,38 @@ import nomad.core.surface as surface
 import nomad.math.constants as constants
 from ctypes import *
 
+
 # surfgen library
 libsurf = None
+
 
 #---------------------------------------------------------------------
 #
 # Functions called from interface object
 #
 #---------------------------------------------------------------------
-#
-# init_interface: intialize surfgen and set up for evaluation
-#
 def init_interface():
+    """Intializes surfgen and set up for evaluation."""
     global libsurf
     err = 0
 
     # Check that $SURFGEN is set and load library, then check for input files.
     libsurfgen_path = os.environ['LIBSURFGEN']
     if not os.path.isfile(libsurfgen_path):
-        print("Surfgen library not found: "+libsurfgen_path)
-        sys.exit()
+        raise FileNotFoundError('Surfgen library not found: '+libsurfgen_path)
+
     libsurf = cdll.LoadLibrary(libsurfgen_path)
 
     err = check_surfgen_input('./input')
     if err != 0:
-        print("Missing surfgen input files at: ./input")
-        sys.exit()
-        
+        raise FileNotFoundError('Missing surfgen input files at: ./input')
+
     initialize_surfgen_potential()
-        
-#
-# evaluate_trajectory: evaluate all reaqusted electronic structure
-# information for a single trajectory
-#
+
+
 def evaluate_trajectory(traj, t=None):
+    """Evaluates all reaqusted electronic structure  information
+    for a single trajectory."""
     global libsurf
 
     n_atoms = int(traj.dim/3.)
@@ -86,26 +83,25 @@ def evaluate_trajectory(traj, t=None):
     cgrad_phase = set_phase(traj, cartgrd)
 
     # add to the derivative object
-    surf_gen.add_data('derivative', cgrad_phase)     
+    surf_gen.add_data('derivative', cgrad_phase)
 
     return surf_gen
 
-#
-# evaluate_centroid: evaluate all requested electronic structure 
-# information at a centroid
-#
+
 def evaluate_centroid(cent, t=None):
+    """Evaluates all requested electronic structure information
+    at a centroid."""
+    return evaluate_trajectory(cent, t=None)
 
-    return evaluate_trajectory(cent, t=None) 
 
-#
-# evaluate the coupling between electronic states
-# 1. for adiabatic basis, this will just be the derivative coupling dotted into
-#    the velocity
-# 2. for diabatic basis, it will be the potential coupling, or something else
-#
 def evaluate_coupling(traj):
-    """evaluate coupling between electronic states"""
+    """Evaluates coupling between electronic states.
+
+    1. for adiabatic basis, this will just be the derivative coupling
+       dotted into the velocity
+    2. for diabatic basis, it will be the potential coupling, or
+       something else
+    """
     nstates = traj.nstates
     state   = traj.state
 
@@ -124,61 +120,44 @@ def evaluate_coupling(traj):
 # "Private" functions
 #
 #--------------------------------------------------------------------
-#
-# initialize_surfgen_potential: call initpotential_ to initialize
-# surfgen surface evalutation.
-#
 def initialize_surfgen_potential():
+    """Calls initpotential_ to initialize surfgen surface evalutation."""
     global libsurf
 
     os.chdir('./input')
     libsurf.initpotential_()
     os.chdir('../')
 
-    return
 
-#
-# check_surfgen_input: check for all files necessary for successful
-# surfgen surface evaluation.
-#
 def check_surfgen_input(path):
-    # Input:
-    #  path = path to directoy executing surfgen
-    #
-    # The following files are necessary for surfgen.x to run:
-    #  hd.data, surfgen.in, coord.in, refgeom, irrep.in,
-    #  error.log
+    """Checks for all files necessary for successful surfgen surface
+    evaluation.
+
+    Input:
+     path = path to directoy executing surfgen
+
+    The following files are necessary for surfgen.x to run:
+     hd.data, surfgen.in, coord.in, refgeom, irrep.in,
+     error.log
+    """
     files = [path+'/hd.data', path+'/surfgen.in', path+'/coord.in',\
              path+'/refgeom', path+'/irrep.in']
     for i in range(len(files)):
-        err = check_file_exists(files[i])
-        if err != 0:
+        if not os.path.isfile(files[i]):
             print("File not found: "+files[i])
 
     return err
 
-#
-# check_file_exists: check if file exists
-#
-def check_file_exists(fname):
-    err = 0
-    if not os.path.isfile(fname):
-        err = 1
-    return err
 
-
-#
-# determine the phase of the computed coupling that yields smallest
-# change from previous coupling
-#
 def set_phase(traj, new_grads):
-
+    """Determines the phase of the computed coupling that yields smallest
+    change from previous coupling."""
     n_states = int(traj.nstates)
 
     # pull data to make consistent
     if 'derivative' in traj.pes.avail_data():
         old_grads = np.transpose(np.array([[traj.derivative(i,j,geom_chk=False)
-                                 for i in range(n_states)] for j in range(n_states)]), 
+                                 for i in range(n_states)] for j in range(n_states)]),
                                  axes=(2,0,1))
     else:
         old_grads = np.zeros((traj.dim, n_states, n_states))
@@ -197,4 +176,3 @@ def set_phase(traj, new_grads):
                     new_grads[:,j,i] *= -1.
 
     return new_grads
-

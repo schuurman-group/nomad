@@ -147,7 +147,7 @@ def print_header():
         for k,v in glbl.sections[glbl.methods['interface']].items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
-        return
+
 
 def generate_formats():
     """Documentation to come"""
@@ -175,7 +175,7 @@ def generate_formats():
 
     print_level['general']        = 2
     print_level['warning']        = 0
-    print_level['string']         = 2 
+    print_level['string']         = 2
     print_level['t_step']         = 0
     print_level['coupled']        = 2
     print_level['new_step']       = 2

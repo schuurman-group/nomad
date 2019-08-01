@@ -10,6 +10,7 @@ import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian_ccs as nuclear
 import nomad.compiled.vibronic_gaussian as vibronic
 
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
@@ -26,6 +27,7 @@ theta_cache = dict()
 # diabat is the "excited" state, which is "ground" state.
 gs = 0
 es = 1
+
 
 def v_integral(traj1, traj2, kecoef, nuc_ovrlp, elec_ovrlp):
     """Returns potential coupling matrix element between two trajectories."""
@@ -47,14 +49,14 @@ def v_integral(traj1, traj2, kecoef, nuc_ovrlp, elec_ovrlp):
         v_mat[s1,s2] += v_term
 
     # Fill in the upper-triangle
-    v_mat += (v_mat.T - np.diag(v_mat.diagonal()))
+    v_mat += v_mat.T - np.diag(v_mat.diagonal())
 
     return np.dot(np.dot(phi(traj1), v_mat), phi(traj2)) * nuc_ovrlp
 
 
 def rot_mat(theta):
-    """ Returns the adiabatic-diabatic rotation matrix for a given value of
-        theta"""
+    """Returns the adiabatic-diabatic rotation matrix for a given value of
+    theta"""
     global gs, es
 
     if gs == 0:
@@ -65,10 +67,12 @@ def rot_mat(theta):
                          [ np.cos(theta), np.sin(theta)]])
 
 def theta(traj):
-    """ Returns to the adiabatic-diabatic rotation angle theta. Choose theta
-        to be consistent with diabatic-adiabatic transformation matrix, which
-        itself is chosen to have a phase resulting in a slowly varying value of
-        of theta."""
+    """Returns to the adiabatic-diabatic rotation angle theta.
+    
+    Choose theta to be consistent with diabatic-adiabatic transformation
+    matrix, which itself is chosen to have a phase resulting in a slowly
+    varying value of of theta.
+    """
     global theta_cache, gs, es
 
     # can also run the trivial case of a single state
@@ -98,14 +102,14 @@ def theta(traj):
 
     theta_cache[traj.label] = ang
 
-#    print("traj="+str(traj.label)+" theta="+str(ang)+"\n")
+    #print("traj="+str(traj.label)+" theta="+str(ang)+"\n")
 
     return ang
 
+
 def phi(traj):
     """Returns the transformation matrix using the rotation angle.
-       Should be indentical to the dat_mat in the vibronic interface"""
-
+    Should be indentical to the dat_mat in the vibronic interface"""
     # can also run the trivial case of a single state
     if traj.nstates == 1:
         return np.array([1.], dtype=float)

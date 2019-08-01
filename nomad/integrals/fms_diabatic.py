@@ -6,6 +6,7 @@ import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
 import nomad.compiled.vibronic_gaussian as vibronic
 
+
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
 
@@ -18,11 +19,12 @@ hermitian = True
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+
 def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
     """Returns potential coupling matrix element between two trajectories."""
     # evaluate just the nuclear component (for re-use)
     if elec_ovrlp == 0.:
-        return 0j 
+        return 0j
 
     states = np.sort(np.array([t1.state, t2.state]))
     v_total = complex(0.,0.)

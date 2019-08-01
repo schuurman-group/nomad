@@ -12,6 +12,7 @@ import nomad.core.surface as surface
 import nomad.integrals.integral as integral
 import nomad.integrals.centroid as centroid
 
+
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
                'dipole', 'tr_dipole', 'sec_mom', 'atom_pop']
@@ -24,7 +25,6 @@ bfile_names = dict()
 
 def archive_simulation(wfn, integrals, file_name=None, create_new=False):
     """Documentation to come"""
-
     # default is to use file name from previous write
     if file_name is not None:
         glbl.paths['chkpt_file'] = file_name.strip()
@@ -50,11 +50,11 @@ def archive_simulation(wfn, integrals, file_name=None, create_new=False):
 
     # close the chkpt file
     chkpt.close()
-    return
 
-def retrieve_simulation(time=None, file_name=None, key_words=False, reset_rows=False):
-    """Dochumentation to come"""
 
+def retrieve_simulation(time=None, file_name=None, key_words=False,
+                        reset_rows=False):
+    """Documentation to come"""
     # default is to use file name from previous write
     if file_name is not None:
         glbl.paths['chkpt_file'] = file_name.strip()
@@ -64,7 +64,7 @@ def retrieve_simulation(time=None, file_name=None, key_words=False, reset_rows=F
 
     if key_words:
         read_keywords(chkpt)
-  
+
     # when restarting from arbitrary time, we may want to overwrite
     # subsequent time-data, if it exists
     if reset_rows:
@@ -82,7 +82,7 @@ def retrieve_simulation(time=None, file_name=None, key_words=False, reset_rows=F
     # close the checkpoint file
     chkpt.close()
 
-    return [wfn, ints]
+    return wfn, ints
 
 
 def time_steps(chkpt, grp_name, file_name=None):
@@ -90,7 +90,7 @@ def time_steps(chkpt, grp_name, file_name=None):
     # if file handle is None, get file stream by opening
     # file, file_name
     if chkpt is None and file_name is not None:
-        chkpt = h5py.File(file_name.strip(), 'r', libver='latest') 
+        chkpt = h5py.File(file_name.strip(), 'r', libver='latest')
 
     # if this group doesn't posses a list of times, return
     # 'none'
@@ -123,7 +123,6 @@ def time_steps(chkpt, grp_name, file_name=None):
 #------------------------------------------------------------------------------------
 def create(file_name, wfn, ints):
     """Creates a new checkpoint file."""
-
     # if a file already exists with this name, remove it
     if os.path.exists(file_name):
         os.remove(file_name)
@@ -136,7 +135,7 @@ def create(file_name, wfn, ints):
     # wfn group -- row information
     chkpt.create_group('wavefunction')
     chkpt['wavefunction'].attrs['current_row'] = -1
-    chkpt['wavefunction'].attrs['n_rows']      = 0 
+    chkpt['wavefunction'].attrs['n_rows']      = 0
 
     # wfn group -- time independent obj properties
     # (None)
@@ -156,90 +155,74 @@ def create(file_name, wfn, ints):
     # close following initialization
     chkpt.close()
 
-#
+
 def reset_datasets(chkpt, time):
     """Resets 'current_row' attribute on all datasets to correspond
-       to 'time', and sets all subsequent data to the equivalent of 
-       'null'."""
-
+    to 'time', and sets all subsequent data to the equivalent of
+    'null'."""
     # if time is null, this corresponds to the current time, so there
     # is nothing to do
-    if time is None:
-        return
+    if time is not None:
+        # first go through wavefunction datasets
+        # we are operating on first 'wavefunction' object we come across,
+        # so this is only safe for checkpoints with a single wfn object.
+        # We may decide to allow specficiation of a wfn object in
+        # a merged chkpt sometime in future
+        for grp in chkpt:
+            # if this group has a 'time' dataset...
+            if time_steps(chkpt, grp) is not None:
+                cur_indx = get_time_index(chkpt, grp, time)
+                chkpt[grp].attrs['current_row'] = cur_indx
+                # if this is wavefunction or integral grp, desend one
+                # level to work on trajectory and centroid objects
+                if 'wavefunction' in grp or 'integral' in grp:
+                    for sub_grp in chkpt[grp]:
+                        sub_name = grp+'/'+sub_grp
+                        if time_steps(chkpt, sub_name) is not None:
+                            cur_indx = get_time_index(chkpt, sub_name, time)
+                            chkpt[sub_name].attrs['current_row'] = cur_indx
 
-    # first go through wavefunction datasets
-    # we are operating on first 'wavefunction' object we come across,
-    # so this is only safe for checkpoints with a single wfn object.
-    # We may decide to allow specficiation of a wfn object in 
-    # a merged chkpt sometime in future
-    for grp in chkpt:
-        # if this group has a 'time' dataset...
-        if time_steps(chkpt, grp) is not None:
-            cur_indx = get_time_index(chkpt, grp, time)
-            chkpt[grp].attrs['current_row'] = cur_indx
-            # if this is wavefunction or integral grp, desend one
-            # level to work on trajectory and centroid objects
-            if 'wavefunction' in grp or 'integral' in grp:
-                for sub_grp in chkpt[grp]:
-                    sub_name = grp+'/'+sub_grp
-                    if time_steps(chkpt, sub_name) is not None:
-                        cur_indx = get_time_index(chkpt, sub_name, time)
-                        chkpt[sub_name].attrs['current_row'] = cur_indx
 
-    return
-
-#
 def write_keywords(chkpt):
-    """Writes the contents of glbl to the checkpoint file. This 
-       is only done once upon the creation of the file"""
-    
+    """Writes the contents of glbl to the checkpoint file. This
+    is only done once upon the creation of the file"""
     #loop over the dictionaries in glbl
     for keyword_section in glbl.sections.keys():
-    
+
         #if module/class objects, skip
         if keyword_section == 'modules':
             continue
-    
+
         grp_name = 'keywords_'+keyword_section
         chkpt.create_group(grp_name)
         for keyword in glbl.sections[keyword_section].keys():
-            write_keyword(chkpt, grp_name, keyword, 
+            write_keyword(chkpt, grp_name, keyword,
                           glbl.sections[keyword_section][keyword])
 
-    return
 
-#
 def write_keyword(chkpt, grp, kword, val):
     """Write a keyword to simulation archive"""
-    
-    # try writing variable to h5py attribute using native format 
+    # try writing variable to h5py attribute using native format
     try:
         chkpt[grp].attrs[kword] = val
-        return
-
     except:
-        pass
+        # that fails, write as a string
+        try:
+            #..and if an array, preserve commas
+            if isinstance(val, np.ndarray):
+                sval = ','.join([val[i] for i in range(len(val))])
+            else:
+                sval = str(val)
+            d_type = h5py.special_dtype(vlen=str)
+            chkpt[grp].attrs.create(kword, sval, dtype=d_type)
 
-    # that fails, write as a string
-    try:
-        #..and if an array, preserve commas
-        if isinstance(val, np.ndarray):
-            sval = ','.join([val[i] for i in range(len(val))])
-        else:
-            sval = str(val)
-        d_type = h5py.special_dtype(vlen=str) 
-        chkpt[grp].attrs.create(kword, sval, dtype=d_type)
-
-    except Exception as e: 
-        print("Failed to write keyword:"+str(kword)+" = val:"+str(val)+
-              " -- "+str(e)+"\n")
-
-    return
+        except Exception as e:
+            print("Failed to write keyword:"+str(kword)+" = val:"+str(val)+
+                  " -- "+str(e)+"\n")
 
 
 def read_keywords(chkpt):
     """Read keywords from archive file"""
-
     # open chkpoint file
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
@@ -255,32 +238,26 @@ def read_keywords(chkpt):
             val = read_keyword(chkpt, grp_name, keyword)
             try:
                 glbl.sections[keyword_section][keyword] = val
-            except Exception as e:     
+            except Exception as e:
                 print("Failed to set keyword:"+str(keyword)+" -- "+str(e)+"\n")
 
     chkpt.close()
 
-    return
 
 def read_keyword(chkpt, grp, kword):
     """Read a particular keyword attribute"""
-
-    # try writing variable to h5py attribute using native format 
+    # try writing variable to h5py attribute using native format
     try:
         val = chkpt[grp].attrs[kword]
         return convert_value(kword, val)
-
-    except Exception as e:     
+    except Exception as e:
         print("Failed to read keyword:"+str(kword)+" -- "+str(e)+"\n")
-
-    return
 
 
 def convert_value(kword, val):
     """Converts a string value to NoneType, bool, int, float or string."""
-
     cval = val
-   
+
     # if we can't interpret this as a list, return the string
     if str(cval).find(',',0) == -1:
         return cval
@@ -294,7 +271,7 @@ def convert_value(kword, val):
             cval = np.ndarray(cval)
             return cval
     except ValueError:
-        pass 
+        pass
     try:
         cval = str(cval).split(',')
     except ValueError:
@@ -302,6 +279,7 @@ def convert_value(kword, val):
 
     # else just a string and return as-is
     return cval
+
 
 def write_wavefunction(chkpt, wfn, time):
     """Documentation to come"""
@@ -491,7 +469,6 @@ def write_centroid(chkpt, cent, time):
 
 def read_wavefunction(chkpt, time):
     """Documentation to come"""
-
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     masses   = glbl.properties['crd_masses']
@@ -531,25 +508,25 @@ def read_wavefunction(chkpt, time):
                                          label=label,
                                          kecoef=kecoef)
         read_trajectory(chkpt, new_traj, t_grp, t_row)
- 
+
         # if there was an error reading the trajectory, return None
         if new_traj is None:
-            return None 
+            return None
 
         wfn.add_trajectory(new_traj.copy())
 
     return wfn
 
+
 def read_integral(chkpt, time):
     """Documentation to come"""
-
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     dim      = len(widths)
-   
+
     ansatz   = glbl.methods['ansatz']
-    numerics = glbl.methods['integral_eval'] 
-    kecoef   = chkpt['integral'].attrs['kecoef'] 
+    numerics = glbl.methods['integral_eval']
+    kecoef   = chkpt['integral'].attrs['kecoef']
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, 'integral', time)
@@ -591,64 +568,61 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     # if this time step doesn't exist, return null trajectory
     if t_row > len(chkpt[t_grp+'/glbl'])-1:
         new_traj = None
-        return
+    else:
+        # set information about the trajectory itself
+        data_row = chkpt[t_grp+'/glbl'][t_row]
+        [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
 
-    # set information about the trajectory itself
-    data_row = chkpt[t_grp+'/glbl'][t_row]
-    [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+        pes = surface.Surface()
+        for data_label in chkpt[t_grp].keys():
+            if pes.valid_data(data_label):
+                dset = chkpt[t_grp+'/'+data_label]
+                pes.add_data(data_label, dset[t_row])
 
-    pes = surface.Surface()
-    for data_label in chkpt[t_grp].keys():
-        if pes.valid_data(data_label):
-            dset = chkpt[t_grp+'/'+data_label]
-            pes.add_data(data_label, dset[t_row])
+        # currently, momentum has to be read in separately
+        momt    = chkpt[t_grp+'/momentum'][t_row]
 
-    # currently, momentum has to be read in separately
-    momt    = chkpt[t_grp+'/momentum'][t_row]
+        new_traj.state  = int(state)
+        new_traj.parent = int(parent)
+        new_traj.update_amplitude(amp_real+1.j*amp_imag)
+        new_traj.last_spawn = data_row[5:]
 
-    new_traj.state  = int(state)
-    new_traj.parent = int(parent)
-    new_traj.update_amplitude(amp_real+1.j*amp_imag)
-    new_traj.last_spawn = data_row[5:]
-
-    new_traj.update_pes_info(pes)
-    new_traj.update_x(new_traj.pes.get_data('geom'))
-    new_traj.update_p(momt)
+        new_traj.update_pes_info(pes)
+        new_traj.update_x(new_traj.pes.get_data('geom'))
+        new_traj.update_p(momt)
 
 
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
-
     # if this time step doesn't exist, return null centroid
     if c_row > len(chkpt[c_grp+'/glbl'])-1:
         new_cent = None
-        return
+    else:
+        # set information about the trajectory itself
+        parent = [0.,0.]
+        states = [0.,0.]
+        [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
 
-    # set information about the trajectory itself
-    parent = [0.,0.]
-    states = [0.,0.]
-    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
+        # populate the surface object in the trajectory
+        pes = surface.Surface()
+        for data_label in chkpt[c_grp].keys():
+            if pes.valid_data(data_label):
+                dset = chkpt[c_grp+'/'+data_label]
+                pes.add_data(data_label, dset[c_row])
 
-    # populate the surface object in the trajectory
-    pes = surface.Surface()
-    for data_label in chkpt[c_grp].keys():
-        if pes.valid_data(data_label):
-            dset = chkpt[c_grp+'/'+data_label]
-            pes.add_data(data_label, dset[c_row])
+        # currently, momentum has to be read in separately
+        momt    = chkpt[c_grp+'/momentum'][c_row]
 
-    # currently, momentum has to be read in separately
-    momt    = chkpt[c_grp+'/momentum'][c_row]
+        new_cent.parents = [int(i) for i in parent]
+        new_cent.states  = [int(i) for i in states]
 
-    new_cent.parents = [int(i) for i in parent]
-    new_cent.states  = [int(i) for i in states]
+        idi              = max(new_cent.parents)
+        idj              = min(new_cent.parents)
+        new_cent.label   = -((idi * (idi - 1) // 2) + idj + 1)
 
-    idi              = max(new_cent.parents)
-    idj              = min(new_cent.parents)
-    new_cent.label   = -((idi * (idi - 1) // 2) + idj + 1)
-
-    new_cent.update_pes_info(pes)
-    new_cent.pos = new_cent.pes.get_data('geom')
-    new_cent.mom = momt
+        new_cent.update_pes_info(pes)
+        new_cent.pos = new_cent.pes.get_data('geom')
+        new_cent.mom = momt
 
 
 def get_time_index(chkpt, grp_name, time):
@@ -680,6 +654,7 @@ def get_time_index(chkpt, grp_name, time):
             read_row = None
 
     return read_row
+
 
 def package_wfn(wfn):
     """Documentation to come"""
@@ -745,7 +720,7 @@ def default_blk_size(time):
 
 #-----------------------------------------------------------------------------
 #
-#  printing routines 
+#  printing routines
 #
 #-----------------------------------------------------------------------------
 def generate_data_formats():
@@ -876,7 +851,6 @@ def generate_data_formats():
     bfile_names['heff']      = 'heff.dat'
     bfile_names['t_overlap'] = 't_overlap.dat'
 
-    return
 
 def print_traj_row(label, key, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
@@ -924,4 +898,3 @@ def print_wfn_mat(time, key, mat):
         outfile.write('{:9.2f}\n'.format(time))
         outfile.write(np.array2string(mat,
                       formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
-

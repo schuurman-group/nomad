@@ -66,7 +66,6 @@ def process_arguments(args):
 
 def main():
     """Runs the main nomad routine."""
- 
     # set the initial conditions for trajectories
     initialize.init_wavefunction()
 

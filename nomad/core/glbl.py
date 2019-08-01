@@ -75,7 +75,7 @@ properties = dict(
     distrib_compression = 1.,
     seed                = 0,
     restart             = False,
-    restart_time        = None, 
+    restart_time        = None,
     simulation_time     = 1000.,
     default_time_step   = 10.,
     coupled_time_step   = 5.,
@@ -99,7 +99,7 @@ properties = dict(
     continuous_min_overlap = 0.5,
     init_amps           = [1+0j],
     init_amp_overlap    = True,
-    print_level         = 3 
+    print_level         = 3
                   )
 
 sections = dict(

@@ -9,7 +9,9 @@ import numpy as np
 import nomad.math.constants as constants
 import nomad.core.glbl as glbl
 
+
 pes_cache  = dict()
+
 
 class Surface:
     """Object containing potential energy surface data."""
@@ -19,7 +21,7 @@ class Surface:
         self.electronic_objs = ['dipole','atom_pop','sec_mom']
         self.vibronic_objs   = ['diabat_pot','diabat_deriv','diabat_hessian',
                                 'adt_mat','dat_mat','nac','scalar_coup']
-        self.all_objs      = (self.standard_objs + self.mo_objs + 
+        self.all_objs      = (self.standard_objs + self.mo_objs +
                               self.electronic_objs + self.vibronic_objs)
 
         # these are the standard quantities ALL interface_data objects return
@@ -154,16 +156,16 @@ def update_pes(wfn, update_integrals=True):
                 for j in range(i):
                 # if centroid not initialized, skip it
                     if glbl.modules['integrals'].centroid_required[i][j]:
-                        if not cached(glbl.modules['integrals'].centroids[i][j].label, 
+                        if not cached(glbl.modules['integrals'].centroids[i][j].label,
                                       glbl.modules['integrals'].centroids[i][j].x()):
                             pes_centij = glbl.modules['interface'].evaluate_centroid(
                                          glbl.modules['integrals'].centroids[i][j], wfn.time)
                         else:
                             pes_centij = pes_cache[glbl.modules['integrals'].centroids[i][j].label]
                         glbl.modules['integrals'].centroids[i][j].update_pes_info(pes_centij)
-                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]                             
+                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]
                         pes_cache[glbl.modules['integrals'].centroids[i][j].label] = pes_centij
-                            
+
     return success
 
 
