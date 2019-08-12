@@ -710,9 +710,12 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     # populate the surface object in the trajectory
 
     # set information about the trajectory itself
-    data_row = chkpt[t_grp+'/glbl'][t_row]
-    [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
-
+    [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
+    [parent, state]      = chkpt[t_grp+'/states'][t_row]
+    [gamma]              = chkpt[t_grp+'/phase'][t_row]
+    last_adapt           = chkpt[t_grp+'/adapt'][t_row]
+    momt                 = chkpt[t_grp+'/momentum'][t_row]
+       
     pes = surface.Surface()
     for data_label in chkpt[t_grp].keys():
         if pes.valid_data(data_label):
@@ -725,9 +728,10 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     new_traj.state  = int(state)
     new_traj.parent = int(parent)
     new_traj.update_amplitude(amp_real+1.j*amp_imag)
-    new_traj.last_spawn = data_row[5:]
+    new_traj.last_spawn = last_adapt
 
     new_traj.update_pes_info(pes)
+    new_traj.update_phase(gamma)
     new_traj.update_x(new_traj.pes.get_data('geom'))
     new_traj.update_p(momt)
 
@@ -830,9 +834,10 @@ def package_trajectory(traj, time):
     # uniquely tag everything
     traj_data = dict(
         time     = np.array([time],dtype='float'),
-        glbl     = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
-                                 traj.amplitude.real, traj.amplitude.imag]),
-                                 traj.last_spawn)),
+        amp      = np.array([traj.amplitude.real, traj.amplitude.imag]),
+        phase    = np.array([traj.gamma]),
+        states   = np.array([traj.parent, traj.state]),
+        adapt    = traj.last_spawn,
         momentum = traj.p()
                     )
 
