@@ -4,7 +4,6 @@ Compute integrals over trajectories traveling on vibronic potentials
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
-import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let FMS know if overlap matrix elements require PES info
 overlap_requires_pes = False
@@ -36,7 +35,7 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
             v_term = complex(1.,0.) * glbl.modules['interface'].ham.coe[i]
             for q in range(len(glbl.modules['interface'].ham.order[i])):
                 qi      =  glbl.modules['interface'].ham.mode[i][q]
-                v_term *=  vibronic.qn_integral(glbl.modules['interface'].ham.order[i][q],
+                v_term *=  nuclear.qn_integral(glbl.modules['interface'].ham.order[i][q],
                                                 t1.widths()[qi], t1.x()[qi], t1.p()[qi],
                                                 t2.widths()[qi], t2.x()[qi], t2.p()[qi])
             v_total += v_term

@@ -5,7 +5,6 @@ traveling on adiabataic potentials
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
-import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
@@ -23,6 +22,9 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
     If we are passed a single trajectory, this is a diagonal matrix
     element -- simply return potential energy of trajectory.
     """
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(t1, t2)
+
     Sij = nuc_ovrlp
     Sji = Sij.conjugate()
 
@@ -37,19 +39,19 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
 
         if glbl.properties['integral_order'] > 0:
 
-            o1_ij = vibronic.qn_vector(1, t1.widths(), t1.x(), t1.p(),
-                                          t2.widths(), t2.x(), t2.p())
-            o1_ji = vibronic.qn_vector(1, t2.widths(), t2.x(), t2.p(),
-                                          t1.widths(), t1.x(), t1.p())
+            o1_ij = nuclear.qn_vector(1, Sij, t1.widths(), t1.x(), t1.p(),
+                                              t2.widths(), t2.x(), t2.p())
+            o1_ji = nuclear.qn_vector(1, Sji, t2.widths(), t2.x(), t2.p(),
+                                              t1.widths(), t1.x(), t1.p())
             vij += np.dot(o1_ij - t1.x()*Sij, t1.derivative(state,state))
             vji += np.dot(o1_ji - t2.x()*Sji, t2.derivative(state,state))
 
         if glbl.properties['integral_order'] > 1:
             xcen  = (t1.widths()*t1.x() + t2.widths()*t2.x()) / (t1.widths()+t2.widths())
-            o2_ij = vibronic.qn_vector(2, t1.widths(), t1.x(), t1.p(),
-                                          t2.widths(), t2.x(), t2.p())
-            o2_ji = vibronic.qn_vector(2, t2.widths(), t2.x(), t2.p(),
-                                          t1.widths(), t1.x(), t1.p())
+            o2_ij = nuclear.qn_vector(2, Sij, t1.widths(), t1.x(), t1.p(),
+                                              t2.widths(), t2.x(), t2.p())
+            o2_ji = nuclear.qn_vector(2, Sji, t2.widths(), t2.x(), t2.p(),
+                                              t1.widths(), t1.x(), t1.p())
 
             for k in range(t1.dim):
                 vij += 0.5*o2_ij[k]*t1.hessian(state)[k,k]
@@ -66,16 +68,26 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
                                    (t2.x()[k]*xcen[l] + t2.x()[l]*xcen[k])*Sji) *
                                   t2.hessian(state)[k,l])
 
+        return 0.5*(vij + vji.conjugate())
+
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
     else:
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
-        fji = t2.derivative(t2.state, t1.state)
-        vij = 2.*np.vdot(fij, kecoef *
-                         nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
-                                           t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(fji, kecoef *
-                         nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
-                                           t1.widths(),t1.x(),t1.p()))
-    return 0.5*(vij + vji.conjugate())
+        fji = t2.derivative(t1.state, t2.state)
+#        vij = 2.*np.vdot(fij, kecoef *
+#                         nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
+#                                           t2.widths(),t2.x(),t2.p()))
+#        vji = 2.*np.vdot(fji, kecoef *
+#                         nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
+#                                           t1.widths(),t1.x(),t1.p()))
+        vij = np.vdot(t1.velocity(), fij)
+        vji = np.vdot(t2.velocity(), fji)
+        print("t1.v="+str(t1.velocity()))
+        print("t2.v="+str(t2.velocity()))
+        print("fij="+str(fij))
+        print("fji="+str(fji))
+        print("Sij="+str(Sij)) 
+        return complex(0,1.)*0.5*Sij*(vij + vji)
+

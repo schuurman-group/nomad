@@ -8,7 +8,6 @@ import numpy as np
 import nomad.math.constants as constants
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian_ccs as nuclear
-import nomad.compiled.vibronic_gaussian as vibronic
 
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False

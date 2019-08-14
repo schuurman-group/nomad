@@ -153,6 +153,8 @@ def spawn_forward(parent, child_state, initial_time, dt):
                 child_at_spawn.parent                   = parent.label
                 child_at_spawn.label                    = parent.label
                 sp_str                                  = 'yes'
+                print("child f12: "+str(child_at_spawn.derivative(1,2)))
+                print("parent f12:"+str(parent_at_spawn.derivative(1,2)))
 
             log.print_message('spawn_step',
                                      [current_time, coup[0], sij, sp_str])
@@ -173,7 +175,7 @@ def spawn_backward(child, current_time, end_time, dt):
         step.step_trajectory(child, back_time, dt)
         back_time = back_time + dt
         log.print_message('spawn_back', [back_time])
-
+        print("child backward, f12: "+str(child.derivative(1,2)))
 
 def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
     """Checks if we satisfy all spawning criteria."""

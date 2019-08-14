@@ -333,7 +333,7 @@ def write_wavefunction(chkpt, wfn, time):
         # create a new datasets with reasonble default sizes
         else:
             d_shape   = (n_rows,) +  wfn_data[data_label].shape
-            max_shape = (None,)   + wfn_data[data_label].shape
+            max_shape = (max_dset_size(),)   + wfn_data[data_label].shape
             d_type    = wfn_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = wfn_data[data_label]
@@ -372,7 +372,7 @@ def write_integral(chkpt, integral, time):
         # create a new datasets with reasonble default sizes
         else:
             d_shape   = (n_rows,) + int_data[data_label].shape
-            max_shape = (None,)   + int_data[data_label].shape
+            max_shape = (max_dset_size(),)   + int_data[data_label].shape
             d_type    = int_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = int_data[data_label]
@@ -429,12 +429,21 @@ def write_trajectory(chkpt, traj, time):
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
             d_shape   = (n_rows,) + t_data[data_label].shape
-            max_shape = (None,)   + t_data[data_label].shape
+            max_shape = (max_dset_size(),)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
             if d_type.type is np.unicode_:
                 d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
+
+    # if MOs exist, write them as an attribute
+    if 'mo' in traj.pes.avail_data():
+        # until python figures out unicode, we need to explicitly encode strings
+        mo_encode = [mo_i.encode('utf8') for mo_i in traj.pes.get_data('mo')]
+        if 'mo' in chkpt[t_grp].attrs.keys():
+            chkpt[t_grp].attrs.modify('mo', mo_encode)
+        else:
+            chkpt[t_grp].attrs.create('mo', mo_encode)
 
 
 def write_centroid(chkpt, cent, time):
@@ -481,12 +490,21 @@ def write_centroid(chkpt, cent, time):
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
             d_shape   = (n_rows,) + c_data[data_label].shape
-            max_shape = (None,)   + c_data[data_label].shape
+            max_shape = (max_dset_size(),)   + c_data[data_label].shape
             d_type    = c_data[data_label].dtype
             if d_type.type is np.unicode_:
                 d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = c_data[data_label]
+
+    # if MOs exist, write them as an attribute
+    if 'mo' in cent.pes.avail_data():
+        # until python figures out unicode, we need to explicitly encode strings
+        mo_encode = [mo_i.encode('utf8') for mo_i in cent.pes.get_data('mo')]
+        if 'mo' in chkpt[c_grp].attrs.keys():
+            chkpt[c_grp].attrs.modify('mo', mo_encode)
+        else:
+            chkpt[c_grp].attrs.create('mo', mo_encode)
 
 
 def read_wavefunction(chkpt, time):
@@ -603,6 +621,10 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
             dset = chkpt[t_grp+'/'+data_label]
             pes.add_data(data_label, dset[t_row])
 
+    # if MOs are present as an attribute, read them in
+    if 'mo' in chkpt[t_grp].attrs.keys():
+        pes.add_data('mo', chkpt[t_grp].attrs['mo'])
+
     # currently, momentum has to be read in separately
     momt    = chkpt[t_grp+'/momentum'][t_row]
 
@@ -635,6 +657,10 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
         if pes.valid_data(data_label):
             dset = chkpt[c_grp+'/'+data_label]
             pes.add_data(data_label, dset[c_row])
+
+    # if MOs are present as an attribute, read them in
+    if 'mo' in chkpt[t_grp].attrs.keys():
+        pes.add_data('mo', chkpt[t_grp].attrs['mo'])
 
     # currently, momentum has to be read in separately
     momt    = chkpt[c_grp+'/momentum'][c_row]
@@ -716,6 +742,11 @@ def package_trajectory(traj, time):
 
     # store everything about the surface
     for obj in traj.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
         traj_data[obj] = traj.pes.get_data(obj)
 
     return traj_data
@@ -731,10 +762,19 @@ def package_centroid(cent, time):
 
     # last, store everything about the surface
     for obj in cent.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
         cent_data[obj] = cent.pes.get_data(obj)
 
     return cent_data
 
+def max_dset_size():
+    """Return the maximum dataset size"""
+    return 3*int(glbl.properties['simulation_time'] / 
+                 glbl.properties['default_time_step'])
 
 def default_blk_size(time):
     """Documentation to come"""
