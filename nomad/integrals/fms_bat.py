@@ -78,18 +78,25 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
         fji = t2.derivative(t1.state, t2.state)
-#        vij = 2.*np.vdot(fij, kecoef *
-#                         nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
-#                                           t2.widths(),t2.x(),t2.p()))
-#        vji = 2.*np.vdot(fji, kecoef *
-#                         nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
-#                                           t1.widths(),t1.x(),t1.p()))
-        vij = np.vdot(t1.velocity(), fij)
-        vji = np.vdot(t2.velocity(), fji)
-        print("t1.v="+str(t1.velocity()))
-        print("t2.v="+str(t2.velocity()))
+        vij = 2.*np.vdot(fij, kecoef *
+                         nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
+                                           t2.widths(),t2.x(),t2.p()))
+        vji = 2.*np.vdot(fji, kecoef *
+                         nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
+                                           t1.widths(),t1.x(),t1.p()))
+#        vij = np.vdot(t1.velocity(), fij)
+#        vji = np.vdot(t2.velocity(), fji)
+#        print("t1.v="+str(t1.velocity()))
+#        print("t2.v="+str(t2.velocity()))
+        print("del/dx t1="+str(nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
+                                           t2.widths(),t2.x(),t2.p())))
+        print("del/dx t2="+str(nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
+                                           t1.widths(),t1.x(),t1.p())))
         print("fij="+str(fij))
         print("fji="+str(fji))
+        print("vij="+str(vij))
+        print("vji="+str(vji))
         print("Sij="+str(Sij)) 
-        return complex(0,1.)*0.5*Sij*(vij + vji)
-
+#        return complex(0,1.)*0.5*Sij*(vij + vji)
+        return 0.5*(vij + vji)
+   
