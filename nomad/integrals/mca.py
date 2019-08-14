@@ -9,6 +9,7 @@ import nomad.math.constants as constants
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian_ccs as nuclear
 
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
@@ -28,28 +29,24 @@ es = 1
 
 
 def elec_overlap(traj1, traj2):
-    """ Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
-
+    """Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
     return complex( np.dot(phi(traj1),phi(traj2)), 0.)
 
 
 def nuc_overlap(traj1, traj2):
-    """ Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
-
+    """Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
     return nuclear.overlap(traj1.widths(),traj1.x(),traj1.p(),
                            traj2.widths(),traj2.x(),traj2.p())
 
 
 def traj_overlap(traj1, traj2):
-    """ Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
-
+    """Returns < chi| chi' >, the nuclear overlap integral of two trajectories"""
     return elec_overlap(traj1, traj2) * nuc_overlap(traj1, traj2)
 
 
 def s_integral(traj1, traj2, nuc_ovrlp, elec_ovrlp):
-    """ Returns < Psi | Psi' >, the overlap of the nuclear
+    """Returns < Psi | Psi' >, the overlap of the nuclear
     component of the wave function only"""
-
     return nuc_ovrlp * elec_ovrlp
 
 
@@ -90,8 +87,8 @@ def sdot_integral(traj1, traj2, nuc_ovrlp, elec_ovrlp):
 
 
 def rot_mat(theta):
-    """ Returns the adiabatic-diabatic rotation matrix for a given value of
-        theta"""
+    """Returns the adiabatic-diabatic rotation matrix for a given value of
+    theta"""
     global gs, es
 
     if gs == 0:
@@ -103,8 +100,8 @@ def rot_mat(theta):
 
 
 def drot_mat(theta):
-    """ Returns the derivative adiabatic-diabatic rotation matrix with respect
-        to theta"""
+    """Returns the derivative adiabatic-diabatic rotation matrix with respect
+    to theta"""
     global gs, es
 
     if gs == 0:
@@ -116,10 +113,12 @@ def drot_mat(theta):
 
 
 def theta(traj):
-    """ Returns to the adiabatic-diabatic rotation angle theta. Choose theta
-        to be consistent with diabatic-adiabatic transformation matrix, which
-        itself is chosen to have a phase resulting in a slowly varying value of
-        of theta."""
+    """Returns to the adiabatic-diabatic rotation angle theta.
+    
+    Choose theta to be consistent with diabatic-adiabatic transformation
+    matrix, which itself is chosen to have a phase resulting in a slowly
+    varying value of of theta.
+    """
     global theta_cache, gs, es
 
     # can also run the trivial case of a single state
@@ -149,14 +148,14 @@ def theta(traj):
 
     theta_cache[traj.label] = ang
 
-#    print("traj="+str(traj.label)+" theta="+str(ang)+"\n")
+    #print("traj="+str(traj.label)+" theta="+str(ang)+"\n")
 
     return ang
 
 
 def dtheta(traj):
-    """ Returns to the derivative adiabatic-diabatic rotation angle theta with
-        respect to the internal coordinates."""
+    """Returns to the derivative adiabatic-diabatic rotation angle theta with
+    respect to the internal coordinates."""
     global gs, es
 
     # can also run the trivial case of a single state
@@ -188,8 +187,7 @@ def dtheta(traj):
 
 def phi(traj):
     """Returns the transformation matrix using the rotation angle.
-       Should be indentical to the dat_mat in the vibronic interface"""
-
+    Should be indentical to the dat_mat in the vibronic interface"""
     # can also run the trivial case of a single state
     if traj.nstates == 1:
         return np.array([1.], dtype=float)
@@ -202,7 +200,6 @@ def phi(traj):
 
 def dphi(traj):
     """Returns the derivative transformation matrix using the rotation angle."""
-
     # can also run the trivial case of a single state
     if traj.nstates == 1:
         return np.zeros(traj.dim, dtype=float)

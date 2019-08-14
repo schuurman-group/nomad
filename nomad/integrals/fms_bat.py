@@ -6,6 +6,7 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
 
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = False
 
@@ -15,9 +16,10 @@ hermitian = True
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
-# evaluates potential integral using bra_ket averaged approach
+
 def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
-    """Returns potential coupling matrix element between two trajectories.
+    """Returns potential coupling matrix element between two trajectories
+    using the bra-ket averaged approach.
 
     If we are passed a single trajectory, this is a diagonal matrix
     element -- simply return potential energy of trajectory.

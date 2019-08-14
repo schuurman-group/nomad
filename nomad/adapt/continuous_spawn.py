@@ -84,8 +84,9 @@ def spawn(wfn, dt):
 
 
 def in_coupled_regime(bundle):
-    """Checks if we are in spawning regime. Since we are always spawning,
-       this function always returns False for continuous spawning -- no
-       need to change timestep to spawn."""
-
+    """Checks if we are in spawning regime.
+    
+    Since we are always spawning, this function always returns False for
+    continuous spawning -- no need to change timestep to spawn.
+    """
     return False

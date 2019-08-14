@@ -23,7 +23,7 @@ def step_wavefunction(dt):
     # save the wavefunction from previous step in case step rejected
     end_time      = min(glbl.modules['wfn'].time + dt,
                         glbl.properties['simulation_time'])
-    time_step     = min(dt, glbl.properties['simulation_time'] - 
+    time_step     = min(dt, glbl.properties['simulation_time'] -
                             glbl.modules['wfn'].time)
     min_time_step = dt / 2.**5
 
@@ -103,8 +103,6 @@ def step_wavefunction(dt):
             # reset the beginning of the time step and go to beginning of loop
             #del master
             glbl.modules['wfn'] = wfn_start.copy()
-
-    return
 
 
 def step_trajectory(traj, init_time, dt):

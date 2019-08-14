@@ -8,6 +8,7 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian as nuclear
 
+
 # Let propagator know if we need data at centroids to propagate
 require_centroids = True
 
@@ -45,7 +46,7 @@ def v_integral(t1, t2, centroid, kecoef, nuc_ovrlp, elec_ovrlp):
 
     # [necessarily] off-diagonal matrix element between trajectories
     # on different electronic states
-    elif t1.state != t2.state:
+    else:
         # Derivative coupling
         fij = centroid.derivative(t1.state, t2.state)
         v = 2.*np.vdot(fij, kecoef *
@@ -55,6 +56,3 @@ def v_integral(t1, t2, centroid, kecoef, nuc_ovrlp, elec_ovrlp):
         if glbl.vibronic['coupling_order'] > 1:
             v += centroid.scalar_coup(t1.state, t2.state) * nuc_ovrlp
         return v
-    else:
-        print('ERROR in v_integral -- argument disagreement')
-        return 0j

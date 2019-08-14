@@ -21,7 +21,9 @@ import nomad.core.step as step
 import nomad.core.surface as evaluate
 import nomad.adapt.utilities as utils
 
+
 coup_hist = []
+
 
 def spawn(wfn, dt):
     """Propagates to the point of maximum coupling, spawns a new
@@ -40,7 +42,7 @@ def spawn(wfn, dt):
         for i in range(n_add):
             coup_hist.append(np.zeros((glbl.properties['n_states'], 3)))
 
-    #--------------- iterate over all trajectories in bundle ---------------------
+    # iterate over all trajectories in bundle
     for i in range(wfn.n_traj()):
         # only live trajectories can spawn
         if not wfn.traj[i].alive:

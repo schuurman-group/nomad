@@ -12,13 +12,14 @@ import nomad.core.checkpoint as checkpoint
 import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
+
 def init_wavefunction():
     """Initializes the trajectories."""
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
 
-    log.print_message('string',['\n **************\n'+ 
+    log.print_message('string',['\n **************\n'+
                                   ' initialization\n'+
                                   ' **************\n'])
 
@@ -79,13 +80,13 @@ def init_wavefunction():
         # save copy of t=0 wfn for autocorrelation function
         save_initial_wavefunction(wfn0)
 
-        # check that we have all the data we need to propagate the first step -- otherwise, we 
+        # check that we have all the data we need to propagate the first step -- otherwise, we
         # need to update the potential
         update_surface = False
         for i in range(glbl.modules['wfn'].n_traj()):
             if glbl.modules['wfn'].traj[i].alive and glbl.modules['wfn'].traj[i].active:
                 pes_data = glbl.modules['wfn'].traj[i].pes
-                if ('potential' not in pes_data.avail_data() or 
+                if ('potential' not in pes_data.avail_data() or
                     'derivative' not in pes_data.avail_data()):
                     update_suface = True
             if glbl.modules['integrals'].require_centroids:
@@ -93,11 +94,11 @@ def init_wavefunction():
                     pes_data = glbl.modules['integrals'].centroids[i][j].pes
                     if glbl.modules['integrals'].centroid_required[i][j]:
                         if ('potential' not in pes_data.avail_data() and
-                            glbl.modules['wfn'].traj[i].state == 
+                            glbl.modules['wfn'].traj[i].state ==
                             glbl.modules['wfn'].traj[j].state):
                             update_surface = True
-                        if ('derivative' not in pes_data.avail_data() and 
-                            glbl.modules['wfn'].traj[i].state != 
+                        if ('derivative' not in pes_data.avail_data() and
+                            glbl.modules['wfn'].traj[i].state !=
                             glbl.modules['wfn'].traj[j].state):
                             update_surface = True
         if update_surface:
@@ -111,11 +112,10 @@ def init_wavefunction():
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
 
     else:
-
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         glbl.modules['init_conds'].set_initial_coords(glbl.modules['wfn'])
- 
+
         # set the initial state of the trajectories in bundle. This may
         # require evaluation of electronic structure
         set_initial_state(glbl.modules['wfn'])

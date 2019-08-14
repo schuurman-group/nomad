@@ -7,10 +7,11 @@ import nomad.core.timings as timings
 import nomad.core.surface as surface
 import nomad.math.constants as constants
 
+
 def cent_label(itraj_id, jtraj_id):
     """Returns the centroid id for centroid between traj_i, traj_j"""
-    idi          = max(itraj_id, jtraj_id)
-    idj          = min(itraj_id, jtraj_id)
+    idi = max(itraj_id, jtraj_id)
+    idj = min(itraj_id, jtraj_id)
     return -((idi * (idi - 1) // 2) + idj + 1)
 
 
@@ -56,7 +57,7 @@ class Centroid:
             self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
         # data structure to hold the data from the interface
-        self.pes  = surface.Surface() 
+        self.pes  = surface.Surface()
 
     @timings.timed
     def copy(self):
