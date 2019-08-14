@@ -53,9 +53,9 @@ def v_integral(t1, t2, centroid, kecoef, nuc_ovrlp, elec_ovrlp):
                        nuclear.deldx(nuc_ovrlp, t1.widths(), t1.x(), t1.p(),
                                                 t2.widths(), t2.x(), t2.p()))
 
-        print("fij="+str(fij))
-        print("del/dx="+str(nuclear.deldx(nuc_ovrlp, t1.widths(), t1.x(), t1.p(),
-                                                t2.widths(), t2.x(), t2.p())))
+#        print("fij="+str(fij))
+#        print("del/dx="+str(nuclear.deldx(nuc_ovrlp, t1.widths(), t1.x(), t1.p(),
+#                                                t2.widths(), t2.x(), t2.p())))
         # Scalar coupling
         if glbl.vibronic['coupling_order'] > 1:
             v += centroid.scalar_coup(t1.state, t2.state) * nuc_ovrlp

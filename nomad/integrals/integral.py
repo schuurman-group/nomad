@@ -190,9 +190,9 @@ class Integral:
                 if self.centroids[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
                     self.centroids[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
                                                             traj_j=wfn.traj[j])
-                    self.centroids[i][j].update_x(wfn.traj[i],wfn.traj[j])
-                    self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
-                    self.centroids[j][i] = self.centroids[i][j]
+                self.centroids[i][j].update_x(wfn.traj[i],wfn.traj[j])
+                self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
+                self.centroids[j][i] = self.centroids[i][j]
                 self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
                 self.centroid_required[j][i] = self.centroid_required[i][j]
 
