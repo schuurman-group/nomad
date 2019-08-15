@@ -417,7 +417,7 @@ def write_trajectory(chkpt, traj, time):
     # if MOs exist, write them as an attribute
     if 'mo' in traj.pes.avail_data():
         # until python figures out unicode, we need to explicitly encode strings
-        mo_encode = [mo_i.encode('utf8') for mo_i in traj.pes.get_data('mo')]
+        mo_encode = [str(mo_i).encode('utf8') for mo_i in traj.pes.get_data('mo')]
         if 'mo' in chkpt[t_grp].attrs.keys():
             chkpt[t_grp].attrs.modify('mo', mo_encode)
         else:
@@ -478,7 +478,7 @@ def write_centroid(chkpt, cent, time):
     # if MOs exist, write them as an attribute
     if 'mo' in cent.pes.avail_data():
         # until python figures out unicode, we need to explicitly encode strings
-        mo_encode = [mo_i.encode('utf8') for mo_i in cent.pes.get_data('mo')]
+        mo_encode = [str(mo_i).encode('utf8') for mo_i in cent.pes.get_data('mo')]
         if 'mo' in chkpt[c_grp].attrs.keys():
             chkpt[c_grp].attrs.modify('mo', mo_encode)
         else:
