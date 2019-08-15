@@ -91,7 +91,7 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
 #        print("del/dx t1="+str(nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
 #                                           t2.widths(),t2.x(),t2.p())))
 #        print("del/dx t2="+str(nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
-                                           t1.widths(),t1.x(),t1.p())))
+#                                           t1.widths(),t1.x(),t1.p())))
 #        print("fij="+str(fij))
 #        print("fji="+str(fji))
 #        print("vij="+str(vij))
