@@ -375,7 +375,7 @@ def write_trajectory(chkpt, traj, time):
     # time information to existing datasets
     t_grp = 'wavefunction/'+t_label
 
-    if t_grp in chkpt:
+    if t_label in chkpt['wavefunction']:
 
         chkpt[t_grp].attrs['current_row'] += 1
         current_row = chkpt[t_grp].attrs['current_row']
@@ -436,7 +436,7 @@ def write_centroid(chkpt, cent, time):
     # time information to existing datasets
     c_grp = 'integral/'+c_label
 
-    if c_grp in chkpt:
+    if c_label in chkpt['integral']:
 
         chkpt[c_grp].attrs['current_row'] += 1
         current_row = chkpt[c_grp].attrs['current_row']
