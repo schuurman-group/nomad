@@ -15,7 +15,7 @@ import nomad.math.constants as constants
 #
 #---------------------------------------------------------------------
 model_potentials = {}
-model_names      = {'tully_avoided', 'tully_dual', 'tully_extended'}
+model_names      = ['tully_avoided', 'tully_dual', 'tully_extended']
 
 #
 # init_interface: none of the existing models require initialization
@@ -149,8 +149,9 @@ def evaluate_coupling(traj):
 #
 # The Tully simple avoided crossing model, taken from JCP, 93, 1061 (1990)
 #
-def tully_avoided(x):
+def tully_avoided(geom):
 
+    x = geom[0]
     A = 0.01
     B = 1.6
     C = 0.005
@@ -168,15 +169,16 @@ def tully_avoided(x):
     d2v22 = -d2v11
     d2v12 = 4 * C * D**2 * x**2 * math.exp(-D * x**2)
 
-    diabpot    = np.array([[v11, v12], [v12, v22]])
-    diabderiv1 = np.array([[[dv11, dv12], [dv12, dv22]]])    
-    diabderiv2 = np.array([[[[d2v11, d2v12], [d2v12, d2v22]]]])
+    diabpot    = np.array([[v11, v12], [v12, v22]], dtype=float)
+    diabderiv1 = np.array([[[dv11, dv12], [dv12, dv22]]], dtype=float)    
+    diabderiv2 = np.array([[[[d2v11, d2v12], [d2v12, d2v22]]]], dtype=float)
     diablap    = diabderiv2[0,0,:,:]
 
     return [diabpot, diabderiv1, diabderiv2, diablap]
 
-def tully_dual(x):
+def tully_dual(geom):
 
+    x  = geom[0]
     A  = 0.1
     B  = 0.28
     C  = 0.015
@@ -204,8 +206,9 @@ def tully_dual(x):
 
 
 
-def tully_extended(x):
+def tully_extended(geom):
 
+    x = geom[0]
     A = 0.01
     B = 1.6
     C = 0.005
