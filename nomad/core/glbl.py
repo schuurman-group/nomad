@@ -59,6 +59,10 @@ surfgen = dict(
     mem_per_core   = 100.
                )
 
+models = dict(
+    model_name     = ''
+              ) 
+
 # Remaining properties (mostly optional)
 properties = dict(
     init_coords         = None, # required, can be filename or XYZ format
@@ -107,5 +111,6 @@ sections = dict(
     columbus   = columbus,
     vibronic   = vibronic,
     surfgen    = surfgen,
+    models     = models,
     properties = properties
                 )
