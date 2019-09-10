@@ -109,7 +109,7 @@ def evaluate_trajectory(traj, t=None):
 
     else:
         # determine the effective diabatic coupling: Hij / (Ei - Ej)
-        diab_effcoup     = calc_diabeffcoup(diabpot)
+        diab_effcoup     = adt.calc_diabeffcoup(diabpot)
 
         t_data.add_data('potential',np.array([diabpot[i,i] for i in range(ns)]))
         t_data.add_data('derivative',diabderiv1)
@@ -149,7 +149,7 @@ def evaluate_coupling(traj):
 
     else:
         diabpot          = traj.pes.get_data('diabat_pot')
-        diab_effcoup     = calc_diabeffcoup(diabpot)
+        diab_effcoup     = adt.calc_diabeffcoup(diabpot)
         traj.pes.add_data('coupling',diab_effcoup)
 
 #---------------------------------------------------------------------
