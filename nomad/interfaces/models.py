@@ -89,13 +89,6 @@ def evaluate_trajectory(traj, t=None):
         # derivative couplings (off-diagonal elements)
         adiabderiv2 = adt.calc_adiabderiv2(datmat, diabderiv2)
 
-        # Calculation of the scalar couplings terms (SCTs)
-        # Note that in order to calculate the SCTs, we get the gradients of the
-        # diagonal Born-Oppenheimer corrections (DBOCs). Consequently, we
-        # save these as a matter of course.
-        sctmat, dbocderiv1 = adt.calc_scts(adiabpot, datmat,      diabderiv1,
-                                       nactmat,  adiabderiv1, diablap)
-
         t_data.add_data('potential',adiabpot)
         t_data.add_data('derivative', np.array([np.diag(adiabderiv1[m]) for m in
                                       range(nd)] + nactmat))
@@ -103,7 +96,6 @@ def evaluate_trajectory(traj, t=None):
 
         # non-standard items
         t_data.add_data('nac',nactmat)
-        t_data.add_data('scalar_coup',0.5*sctmat) #account for the 1/2 prefactor in the EOMs
         t_data.add_data('dat_mat',datmat)
         t_data.add_data('adt_mat',datmat.T)
 

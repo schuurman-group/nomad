@@ -82,8 +82,8 @@ def calc_adiabderiv2(datmat, diabderiv2):
     Equation used: d^2/dXidXj V_ii = (S{d^2/dXidXj W}S^T)_ii
     """
     # Get the diagonal elements of the matrix
-    nd      = diabderiv1.shape[0]
-    ns      = diabderiv1.shape[2]
+    nd      = diabderiv2.shape[0]
+    ns      = diabderiv2.shape[2]
 
     adiabderiv2 = np.zeros((nd, nd, ns))
 
@@ -96,7 +96,7 @@ def calc_adiabderiv2(datmat, diabderiv2):
 
     return adiabderiv2
 
-def calc_scts(adiabpot, datmat, diabderiv1, nactmat, adiabderiv1, diablap):
+def calc_scts(adiabpot, datmat, diabderiv1, nactmat, adiabderiv1, diablap, freq):
     """Calculates the scalar coupling terms.
 
     Uses the equation:
@@ -130,12 +130,12 @@ def calc_scts(adiabpot, datmat, diabderiv1, nactmat, adiabderiv1, diablap):
     # tmp2 <-> -F S{d/dX W}S^T
     mat2 = [np.dot(np.dot(np.dot(nactmat[m], datmat.T), diabderiv1[m]), datmat)
             for m in range(nd)]
-    tmp2 = -np.sum(ham.freq[:,np.newaxis,np.newaxis] * mat2, axis=0)
+    tmp2 = -np.sum(freq[:,np.newaxis,np.newaxis] * mat2, axis=0)
 
     # tmp3 <-> S{d/dX W}S^T F
     mat3 = [np.dot(np.dot(np.dot(datmat.T, diabderiv1[m]), datmat), nactmat[m])
             for m in range(nd)]
-    tmp3 = np.sum(ham.freq[:,np.newaxis,np.newaxis] * mat3, axis=0)
+    tmp3 = np.sum(freq[:,np.newaxis,np.newaxis] * mat3, axis=0)
 
     # deltmat
     deltmat = tmp1 + tmp2 + tmp3
@@ -176,7 +176,7 @@ def calc_scts(adiabpot, datmat, diabderiv1, nactmat, adiabderiv1, diablap):
     # (2) Construct F.F (fdotf)
     #-------------------------------------------------------------------
     matf = [np.dot(nactmat[m], nactmat[m]) for m in range(nd)]
-    fdotf = np.sum(ham.freq[:,np.newaxis,np.newaxis] * matf, axis=0)
+    fdotf = np.sum(freq[:,np.newaxis,np.newaxis] * matf, axis=0)
 
     #-------------------------------------------------------------------
     # (3) Calculate the scalar coupling terms G = (d/dX F) - F.F
