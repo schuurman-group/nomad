@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Module used to extract data from nomad output files.
+Script used to extract data from nomad output files.
 """
 import os
 import sys
@@ -67,9 +67,12 @@ def main():
             if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
                 continue
             [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
-            mat.build(wfn, ints)
-            wfn.update_matrices(mat)
-            extract_data(wfn, mat, data)
+            if wfn is not None:
+                mat.build(wfn, ints)
+                wfn.update_matrices(mat)
+                extract_data(wfn, mat, data)
+            else:
+                print("could not extract wfn for time="+str(tvals[i]))
 
     # else, print data from current bundle
     else:
@@ -250,7 +253,7 @@ def extract_interface_data(wfn):
                 dipoles = traj.pes.get_data('dipole')
                 prnt_data = [wfn.time]
                 prnt_data.extend([dipoles[j,k,k] for k in range(nst) for j in range(3)])
-                checkpoint.print_traj_row(label,'dipole',prnt_data)           
+                checkpoint.print_traj_row(label,'dipole',prnt_data)
 
                 # print transition dipoles
                 prnt_data = [wfn.time]
@@ -270,7 +273,7 @@ def extract_interface_data(wfn):
                 sec_mom = traj.pes.get_data('sec_mom')
                 prnt_data = [wfn.time]
                 prnt_data.extend([sec_mom[j,j,k] for k in range(nst) for j in range(3)])
-                checkpoint.print_traj_row(label,'sec_mom',prnt_data) 
+                checkpoint.print_traj_row(label,'sec_mom',prnt_data)
 
             # print mulliken populations
             if 'atom_pop' in traj.pes.avail_data():
@@ -283,9 +286,6 @@ def extract_interface_data(wfn):
     # extract information associated with vibronic models
     if glbl.methods['interface'] == 'vibronic':
         pass
-    
-    return
- 
 
 
 if __name__ == '__main__':

@@ -9,7 +9,9 @@ import numpy as np
 import nomad.math.constants as constants
 import nomad.core.glbl as glbl
 
+
 pes_cache  = dict()
+
 
 class Surface:
     """Object containing potential energy surface data."""
@@ -19,7 +21,7 @@ class Surface:
         self.electronic_objs = ['dipole','atom_pop','sec_mom']
         self.vibronic_objs   = ['diabat_pot','diabat_deriv','diabat_hessian',
                                 'adt_mat','dat_mat','nac','scalar_coup']
-        self.all_objs      = (self.standard_objs + self.mo_objs + 
+        self.all_objs      = (self.standard_objs + self.mo_objs +
                               self.electronic_objs + self.vibronic_objs)
 
         # these are the standard quantities ALL interface_data objects return
@@ -76,9 +78,11 @@ def update_pes(wfn, update_integrals=True):
         # update electronic structure
         exec_list = []
         n_total = 0 # this ensures traj.0 is on proc 0, etc.
+
         for i in range(wfn.n_traj()):
             if wfn.traj[i].active and not cached(wfn.traj[i].label,
                                                     wfn.traj[i].x()):
+
                 n_total += 1
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(['traj',wfn.traj[i]])
@@ -89,21 +93,24 @@ def update_pes(wfn, update_integrals=True):
             for i in range(wfn.n_traj()):
                 for j in range(i):
                     if glbl.modules['integrals'].centroid_required[i][j] and not \
-                                             cached(integrals.centroids[i][j].label,
-                                                    integrals.centroids[i][j].x()):
+                                             cached(glbl.modules['integrals'].centroids[i][j].label,
+                                                    glbl.modules['integrals'].centroids[i][j].x()):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
-                            exec_list.append(['cent',wfn.cent[i][j]])
+                            exec_list.append(['cent',glbl.modules['integrals'].centroids[i][j]])
 
         local_results = []
+
+        print("rank="+str(glbl.mpi['rank'])+", length exec_lst="+str(len(exec_list)))
         for i in range(len(exec_list)):
-            if type(exec_list[i][0]) is 'traj':
-                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], wfn.time)
-            elif type(exec_list[i][0]) is 'cent':
-                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], wfn.time)
+            if exec_list[i][0] is 'traj':
+                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], t=wfn.time)
+            elif exec_list[i][0] is 'cent':
+                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], t=wfn.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
+                pes_calc = None
             local_results.append([exec_list[i][1].label,pes_calc])
 
         global_results = glbl.mpi['comm'].allgather(local_results)
@@ -149,16 +156,16 @@ def update_pes(wfn, update_integrals=True):
                 for j in range(i):
                 # if centroid not initialized, skip it
                     if glbl.modules['integrals'].centroid_required[i][j]:
-                        if not cached(glbl.modules['integrals'].centroids[i][j].label, 
+                        if not cached(glbl.modules['integrals'].centroids[i][j].label,
                                       glbl.modules['integrals'].centroids[i][j].x()):
                             pes_centij = glbl.modules['interface'].evaluate_centroid(
                                          glbl.modules['integrals'].centroids[i][j], wfn.time)
                         else:
                             pes_centij = pes_cache[glbl.modules['integrals'].centroids[i][j].label]
                         glbl.modules['integrals'].centroids[i][j].update_pes_info(pes_centij)
-                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]                             
+                        glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]
                         pes_cache[glbl.modules['integrals'].centroids[i][j].label] = pes_centij
-                            
+
     return success
 
 

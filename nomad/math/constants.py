@@ -2,6 +2,7 @@
 Conversion factors and constants for nomad
 """
 
+
 # convert fs to au
 fs2au    = 41.34137221718
 # convert bohr to angstrom

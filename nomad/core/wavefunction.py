@@ -128,12 +128,6 @@ class Wavefunction:
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
 
-    def prune(self):
-        """Kills trajectories that are dead."""
-        for i in range(self.nalive):
-            continue
-        return False
-
     def amplitudes(self):
         """Returns amplitudes of the trajectories."""
         return np.array([self.traj[self.alive[i]].amplitude

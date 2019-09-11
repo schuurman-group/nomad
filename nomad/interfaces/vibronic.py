@@ -144,7 +144,7 @@ def init_interface():
     ham.nmode_active = len(glbl.properties['crd_labels'])
 
     # operator file will always be a separate file
-#    ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
+    #ham.rdoperfile(glbl.home_path + '/' + glbl.vibronic['opfile'])
     ham.rdoperfile(glbl.vibronic['opfile'])
 
     # Ouput some information about the Hamiltonian
