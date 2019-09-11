@@ -28,7 +28,7 @@ def read_input(fname):
     the 'geometry' keyword.
     """
     # Read input file. Small enough to gulp the whole thing
-#    with open(glbl.paths['home_path'] + fname, 'r') as infile:
+    #with open(glbl.paths['home_path'] + fname, 'r') as infile:
     with open(fname, 'r') as infile:
         nomad_input = infile.readlines()
 

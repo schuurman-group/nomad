@@ -5,6 +5,7 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import nomad.core.surface as evaluate
+import nomad.adapt.utilities as utilities
 #import nomad.core.matching_pursuit as mp
 
 
@@ -22,7 +23,7 @@ def step_wavefunction(dt):
     # save the wavefunction from previous step in case step rejected
     end_time      = min(glbl.modules['wfn'].time + dt,
                         glbl.properties['simulation_time'])
-    time_step     = min(dt, glbl.properties['simulation_time'] - 
+    time_step     = min(dt, glbl.properties['simulation_time'] -
                             glbl.modules['wfn'].time)
     min_time_step = dt / 2.**5
 
@@ -62,17 +63,14 @@ def step_wavefunction(dt):
             # spawn new basis functions if necessary
             basis_grown  = glbl.modules['adapt'].spawn(glbl.modules['wfn'], time_step)
             # kill the dead trajectories
-            basis_pruned = glbl.modules['wfn'].prune()
+            basis_pruned = utilities.prune(glbl.modules['wfn'])
 
             # if a trajectory has been added, then call update_pes
             # to get the electronic structure information at the associated
             # centroids. This is necessary in order to propagate the amplitudes
             # at the start of the next time step.
             if basis_grown and glbl.modules['integrals'].require_centroids:
-                print("update_pes following a spawn event...")
                 evaluate.update_pes(glbl.modules['wfn'])
-                print("ntraj="+str(glbl.modules['wfn'].n_traj())+" len(centroids)="+str(len(glbl.modules['integrals'].centroids)))
-                print("centroids="+str(glbl.modules['integrals'].centroids))
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
@@ -102,8 +100,6 @@ def step_wavefunction(dt):
             # reset the beginning of the time step and go to beginning of loop
             #del master
             glbl.modules['wfn'] = wfn_start.copy()
-
-    return
 
 
 def step_trajectory(traj, init_time, dt):

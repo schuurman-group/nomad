@@ -6,6 +6,7 @@ import nomad.core.glbl as glbl
 import nomad.core.trajectory as trajectory
 import nomad.core.log as log
 
+
 def set_initial_coords(wfn):
     """Takes initial position and momentum from geometry specified in input"""
     coords = glbl.properties['init_coords']

@@ -13,8 +13,6 @@ def readme():
 
 
 ext_modules = [
-    Extension('nomad.compiled.vibronic_gaussian',
-              sources=['nomad/compiled/vibronic_gaussian.f90']),
     Extension('nomad.compiled.nuclear_gaussian',
               sources=['nomad/compiled/nuclear_gaussian.f90']),
     Extension('nomad.compiled.nuclear_gaussian_ccs',

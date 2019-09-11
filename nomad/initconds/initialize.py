@@ -12,13 +12,14 @@ import nomad.core.checkpoint as checkpoint
 import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
+
 def init_wavefunction():
     """Initializes the trajectories."""
     # initialize the interface we'll be using the determine the
     # the PES. There are some details here that trajectories
     # will want to know about
 
-    log.print_message('string',['\n **************\n'+ 
+    log.print_message('string',['\n **************\n'+
                                   ' initialization\n'+
                                   ' **************\n'])
 
@@ -39,6 +40,19 @@ def init_wavefunction():
     glbl.modules['propagator'] = __import__('nomad.propagators.' + glbl.methods['propagator'],
                                  fromlist=['a'])
 
+    # WARNING: this should be done more eloquently
+    # need to determine form of the coefficients on the kinetic energy
+    # operator, i.e. cartesian vs. normal mode coordinate basis
+    # this is messy -- should be re-worked mvoing forward...
+    if glbl.methods['interface'] == 'vibronic':
+        # if normal modes, read frequencies from vibronic interface
+        kecoef = 0.5 * glbl.modules['interface'].ham.freq
+    else:
+        kecoef = 0.5 / glbl.properties['crd_masses']
+    glbl.modules['integrals']  = integral.Integral(kecoef,
+                                                   glbl.methods['ansatz'],
+                                                   glbl.methods['integral_eval'])
+
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
 
@@ -47,15 +61,32 @@ def init_wavefunction():
                                      +str(glbl.paths['chkpt_file'])+'\n'])
 
         # retrieve current wave function, no arguments defaults to most recent simulation
-        [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation()
+        wfn0  = None
+        ints0 = None
+        if glbl.mpi['rank'] == 0:
+            [glbl.modules['wfn'], glbl.modules['integrals']] = checkpoint.retrieve_simulation(time=glbl.properties['restart_time'])
+            [wfn0, ints0]                                    = checkpoint.retrieve_simulation(time=0.)
 
-        # check that we have all the data we need to propagate the first step -- otherwise, we 
+        # only root reads checkpoint file -- then broadcasts contents to other proceses
+        if glbl.mpi['parallel']:
+            # synchronize tasks
+            glbl.mpi['comm'].barrier()
+            glbl.modules['wfn']       = glbl.mpi['comm'].bcast(glbl.modules['wfn'], root=0)
+            wfn0                      = glbl.mpi['comm'].bcast(wfn0, root=0)
+            if glbl.modules['integrals'].require_centroids:
+                glbl.modules['integrals'].centroid_required = glbl.mpi['comm'].bcast(glbl.modules['integrals'].centroid_required, root=0)
+                glbl.modules['integrals'].centroids         = glbl.mpi['comm'].bcast(glbl.modules['integrals'].centroids, root=0)
+
+        # save copy of t=0 wfn for autocorrelation function
+        save_initial_wavefunction(wfn0)
+
+        # check that we have all the data we need to propagate the first step -- otherwise, we
         # need to update the potential
         update_surface = False
         for i in range(glbl.modules['wfn'].n_traj()):
             if glbl.modules['wfn'].traj[i].alive and glbl.modules['wfn'].traj[i].active:
                 pes_data = glbl.modules['wfn'].traj[i].pes
-                if ('potential' not in pes_data.avail_data() or 
+                if ('potential' not in pes_data.avail_data() or
                     'derivative' not in pes_data.avail_data()):
                     update_suface = True
             if glbl.modules['integrals'].require_centroids:
@@ -63,11 +94,11 @@ def init_wavefunction():
                     pes_data = glbl.modules['integrals'].centroids[i][j].pes
                     if glbl.modules['integrals'].centroid_required[i][j]:
                         if ('potential' not in pes_data.avail_data() and
-                            glbl.modules['wfn'].traj[i].state == 
+                            glbl.modules['wfn'].traj[i].state ==
                             glbl.modules['wfn'].traj[j].state):
                             update_surface = True
-                        if ('derivative' not in pes_data.avail_data() and 
-                            glbl.modules['wfn'].traj[i].state != 
+                        if ('derivative' not in pes_data.avail_data() and
+                            glbl.modules['wfn'].traj[i].state !=
                             glbl.modules['wfn'].traj[j].state):
                             update_surface = True
         if update_surface:
@@ -80,24 +111,7 @@ def init_wavefunction():
         glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
 
-        # retrieve time t=0 wave function
-        [wfn0, ints0] = checkpoint.retrieve_simulation(time=0.)
-        save_initial_wavefunction(wfn0)
-
     else:
-
-        # WARNING: this should be done more eloquently
-        # need to determine form of the coefficients on the kinetic energy
-        # operator, i.e. cartesian vs. normal mode coordinate basis
-        if glbl.methods['interface'] == 'vibronic':
-            # if normal modes, read frequencies from vibronic interface
-            kecoef = 0.5 * glbl.modules['interface'].ham.freq
-        else:
-            kecoef = 0.5 / glbl.properties['crd_masses']
-        glbl.modules['integrals']  = integral.Integral(kecoef,
-                                                       glbl.methods['ansatz'],
-                                                       glbl.methods['integral_eval'])
-
         # first generate the initial nuclear coordinates and momenta
         # and add the resulting trajectories to the bundle
         glbl.modules['init_conds'].set_initial_coords(glbl.modules['wfn'])

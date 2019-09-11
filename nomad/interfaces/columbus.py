@@ -67,7 +67,7 @@ mem_str      = ''
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path, log_file
-    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim 
+    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
     global coup_de_thresh, dummy_lst
 
@@ -99,16 +99,16 @@ def init_interface():
     if glbl.columbus['dummy_constrain'] is None:
         dummy_lst = []
     else:
-        dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain']).tolist()
+        dummy_lst = np.atleast_2d(glbl.columbus['dummy_constrain'])
     # if we want to constrain dummy atom to the C.O.M.
     if glbl.columbus['dummy_constrain_com'] and a_mass not in dummy_lst:
         dummy_lst.append(a_mass)
     # ensure dummy atom count is accurate.
-    n_dummy = len(dummy_lst) 
+    n_dummy = len(dummy_lst)
     if n_dummy != count_dummy(input_path+'/daltaoin'):
-        sys.exit('Number of dummy atoms='+str(n_dummy)+
-                 ' is inconsistent with COLUMBUS input ='+
-                  str(count_dummy(input_path+'/daltaoin')))
+        raise ValueError('Number of dummy atoms='+str(n_dummy)+
+                         ' is inconsistent with COLUMBUS input ='+
+                          str(count_dummy(input_path+'/daltaoin')))
 
     # confirm that we can see the COLUMBUS installation (pull the value
     # COLUMBUS environment variable)
@@ -171,7 +171,7 @@ def init_interface():
 
     # always return to current working directory
     os.chdir(glbl.paths['cwd'])
-    return
+
 
 def evaluate_trajectory(traj, t=None):
     """Computes MCSCF/MRCI energy and computes all couplings.
@@ -368,6 +368,7 @@ def make_one_time_input():
     # make sure ciudgin file exists
     shutil.copy('ciudgin.drt1', 'ciudgin')
 
+
 def generate_integrals(label, t):
     """Runs Dalton to generate AO integrals."""
     global work_path
@@ -386,10 +387,9 @@ def generate_integrals(label, t):
     shutil.copy('hermitin', 'daltcomm')
 
     with open('hermitls', 'w') as hermitls:
-        run_prog(label, 'dalton.x', args=['-m', mem_str],
-                             out_pipe = hermitls)
+        run_prog(label, 'dalton.x', args=['-m', mem_str], out_pipe=hermitls)
 
-    append_log(label,'integral', t)
+    append_log(label, 'integral', t)
 
 
 def run_col_mcscf(traj, t):
@@ -564,26 +564,28 @@ def run_col_mrci(traj, ci_restart, t):
     # now update atom_pops
     ist = -1
     atom_pops = np.zeros((n_atoms, traj.nstates))
-    with open('ciudgls', 'r') as ciudgls:
-        for line in ciudgls:
-            if '   gross atomic populations' in line:
-                ist += 1
-                # only get populations for lowest traj.nstates states
-                if ist == traj.nstates:
-                    break
-                pops = []
-                iatm = 0
-                for i in range(int(np.ceil((n_atoms+n_dummy)/6.))):
-                    for j in range(max_l+3):
-                        nxtline = ciudgls.readline()
-                        if 'total' in line:
-                            break
-                    l_arr = nxtline.split()
-                    if i==1:
-                        pops.extend(l_arr[n_dummy+1:])
-                    else:
-                        pops.extend(l_arr[1:])
-                atom_pops[:, ist] = np.array(pops, dtype=float)
+
+    # these are more trouble than they're worth, commenting out
+    # with open('ciudgls', 'r') as ciudgls:
+    #    for line in ciudgls:
+    #        if '   gross atomic populations' in line:
+    #            ist += 1
+    #            # only get populations for lowest traj.nstates states
+    #            if ist == traj.nstates:
+    #                break
+    #            pops = []
+    #            iatm = 0
+    #            for i in range(int(np.ceil((n_atoms+n_dummy)/6.))):
+    #                for j in range(max_l+3):
+    #                    nxtline = ciudgls.readline()
+    #                    if 'total' in line:
+    #                        break
+    #                l_arr = nxtline.split()
+    #                if i==1:
+    #                    pops.extend(l_arr[n_dummy+1:])
+    #                else:
+    #                    pops.extend(l_arr[1:])
+    #            atom_pops[:, ist] = np.array(pops, dtype=float)
 
     # grab mrci output
     append_log(label,'mrci', t)
@@ -901,7 +903,7 @@ def make_col_restart(traj):
 
 
 def get_col_restart(traj):
-    """Get restart mocoef file and ci vectors for columbus calculation.
+    """Gets restart mocoef file and ci vectors for columbus calculation.
 
     1. failure to find mocoef file is fatal.
     2. failure to find ci files is OK
@@ -928,7 +930,6 @@ def get_col_restart(traj):
     else:
         # if trajectory, there is a single parent
         par_arr = [str(traj.parent)]
-
 
     mo_restart = False
     ci_restart = False
@@ -1063,7 +1064,7 @@ def run_prog(tid, prog_name, args=None, in_pipe=None, out_pipe=None):
     # if got here, return code not caught as non-zero, but check
     # bummer file to be sure error code not caught by Columbus
     if not prog_status():
-        raise TimeoutError(str(prog_name)+' returned error, traj='+str(tid))
+        raise RuntimeError(str(prog_name)+' returned error, traj='+str(tid))
 
 
 def prog_status():
@@ -1096,7 +1097,7 @@ def append_log(label, listing_file, time):
         tstr = str(time)
 
     # open the running log for this process
-#    log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
+    #log_file = open(glbl.home_path+'/columbus.log.'+str(glbl.mpi['rank']), 'a')
     log_file = open('columbus.log.'+str(glbl.mpi['rank']), 'a')
 
     log_file.write(' time='+tstr+' trajectory='+str(label)+
@@ -1160,16 +1161,14 @@ def write_col_geom(geom):
 
     f = open('geom', 'w', encoding='utf-8')
 
+    fmt = '{:3s}{:6.1f}{:14.8f}{:14.8f}{:14.8f}{:14.8f}\n'
     for i in range(n_dummy):
         xyz = dummy_xyz(geom, dummy_lst[i])
-        f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
-                '\n'.format('X', 0, xyz[0], xyz[1], xyz[2], 0.0))
+        f.write(fmt.format('X', 0, xyz[0], xyz[1], xyz[2], 0.0))
 
     for i in range(n_atoms):
-        f.write(' {:2s}   {:3.1f}  {:12.8f}  {:12.8f}  {:12.8f}  {:12.8f}'
-                '\n'.format(a_sym[i], a_num[i],
-                            geom[p_dim*i],geom[p_dim*i+1],geom[p_dim*i+2],
-                            a_mass[i]))
+        f.write(fmt.format(a_sym[i], a_num[i], geom[p_dim*i], geom[p_dim*i+1],
+                           geom[p_dim*i+2], a_mass[i]))
     f.close()
 
 
@@ -1250,6 +1249,7 @@ def ang_mom_dalton(infile):
                         line = daltaoin.readline()
     return max_l
 
+
 def count_dummy(daltfile):
     """Determines the number of dummy atoms in a dalton input file"""
 
@@ -1260,12 +1260,13 @@ def count_dummy(daltfile):
                 n_dum += 1
     return n_dum
 
+
 def dummy_xyz(geom, dummy_wts):
-    """Determines the xyz coordinates for a dummy atom given a 
-       cartesian geometry and a set of wts"""
+    """Determines the xyz coordinates for a dummy atom given a
+    cartesian geometry and a set of wts"""
     global n_atoms
 
-    xyz = np.zeros(3) 
+    xyz = np.zeros(3)
     for i in range(n_atoms):
         xyz += geom[3*i:3*i+3]*dummy_wts[i]
     xyz /= sum(dummy_wts)
@@ -1298,4 +1299,3 @@ def pack_mocoef():
 def write_mocoef(fname, mos):
     """Writes orbitals to mocoef file."""
     np.savetxt(str(fname), mos, fmt="%s")
-
