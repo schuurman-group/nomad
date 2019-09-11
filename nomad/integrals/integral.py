@@ -5,6 +5,7 @@ import numpy as np
 import nomad.core.timings as timings
 import nomad.integrals.centroid as centroid
 
+
 class Integral:
     """Class constructor for the Bundle object."""
     def __init__(self, kecoef, ansatz, numerical_eval):
@@ -19,15 +20,19 @@ class Integral:
         # ansatz can be: fms, mce, mca, diabatic
         # numerical can: bat, saddle_point, vibronic, dirac
         if self.numerical == 'dirac':
-            self.ints      = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical), fromlist=['a'])
-            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical),fromlist=['a'])
+            self.ints      = __import__('nomad.integrals.'+str(self.ansatz)+
+                                        '_'+str(self.numerical), fromlist=['a'])
+            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+
+                                        '_'+str(self.numerical),fromlist=['a'])
         else:
-            self.ints      = __import__('nomad.integrals.'+str(self.ansatz), fromlist=['a'])
-            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+'_'+str(self.numerical),fromlist=['a'])
+            self.ints      = __import__('nomad.integrals.'+str(self.ansatz),
+                                        fromlist=['a'])
+            self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+
+                                        '_'+str(self.numerical),fromlist=['a'])
 
         self.hermitian            = self.ints.hermitian
         self.require_centroids    = self.ints_eval.require_centroids
-        self.overlap_requires_pes = False 
+        self.overlap_requires_pes = False
 
     @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
@@ -42,7 +47,7 @@ class Integral:
     @timings.timed
     def traj_overlap(self, bra_traj, ket_traj):
         """Calculates the trajectory overlap."""
-        return self.ints.traj_overlap(bra_traj, ket_traj) 
+        return self.ints.traj_overlap(bra_traj, ket_traj)
 
     @timings.timed
     def s_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
@@ -64,7 +69,8 @@ class Integral:
         if elec_ovrlp is None:
             elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
 
-        return self.ints.t_integral(bra_traj, ket_traj, self.kecoef, nuc_ovrlp, elec_ovrlp)
+        return self.ints.t_integral(bra_traj, ket_traj, self.kecoef,
+                                    nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
     def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
@@ -81,8 +87,8 @@ class Integral:
                                         self.centroids[bra_traj.label][ket_traj.label],
                                         self.kecoef, nuc_ovrlp, elec_ovrlp)
         else:
-            return self.ints_eval.v_integral(bra_traj, ket_traj, 
-                                        self.kecoef, nuc_ovrlp, elec_ovrlp)
+            return self.ints_eval.v_integral(bra_traj, ket_traj,
+                                             self.kecoef, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
@@ -139,7 +145,7 @@ class Integral:
             for i in range(dim_cent):
                 self.centroids[i].extend([None for j in range(new_dim_cent -
                                                                  dim_cent)])
-            self.centroids.extend([[None for j in range(new_dim_cent)] 
+            self.centroids.extend([[None for j in range(new_dim_cent)]
                                          for k in range(new_dim_cent-dim_cent)])
 
         self.centroids[ij[0]][ij[1]] = new_cent
@@ -184,9 +190,9 @@ class Integral:
                 if self.centroids[i][j] is None and (wfn.traj[i].alive and wfn.traj[j].alive):
                     self.centroids[i][j] = centroid.Centroid(traj_i=wfn.traj[i],
                                                             traj_j=wfn.traj[j])
-                    self.centroids[i][j].update_x(wfn.traj[i],wfn.traj[j])
-                    self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
-                    self.centroids[j][i] = self.centroids[i][j]
+                self.centroids[i][j].update_x(wfn.traj[i],wfn.traj[j])
+                self.centroids[i][j].update_p(wfn.traj[i],wfn.traj[j])
+                self.centroids[j][i] = self.centroids[i][j]
                 self.centroid_required[i][j] = self.is_required(wfn.traj[i],wfn.traj[j])
                 self.centroid_required[j][i] = self.centroid_required[i][j]
 

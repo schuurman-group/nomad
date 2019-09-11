@@ -5,18 +5,17 @@ traveling on adiabataic potentials
 import numpy as np
 import nomad.compiled.nuclear_gaussian as nuclear
 
+
 # Determines the Hamiltonian symmetry
 hermitian = True
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+
 def elec_overlap(t1, t2):
     """ Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
-    if t1.state == t2.state:
-        return 1.
-    else:
-        return 0.
+    return float(t1.state == t2.state)
 
 
 def nuc_overlap(t1, t2):

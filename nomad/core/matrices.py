@@ -121,7 +121,7 @@ class Matrices:
                 self.mat_dict['s_traj'][j,i]  = self.mat_dict['s_traj'][i,j].conjugate()
                 self.mat_dict['s'][j,i]       = self.mat_dict['s'][i,j].conjugate()
                 self.mat_dict['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj], wfn.traj[ii],
-                                                nuc_ovrlp=self.mat_dict['s_nuc'][j,i], 
+                                                nuc_ovrlp=self.mat_dict['s_nuc'][j,i],
                                                 elec_ovrlp=self.mat_dict['s_elec'][j,i])
                 self.mat_dict['t'][j,i]       = self.mat_dict['t'][i,j].conjugate()
                 self.mat_dict['v'][j,i]       = self.mat_dict['v'][i,j].conjugate()

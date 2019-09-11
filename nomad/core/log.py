@@ -18,7 +18,8 @@ def init_logfile():
     generate_formats()
 
     # print the log file header, including values of all variables
-    print_header()
+    if glbl.mpi['rank'] == 0:
+        print_header()
 
 
 def print_message(otype, data):
@@ -66,7 +67,7 @@ def print_spawn_log(data):
 
 
 def cleanup_end():
-    """Cleans up the FMS log file if calculation completed."""
+    """Cleans up the nomad log file if calculation completed."""
     # simulation ended
     print_message('complete', [])
 
@@ -77,7 +78,7 @@ def cleanup_end():
 
 
 def cleanup_exc(etyp, val, tb):
-    """Cleans up the FMS log file if an exception occurs."""
+    """Cleans up the nomad log file if an exception occurs."""
     # print exception
     exception = ''.join(traceback.format_exception(etyp, val, tb))
     print_message('error', [rm_timer(exception)])
@@ -129,6 +130,12 @@ def print_header():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
 
+        logfile.write('\n ** mpi variables **\n')
+        log_str = ''
+        for k,v in glbl.mpi.items():
+            log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
+        logfile.write(log_str+'\n')
+
         logfile.write('\n ** property variables **\n')
         log_str = ''
         for k,v in glbl.properties.items():
@@ -140,7 +147,7 @@ def print_header():
         for k,v in glbl.sections[glbl.methods['interface']].items():
             log_str += ' {:20s} = {:20s}\n'.format(str(k), str(v))
         logfile.write(log_str+'\n')
-        return
+
 
 def generate_formats():
     """Documentation to come"""
@@ -168,7 +175,7 @@ def generate_formats():
 
     print_level['general']        = 2
     print_level['warning']        = 0
-    print_level['string']         = 2 
+    print_level['string']         = 2
     print_level['t_step']         = 0
     print_level['coupled']        = 2
     print_level['new_step']       = 2

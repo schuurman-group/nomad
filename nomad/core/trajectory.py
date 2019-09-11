@@ -7,6 +7,7 @@ import nomad.core.timings as timings
 import nomad.core.surface as surface
 import nomad.math.constants as constants
 
+
 class Trajectory:
     """Class constructor for the Trajectory object."""
     def __init__(self, nstates, dim, width=None, mass=None,
