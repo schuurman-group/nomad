@@ -12,6 +12,12 @@ def readme():
         return f.read()
 
 
+def requirements():
+    """Returns the requirement list."""
+    with open('requirements.txt', 'r') as f:
+        return [line.strip() for line in f.readlines()]
+
+
 ext_modules = [
     Extension('nomad.compiled.nuclear_gaussian',
               sources=['nomad/compiled/nuclear_gaussian.f90']),
@@ -41,6 +47,6 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Scientific/Engineering :: Chemistry'
                  ],
-    install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'h5py>=2.5.0'],
+    install_requires=requirements(),
     ext_modules=ext_modules
       )
