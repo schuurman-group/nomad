@@ -16,43 +16,48 @@ import nomad.core.stem as step
 import nomad.core.surface as evaluate
 import nomad.adapt.utilities as utils
 
-def adapt(wfn, dt)
+def adapt(wfn, dt):
     """Documentation to follow"""
 
-    #gets the current time    
-    current_time = wfn.time
-    # time_step =
+        #gets the current time    
+        current_time = wfn.time
+        # time_step =
 
     """Need:
     Size of time step (delta t)
     coupling between states
     """
-      #Python's default random number generator:
-      import random
-      random_number = random.random() 
+        #Python's default random number generator:
+        import random
+        random_number = random.random() 
 
-    for st in range(glbl.properties['n_states'])
+        # go through all trajectories:
+        for i in range(wfn.n_traj())
+        #Probability of the previos switch, because the algorithm checks ranges:
+        prev_prob = 0
+        for st in range(glbl.properties['n_states'])
         
-        #can only switch between states
-        if st == #qk current state
-            continue
+            #can only switch between states
+            if st == #qk current state
+                continue
         
-        #Calculate switching probability for this transition:
+             #Calculate switching probability for this transition:
 
 
 
-        if switch_prob < 0:
-            switch_prob = 0
-        #Check probability against random number, see if there's a switch
+            if switch_prob < 0:
+                switch_prob = 0
 
+            #add to the previous probability
+            switch_prob = prev_prob + switch_prob
+            #Check probability against random number, see if there's a switch
+            if prev_prob < random_number <= switch_prob
     
-        #if there is a potential switch, 
-        if switch_prob > random_number:
             continue
-        #If no switch to this state (or any higher state):
-        else:
-            break #somehow set the new state to switch to - ths depend on how the probabilities actually work.
-    #Initiate the switch:
+            #If no switch to this state (or any higher state):
+            else:
+                break 
+                
 
 
 
