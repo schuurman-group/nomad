@@ -14,6 +14,7 @@ import nomad.core.surface as surface
 import nomad.integrals.integral as integral
 import nomad.integrals.centroid as centroid
 
+
 np.set_printoptions(threshold = np.inf)
 tkeys       = ['traj', 'poten', 'grad', 'coup', 'hessian',
                'dipole', 'tr_dipole', 'sec_mom', 'atom_pop']
@@ -23,10 +24,9 @@ dump_format = dict()
 tfile_names = dict()
 bfile_names = dict()
 
-#
-def archive_simulation(wfn, integrals, file_name=None):
-    """Documentation to come"""
 
+def archive_simulation(wfn, integrals, file_name=None, create_new=False):
+    """Documentation to come"""
     # default is to use file name from previous write
     if file_name is not None:
         glbl.paths['chkpt_file'] = file_name.strip()
@@ -34,7 +34,7 @@ def archive_simulation(wfn, integrals, file_name=None):
     # if this is the first time we're writing to the archive,
     # create the bundle data set and record the time-independent
     # bundle definitions
-    if not os.path.isfile(glbl.paths['chkpt_file']):
+    if not os.path.isfile(glbl.paths['chkpt_file']) or create_new:
         create(glbl.paths['chkpt_file'], wfn, integrals)
 
     # pull the time from the wave function to uniquely timestamp
@@ -52,12 +52,10 @@ def archive_simulation(wfn, integrals, file_name=None):
 
     # close the chkpt file
     chkpt.close()
-    return
 
-#
-def retrieve_simulation(time=None, file_name=None, key_words=False):
-    """Dochumentation to come"""
-
+def retrieve_simulation(time=None, file_name=None, key_words=False,
+                        reset_rows=False):
+    """Documentation to come"""
     # default is to use file name from previous write
     if file_name is not None:
         glbl.paths['chkpt_file'] = file_name.strip()
@@ -68,18 +66,24 @@ def retrieve_simulation(time=None, file_name=None, key_words=False):
     if key_words:
         read_keywords(chkpt)
 
+    # when restarting from arbitrary time, we may want to overwrite
+    # subsequent time-data, if it exists
+    if reset_rows:
+        reset_datasets(chkpt, time)
+
     # read wave function information, including trajectories
     wfn = read_wavefunction(chkpt, time)
 
     # update the wfn specific data
     ints = read_integral(chkpt, time)
+
     if ints is not None:
         ints.update(wfn)
 
     # close the checkpoint file
     chkpt.close()
 
-    return [wfn, ints]
+    return wfn, ints
 
 #
 def merge_simulations(file_names=None, new_file=None):
@@ -122,7 +126,12 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     # if file handle is None, get file stream by opening
     # file, file_name
     if chkpt is None and file_name is not None:
-        chkpt = h5py.File(file_name.strip(), 'r', libver='latest') 
+        chkpt = h5py.File(file_name.strip(), 'r', libver='latest')
+
+    # if this group doesn't posses a list of times, return
+    # 'none'
+    if grp_name+'/time' not in chkpt:
+        return None
 
     if grp_name is None:
         grp_name = 'wavefunction.0'
@@ -220,14 +229,25 @@ def retrieve_dataset(dset, file_name=None, ti=None, tf=None):
 #------------------------------------------------------------------------------------
 def create(file_name, wfn, ints):
     """Creates a new checkpoint file."""
+    # if a file already exists with this name, remove it
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
     # create chkpoint file
     chkpt = h5py.File(file_name, 'w', libver='latest')
 
     # save the contents of glbl.py
     write_keywords(chkpt)
 
+<<<<<<< HEAD
     # create basis group
     create_basis(chkpt, wfn, name=0)
+=======
+    # wfn group -- row information
+    chkpt.create_group('wavefunction')
+    chkpt['wavefunction'].attrs['current_row'] = -1
+    chkpt['wavefunction'].attrs['n_rows']      = 0
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
     # wfn group -- row information
     create_wfn(chkpt, wfn, name=0)
@@ -238,6 +258,7 @@ def create(file_name, wfn, ints):
     # close following initialization
     chkpt.close()
 
+<<<<<<< HEAD
 # 
 def create_basis(chkpt, wfn, name=0):
     """ Creates a new basis group, with suffix 'name' """
@@ -306,57 +327,76 @@ def create_int(chkpt, ints, name=0):
     return
 
 #
+=======
+
+def reset_datasets(chkpt, time):
+    """Resets 'current_row' attribute on all datasets to correspond
+    to 'time', and sets all subsequent data to the equivalent of
+    'null'."""
+    # if time is null, this corresponds to the current time, so there
+    # is nothing to do
+    if time is not None:
+        # first go through wavefunction datasets
+        # we are operating on first 'wavefunction' object we come across,
+        # so this is only safe for checkpoints with a single wfn object.
+        # We may decide to allow specficiation of a wfn object in
+        # a merged chkpt sometime in future
+        for grp in chkpt:
+            # if this group has a 'time' dataset...
+            if time_steps(chkpt, grp) is not None:
+                cur_indx = get_time_index(chkpt, grp, time)
+                chkpt[grp].attrs['current_row'] = cur_indx
+                # if this is wavefunction or integral grp, desend one
+                # level to work on trajectory and centroid objects
+                if 'wavefunction' in grp or 'integral' in grp:
+                    for sub_grp in chkpt[grp]:
+                        sub_name = grp+'/'+sub_grp
+                        if time_steps(chkpt, sub_name) is not None:
+                            cur_indx = get_time_index(chkpt, sub_name, time)
+                            chkpt[sub_name].attrs['current_row'] = cur_indx
+
+
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 def write_keywords(chkpt):
-    """Writes the contents of glbl to the checkpoint file. This 
-       is only done once upon the creation of the file"""
-    
+    """Writes the contents of glbl to the checkpoint file. This
+    is only done once upon the creation of the file"""
     #loop over the dictionaries in glbl
     for keyword_section in glbl.sections.keys():
-    
+
         #if module/class objects, skip
         if keyword_section == 'modules':
             continue
-    
+
         grp_name = 'keywords_'+keyword_section
         chkpt.create_group(grp_name)
         for keyword in glbl.sections[keyword_section].keys():
-            write_keyword(chkpt, grp_name, keyword, 
+            write_keyword(chkpt, grp_name, keyword,
                           glbl.sections[keyword_section][keyword])
 
-    return
 
-#
 def write_keyword(chkpt, grp, kword, val):
     """Write a keyword to simulation archive"""
-    
-    # try writing variable to h5py attribute using native format 
+    # try writing variable to h5py attribute using native format
     try:
         chkpt[grp].attrs[kword] = val
-        return
-
     except:
-        pass
+        # that fails, write as a string
+        try:
+            #..and if an array, preserve commas
+            if isinstance(val, np.ndarray):
+                sval = ','.join([val[i] for i in range(len(val))])
+            else:
+                sval = str(val)
+            d_type = h5py.special_dtype(vlen=str)
+            chkpt[grp].attrs.create(kword, sval, dtype=d_type)
 
-    # that fails, write as a string
-    try:
-        #..and if an array, preserve commas
-        if isinstance(val, np.ndarray):
-            sval = ','.join([val[i] for i in range(len(val))])
-        else:
-            sval = str(val)
-        d_type = h5py.special_dtype(vlen=str) 
-        chkpt[grp].attrs.create(kword, sval, dtype=d_type)
-
-    except Exception as e: 
-        print("Failed to write keyword:"+str(kword)+" = val:"+str(val)+
-              " -- "+str(e)+"\n")
-
-    return
+        except Exception as e:
+            print("Failed to write keyword:"+str(kword)+" = val:"+str(val)+
+                  " -- "+str(e)+"\n")
 
 
 def read_keywords(chkpt):
     """Read keywords from archive file"""
-
     # open chkpoint file
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
@@ -372,32 +412,26 @@ def read_keywords(chkpt):
             val = read_keyword(chkpt, grp_name, keyword)
             try:
                 glbl.sections[keyword_section][keyword] = val
-            except Exception as e:     
+            except Exception as e:
                 print("Failed to set keyword:"+str(keyword)+" -- "+str(e)+"\n")
 
     chkpt.close()
 
-    return
 
 def read_keyword(chkpt, grp, kword):
     """Read a particular keyword attribute"""
-
-    # try writing variable to h5py attribute using native format 
+    # try writing variable to h5py attribute using native format
     try:
         val = chkpt[grp].attrs[kword]
         return convert_value(kword, val)
-
-    except Exception as e:     
+    except Exception as e:
         print("Failed to read keyword:"+str(kword)+" -- "+str(e)+"\n")
-
-    return
 
 
 def convert_value(kword, val):
     """Converts a string value to NoneType, bool, int, float or string."""
-
     cval = val
-   
+
     # if we can't interpret this as a list, return the string
     if str(cval).find(',',0) == -1:
         return cval
@@ -411,7 +445,7 @@ def convert_value(kword, val):
             cval = np.ndarray(cval)
             return cval
     except ValueError:
-        pass 
+        pass
     try:
         cval = str(cval).split(',')
     except ValueError:
@@ -420,7 +454,12 @@ def convert_value(kword, val):
     # else just a string and return as-is
     return cval
 
+<<<<<<< HEAD
 def write_wavefunction(chkpt, wfn, time, name=0):
+=======
+
+def write_wavefunction(chkpt, wfn, time):
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
     """Documentation to come"""
     wfn_data = package_wfn(wfn)
     n_traj   = wfn.n_traj()
@@ -455,7 +494,7 @@ def write_wavefunction(chkpt, wfn, time, name=0):
         # create a new datasets with reasonble default sizes
         else:
             d_shape   = (n_rows,) +  wfn_data[data_label].shape
-            max_shape = (None,)   + wfn_data[data_label].shape
+            max_shape = (max_dset_size(),)   + wfn_data[data_label].shape
             d_type    = wfn_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = wfn_data[data_label]
@@ -499,7 +538,7 @@ def write_integral(chkpt, integral, time, name=0):
         # create a new datasets with reasonble default sizes
         else:
             d_shape   = (n_rows,) + int_data[data_label].shape
-            max_shape = (None,)   + int_data[data_label].shape
+            max_shape = (max_dset_size(),)   + int_data[data_label].shape
             d_type    = int_data[data_label].dtype
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = int_data[data_label]
@@ -525,7 +564,7 @@ def write_trajectory(chkpt, traj, time, name=0):
     # time information to existing datasets
     t_grp = grp_name+'/'+t_label
 
-    if t_grp in chkpt:
+    if t_label in chkpt['wavefunction']:
 
         chkpt[t_grp].attrs['current_row'] += 1
         current_row = chkpt[t_grp].attrs['current_row']
@@ -557,12 +596,21 @@ def write_trajectory(chkpt, traj, time, name=0):
         for data_label in t_data.keys():
             dset = t_grp+'/'+data_label
             d_shape   = (n_rows,) + t_data[data_label].shape
-            max_shape = (None,)   + t_data[data_label].shape
+            max_shape = (max_dset_size(),)   + t_data[data_label].shape
             d_type    = t_data[data_label].dtype
             if d_type.type is np.unicode_:
                 d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = t_data[data_label]
+
+    # if MOs exist, write them as an attribute
+    if 'mo' in traj.pes.avail_data():
+        # until python figures out unicode, we need to explicitly encode strings
+        mo_encode = [str(mo_i).encode('utf8') for mo_i in traj.pes.get_data('mo')]
+        if 'mo' in chkpt[t_grp].attrs.keys():
+            chkpt[t_grp].attrs.modify('mo', mo_encode)
+        else:
+            chkpt[t_grp].attrs.create('mo', mo_encode)
 
 
 def write_centroid(chkpt, cent, time, name=0):
@@ -578,7 +626,7 @@ def write_centroid(chkpt, cent, time, name=0):
     # time information to existing datasets
     c_grp = grp_name+'/'+c_label
 
-    if c_grp in chkpt:
+    if c_label in chkpt['integral']:
 
         chkpt[c_grp].attrs['current_row'] += 1
         current_row = chkpt[c_grp].attrs['current_row']
@@ -610,17 +658,25 @@ def write_centroid(chkpt, cent, time, name=0):
         for data_label in c_data.keys():
             dset = c_grp+'/'+data_label
             d_shape   = (n_rows,) + c_data[data_label].shape
-            max_shape = (None,)   + c_data[data_label].shape
+            max_shape = (max_dset_size(),)   + c_data[data_label].shape
             d_type    = c_data[data_label].dtype
             if d_type.type is np.unicode_:
                 d_type = h5py.special_dtype(vlen=str)
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = c_data[data_label]
 
+    # if MOs exist, write them as an attribute
+    if 'mo' in cent.pes.avail_data():
+        # until python figures out unicode, we need to explicitly encode strings
+        mo_encode = [str(mo_i).encode('utf8') for mo_i in cent.pes.get_data('mo')]
+        if 'mo' in chkpt[c_grp].attrs.keys():
+            chkpt[c_grp].attrs.modify('mo', mo_encode)
+        else:
+            chkpt[c_grp].attrs.create('mo', mo_encode)
+
 
 def read_wavefunction(chkpt, time, name=0):
     """Documentation to come"""
-
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     masses   = glbl.properties['crd_masses']
@@ -643,7 +699,12 @@ def read_wavefunction(chkpt, time, name=0):
     # dimensions of these objects are not time-dependent
     wfn.time    = chkpt[wfn_name+'/time'][read_row,0]
 
+<<<<<<< HEAD
     for label in chkpt[wfn_name]:
+=======
+    wfn_grps = sorted([str(label) for label in chkpt['wavefunction']])
+    for label in wfn_grps:
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
         #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
@@ -661,21 +722,37 @@ def read_wavefunction(chkpt, time, name=0):
                                          label=label,
                                          kecoef=kecoef)
         read_trajectory(chkpt, new_traj, t_grp, t_row)
+
+        # if there was an error reading the trajectory, return None
+        if new_traj is None:
+            return None
+
         wfn.add_trajectory(new_traj.copy())
 
     return wfn
 
+<<<<<<< HEAD
 def read_integral(chkpt, time, name=0):
-    """Documentation to come"""
+=======
 
+def read_integral(chkpt, time):
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
+    """Documentation to come"""
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     dim      = len(widths)
+<<<<<<< HEAD
     int_name = 'integral.'+str(name)   
 
     ansatz   = glbl.methods['ansatz']
     numerics = glbl.methods['integral_eval'] 
     kecoef   = chkpt[int_name].attrs['kecoef'] 
+=======
+
+    ansatz   = glbl.methods['ansatz']
+    numerics = glbl.methods['integral_eval']
+    kecoef   = chkpt['integral'].attrs['kecoef']
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, int_name, time)
@@ -700,6 +777,11 @@ def read_integral(chkpt, time, name=0):
 
             new_cent = centroid.Centroid(nstates=nstates, dim=dim, width=widths)
             read_centroid(chkpt, new_cent, c_grp, c_row)
+
+            # if there was an error reading a centroid, return None
+            if new_cent is None:
+                return None
+
             ints.add_centroid(new_cent)
 
     return ints
@@ -709,6 +791,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
     # populate the surface object in the trajectory
 
+<<<<<<< HEAD
     # set information about the trajectory itself
     [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
     [parent, state]      = chkpt[t_grp+'/states'][t_row]
@@ -721,10 +804,28 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         if pes.valid_data(data_label):
             dset = chkpt[t_grp+'/'+data_label]
             pes.add_data(data_label, dset[t_row])
+=======
+    # if this time step doesn't exist, return null trajectory
+    if t_row > len(chkpt[t_grp+'/glbl'])-1:
+        new_traj = None
+    else:
+        # set information about the trajectory itself
+        data_row = chkpt[t_grp+'/glbl'][t_row]
+        [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
 
-    # currently, momentum has to be read in separately
-    momt    = chkpt[t_grp+'/momentum'][t_row]
+        pes = surface.Surface()
+        for data_label in chkpt[t_grp].keys():
+            if pes.valid_data(data_label):
+                dset = chkpt[t_grp+'/'+data_label]
+                pes.add_data(data_label, dset[t_row])
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
+        # if MOs are present as an attribute, read them in
+        if 'mo' in chkpt[t_grp].attrs.keys():
+            mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[t_grp].attrs['mo']]
+            pes.add_data('mo', mo_decode)
+
+<<<<<<< HEAD
     new_traj.state  = int(state)
     new_traj.parent = int(parent)
     new_traj.update_amplitude(amp_real+1.j*amp_imag)
@@ -734,41 +835,65 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     new_traj.update_phase(gamma)
     new_traj.update_x(new_traj.pes.get_data('geom'))
     new_traj.update_p(momt)
+=======
+        # currently, momentum has to be read in separately
+        momt    = chkpt[t_grp+'/momentum'][t_row]
+
+        new_traj.state  = int(state)
+        new_traj.parent = int(parent)
+        new_traj.update_amplitude(amp_real+1.j*amp_imag)
+        new_traj.last_spawn = data_row[5:]
+
+        new_traj.update_pes_info(pes)
+        new_traj.update_x(new_traj.pes.get_data('geom'))
+        new_traj.update_p(momt)
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
 
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
+    # if this time step doesn't exist, return null centroid
+    if c_row > len(chkpt[c_grp+'/glbl'])-1:
+        new_cent = None
+    else:
+        # set information about the trajectory itself
+        parent = [0.,0.]
+        states = [0.,0.]
+        [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
 
-    # set information about the trajectory itself
-    parent = [0.,0.]
-    states = [0.,0.]
-    [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
+        # populate the surface object in the trajectory
+        pes = surface.Surface()
+        for data_label in chkpt[c_grp].keys():
+            if pes.valid_data(data_label):
+                dset = chkpt[c_grp+'/'+data_label]
+                pes.add_data(data_label, dset[c_row])
 
-    # populate the surface object in the trajectory
-    pes = surface.Surface()
-    for data_label in chkpt[c_grp].keys():
-        if pes.valid_data(data_label):
-            dset = chkpt[c_grp+'/'+data_label]
-            pes.add_data(data_label, dset[c_row])
+        # if MOs are present as an attribute, read them in
+        if 'mo' in chkpt[c_grp].attrs.keys():
+            mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[c_grp].attrs['mo']]
+            pes.add_data('mo', mo_decode)
 
-    # currently, momentum has to be read in separately
-    momt    = chkpt[c_grp+'/momentum'][c_row]
+        # currently, momentum has to be read in separately
+        momt    = chkpt[c_grp+'/momentum'][c_row]
 
-    new_cent.parents = [int(i) for i in parent]
-    new_cent.states  = [int(i) for i in states]
+        new_cent.parents = [int(i) for i in parent]
+        new_cent.states  = [int(i) for i in states]
 
-    idi              = max(new_cent.parents)
-    idj              = min(new_cent.parents)
-    new_cent.label   = -((idi * (idi - 1) // 2) + idj + 1)
+        idi              = max(new_cent.parents)
+        idj              = min(new_cent.parents)
+        new_cent.label   = -((idi * (idi - 1) // 2) + idj + 1)
 
-    new_cent.update_pes_info(pes)
-    new_cent.pos = new_cent.pes.get_data('geom')
-    new_cent.mom = momt
+        new_cent.update_pes_info(pes)
+        new_cent.pos = new_cent.pes.get_data('geom')
+        new_cent.mom = momt
 
 
 def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
     time_vals = time_steps(chkpt=chkpt, grp_name=grp_name)
+
+    if len(time_vals)==0:
+        return None
 
     if time is None:
         return chkpt[grp_name].attrs['current_row']
@@ -785,11 +910,15 @@ def get_time_index(chkpt, grp_name, time):
     if read_row < len(time_vals)-1:
         match_chk.extend([time_vals[read_row+1]-time_vals[read_row]])
 
-    if dt[read_row] > 0.5*min(match_chk):
-        read_row = None
+    if dt[read_row] != 0.:
+        if len(match_chk) == 0:
+            read_row = None
+        elif dt[read_row] > 0.5*min(match_chk):
+            read_row = None
 
     return read_row
 
+<<<<<<< HEAD
 #
 def package_basis(time, parent, child):
     """Record when and from whom new basis functions are spawned"""
@@ -807,6 +936,9 @@ def package_basis(time, parent, child):
     return basis_data
 
 #
+=======
+
+>>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
@@ -843,6 +975,11 @@ def package_trajectory(traj, time):
 
     # store everything about the surface
     for obj in traj.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
         traj_data[obj] = traj.pes.get_data(obj)
 
     return traj_data
@@ -858,10 +995,19 @@ def package_centroid(cent, time):
 
     # last, store everything about the surface
     for obj in cent.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
         cent_data[obj] = cent.pes.get_data(obj)
 
     return cent_data
 
+def max_dset_size():
+    """Return the maximum dataset size"""
+    return 3*int(glbl.properties['simulation_time'] / 
+                 glbl.properties['default_time_step'])
 
 def default_blk_size(time):
     """Documentation to come"""
@@ -872,7 +1018,7 @@ def default_blk_size(time):
 
 #-----------------------------------------------------------------------------
 #
-#  printing routines 
+#  printing routines
 #
 #-----------------------------------------------------------------------------
 def generate_data_formats():
@@ -1018,7 +1164,6 @@ def generate_data_formats():
     bfile_names['heff']      = 'heff.dat'
     bfile_names['t_overlap'] = 't_overlap.dat'
 
-    return
 
 def print_traj_row(label, key, data):
     """Appends a row of data, formatted by entry 'fkey' in formats to
@@ -1066,4 +1211,3 @@ def print_wfn_mat(time, key, mat):
         outfile.write('{:9.2f}\n'.format(time))
         outfile.write(np.array2string(mat,
                       formatter={'complex_kind':lambda x: '{: 15.8e}'.format(x)})+'\n')
-

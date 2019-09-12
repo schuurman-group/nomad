@@ -3,7 +3,7 @@
 The main nomad driver.
 """
 import os
-import sys
+import sys as sys
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.files as files
@@ -99,7 +99,10 @@ if __name__ == '__main__':
 
     # initialize
     init()
+
     # if an error occurs, cleanup and report the error
     sys.excepthook = log.cleanup_exc
+
     # run the main routine
     main()
+

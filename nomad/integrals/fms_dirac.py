@@ -17,17 +17,17 @@ hermitian = False
 # functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'dirac_delta'
 
+
 def elec_overlap(t1, t2):
     """ Returns < Psi | Psi' >, the nuclear overlap integral of two trajectories"""
-    if t1.state == t2.state:
-        return 1.
-    else:
-        return 0.
+    return float(t1.state == t2.state)
+
 
 def nuc_overlap(t1, t2):
     """ Returns < Chi | Psi >, the nuclear overlap integral under the pseudospectral projection"""
     return dirac.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                          t2.phase(),t2.widths(),t2.x(),t2.p())
+
 
 def traj_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the overlap integral of two trajectories"""
