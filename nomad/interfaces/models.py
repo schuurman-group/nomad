@@ -215,14 +215,13 @@ def tully_extended(geom):
     """The Tully extended coupling model, taken from 
        JCP, 93, 1061 (1990)"""
     x = geom[0]
-    A = 0.01
-    B = 1.6
-    C = 0.005
-    D = 1.0
+    A = 6e-4
+    B = 0.1
+    C = 0.9
 
     v11 = A 
     v22 = -A
-    v12 = B * ((1.+np.sign(x)) - math.exp(-C*abs(x)))
+    v12 = B * (1.+ np.sign(x) + (np.sign(-x) * math.exp(np.sign(-x)*C*x)))
 
     dv11 = 0. 
     dv22 = 0.
