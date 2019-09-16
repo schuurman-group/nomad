@@ -136,13 +136,17 @@ def evaluate_coupling(traj):
 
         coup = np.array([[np.dot(vel, deriv[:,i,j]) for i in range(ns)]
                                                     for j in range(ns)])
+        print ("coup", coup)
         coup -= np.diag(coup.diagonal())
+        print("realCoup", coup)
         traj.pes.add_data('coupling',coup)
+
 
     else:
         diabpot          = traj.pes.get_data('diabat_pot')
         diab_effcoup     = adt.calc_diabeffcoup(diabpot)
         traj.pes.add_data('coupling',diab_effcoup)
+
 
 #---------------------------------------------------------------------
 #
