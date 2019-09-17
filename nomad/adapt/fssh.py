@@ -9,59 +9,68 @@
     """
 
 
+import random
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.log as log
-import nomad.core.stem as step
-import nomad.core.surface as evaluate
-import nomad.adapt.utilities as utils
-import nomad.math.constants as constants
 
-def spawn(wfn, dt):
+def adapt(wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
 
-        #gets the current time    
-        current_time = wfn.time
-
-        import random
-        random_number = random.random() 
+    #gets the current time    
+    current_time = wfn.time
+    random_number = random.random() 
         
-        prev_prob = 0
-        # go through all trajectories(but there only should be one):
-        for i in range(wfn.n_traj())
-            traj = wfn.traj[i]
-            
-            for st in range(glbl.properties['n_states'])
+    prev_prob = 0
+    # go through all trajectories(but there only should be one):
+    for i in range(wfn.n_traj()):
+        traj = wfn.traj[i]
+
+        print("calling propagate_general...")
+        newx = glbl.modules['propagator'].propagate(traj, traj.x(), a_dot, dt)
+        print("original x = "+str(traj.x()))
+        print("new x = "+str(newx))
         
-                #can only switch between states
-                if traj.state == st
-                    continue
+        for st in range(glbl.properties['n_states']):
+    
+            #can only switch between states
+            if traj.state == st:
+                continue
         
-                 #Calculate switching probability for this transition:
+            #Calculate switching probability for this transition:
+            coupling = traj.coupling(traj.state, st)
 
-                coupling = traj.coupling(traj.state, st)
+            #placeholder:
+            switch_prob = 5 * coupling / dt
 
-                #placeholder:
-                switch_prob = 5 * coupling / dt
+            if switch_prob < 0:
+                switch_prob = 0
 
-                 if switch_prob < 0:
-                    switch_prob = 0
+            #add to the previous probability
+            switch_prob = prev_prob + switch_prob
+              
+            #Check probability against random number, see if there's a switch
+            if prev_prob < random_number <= switch_prob:
+                log.print_message('Surface hop to state', st)
+                #change the state:
+                traj.state = st
 
-                #add to the previous probability
-                switch_prob = prev_prob + switch_prob
+            #If no switch to this state (or any higher state):
+        else:
+                break 
                 
-                #Check probability against random number, see if there's a switch
-                if prev_prob < random_number <= switch_prob
-                    log.print_message('Surface hop to state', st)
-                    #change the state:
-                    traj.state = st
 
-                #If no switch to this state (or any higher state):
-            else
-                    break 
-                
+#
+def in_coupled_regime(wfn):
+    return False
 
-
-
-
+def a_dot(traj, ordr):
+   
+    if ordr == 0:
+        return 0.
+    if ordr == 1:
+        return traj.coupling(traj.state, 1)
+    else:
+        return 0.
+    
 

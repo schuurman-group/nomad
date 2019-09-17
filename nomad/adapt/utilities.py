@@ -73,39 +73,39 @@ def adjust_child(parent, child, scale_dir):
     return True
 
 
-def overlap_with_bundle(traj, bundle):
+def overlap_with_wfn(traj, wfn):
     """Checks if trajectory has significant overlap with any trajectories
-    already in the bundle."""
-    t_overlap_bundle = False
+    already in the wfn."""
+    t_overlap_wfn = False
 
-    for i in range(bundle.n_traj()):
-        if bundle.traj[i].alive:
+    for i in range(wfn.n_traj()):
+        if wfn.traj[i].alive:
 
-            if traj.state != bundle.traj[i].state:
+            if traj.state != wfn.traj[i].state:
                 sij = 0j
             else:
-                sij = glbl.modules['integrals'].traj_overlap(traj, bundle.traj[i])
+                sij = glbl.modules['integrals'].traj_overlap(traj, wfn.traj[i])
             if abs(sij) > glbl.properties['sij_thresh']:
-                t_overlap_bundle = True
+                t_overlap_wfn = True
                 break
 
-    return t_overlap_bundle
+    return t_overlap_wfn
 
 
-def max_nuc_overlap(bundle, overlap_traj, overlap_state=None):
+def max_nuc_overlap(wfn, overlap_traj, overlap_state=None):
     """Returns the maximum overlap between the nuclear component of
-    traj_i, and other trajectories in the bundle.
+    traj_i, and other trajectories in the wfn.
 
     If overlap_state is specified, only consider overlap with
     trajectories on state overlap_state.
     """
     max_sij = 0.
-    for j in range(bundle.n_traj()):
-        if bundle.traj[j].alive and j != overlap_traj:
-            if overlap_state is None or bundle.traj[j].state == overlap_state:
+    for j in range(wfn.n_traj()):
+        if wfn.traj[j].alive and j != overlap_traj:
+            if overlap_state is None or wfn.traj[j].state == overlap_state:
                 max_sij = max(max_sij, abs(glbl.modules['integrals'].nuc_overlap(
-                                                 bundle.traj[overlap_traj],
-                                                 bundle.traj[j])))
+                                                 wfn.traj[overlap_traj],
+                                                 wfn.traj[j])))
 
     return max_sij
 

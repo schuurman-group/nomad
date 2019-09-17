@@ -20,7 +20,7 @@ import nomad.adapt.utilities as utilities
 
 
 @timings.timed
-def spawn(wfn, dt):
+def adapt(wfn, dt):
     """Spawns a basis function if the minimum overlap drops below a given
     threshold."""
     basis_grown  = False
