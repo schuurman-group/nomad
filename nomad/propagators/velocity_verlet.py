@@ -20,7 +20,7 @@ def propagate(q0, cf, dq, dt):
     # we're going to limit this to 2-nd order DE for time being...
     q1 = q0
     for i in range(len(dq)):
-        q1 += cf[i]*dq[i] * (dt**i)
+        q1 += cf[i] * dq[i] * (dt**i)
 
     return q1
 
@@ -81,8 +81,8 @@ def propagate_half1(traj, dt):
     #   x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
     #   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
     # --> need to compute forces at new geometry
-    x1 = propagate(x0, m, [0, 1., 0.5], [0, v0, f0/m], dt)
-    p1 = propagate(p0, m, [0, 0.5], [0, f0], dt)
+    x1 = propagate(x0, [0, 1., 0.5], [0, v0, f0/m], dt)
+    p1 = propagate(p0, [0, 0.5], [0, f0], dt)
 
     # update x, and half-update p
     traj.update_x(x1)
