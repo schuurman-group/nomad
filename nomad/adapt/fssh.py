@@ -26,10 +26,10 @@ def adapt(wfn, dt):
     for i in range(wfn.n_traj()):
         traj = wfn.traj[i]
 
-        print("calling propagate_general...")
-        newx = glbl.modules['propagator'].propagate(traj, traj.x(), a_dot, dt)
-        print("original x = "+str(traj.x()))
-        print("new x = "+str(newx))
+#        print("calling propagate_general...")
+#        newx = glbl.modules['propagator'].propagate(traj.x(), a_dot, dt)
+#        print("original x = "+str(traj.x()))
+#        print("new x = "+str(newx))
         
         for st in range(glbl.properties['n_states']):
     
@@ -64,13 +64,8 @@ def adapt(wfn, dt):
 def in_coupled_regime(wfn):
     return False
 
-def a_dot(traj, ordr):
-   
-    if ordr == 0:
-        return 0.
-    if ordr == 1:
-        return traj.coupling(traj.state, 1)
-    else:
-        return 0.
+def a_dot(x):
+
+    return [1., 0.]
     
 
