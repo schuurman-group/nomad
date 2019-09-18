@@ -47,14 +47,53 @@ wgt_hi = np.array([16./135., 0., 6656./12825., 28561./56430., -9./50., 2./55.])
 propphase = glbl.properties['phase_prop']
 safety = 0.9
 tol = 1e-6
-h = None
+
+h      = None
+h_wfn  = None
 h_traj = None
 
+@timings.timed
+def propagate(q0, t_deriv, dt)
+    global h
+ 
+    ndim = len(q0)
+    k    = np.zeros((rk_ordr, ndim))
+    
+    t    = 0.
+    qt   = q0
+    if h is None:
+        h = dt
+    while abs(t) < abs(dt):
+        h_step = np.sign(dt) * min(abs(h), abs(dt - t))
+        qk = qt
+        for rk in range(rk_ordr):
+            k[rk] = dt * t_deriv(qk)[0]
+            if rk < rk_ordr - 1:
+                qk += np.sum(coeff[rk,:,np.newaxis]*k, axis=0)
+
+        # calculate the 4th and 5th order changes and the error
+        dq_lo = np.sum(wgt_lo[:,np.newaxis] * k, axis=0)
+        dq_hi = np.sum(wgt_hi[:,np.newaxis] * k, axis=0)
+
+        err = np.max(np.abs(dq_hi-dq_lo))
+
+        if err > tol:
+            # scale the time step and try again
+            h = h_step * max(safety*(tol/err)**0.25, 0.1)
+        else:
+            # scale the time step and update the position
+            t += h
+            err = max(err, tol*1e-5)
+            h *= min(safety*(tol/err)**0.2, 5.)
+            qt += dq_lo
+
+    return qt
 
 @timings.timed
 def propagate_wfn(wfn, dt):
     """Propagates the Bundle object with RKF45."""
-    global h
+
+    global h_wfn
     ncrd = wfn.traj[0].dim
     ntraj = wfn.n_traj()
     kx = np.zeros((ntraj, rk_ordr, ncrd))
@@ -62,10 +101,10 @@ def propagate_wfn(wfn, dt):
     kg = np.zeros((ntraj, rk_ordr))
 
     t = 0.
-    if h is None:
-        h = dt
+    if h_wfn is None:
+        h_wfn = dt
     while abs(t) < abs(dt):
-        hstep = np.sign(dt) * min(abs(h), abs(dt - t))
+        hstep = np.sign(dt) * min(abs(h_wfn), abs(dt - t))
         for rk in range(rk_ordr):
             tmp_wfn = wfn.copy()
             for i in range(ntraj):
@@ -107,12 +146,12 @@ def propagate_wfn(wfn, dt):
 
         if err > tol:
             # scale the time step and try again
-            h = hstep * max(safety*(tol/err)**0.25, 0.1)
+            h_wfn = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
             # scale the time step and update the position
-            t += h
+            t += h_wfn
             err = max(err, tol*1e-5)
-            h *= min(safety*(tol/err)**0.2, 5.)
+            h_wfn *= min(safety*(tol/err)**0.2, 5.)
             for i in range(ntraj):
                 if wfn.traj[i].active:
                     wfn.traj[i].update_x(wfn.traj[i].x() + dx_lo[i])

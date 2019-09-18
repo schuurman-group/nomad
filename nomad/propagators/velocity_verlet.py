@@ -13,7 +13,18 @@ import nomad.core.surface as evaluate
 propphase = glbl.properties['phase_prop']
 
 @timings.timed
-def propagate(q0, cf, dq, dt):
+def propagate(q0, t_deriv, dt):
+    """the fundamental routine for propagating a quantity using velocity-verlet
+       algorithm"""
+
+    # we're going to limit this to 2-nd order DE for time being...
+    q_deriv = t_deriv(q0)
+    qt      = q0 + q_deriv[0] * dt + 0.5 * q_deriv[1] * dt**2
+
+    return qt
+
+@timings.timed
+def propagate_traj(q0, cf, dq, dt):
     """the fundamental routine for propagating a quantity using velocity-verlet
        algorithm"""
 
@@ -74,15 +85,15 @@ def propagate_half1(traj, dt):
         # half update phase
         g_dot = traj.phase_dot()
         g_cur = np.dot(f0, v0)
-        g1    = propagate(g0, [0, 0.5, -0.25], [0, g_dot, g_cur], dt)
+        g1    = propagate_traj(g0, [0, 0.5, -0.25], [0, g_dot, g_cur], dt)
         traj.update_phase(g1)
 
     # update position and momentum
     #   x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
     #   p(t+dt) = p(t) + 0.5*m*(a(t) + a(t+dt))*dt
     # --> need to compute forces at new geometry
-    x1 = propagate(x0, [0, 1., 0.5], [0, v0, f0/m], dt)
-    p1 = propagate(p0, [0, 0.5], [0, f0], dt)
+    x1 = propagate_traj(x0, [0, 1., 0.5], [0, v0, f0/m], dt)
+    p1 = propagate_traj(p0, [0, 0.5], [0, f0], dt)
 
     # update x, and half-update p
     traj.update_x(x1)
@@ -102,8 +113,8 @@ def propagate_half2(traj, dt):
         g_dot = traj.phase_dot()
         g_cur = np.dot(f1, v1)
         #delta_gamma = (gdot1 + gdot2) * dt / 2.0 - (gcur1 - gcur2) * dt**2 / 4.
-        g2    = propagate(g1, [0, 0.5, 0.25], [0, g_dot, g_cur], dt)
+        g2    = propagate_traj(g1, [0, 0.5, 0.25], [0, g_dot, g_cur], dt)
         traj.update_phase(g2)
 
-    p2 = propagate(p1, [0, 0.5], [0, f1], dt)
+    p2 = propagate_traj(p1, [0, 0.5], [0, f1], dt)
     traj.update_p(p2)

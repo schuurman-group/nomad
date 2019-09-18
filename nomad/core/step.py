@@ -61,7 +61,7 @@ def step_wavefunction(dt):
             # update the wavefunction time
             glbl.modules['wfn'].time += time_step
             # spawn new basis functions if necessary
-            basis_grown  = glbl.modules['adapt'].spawn(glbl.modules['wfn'], time_step)
+            basis_grown  = glbl.modules['adapt'].adapt(glbl.modules['wfn'], time_step)
             # kill the dead trajectories
             basis_pruned = utilities.prune(glbl.modules['wfn'])
 

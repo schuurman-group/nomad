@@ -9,58 +9,25 @@
     """
 
 
+import random
 import numpy as np
 import scipy as sp 
 import nomad.core.glbl as glbl
 import nomad.core.log as log
-import nomad.core.stem as step
-import nomad.core.surface as evaluate
-import nomad.adapt.utilities as utils
-import nomad.math.constants as constants
 
-def spawn(wfn, dt):
+def adapt(wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
 
-        #gets the current time    
-        current_time = wfn.time
-
-        import random
-        random_number = random.random() 
+    #gets the current time    
+    current_time = wfn.time
+    random_number = random.random() 
         
-        prev_prob = 0
-        # go through all trajectories(but there only should be one):
-        for i in range(wfn.n_traj())
-            traj = wfn.traj[i]
-            
-            for st in range(glbl.properties['n_states'])
-                propogate_population(st)
-                #can only switch between states
-                if traj.state == st
-                    continue
-        
-                 #Calculate switching probability for this transition:
 
-
-                #placeholder:
-                switch_prop = dt * 
-                 if switch_prob < 0:
-                    switch_prob = 0
-
-                #add to the previous probability
-                switch_prob = prev_prob + switch_prob
                 
-                #Check probability against random number, see if there's a switch
-                if prev_prob < random_number <= switch_prob
-                    log.print_message('Surface hop to state', st)
-                    #change the state:
-                    traj.state = st
 
-                #If no switch to this state (or any higher state):
-                else
-                    break 
-                
+               """ 
 def propagate_probabilities(wfn, dt)
-"""Propagates the state probabilities and coherences for a given state"""
+Propagates the state probabilities and coherences for a given state
    #make a copy of the population/coherence matrix
    copy_a = a.copy()
    
@@ -75,7 +42,7 @@ def propagate_probabilities(wfn, dt)
 
 
 def calc_a_derivative(a0, k, j)
-"""returns the time derivative for each element in the probability/coherence matrix"""
+returns the time derivative for each element in the probability/coherence matrix
     for l in range(n_states)
      #Need to;
      #Set up initial coherences
@@ -84,7 +51,57 @@ def calc_a_derivative(a0, k, j)
      dq1 += (a[l][j] * (v[k][l] - (np.complex(0,1) * sp.constants.hbar * wfn.traj.nact(k, l)))) - (a[k][l] * (v[l][j] - (np.complex(0,1) * sp.constants.hbar * wfn.traj.nact[l, j]))))
             dq1  = dq1 / (sp.constants.hbar * np.complex(0, 1))
             
-    return [0, dq1]     
+    return [0, dq1]     """
 
+    prev_prob = 0
+    # go through all trajectories(but there only should be one):
+    for i in range(wfn.n_traj()):
+        traj = wfn.traj[i]
 
+        print("calling propagate_general...")
+        newx = glbl.modules['propagator'].propagate(traj, traj.x(), a_dot, dt)
+        print("original x = "+str(traj.x()))
+        print("new x = "+str(newx))
+        
+        for st in range(glbl.properties['n_states']):
+    
+            #can only switch between states
+            if traj.state == st:
+                continue
+        
+            #Calculate switching probability for this transition:
+            coupling = traj.coupling(traj.state, st)
+
+            #placeholder:
+            switch_prob = 5 * coupling / dt
+
+            if switch_prob < 0:
+                switch_prob = 0
+
+            #add to the previous probability
+            switch_prob = prev_prob + switch_prob
+              
+            #Check probability against random number, see if there's a switch
+            if prev_prob < random_number <= switch_prob:
+                log.print_message('Surface hop to state', st)
+                #change the state:
+                traj.state = st
+
+            #If no switch to this state (or any higher state):
+        else:
+                break 
+                
+
+def in_coupled_regime(wfn):
+    return False
+
+def a_dot(traj, ordr):
+   
+    if ordr == 0:
+        return 0.
+    if ordr == 1:
+        return traj.coupling(traj.state, 1)
+    else:
+        return 0.
+    
 
