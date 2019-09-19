@@ -45,10 +45,23 @@ def adapt(wfn, dt):
         
 
     prev_prob = 0
+<<<<<<< HEAD
 
     #Check that we only have one trajectory:
     if wfn.n_traj() > 1:
         sys.exit('fssh algorithm must only have one trajectory')
+=======
+    # go through all trajectories(but there only should be one):
+    for i in range(wfn.n_traj()):
+        traj = wfn.traj[i]
+
+#        print("calling propagate_general...")
+#        newx = glbl.modules['propagator'].propagate(traj.x(), a_dot, dt)
+#        print("original x = "+str(traj.x()))
+#        print("new x = "+str(newx))
+        
+        for st in range(glbl.properties['n_states']):
+>>>>>>> dd7e1d3062f585524922c9aafa6790edc9df0e5d
     
     traj = wfn.traj[0]
     
@@ -100,6 +113,8 @@ def propagate_a(traj, dt):
         return coup
 
     global current_a
+
+
 
     
     #a copy for calculations: 

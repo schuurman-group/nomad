@@ -53,7 +53,10 @@ h_wfn  = None
 h_traj = None
 
 @timings.timed
-def propagate(q0, t_deriv, dt)
+def propagate(q0, t_deriv, dt):
+    """Propagates from q0 = q(t0) to q(t0+dt) using 4th-order Runge-Kutta
+       method with error estimation. A reference to a function that
+       evaluates time derivative at any point qi is also given"""
     global h
  
     ndim = len(q0)
