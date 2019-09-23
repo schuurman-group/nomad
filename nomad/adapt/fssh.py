@@ -15,15 +15,20 @@ import scipy as sp
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import scipy.constants as sp_con
+import matplotlib.pyplot as plt
+#remove this!!!
+random.seed(7)
+
+#graph for testing:
+fig = plt.figure()
 
 a_cache = {}
-
+data_cache = {}
 #initial state probability (a) matrix:
 def init_a():
     init_state = glbl.properties['init_state']
     n_states = glbl.properties['n_states']
-    print('initial number of states' + str(n_states))
-    init_a_matrix = np.zeros([n_states, n_states])
+    init_a_matrix = np.zeros((n_states, n_states), dtype = 'complex')
     init_a_matrix[init_state,init_state] = 1
     a_cache['init'] = init_a_matrix
 
@@ -34,112 +39,118 @@ current_a = a_cache['init']
 
 def adapt(wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
-    
+    global data_cache
     global a_cache
     global current_a
     #gets the current time    
     current_time = wfn.time
-
+    traj = wfn.traj[0]
     #generates random number:
     random_number = random.random() 
-        
+    current_st = traj.state
+
+
+#graph for testing:
+    plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
+    #plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
+    #plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
+    def propagate_a():
+        """propagates the matrix of state probabilities and coherences"""
+
+        global current_a
+    
+        #a copy for calculations: 
+        a_copy = current_a.copy()
+
+        n_states = glbl.properties['n_states']
+        for k in range(n_states):
+            for  j in range(n_states):
+                #function that calculates the derivatives of this a element
+                def a_dot(a): 
+                    #print("-------calculating: ", k, j,"------------" )
+                    dq0 = 0
+                    dq1 = 0
+                    for l in range(n_states):
+                        #print(l)
+                        term1 = a_copy[l,j] * np.complex(diabat_pot(k,l), -nac(k,l))
+                        #print("V",k, l, diabat_pot(k,l), "nac",k,l, nac(k,l))
+                        #print("term 1", term1)
+                        term2 = a_copy[k,l] * np.complex(diabat_pot(l,j), -nac(l,j))
+                        #print("V",l,j, diabat_pot(l,j), "nac",l,j, nac(l,j))
+                        #print("term 2", term2)
+                        both_terms = (term1 - term2) / (np.complex(0,1))
+                        #print ("both terms:", both_terms)
+                        dq1 += both_terms
+                        
+                    dq = [dq1]
+                    return dq
+
+                #actually propagate a
+                akj =  glbl.modules['propagator'].propagate([a_copy[k,j]], a_dot, dt)
+                #print('this a is', k, j,':' , akj)
+                current_a[k,j] = akj[0]
+        #print("current a matrix:"+ str(current_a))
+        #print("just to check:" + str(current_a[0,0] + current_a[1,1]))   
+
+    def diabat_pot(j,k):
+        """Returns the specified matrix element of the diabatic potential"""
+        return traj.pes.get_data('diabat_pot')[j, k]
+
+    def nac(st1, st2):
+        "returns the nonadiabatic coupling between two states"""
+        nac_label = str(current_time) + str(st1) + str(st2)
+        if nac_label in data_cache:
+            return data_cache[nac_label]
+        vel = traj.velocity()   
+        deriv = traj.derivative(st1, st2) 
+        coup = np.dot(vel, deriv)
+        data_cache[nac_label] = coup
+        return coup
+   
+
 
     prev_prob = 0
-<<<<<<< HEAD
 
     #Check that we only have one trajectory:
     if wfn.n_traj() > 1:
         sys.exit('fssh algorithm must only have one trajectory')
-=======
-    # go through all trajectories(but there only should be one):
-    for i in range(wfn.n_traj()):
-        traj = wfn.traj[i]
-
-#        print("calling propagate_general...")
-#        newx = glbl.modules['propagator'].propagate(traj.x(), a_dot, dt)
-#        print("original x = "+str(traj.x()))
-#        print("new x = "+str(newx))
-        
-        for st in range(glbl.properties['n_states']):
->>>>>>> dd7e1d3062f585524922c9aafa6790edc9df0e5d
     
-    traj = wfn.traj[0]
     
-    #propagate the state probabilities:
-    propagate_a(traj, dt)
         
     for st in range(glbl.properties['n_states']):
     #can only switch between states
-        if traj.state == st:
+        if st == current_st:
             continue
-        print ("current state:"+ str(traj.state), "checking state" + str(st))
+        print ("current state:"+ str(current_st), "checking state" + str(st))
         
         #Calculate switching probability for this transition:
-        state_pop = current_a[st,st]
-        state_flux = 7
-        #placeholder:
-        switch_prob = 0.01 
-        print("switching Probability:" + str(switch_prob), "random:" + str(random_number)) 
+        state_pop = current_a[current_st, current_st]
+        state_flux = ((2) * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) -  (np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
+        print("state pop:", state_pop, "state_flux", state_flux, dt)
+        switch_prob = state_flux * dt / np.real(state_pop)
         if switch_prob < 0:     
             switch_prob = 0
+
         #add to the previous probability
         switch_prob = prev_prob + switch_prob
               
+        print("switching Probability:" + str(switch_prob)) 
+        
+        #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
+        
         #Check probability against random number, see if there's a switch
         if prev_prob < random_number <= switch_prob:
-            print('Surface hop to state', st)
+            #print('Surface hop to state ', st, ' at time ', current_time)
+            log.print_message('general',['Surface hop to state ' + str(st)]) 
             #change the state:
             traj.state = st
-
-            #If no switch to this state (or any higher state):
-        else:
-            break 
-                
+    #print("--------------------------------------------------")            
+    propagate_a()
+       
+    #graph for testing (very much a hack.....)
+    if current_time >glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
+        plt.show()
 
 def in_coupled_regime(wfn):
     return False
-"""
-def a_dot(traj, ordr):
-    return [0,5,0]
-   """ 
-def propagate_a(traj, dt):
-    print('-----------------------------------------------------------------------------------------------------------')
-    def nac(st1, st2):
-        #set up a cache for this!
-        "returns the nonadiabatic coupling between two states"""
-        vel = traj.velocity()   
-        deriv = traj.pes.get_data('derivative')
-        coup = np.dot(vel, deriv[:,st1, st2])
-        return coup
-
-    global current_a
-
-
-
-    
-    #a copy for calculations: 
-    a_copy = current_a.copy()
-
-    n_states = glbl.properties['n_states']
-    for k in range(n_states):
-        for  j in range(n_states):
-            #function that calculates the derivatives of this a element
-            def a_dot(a, ordr):
-                diabat_pot = traj.pes.get_data('diabat_pot')
-                dq0 = 0
-                dq1 = 0
-                for l in range(n_states):
-                    term1 = a_copy[l,j] * np.complex(diabat_pot[k,l], -sp_con.hbar * nac(k,l))
-                    term2 = a_copy[k,l] * np.complex(diabat_pot[l,j], -sp_con.hbar * nac(l,j))
-                    both_terms = (term1 - term2) / (np.complex(0, -sp_con.hbar))
-                    dq1 += both_terms
-                    dq = [0, dq1, 0, 0, 0, 0]
-                return dq
-
-            #actually propagate a
-            akj =  glbl.modules['propagator'].propagate(a_copy[k,j], a_dot, dt)
-            print(str(akj))
-            current_a[k,j] = akj
-            print("current a matrix:"+ str(current_a))
-            print("just to check:" + str(current_a[0,0] + current_a[1,1]))   
-
+   
