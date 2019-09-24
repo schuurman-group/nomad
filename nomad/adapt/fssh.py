@@ -15,11 +15,11 @@ import scipy as sp
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import scipy.constants as sp_con
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 #remove this!!!
 random.seed(9)
 #graph for testing:
-fig = plt.figure()
+#fig = plt.figure()
 
 a_cache = {}
 data_cache = {}
@@ -49,9 +49,9 @@ def adapt(wfn, dt):
 
 
 #graph for testing:
-    plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
-    plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
-    plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
+    #plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
+    #plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
+    #plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
     def propagate_a():
         """propagates the matrix of state probabilities and coherences"""
 
@@ -120,7 +120,7 @@ def adapt(wfn, dt):
         switch_prob = prev_prob + switch_prob
               
         
-        plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
+        #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
         
         #Check probability against random number, see if there's a switch
         if prev_prob < random_number <= switch_prob:
@@ -132,7 +132,7 @@ def adapt(wfn, dt):
        
     #graph for testing 
     if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
-        plt.show()
+        #plt.show()
 
 def in_coupled_regime(wfn):
     return False
