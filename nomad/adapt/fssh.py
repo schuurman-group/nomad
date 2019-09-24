@@ -17,8 +17,7 @@ import nomad.core.log as log
 import scipy.constants as sp_con
 import matplotlib.pyplot as plt
 #remove this!!!
-random.seed(7)
-
+random.seed(9)
 #graph for testing:
 fig = plt.figure()
 
@@ -36,7 +35,6 @@ init_a()
 
 current_a = a_cache['init']
 
-
 def adapt(wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
     global data_cache
@@ -52,13 +50,12 @@ def adapt(wfn, dt):
 
 #graph for testing:
     plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
-    #plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
-    #plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
+    plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
+    plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
     def propagate_a():
         """propagates the matrix of state probabilities and coherences"""
 
         global current_a
-    
         #a copy for calculations: 
         a_copy = current_a.copy()
 
@@ -67,37 +64,27 @@ def adapt(wfn, dt):
             for  j in range(n_states):
                 #function that calculates the derivatives of this a element
                 def a_dot(a): 
-                    #print("-------calculating: ", k, j,"------------" )
                     dq0 = 0
                     dq1 = 0
                     for l in range(n_states):
-                        #print(l)
                         term1 = a_copy[l,j] * np.complex(diabat_pot(k,l), -nac(k,l))
-                        #print("V",k, l, diabat_pot(k,l), "nac",k,l, nac(k,l))
-                        #print("term 1", term1)
                         term2 = a_copy[k,l] * np.complex(diabat_pot(l,j), -nac(l,j))
-                        #print("V",l,j, diabat_pot(l,j), "nac",l,j, nac(l,j))
-                        #print("term 2", term2)
                         both_terms = (term1 - term2) / (np.complex(0,1))
-                        #print ("both terms:", both_terms)
                         dq1 += both_terms
-                        
-                    dq = [dq1]
+                    if k==0 and j ==0:
+                    dq = [dq1, 0, 0,0,0]
                     return dq
 
                 #actually propagate a
                 akj =  glbl.modules['propagator'].propagate([a_copy[k,j]], a_dot, dt)
-                #print('this a is', k, j,':' , akj)
-                current_a[k,j] = akj[0]
-        #print("current a matrix:"+ str(current_a))
-        #print("just to check:" + str(current_a[0,0] + current_a[1,1]))   
+                current_a[k,j] = akj
 
     def diabat_pot(j,k):
         """Returns the specified matrix element of the diabatic potential"""
         return traj.pes.get_data('diabat_pot')[j, k]
 
     def nac(st1, st2):
-        "returns the nonadiabatic coupling between two states"""
+        """returns the nonadiabatic coupling between two states"""
         nac_label = str(current_time) + str(st1) + str(st2)
         if nac_label in data_cache:
             return data_cache[nac_label]
@@ -121,12 +108,10 @@ def adapt(wfn, dt):
     #can only switch between states
         if st == current_st:
             continue
-        print ("current state:"+ str(current_st), "checking state" + str(st))
-        
         #Calculate switching probability for this transition:
         state_pop = current_a[current_st, current_st]
-        state_flux = ((2) * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) -  (np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
-        print("state pop:", state_pop, "state_flux", state_flux, dt)
+        state_flux = ((2) * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) - (2 * np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
+                
         switch_prob = state_flux * dt / np.real(state_pop)
         if switch_prob < 0:     
             switch_prob = 0
@@ -134,21 +119,19 @@ def adapt(wfn, dt):
         #add to the previous probability
         switch_prob = prev_prob + switch_prob
               
-        print("switching Probability:" + str(switch_prob)) 
         
-        #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
+        plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
         
         #Check probability against random number, see if there's a switch
         if prev_prob < random_number <= switch_prob:
-            #print('Surface hop to state ', st, ' at time ', current_time)
+            print('Surface hop to state ', st, ' at time ', current_time)
             log.print_message('general',['Surface hop to state ' + str(st)]) 
             #change the state:
             traj.state = st
-    #print("--------------------------------------------------")            
     propagate_a()
        
-    #graph for testing (very much a hack.....)
-    if current_time >glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
+    #graph for testing 
+    if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
         plt.show()
 
 def in_coupled_regime(wfn):
