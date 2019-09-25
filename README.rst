@@ -1,5 +1,11 @@
 nomad
 =====
+.. image:: https://travis-ci.org/schuurman-group/nomad.svg?branch=master
+  :target: https://travis-ci.org/schuurman-group/nomad
+
+.. image:: https://codecov.io/gh/schuurman-group/nomad/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/schuurman-group/nomad
+
 Nonadiabatic Multistate Adaptive Dynamics
 
 Created Nov. 11, 2015 -- M.S. Schuurman
