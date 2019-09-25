@@ -17,7 +17,7 @@ import nomad.core.log as log
 import scipy.constants as sp_con
 #import matplotlib.pyplot as plt
 #remove this!!!
-random.seed(9)
+random.seed(4671011)
 #graph for testing:
 #fig = plt.figure()
 
@@ -40,30 +40,35 @@ def adapt(wfn, dt):
     global data_cache
     global a_cache
     global current_a
-    #gets the current time    
-    current_time = wfn.time
     traj = wfn.traj[0]
+    current_time = wfn.time
+    #the "local time", or time between larger time steps:
+    local_time = current_time
+    #the smaller time step:
+    local_dt = dt/100
     #generates random number:
     random_number = random.random() 
     current_st = traj.state
 
+        #Check that we only have one trajectory:
+    if wfn.n_traj() > 1:
+       sys.exit('fssh algorithm must only have one trajectory')
 
-#graph for testing:
+    #graph for testing:
     #plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
     #plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
     #plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
+
     def propagate_a():
         """propagates the matrix of state probabilities and coherences"""
-
-        global current_a
-        #a copy for calculations: 
+        
         a_copy = current_a.copy()
 
         n_states = glbl.properties['n_states']
         for k in range(n_states):
             for  j in range(n_states):
-                #function that calculates the derivatives of this a element
-                def a_dot(a): 
+                def a_dot(a):
+                    """returns the time derivative of the specified a matrix element"""
                     dq0 = 0
                     dq1 = 0
                     for l in range(n_states):
@@ -71,12 +76,10 @@ def adapt(wfn, dt):
                         term2 = a_copy[k,l] * np.complex(diabat_pot(l,j), -nac(l,j))
                         both_terms = (term1 - term2) / (np.complex(0,1))
                         dq1 += both_terms
-                    if k==0 and j ==0:
-                    dq = [dq1, 0, 0,0,0]
+                    dq = [dq1, 0, 0, 0]
                     return dq
-
                 #actually propagate a
-                akj =  glbl.modules['propagator'].propagate([a_copy[k,j]], a_dot, dt)
+                akj =  glbl.modules['propagator'].propagate([a_copy[k,j]], a_dot, local_dt)
                 current_a[k,j] = akj
 
     def diabat_pot(j,k):
@@ -93,45 +96,63 @@ def adapt(wfn, dt):
         coup = np.dot(vel, deriv)
         data_cache[nac_label] = coup
         return coup
-   
 
 
-    prev_prob = 0
 
-    #Check that we only have one trajectory:
-    if wfn.n_traj() > 1:
-        sys.exit('fssh algorithm must only have one trajectory')
-    
-    
-        
-    for st in range(glbl.properties['n_states']):
-    #can only switch between states
-        if st == current_st:
-            continue
-        #Calculate switching probability for this transition:
-        state_pop = current_a[current_st, current_st]
-        state_flux = ((2) * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) - (2 * np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
+    #this loop is called for each small time step 
+    while local_time < current_time + dt:
+        prev_prob = 0
+        for st in range(glbl.properties['n_states']):
+        #can only switch between states
+            if st == current_st:
+                continue
+            #Calculate switching probability for this transition:
+            state_pop = current_a[current_st, current_st]
+            state_flux = (2 * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) - (2 * np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
                 
-        switch_prob = state_flux * dt / np.real(state_pop)
-        if switch_prob < 0:     
-            switch_prob = 0
+            switch_prob = state_flux * local_dt / np.real(state_pop)
+            if switch_prob < 0:     
+                switch_prob = 0
 
-        #add to the previous probability
-        switch_prob = prev_prob + switch_prob
+            #add to the previous probability
+            switch_prob = prev_prob + switch_prob
               
         
-        #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
+            #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
         
-        #Check probability against random number, see if there's a switch
-        if prev_prob < random_number <= switch_prob:
-            print('Surface hop to state ', st, ' at time ', current_time)
-            log.print_message('general',['Surface hop to state ' + str(st)]) 
-            #change the state:
-            traj.state = st
-    propagate_a()
+            #Check probability against random number, see if there's a switch
+            if prev_prob < random_number <= switch_prob: 
+            
+                print('Testing Surface hop to state ', st, ' at time ', current_time)
+                log.print_message('general',['Attempting surface hop to state ' + str(st)]) 
+                #change the state:
+                traj.state = st
+                new_V = traj.potential()
+                new_K = total_E - new_V
+                #is this hop classically possible? If not, go back to previous state:
+                if new_K < 0:
+                    log.print_message('general',['Surface hop failed (not enough K), returning to state ' + str(current_st)])
+                    traj.state = current_st
+                else:
+                    #calculate and set the new momentum:
+                    scale_factor = math.sqrt(new_K/current_K)
+                    current_p = traj.p()
+                    new_p = scale_factor * current_p
+                    traj.update_p(new_p)
+
+                    print(current_p)
+        propagate_a()
+        #update the local time:
+        local_time = local_time + local_dt
+    
+
+
+
+
+
        
     #graph for testing 
-    if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
+    #if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
         #plt.show()
 
 def in_coupled_regime(wfn):
