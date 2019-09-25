@@ -122,20 +122,20 @@ def adapt(wfn, dt):
         
             #Check probability against random number, see if there's a switch
             if prev_prob < random_number <= switch_prob: 
-            
+                current_T = traj.kinetic() 
                 print('Testing Surface hop to state ', st, ' at time ', current_time)
                 log.print_message('general',['Attempting surface hop to state ' + str(st)]) 
                 #change the state:
                 traj.state = st
                 new_V = traj.potential()
-                new_K = total_E - new_V
+                new_T = total_E - new_V
                 #is this hop classically possible? If not, go back to previous state:
-                if new_K < 0:
-                    log.print_message('general',['Surface hop failed (not enough K), returning to state ' + str(current_st)])
+                if new_T < 0:
+                    log.print_message('general',['Surface hop failed (not enough T), returning to state ' + str(current_st)])
                     traj.state = current_st
                 else:
                     #calculate and set the new momentum:
-                    scale_factor = math.sqrt(new_K/current_K)
+                    scale_factor = math.sqrt(new_T/current_T)
                     current_p = traj.p()
                     new_p = scale_factor * current_p
                     traj.update_p(new_p)
