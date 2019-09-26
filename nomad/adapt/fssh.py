@@ -138,7 +138,6 @@ def adapt(wfn, dt):
 
     #graph for testing 
     if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
-        print(current_st)
 
 def in_coupled_regime(wfn):
     return False
