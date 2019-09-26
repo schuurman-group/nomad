@@ -15,11 +15,7 @@ import scipy as sp
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import scipy.constants as sp_con
-#import matplotlib.pyplot as plt
-#remove this!!!
-random.seed(4671011)
-#graph for testing:
-#fig = plt.figure()
+#random.seed(4611)
 
 a_cache = {}
 data_cache = {}
@@ -46,18 +42,12 @@ def adapt(wfn, dt):
     local_time = current_time
     #the smaller time step:
     local_dt = dt/100
-    #generates random number:
-    random_number = random.random() 
     current_st = traj.state
 
         #Check that we only have one trajectory:
     if wfn.n_traj() > 1:
-       sys.exit('fssh algorithm must only have one trajectory')
+        sys.exit('fssh algorithm must only have one trajectory')
 
-    #graph for testing:
-    #plt.plot(current_time, current_a[0,0], marker='o', markerSize = 3, color = 'red')
-    #plt.plot(current_time, current_a[1,1], marker='o', markerSize = 3, color = 'green')
-    #plt.plot(current_time, current_st, marker='x', markerSize = 3, color = 'black')
 
     def propagate_a():
         """propagates the matrix of state probabilities and coherences"""
@@ -101,6 +91,7 @@ def adapt(wfn, dt):
 
     #this loop is called for each small time step 
     while local_time < current_time + dt:
+        random_number = random.random() 
         prev_prob = 0
         for st in range(glbl.properties['n_states']):
         #can only switch between states
@@ -118,12 +109,11 @@ def adapt(wfn, dt):
             switch_prob = prev_prob + switch_prob
               
         
-            #plt.plot(current_time, switch_prob, marker='o', markerSize = 3, color = 'blue')
-        
+
             #Check probability against random number, see if there's a switch
             if prev_prob < random_number <= switch_prob: 
+                total_E = traj.classical()
                 current_T = traj.kinetic() 
-                print('Testing Surface hop to state ', st, ' at time ', current_time)
                 log.print_message('general',['Attempting surface hop to state ' + str(st)]) 
                 #change the state:
                 traj.state = st
@@ -131,29 +121,24 @@ def adapt(wfn, dt):
                 new_T = total_E - new_V
                 #is this hop classically possible? If not, go back to previous state:
                 if new_T < 0:
-                    log.print_message('general',['Surface hop failed (not enough T), returning to state ' + str(current_st)])
+                    log.print_message('general',['Surface hop failed (not enough T), remaining on state ' + str(current_st)])
                     traj.state = current_st
                 else:
+                    log.print_message('general',['Surface hop successful, switching to state ' + str(st)])
                     #calculate and set the new momentum:
-                    scale_factor = math.sqrt(new_T/current_T)
+                    scale_factor = np.sqrt(new_T/current_T)
                     current_p = traj.p()
                     new_p = scale_factor * current_p
                     traj.update_p(new_p)
 
-                    print(current_p)
         propagate_a()
         #update the local time:
         local_time = local_time + local_dt
-    
 
 
-
-
-
-       
     #graph for testing 
-    #if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
-        #plt.show()
+    if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
+        print(current_st)
 
 def in_coupled_regime(wfn):
     return False
