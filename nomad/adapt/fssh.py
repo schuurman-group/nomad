@@ -41,7 +41,7 @@ def adapt(wfn, dt):
     #the "local time", or time between larger time steps:
     local_time = current_time
     #the smaller time step:
-    local_dt = dt/100
+    local_dt = dt/10
     current_st = traj.state
 
         #Check that we only have one trajectory:
@@ -130,11 +130,16 @@ def adapt(wfn, dt):
                     current_p = traj.p()
                     new_p = scale_factor * current_p
                     traj.update_p(new_p)
+                    #for reflections on st 0:
+                    if st == 0:
+                        print(2)
+        if local_time >= glbl.properties['simulation_time'] +glbl.properties['default_time_step'] - local_dt:
+            print(current_st)
+
 
         propagate_a()
         #update the local time:
         local_time = local_time + local_dt
-
 
 
 def in_coupled_regime(wfn):
