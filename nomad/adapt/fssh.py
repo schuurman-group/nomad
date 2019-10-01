@@ -109,7 +109,7 @@ def adapt(wfn, dt):
             switch_prob = prev_prob + switch_prob
               
         
-
+            switch_times = 0
             #Check probability against random number, see if there's a switch
             if prev_prob < random_number <= switch_prob: 
                 total_E = traj.classical()
@@ -130,11 +130,20 @@ def adapt(wfn, dt):
                     current_p = traj.p()
                     new_p = scale_factor * current_p
                     traj.update_p(new_p)
-                    #for reflections on st 0:
-                    if st == 0:
-                        print(2)
-        if local_time >= glbl.properties['simulation_time'] +glbl.properties['default_time_step'] - local_dt:
-            print(current_st)
+                    #to keep track, for now:
+                    switch_times += 1
+        if local_time >= glbl.properties['simulation_time'] +glbl.properties['default_time_step'] - (1.5 * local_dt):
+            if traj.x()[0]>0:
+                if switch_times <= 1:
+                    print(current_st)
+                else:
+                    print(switch_times)
+
+            else:
+                if switch_times <= 1:
+                    print(current_st + 5)
+                else:
+                    print(switch_times + 5)
 
 
         propagate_a()
