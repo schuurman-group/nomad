@@ -71,7 +71,7 @@ def adapt(wfn, dt):
                         term2 = a_copy[k,l] * np.complex(diabat_pot(l,j), -nac(l,j))
                         both_terms = (term1 - term2) / (np.complex(0,1))
                         dq1 += both_terms
-                    if k==0 and j ==0:
+                   # if k==0 and j ==0:
                     dq = [dq1, 0, 0,0,0]
                     return dq
 
@@ -131,7 +131,7 @@ def adapt(wfn, dt):
     propagate_a()
        
     #graph for testing 
-    if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
+#    if current_time > glbl.properties['simulation_time'] - glbl.properties['default_time_step']:
         #plt.show()
 
 def in_coupled_regime(wfn):
