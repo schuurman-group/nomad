@@ -60,7 +60,7 @@ def propagate(q0, t_deriv, dt):
     global h
  
     ndim = len(q0)
-    k    = np.zeros((rk_ordr, ndim))
+    k    = np.zeros((rk_ordr, ndim), dtype = np.dtype(q0[0]))
     
     t    = 0.
     qt   = q0
