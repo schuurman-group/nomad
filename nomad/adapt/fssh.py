@@ -14,7 +14,6 @@ import numpy as np
 import scipy as sp 
 import nomad.core.glbl as glbl
 import nomad.core.log as log
-import matplotlib.pyplot as plt
 
 c_cache = None 
 Vij     = None
@@ -47,7 +46,6 @@ def adapt(wfn0, wfn, dt):
         dij = traj0.pes.get_data('derivative')
         for i in range(ns):
             dij[:,i,i] = np.zeros((traj0.dim),dtype='float')
-
     #Check that we only have one trajectory:
     if wfn0.n_traj() > 1 or wfn.n_traj() > 1:
         sys.exit('fssh algorithm must only have one trajectory')
@@ -66,7 +64,6 @@ def adapt(wfn0, wfn, dt):
     probs = [ max(0, dt * b[current_st][st] / a[current_st][current_st])  for st in range(ns)]
     probs[current_st] = 0.
     random_number = np.random.random()
-
     for st in range(glbl.properties['n_states']):
 
         switch_prob = probs[st]
@@ -88,7 +85,6 @@ def adapt(wfn0, wfn, dt):
                 log.print_message('general',['Surface hop failed (not enough T), remaining on state ' + str(current_st)])
                 traj.state = current_st
             else:
-                print(switch_prob, random_number)
                 log.print_message('general',['Surface hop successful, switching from state ' + str(current_st) + ' to state ' + str(st)])
                 #calculate and set the new momentum:
                 scale_factor = np.sqrt(new_T/current_T)
@@ -127,8 +123,7 @@ def c_dot(c):
     ns = glbl.properties['n_states']
 
     im    = complex(0.,1.)
-    c_dot = [ sum(-c[j]*(np.dot(r_dot, dij[:,k,j]) 
-                         - im*Vij[k,j]) for j in range(ns)) 
+    c_dot = [ sum(-im * c[j]*(Vij[k,j] - (im * np.dot(r_dot, dij[:,k,j]))) for j in range(ns)) 
               for k in range(ns)]
     return np.array([c_dot]) # just returns first derivative
 
