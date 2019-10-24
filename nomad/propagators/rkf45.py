@@ -70,14 +70,12 @@ def propagate(q0, t_deriv, dt):
         h_step = np.sign(dt) * min(abs(h), abs(dt - t))
         qk = qt
         for rk in range(rk_ordr):
-            k[rk] = dt * t_deriv(qk)[0]
+            k[rk] = h_step * t_deriv(qk)[0]
             if rk < rk_ordr - 1:
                 qk += np.sum(coeff[rk,:,np.newaxis]*k, axis=0)
-
         # calculate the 4th and 5th order changes and the error
         dq_lo = np.sum(wgt_lo[:,np.newaxis] * k, axis=0)
         dq_hi = np.sum(wgt_hi[:,np.newaxis] * k, axis=0)
-
         err = np.max(np.abs(dq_hi-dq_lo))
 
         if err > tol:
@@ -87,9 +85,8 @@ def propagate(q0, t_deriv, dt):
             # scale the time step and update the position
             t += h
             err = max(err, tol*1e-5)
-            h *= min(safety*(tol/err)**0.2, 5.)
+            h = max(dt, h*safety*(tol/err)**0.2)
             qt += dq_lo
-
     return qt
 
 @timings.timed
