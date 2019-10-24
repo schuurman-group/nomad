@@ -85,7 +85,8 @@ def propagate(q0, t_deriv, dt):
             # scale the time step and update the position
             t += h
             err = max(err, tol*1e-5)
-            h = max(dt, h*safety*(tol/err)**0.2)
+            h =min(dt, h*safety*(tol/err)**0.2)
+            print
             qt += dq_lo
     return qt
 
