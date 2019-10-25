@@ -45,8 +45,8 @@ def adapt(wfn, dt):
                 child.state     = st
                 child.parent    = parent.label
 
-                success = utilities.adjust_child(parent, child,
-                                                 parent.derivative(parent.state,
+                success = utilities.adjust_momentum(child, parent.classical()
+                                                    parent.derivative(parent.state,
                                                                    child.state))
                 sij = glbl.modules['integrals'].nuc_overlap(parent, child)
 

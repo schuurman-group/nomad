@@ -86,7 +86,6 @@ def propagate(q0, t_deriv, dt):
             t += h
             err = max(err, tol*1e-5)
             h =min(dt, h*safety*(tol/err)**0.2)
-            print
             qt += dq_lo
     return qt
 

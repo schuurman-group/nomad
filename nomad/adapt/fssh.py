@@ -14,6 +14,9 @@ import numpy as np
 import scipy as sp 
 import nomad.core.glbl as glbl
 import nomad.core.log as log
+import nomad.math.constants as constants
+import nomad.math.linalg as lalg
+import nomad.adapt.utilities as utils
 
 c_cache = None 
 Vij     = None
@@ -57,47 +60,41 @@ def adapt(wfn0, wfn, dt):
         current_c   = new_c
         local_time += min(local_dt, t0 + dt - local_time)
 
+    c_cache = current_c.copy()
     a = compute_a(current_c)
     b = compute_b(a)
-    c_cache = current_c.copy()
 
     probs = [ max(0, dt * b[current_st][st] / a[current_st][current_st])  for st in range(ns)]
-    probs[current_st] = 0.
+    if any([ abs(x.imag) > constants.fpzero for x in probs]):
+        sys.exit("Error: complex hopping probability: "+str(probs))
+    else:
+        probs = [x.real for x in probs]
+
     random_number = np.random.random()
     for st in range(glbl.properties['n_states']):
+
+        if st == current_st:
+            continue
 
         switch_prob = probs[st]
 
         #Check probability against random number, see if there's a switch
-        if random_number < switch_prob: 
+        if switch_prob > random_number: 
             log.print_message('general',['Attempting surface hop to state ' + str(st) + ' at time ' + str(local_time)]) 
 
-            total_E = traj.classical()
-            current_T = traj.kinetic() 
-                
-            #change the state:
-            traj.state = st
-            new_V = traj.potential()
-            new_T = total_E - new_V
-                
-            #is this hop classically possible? If not, go back to previous state:
-            if new_T < 0:
-                log.print_message('general',['Surface hop failed (not enough T), remaining on state ' + str(current_st)])
-                traj.state = current_st
-            else:
+            target_energy  = traj.classical()
+            new_traj       = traj.copy()
+            new_traj.state = st 
+            adjust_success = utils.adjust_momentum(new_traj, target_energy, dij[:,current_st, st])
+
+            if adjust_success:
                 log.print_message('general',['Surface hop successful, switching from state ' + str(current_st) + ' to state ' + str(st)])
-                #calculate and set the new momentum:
-                scale_factor = np.sqrt(new_T/current_T)
-                current_p = traj.p()
-                new_p = scale_factor * current_p
-                traj.update_p(new_p)
-                #to keep track, for now:
-                global switch_times
+                traj = new_traj.copy()
+            else:
+                log.print_message('general',['Frustrated hop, momentum adjustment not possible. Remaining on state ' + str(current_st)])                
 
-            continue      
-
-
-
+    # basis has not grown
+    return False
 
 ############################################################################
 
@@ -119,11 +116,10 @@ def fssh_initialize(traj):
     return
 
 def c_dot(c):
-    global Vij, dij, r_dot
-    ns = glbl.properties['n_states']
+    global Vij, dij, r_dot, ns
 
     im    = complex(0.,1.)
-    c_dot = [ sum(-im * c[j]*(Vij[k,j] - (im * np.dot(r_dot, dij[:,k,j]))) for j in range(ns)) 
+    c_dot = [ sum(c[j]*(-im * Vij[k,j] - np.dot(r_dot, dij[:,k,j])) for j in range(ns)) 
               for k in range(ns)]
     return np.array([c_dot]) # just returns first derivative
 

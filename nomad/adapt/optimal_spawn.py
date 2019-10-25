@@ -114,9 +114,9 @@ def spawn_forward(parent, child_state, initial_time, dt):
         coup[0]             = abs(parent.coupling(parent_state, child_state))
         child_attempt       = parent.copy()
         child_attempt.state = child_state
-        adjust_success      = utils.adjust_child(parent, child_attempt,
-                                                 parent.derivative(parent_state,
-                                                                   child_state))
+        adjust_success      = utils.adjust_momentum(child_attempt, parent.classical()
+                                                    parent.derivative(parent_state,
+                                                                      child_state))
         sij = abs(glbl.modules['integrals'].nuc_overlap(parent, child_attempt))
 
         # if the coupling has already peaked, either we exit with a successful
