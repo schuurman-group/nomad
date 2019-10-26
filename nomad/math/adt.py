@@ -28,7 +28,7 @@ def calc_dat(label, diabpot, previous_datmat=None):
 
     if previous_datmat is not None:
         # Ensure phase continuity from geometry to another
-        datmat *= np.sign(np.dot(datmat.T, previous_datmat.diagonal()))
+        datmat *= np.sign(np.dot(datmat.T, previous_datmat).diagonal())
     else:
         # Set phase convention that the greatest abs element in dat column
         # vector is positive
