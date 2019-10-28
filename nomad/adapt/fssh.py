@@ -24,6 +24,7 @@ dij     = None
 r       = None
 r_dot   = None
 ns      = None
+switch_times = None
 # want to propagate amplitudes from wfn0.time to wfn0.time+dt
 def adapt(wfn0, wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
@@ -65,11 +66,13 @@ def adapt(wfn0, wfn, dt):
     b = compute_b(a)
 
     probs = [ max(0, dt * b[current_st][st] / a[current_st][current_st])  for st in range(ns)]
+    probs[current_st] = 0
     if any([ abs(x.imag) > constants.fpzero for x in probs]):
         sys.exit("Error: complex hopping probability: "+str(probs))
     else:
         probs = [x.real for x in probs]
-
+    probs_copy = probs.copy()
+    probs = [sum(probs[i] for s in range(st)) for st in range(ns)]
     random_number = np.random.random()
     for st in range(glbl.properties['n_states']):
 
@@ -89,7 +92,7 @@ def adapt(wfn0, wfn, dt):
 
             if adjust_success:
                 log.print_message('general',['Surface hop successful, switching from state ' + str(current_st) + ' to state ' + str(st)])
-                traj = new_traj.copy()
+                wfn.traj[0] = new_traj.copy()
             else:
                 log.print_message('general',['Frustrated hop, momentum adjustment not possible. Remaining on state ' + str(current_st)])                
 
