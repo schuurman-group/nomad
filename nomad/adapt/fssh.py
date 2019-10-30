@@ -8,7 +8,7 @@
     4. If no switch, back to step 2
     """
 
-
+import sys
 import random
 import numpy as np
 import scipy as sp 
@@ -18,7 +18,7 @@ import nomad.math.constants as constants
 import nomad.math.linalg as lalg
 import nomad.adapt.utilities as utils
 
-c_cache = None 
+a_cache = None 
 Vij     = None
 dij     = None
 r       = None
@@ -28,10 +28,10 @@ switch_times = None
 # want to propagate amplitudes from wfn0.time to wfn0.time+dt
 def adapt(wfn0, wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
-    global c_cache, Vij, dij, r, r_dot, ns
+    global a_cache, Vij, dij, r, r_dot, ns
 
     # this is first time adapt is called, initialize
-    if c_cache is None:
+    if a_cache is None:
         fssh_initialize(wfn0)
 
     traj0      = wfn0.traj[0]
@@ -50,30 +50,33 @@ def adapt(wfn0, wfn, dt):
         dij = traj0.pes.get_data('derivative')
         for i in range(ns):
             dij[:,i,i] = np.zeros((traj0.dim),dtype='float')
+
     #Check that we only have one trajectory:
     if wfn0.n_traj() > 1 or wfn.n_traj() > 1:
         sys.exit('fssh algorithm must only have one trajectory')
 
     #this loop is called for each small time step 
-    current_c = c_cache.copy()
+    current_a = a_cache.copy()
     while local_time < t0 + dt:
-        new_c       = glbl.modules['propagator'].propagate(current_c, c_dot, local_dt)
-        current_c   = new_c
+        flat_a = current_a.ravel()
+        new_a       = glbl.modules['propagator'].propagate(flat_a, a_dot, local_dt)
+        current_a   = np.reshape(new_a, (ns,ns))
         local_time += min(local_dt, t0 + dt - local_time)
 
-    c_cache = current_c.copy()
-    a = compute_a(current_c)
-    b = compute_b(a)
+    a_cache = current_a.copy()
+    b = compute_b(a_cache)
 
-    probs = [ max(0, dt * b[current_st][st] / a[current_st][current_st])  for st in range(ns)]
+    probs = [ max(0, dt * b[current_st][st] / current_a[current_st][current_st])  for st in range(ns)]
     probs[current_st] = 0
     if any([ abs(x.imag) > constants.fpzero for x in probs]):
         sys.exit("Error: complex hopping probability: "+str(probs))
     else:
         probs = [x.real for x in probs]
     probs_copy = probs.copy()
-    probs = [sum(probs[i] for s in range(st)) for st in range(ns)]
+    probs = [sum(probs_copy[i] for i in range(st+1)) for st in range(ns)]
+
     random_number = np.random.random()
+    
     for st in range(glbl.properties['n_states']):
 
         if st == current_st:
@@ -95,7 +98,7 @@ def adapt(wfn0, wfn, dt):
                 wfn.traj[0] = new_traj.copy()
             else:
                 log.print_message('general',['Frustrated hop, momentum adjustment not possible. Remaining on state ' + str(current_st)])                
-
+            break
     # basis has not grown
     return False
 
@@ -103,14 +106,14 @@ def adapt(wfn0, wfn, dt):
 
 #
 def fssh_initialize(traj):
-    global switch_times, c_cache, Vij, dij, ns
+    global switch_times, a_cache, Vij, dij, ns
 
     ns         = glbl.properties['n_states']
     init_state = glbl.properties['init_state']
     Vij        = np.zeros((ns,ns), dtype='float')
     dij        = np.zeros((ns,ns), dtype='float')
-    c_cache    = np.zeros((ns), dtype='complex')
-    c_cache[init_state] = complex(1.,0.)
+    a_cache    = np.zeros((ns,ns), dtype='complex')
+    a_cache[init_state, init_state] = complex(1.,0.)
     switch_times = 0
     if (glbl.methods['surface'] == 'diabatic' and 
         'diabat_pot' not in traj.pes.avail_data()):
@@ -118,17 +121,17 @@ def fssh_initialize(traj):
 
     return
 
-def c_dot(c):
-    global Vij, dij, r_dot, ns
-
-    im    = complex(0.,1.)
-    c_dot = [ sum(c[j]*(-im * Vij[k,j] - np.dot(r_dot, dij[:,k,j])) for j in range(ns)) 
-              for k in range(ns)]
-    return np.array([c_dot]) # just returns first derivative
-
 #
-def compute_a(c):
-    return [[c[k] * c[j].conjugate() for k in range(ns)] for j in range(ns)]
+def a_dot(a_flat):
+    global Vij, dij, r_dot, ns
+    a = np.reshape(a_flat, (ns, ns))   
+    im    = complex(0.,1.)
+    a_dot = np.array([[sum(-im * ((a[l,j] * (Vij[k,l] - (im * np.dot(r_dot, dij[:, k,l])))) - (a[k,l] * (Vij[l,j] - (im * np.dot(r_dot, dij[:, l, j])))))  
+        for l in range(ns)) 
+        for j in range (ns)]
+        for k in range(ns)])
+    return [a_dot.ravel()] # just returns first derivative
+
 
 #
 def compute_b(a):
@@ -143,5 +146,3 @@ def compute_b(a):
 #
 def in_coupled_regime(wfn):
     return False
-
-
