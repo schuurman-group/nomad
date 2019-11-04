@@ -19,7 +19,9 @@ def propagate(q0, t_deriv, dt):
 
     # we're going to limit this to 2-nd order DE for time being...
     q_deriv = t_deriv(q0)
-    qt      = q0 + q_deriv[0] * dt + 0.5 * q_deriv[1] * dt**2
+    qt      = q0 + q_deriv[0] * dt
+    if len(q_deriv) > 0 and False:
+        qt += 0.5 * q_deriv[1] * dt**2
 
     return qt
 

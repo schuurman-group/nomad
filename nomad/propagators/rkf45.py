@@ -68,7 +68,7 @@ def propagate(q0, t_deriv, dt):
         h = dt
     while abs(t) < abs(dt):
         h_step = np.sign(dt) * min(abs(h), abs(dt - t))
-        qk = qt
+        qk = qt.copy()
         for rk in range(rk_ordr):
             k[rk] = h_step * t_deriv(qk)[0]
             if rk < rk_ordr - 1:
@@ -83,10 +83,11 @@ def propagate(q0, t_deriv, dt):
             h = h_step * max(safety*(tol/err)**0.25, 0.1)
         else:
             # scale the time step and update the position
-            t += h
+            t  += h
             err = max(err, tol*1e-5)
-            h =min(dt, h*safety*(tol/err)**0.2)
+            h   = min(dt, h*safety*(tol/err)**0.2)
             qt += dq_lo
+
     return qt
 
 @timings.timed
@@ -149,9 +150,9 @@ def propagate_wfn(wfn, dt):
             h_wfn = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
             # scale the time step and update the position
-            t += h_wfn
-            err = max(err, tol*1e-5)
-            h_wfn *= min(safety*(tol/err)**0.2, 5.)
+            t     += h_wfn
+            err   = max(err, tol*1e-5)
+            h_wfn = min(dt, h_wfn*safety*(tol/err)**0.2)
             for i in range(ntraj):
                 if wfn.traj[i].active:
                     wfn.traj[i].update_x(wfn.traj[i].x() + dx_lo[i])
@@ -205,9 +206,9 @@ def propagate_trajectory(traj, dt):
             h_traj = hstep * max(safety*(tol/err)**0.25, 0.1)
         else:
             # scale the time step and update the position
-            t += h_traj
-            err = max(err, tol*1e-5)
-            h_traj *= min(safety*(tol/err)**0.2, 5.)
+            t     += h_traj
+            err    = max(err, tol*1e-5)
+            h_traj = min(dt, h_traj*safety*(tol/err)**0.2)
             traj.update_x(traj.x() + dx_lo)
             traj.update_p(traj.p() + dp_lo)
             if propphase:

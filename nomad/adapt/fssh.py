@@ -58,7 +58,7 @@ def adapt(wfn0, wfn, dt):
     #this loop is called for each small time step 
     current_a = a_cache.copy()
     while local_time < t0 + dt:
-        flat_a = current_a.ravel()
+        flat_a      = current_a.ravel()
         new_a       = glbl.modules['propagator'].propagate(flat_a, a_dot, local_dt)
         current_a   = np.reshape(new_a, (ns,ns))
         local_time += min(local_dt, t0 + dt - local_time)
@@ -126,12 +126,19 @@ def a_dot(a_flat):
     global Vij, dij, r_dot, ns
     a = np.reshape(a_flat, (ns, ns))   
     im    = complex(0.,1.)
-    a_dot = np.array([[sum(-im * ((a[l,j] * (Vij[k,l] - (im * np.dot(r_dot, dij[:, k,l])))) - (a[k,l] * (Vij[l,j] - (im * np.dot(r_dot, dij[:, l, j])))))  
+    a_dot = np.array([[sum(a[l,j] * (-im*Vij[k,l] - np.dot(r_dot, dij[:, k,l])) - a[k,l] * (-im*Vij[l,j] - np.dot(r_dot, dij[:, l, j])) 
         for l in range(ns)) 
         for j in range (ns)]
         for k in range(ns)])
     return [a_dot.ravel()] # just returns first derivative
 
+def c_dot(c):
+    global Vij, dij, r_dot, ns
+    im    = complex(0., 1.)
+    c_dot = [sum(c[j]*(-im*Vij[k,j] - np.dot(r_dot, dij[:,k,j])) 
+                 for j in range(ns)) 
+                 for k in range(ns)]
+    return c_dot
 
 #
 def compute_b(a):
