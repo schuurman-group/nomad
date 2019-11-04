@@ -1006,8 +1006,9 @@ def package_centroid(cent, time):
 
 def max_dset_size():
     """Return the maximum dataset size"""
-    return 3*int(glbl.properties['simulation_time'] / 
-                 glbl.properties['default_time_step'])
+    return max( default_blk_size(0.), 
+                3*int(glbl.properties['simulation_time'] / 
+                      glbl.properties['default_time_step']))
 
 def default_blk_size(time):
     """Documentation to come"""

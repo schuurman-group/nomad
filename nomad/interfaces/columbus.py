@@ -428,14 +428,16 @@ def run_col_mcscf(traj, t):
     # mcscf/cas density (for gradients and couplings)
     if mrci_lvl == 0:
         with open('mcdenin', 'w', encoding='utf-8') as mcden:
-            mcden.write('MCSCF')
+            mcden.write('MCSCF\n')
             # diagonal densities (for gradients)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(i, i)
+                mcden.write('1  {:2d}  1  {:2d}\n'.format(i+1, i+1))
             # off-diagonal densities (for couplings)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(min(i, state),
-                                                         max(i, state))
+                if i == state:
+                    continue
+                mcden.write('1  {:2d}  1  {:2d}\n'.format(min(i+1, state+1),
+                                                        max(i+1, state+1)))
 
     # try running mcscf a couple times this can be tweaked if one
     # develops other strategies to deal with convergence problems
@@ -616,7 +618,7 @@ def run_col_multipole(traj):
     dip_moms  = np.zeros((p_dim, traj.nstates))
     sec_moms  = np.zeros((p_dim, p_dim, traj.nstates))
 
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         type_str   = 'mc'
     else:
         type_str   = 'ci'
@@ -676,7 +678,7 @@ def run_col_tdipole(label, state_i, state_j):
     if state_i == state_j:
         return None
 
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         with open('transftin', 'w') as ofile:
             ofile.write('y\n1\n' + str(j1) + '\n1\n' + str(i1))
         run_prog(label, 'transft.x', in_pipe='transftin', out_pipe='transftls')
@@ -719,7 +721,7 @@ def run_col_gradient(traj, t):
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     tstate = traj.state + 1
 
-    if mrci_lvl > 0:
+    if mrci_lvl > -1:
         link_force('cid1fl.drt1.state' + str(tstate), 'cid1fl')
         link_force('cid2fl.drt1.state' + str(tstate), 'cid2fl')
         shutil.copy(input_path + '/trancidenin', 'tranin')
@@ -791,7 +793,7 @@ def run_col_coupling(traj, ci_ener, t):
     # copy some clean files to the work directory
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     set_nlist_keyword('cigrdin', 'nadcalc', 1)
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         set_nlist_keyword('cigrdin', 'samcflag', 1)
         shutil.copy(input_path + '/tranmcdenin', 'tranin')
     else:
@@ -809,7 +811,7 @@ def run_col_coupling(traj, ci_ener, t):
         s1 = str(min(t_state, c_state) + 1).strip()
         s2 = str(max(t_state, c_state) + 1).strip()
 
-        if mrci_lvl == 0:
+        if mrci_lvl == -1:
             link_force('mcsd1fl.trd' + s1 + 'to' + s2, 'cid1fl.tr')
             link_force('mcsd2fl.trd' + s1 + 'to' + s2, 'cid2fl.tr')
             link_force('mcad1fl.' + s1 + s2, 'cid1trfl')
