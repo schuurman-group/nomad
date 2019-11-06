@@ -239,15 +239,8 @@ def create(file_name, wfn, ints):
     # save the contents of glbl.py
     write_keywords(chkpt)
 
-<<<<<<< HEAD
     # create basis group
     create_basis(chkpt, wfn, name=0)
-=======
-    # wfn group -- row information
-    chkpt.create_group('wavefunction')
-    chkpt['wavefunction'].attrs['current_row'] = -1
-    chkpt['wavefunction'].attrs['n_rows']      = 0
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
     # wfn group -- row information
     create_wfn(chkpt, wfn, name=0)
@@ -258,7 +251,6 @@ def create(file_name, wfn, ints):
     # close following initialization
     chkpt.close()
 
-<<<<<<< HEAD
 # 
 def create_basis(chkpt, wfn, name=0):
     """ Creates a new basis group, with suffix 'name' """
@@ -327,7 +319,6 @@ def create_int(chkpt, ints, name=0):
     return
 
 #
-=======
 
 def reset_datasets(chkpt, time):
     """Resets 'current_row' attribute on all datasets to correspond
@@ -356,7 +347,6 @@ def reset_datasets(chkpt, time):
                             chkpt[sub_name].attrs['current_row'] = cur_indx
 
 
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 def write_keywords(chkpt):
     """Writes the contents of glbl to the checkpoint file. This
     is only done once upon the creation of the file"""
@@ -454,12 +444,7 @@ def convert_value(kword, val):
     # else just a string and return as-is
     return cval
 
-<<<<<<< HEAD
 def write_wavefunction(chkpt, wfn, time, name=0):
-=======
-
-def write_wavefunction(chkpt, wfn, time):
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
     """Documentation to come"""
     wfn_data = package_wfn(wfn)
     n_traj   = wfn.n_traj()
@@ -699,12 +684,8 @@ def read_wavefunction(chkpt, time, name=0):
     # dimensions of these objects are not time-dependent
     wfn.time    = chkpt[wfn_name+'/time'][read_row,0]
 
-<<<<<<< HEAD
-    for label in chkpt[wfn_name]:
-=======
-    wfn_grps = sorted([str(label) for label in chkpt['wavefunction']])
+    wfn_grps =  sorted([str(label) for label in chkpt[wfn_name]])
     for label in wfn_grps:
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
         #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
@@ -731,28 +712,16 @@ def read_wavefunction(chkpt, time, name=0):
 
     return wfn
 
-<<<<<<< HEAD
 def read_integral(chkpt, time, name=0):
-=======
-
-def read_integral(chkpt, time):
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
     """Documentation to come"""
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     dim      = len(widths)
-<<<<<<< HEAD
-    int_name = 'integral.'+str(name)   
 
+    int_name = 'integral.'+str(name)   
     ansatz   = glbl.methods['ansatz']
     numerics = glbl.methods['integral_eval'] 
     kecoef   = chkpt[int_name].attrs['kecoef'] 
-=======
-
-    ansatz   = glbl.methods['ansatz']
-    numerics = glbl.methods['integral_eval']
-    kecoef   = chkpt['integral'].attrs['kecoef']
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, int_name, time)
@@ -791,51 +760,28 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     """Documentation to come"""
     # populate the surface object in the trajectory
 
-<<<<<<< HEAD
-    # set information about the trajectory itself
-    [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
-    [parent, state]      = chkpt[t_grp+'/states'][t_row]
-    [gamma]              = chkpt[t_grp+'/phase'][t_row]
-    last_adapt           = chkpt[t_grp+'/adapt'][t_row]
-    momt                 = chkpt[t_grp+'/momentum'][t_row]
-       
-    pes = surface.Surface()
-    for data_label in chkpt[t_grp].keys():
-        if pes.valid_data(data_label):
-            dset = chkpt[t_grp+'/'+data_label]
-            pes.add_data(data_label, dset[t_row])
-=======
     # if this time step doesn't exist, return null trajectory
     if t_row > len(chkpt[t_grp+'/glbl'])-1:
         new_traj = None
     else:
         # set information about the trajectory itself
-        data_row = chkpt[t_grp+'/glbl'][t_row]
-        [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+        [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
+        [parent, state]      = chkpt[t_grp+'/states'][t_row]
+        [gamma]              = chkpt[t_grp+'/phase'][t_row]
+        last_adapt           = chkpt[t_grp+'/adapt'][t_row]
+        momt                 = chkpt[t_grp+'/momentum'][t_row]
 
         pes = surface.Surface()
         for data_label in chkpt[t_grp].keys():
             if pes.valid_data(data_label):
                 dset = chkpt[t_grp+'/'+data_label]
                 pes.add_data(data_label, dset[t_row])
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
         # if MOs are present as an attribute, read them in
         if 'mo' in chkpt[t_grp].attrs.keys():
             mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[t_grp].attrs['mo']]
             pes.add_data('mo', mo_decode)
 
-<<<<<<< HEAD
-    new_traj.state  = int(state)
-    new_traj.parent = int(parent)
-    new_traj.update_amplitude(amp_real+1.j*amp_imag)
-    new_traj.last_spawn = last_adapt
-
-    new_traj.update_pes_info(pes)
-    new_traj.update_phase(gamma)
-    new_traj.update_x(new_traj.pes.get_data('geom'))
-    new_traj.update_p(momt)
-=======
         # currently, momentum has to be read in separately
         momt    = chkpt[t_grp+'/momentum'][t_row]
 
@@ -847,7 +793,6 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj.update_pes_info(pes)
         new_traj.update_x(new_traj.pes.get_data('geom'))
         new_traj.update_p(momt)
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
 
 
 def read_centroid(chkpt, new_cent, c_grp, c_row):
@@ -918,7 +863,6 @@ def get_time_index(chkpt, grp_name, time):
 
     return read_row
 
-<<<<<<< HEAD
 #
 def package_basis(time, parent, child):
     """Record when and from whom new basis functions are spawned"""
@@ -936,9 +880,8 @@ def package_basis(time, parent, child):
     return basis_data
 
 #
-=======
 
->>>>>>> 1bd43bced3b743e6a5580460e9cdf35e6ea17962
+#
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
