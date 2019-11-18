@@ -25,7 +25,7 @@ import nomad.adapt.utilities as utils
 coup_hist = []
 
 
-def adapt(wfn, dt):
+def adapt(wfn0, wfn, dt):
     """Propagates to the point of maximum coupling, spawns a new
     basis function, then propagates the function to the current time."""
     global coup_hist
