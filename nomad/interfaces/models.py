@@ -217,7 +217,7 @@ def tully_extended(geom):
     """The Tully extended coupling model, taken from 
        JCP, 93, 1061 (1990)"""
     x = geom[0]
-    A = 6e-4
+    A = 0.0006 
     B = 0.1
     C = 0.9
 
@@ -227,11 +227,11 @@ def tully_extended(geom):
 
     dv11 = 0. 
     dv22 = 0.
-    dv12 = B * C * math.exp(-C*abs(x))
+    dv12 = B * C * math.exp(np.sign(-x)*C*x)
 
     d2v11 = 0. 
     d2v22 = 0.
-    d2v12 = -np.sign(x) * B * C**2 * math.exp(-C*abs(x))
+    d2v12 = np.sign(-x) * B * C**2 * math.exp(np.sign(-x)*C*x)
 
     diabpot    = np.array([[v11, v12], [v12, v22]])
     diabderiv1 = np.array([[[dv11, dv12], [dv12, dv22]]])
