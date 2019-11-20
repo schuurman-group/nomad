@@ -8,149 +8,148 @@
     4. If no switch, back to step 2
     """
 
-
+import sys
 import random
 import numpy as np
 import scipy as sp 
 import nomad.core.glbl as glbl
 import nomad.core.log as log
-import scipy.constants as sp_con
-#random.seed(4611)
+import nomad.math.constants as constants
+import nomad.math.linalg as lalg
+import nomad.adapt.utilities as utils
 
-a_cache = {}
-data_cache = {}
-#initial state probability (a) matrix:
-def init_a():
-    init_state = glbl.properties['init_state']
-    n_states = glbl.properties['n_states']
-    init_a_matrix = np.zeros((n_states, n_states), dtype = 'complex')
-    init_a_matrix[init_state,init_state] = 1
-    a_cache['init'] = init_a_matrix
-
-init_a()
-
-current_a = a_cache['init']
-
-def adapt(wfn, dt):
+a_cache = None 
+Vij     = None
+dij     = None
+r       = None
+r_dot   = None
+ns      = None
+switch_times = None
+# want to propagate amplitudes from wfn0.time to wfn0.time+dt
+def adapt(wfn0, wfn, dt):
     """Calculates the probability of a switch between states, tests this against a random number, and switches states accordingly."""
-    global data_cache
-    global a_cache
-    global current_a
-    traj = wfn.traj[0]
-    current_time = wfn.time
-    #the "local time", or time between larger time steps:
-    local_time = current_time
-    #the smaller time step:
-    local_dt = dt/10
-    current_st = traj.state
+    global a_cache, Vij, dij, r, r_dot, ns
 
-        #Check that we only have one trajectory:
-    if wfn.n_traj() > 1:
+    # this is first time adapt is called, initialize
+    if a_cache is None:
+        fssh_initialize(wfn0)
+
+    traj0      = wfn0.traj[0]
+    traj       = wfn.traj[0]
+    t0         = wfn0.time
+    local_time = t0
+    local_dt   = dt/100.
+    current_st = traj0.state
+        
+    r     = traj0.x()
+    r_dot = traj0.velocity()
+    if glbl.methods['surface'] == 'diabatic':
+        Vij = traj0.pes.get_data('diabat_pot')
+    else:
+        Vij = np.diag(traj0.pes.get_data('potential'))
+        dij = traj0.pes.get_data('derivative')
+        for i in range(ns):
+            dij[:,i,i] = np.zeros((traj0.dim),dtype='float')
+
+    #Check that we only have one trajectory:
+    if wfn0.n_traj() > 1 or wfn.n_traj() > 1:
         sys.exit('fssh algorithm must only have one trajectory')
 
-
-    def propagate_a():
-        """propagates the matrix of state probabilities and coherences"""
-        
-        a_copy = current_a.copy()
-
-        n_states = glbl.properties['n_states']
-        for k in range(n_states):
-            for  j in range(n_states):
-                def a_dot(a):
-                    """returns the time derivative of the specified a matrix element"""
-                    dq0 = 0
-                    dq1 = 0
-                    for l in range(n_states):
-                        term1 = a_copy[l,j] * np.complex(diabat_pot(k,l), -nac(k,l))
-                        term2 = a_copy[k,l] * np.complex(diabat_pot(l,j), -nac(l,j))
-                        both_terms = (term1 - term2) / (np.complex(0,1))
-                        dq1 += both_terms
-                    dq = [dq1, 0, 0, 0]
-                    return dq
-                #actually propagate a
-                akj =  glbl.modules['propagator'].propagate([a_copy[k,j]], a_dot, local_dt)
-                current_a[k,j] = akj
-
-    def diabat_pot(j,k):
-        """Returns the specified matrix element of the diabatic potential"""
-        return traj.pes.get_data('diabat_pot')[j, k]
-
-    def nac(st1, st2):
-        """returns the nonadiabatic coupling between two states"""
-        nac_label = str(current_time) + str(st1) + str(st2)
-        if nac_label in data_cache:
-            return data_cache[nac_label]
-        vel = traj.velocity()   
-        deriv = traj.derivative(st1, st2) 
-        coup = np.dot(vel, deriv)
-        data_cache[nac_label] = coup
-        return coup
-
-
-
     #this loop is called for each small time step 
-    while local_time < current_time + dt:
-        random_number = random.random() 
-        prev_prob = 0
-        for st in range(glbl.properties['n_states']):
-        #can only switch between states
-            if st == current_st:
-                continue
-            #Calculate switching probability for this transition:
-            state_pop = current_a[current_st, current_st]
-            state_flux = (2 * np.imag(np.conj(current_a[current_st, st]) * diabat_pot(current_st, st))) - (2 * np.real(np.conj(current_a[current_st, st]) * nac(current_st, st)))
-                
-            switch_prob = state_flux * local_dt / np.real(state_pop)
-            if switch_prob < 0:     
-                switch_prob = 0
+    current_a = a_cache.copy()
+    while local_time < t0 + dt:
+        flat_a      = current_a.ravel()
+        new_a       = glbl.modules['propagator'].propagate(flat_a, a_dot, local_dt)
+        current_a   = np.reshape(new_a, (ns,ns))
+        local_time += min(local_dt, t0 + dt - local_time)
 
-            #add to the previous probability
-            switch_prob = prev_prob + switch_prob
-              
-        
-            switch_times = 0
-            #Check probability against random number, see if there's a switch
-            if prev_prob < random_number <= switch_prob: 
-                total_E = traj.classical()
-                current_T = traj.kinetic() 
-                log.print_message('general',['Attempting surface hop to state ' + str(st)]) 
-                #change the state:
-                traj.state = st
-                new_V = traj.potential()
-                new_T = total_E - new_V
-                #is this hop classically possible? If not, go back to previous state:
-                if new_T < 0:
-                    log.print_message('general',['Surface hop failed (not enough T), remaining on state ' + str(current_st)])
-                    traj.state = current_st
-                else:
-                    log.print_message('general',['Surface hop successful, switching to state ' + str(st)])
-                    #calculate and set the new momentum:
-                    scale_factor = np.sqrt(new_T/current_T)
-                    current_p = traj.p()
-                    new_p = scale_factor * current_p
-                    traj.update_p(new_p)
-                    #to keep track, for now:
-                    switch_times += 1
-        if local_time >= glbl.properties['simulation_time'] +glbl.properties['default_time_step'] - (1.5 * local_dt):
-            if traj.x()[0]>0:
-                if switch_times <= 1:
-                    print(current_st)
-                else:
-                    print(switch_times)
+    a_cache = current_a.copy()
+    b = compute_b(a_cache)
 
+    probs = [ max(0, dt * b[current_st][st] / current_a[current_st][current_st])  for st in range(ns)]
+    probs[current_st] = 0
+    if any([ abs(x.imag) > constants.fpzero for x in probs]):
+        sys.exit("Error: complex hopping probability: "+str(probs))
+    else:
+        probs = [x.real for x in probs]
+    probs_copy = probs.copy()
+    probs = [sum(probs_copy[i] for i in range(st+1)) for st in range(ns)]
+
+    random_number = np.random.random()
+    
+    for st in range(glbl.properties['n_states']):
+
+        if st == current_st:
+            continue
+
+        switch_prob = probs[st]
+
+        #Check probability against random number, see if there's a switch
+        if switch_prob > random_number: 
+            log.print_message('general',['Attempting surface hop to state ' + str(st) + ' at time ' + str(local_time)]) 
+
+            target_energy  = traj.classical()
+            new_traj       = traj.copy()
+            new_traj.state = st 
+            adjust_success = utils.adjust_momentum(new_traj, target_energy, dij[:,current_st, st])
+
+            if adjust_success:
+                log.print_message('general',['Surface hop successful, switching from state ' + str(current_st) + ' to state ' + str(st)])
+                wfn.traj[0] = new_traj.copy()
             else:
-                if switch_times <= 1:
-                    print(current_st + 5)
-                else:
-                    print(switch_times + 5)
+                log.print_message('general',['Frustrated hop, momentum adjustment not possible. Remaining on state ' + str(current_st)])                
+            break
+    # basis has not grown
+    return False
 
+############################################################################
 
-        propagate_a()
-        #update the local time:
-        local_time = local_time + local_dt
+#
+def fssh_initialize(traj):
+    global switch_times, a_cache, Vij, dij, ns
 
+    ns         = glbl.properties['n_states']
+    init_state = glbl.properties['init_state']
+    Vij        = np.zeros((ns,ns), dtype='float')
+    dij        = np.zeros((ns,ns), dtype='float')
+    a_cache    = np.zeros((ns,ns), dtype='complex')
+    a_cache[init_state, init_state] = complex(1.,0.)
+    switch_times = 0
+    if (glbl.methods['surface'] == 'diabatic' and 
+        'diabat_pot' not in traj.pes.avail_data()):
+        sys.exit('Cannot use diabatic potentials: diabat_pot not found')
 
+    return
+
+#
+def a_dot(a_flat):
+    global Vij, dij, r_dot, ns
+    a = np.reshape(a_flat, (ns, ns))   
+    im    = complex(0.,1.)
+    a_dot = np.array([[sum(a[l,j] * (-im*Vij[k,l] - np.dot(r_dot, dij[:, k,l])) - a[k,l] * (-im*Vij[l,j] - np.dot(r_dot, dij[:, l, j])) 
+        for l in range(ns)) 
+        for j in range (ns)]
+        for k in range(ns)])
+    return [a_dot.ravel()] # just returns first derivative
+
+def c_dot(c):
+    global Vij, dij, r_dot, ns
+    im    = complex(0., 1.)
+    c_dot = [sum(c[j]*(-im*Vij[k,j] - np.dot(r_dot, dij[:,k,j])) 
+                 for j in range(ns)) 
+                 for k in range(ns)]
+    return c_dot
+
+#
+def compute_b(a):
+    global Vij, dij, r, ns
+
+    im = complex(0., 1.)
+    b = [[ 2 * (a[k][l].conjugate() * Vij[k,l]).imag - 
+        2 * (a[k][l].conjugate() * np.dot(r_dot, dij[:,k,l])).real 
+           for k in range(ns)] for l in range(ns)]
+    return b
+
+#
 def in_coupled_regime(wfn):
     return False
-   

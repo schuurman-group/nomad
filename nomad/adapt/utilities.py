@@ -7,19 +7,19 @@ import nomad.core.glbl as glbl
 import nomad.core.log as log
 
 
-def adjust_child(parent, child, scale_dir):
+def adjust_momentum(traj, target_energy, scale_dir):
     """Adjust the child momentum so that child and parent have the same
-    energy
+    energy. Takes a trajectory, the target total energy and the scale
+    direction as arguments.
 
     1. First try to scale the momentum along the NAD vector direction
     2. If that fails, scale the momentum uniformly
     """
-    e_parent = parent.classical()
-    e_child  = child.classical()
+    e_traj  = traj.classical()
 
     # determine the magnitude of the KE correction
-    ke_goal  = e_parent - child.potential()
-    ke_child = child.kinetic()
+    ke_goal = target_energy - traj.potential()
+    ke_traj = traj.kinetic()
     if ke_goal < 0:
         return False
 
@@ -33,17 +33,17 @@ def adjust_child(parent, child, scale_dir):
         scale_vec = np.ones(len(scale_dir))
         scale_vec = scale_vec / np.linalg.norm(scale_vec)
 
-    p_child = child.p()
+    p_traj = traj.p()
     # scale the momentum along the scale_vec direction
-    p_para = np.dot(p_child, scale_vec) * scale_vec
-    p_perp = p_child - p_para
+    p_para = np.dot(p_traj, scale_vec) * scale_vec
+    p_perp = p_traj - p_para
 
     # the kinetic energy is given by:
     # KE = (P . P) * / (2M)
     #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M)
     #    = x^2 * (p_para.p_para) / 2M + 2.*x*(p_para.p_perp) / 2M + (p_perp.p_perp) / 2M
     #    = x^2 * KE_para_para + x * KE_para_perp + KE_perp_perp
-    inv_mass     = 1. / (2. * child.masses())
+    inv_mass     = 1. / (2. * traj.masses())
     ke_para_para =     np.dot( p_para, p_para * inv_mass )
     ke_para_perp = 2.* np.dot( p_para, p_perp * inv_mass )
     ke_perp_perp =     np.dot( p_perp, p_perp * inv_mass )
@@ -68,7 +68,7 @@ def adjust_child(parent, child, scale_dir):
 
     p_new = x*p_para + p_perp
 
-    child.update_p(p_new)
+    traj.update_p(p_new)
 
     return True
 
