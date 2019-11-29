@@ -63,6 +63,10 @@ models = dict(
     model_name     = ''
               ) 
 
+qchem44 = dict(
+    input_file    = None #The name of the qchem input file 
+            )
+
 # Remaining properties (mostly optional)
 properties = dict(
     init_coords         = None, # required, can be filename or XYZ format
@@ -113,6 +117,7 @@ sections = dict(
     methods    = methods,
     columbus   = columbus,
     vibronic   = vibronic,
+    qchem44    = qchem44,
     surfgen    = surfgen,
     models     = models,
     properties = properties
