@@ -62,18 +62,19 @@ def adapt(wfn0, wfn, dt):
         new_a       = glbl.modules['propagator'].propagate(flat_a, a_dot, local_dt)
         current_a   = np.reshape(new_a, (ns,ns))
         local_time += min(local_dt, t0 + dt - local_time)
-
     a_cache = current_a.copy()
     b = compute_b(a_cache)
 
     probs = [ max(0, dt * b[current_st][st] / current_a[current_st][current_st])  for st in range(ns)]
     probs[current_st] = 0
+
     if any([ abs(x.imag) > constants.fpzero for x in probs]):
         sys.exit("Error: complex hopping probability: "+str(probs))
     else:
         probs = [x.real for x in probs]
     probs_copy = probs.copy()
-    probs = [sum(probs_copy[i] for i in range(st+1)) for st in range(ns)]
+    probs = [sum(probs_copy[:st + 1])  for st in range(ns)]
+
 
     random_number = np.random.random()
     

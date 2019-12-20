@@ -288,6 +288,7 @@ def write_wavefunction(chkpt, wfn, time):
     n_blk    = default_blk_size(time)
     resize   = False
 
+
     # update the current row index (same for all data sets)
     chkpt['wavefunction'].attrs['current_row'] += 1
     current_row = chkpt['wavefunction'].attrs['current_row']
@@ -299,7 +300,7 @@ def write_wavefunction(chkpt, wfn, time):
 
     # first write items with time-independent dimensions
     for data_label in wfn_data.keys():
-        dset = 'wavefunction/'+data_label
+        dset = 'wavefunction'+'/'+data_label
 
         if dset in chkpt:
             if resize:
@@ -510,7 +511,6 @@ def read_wavefunction(chkpt, time):
     wfn_grps = sorted([str(label) for label in chkpt['wavefunction']])
     for label in wfn_grps:
 
-        #print("time = "+str(time)+" label="+str(label))
         if (label=='time' or label=='pop' or label=='energy'):
             continue
 
@@ -750,8 +750,11 @@ def package_centroid(cent, time):
 
 def max_dset_size():
     """Return the maximum dataset size"""
-    return 3*int(glbl.properties['simulation_time'] / 
-                 glbl.properties['default_time_step'])
+    return max( default_blk_size(0.), 
+                3*int(glbl.properties['simulation_time'] / 
+                      glbl.properties['default_time_step']))
+
+
 
 def default_blk_size(time):
     """Documentation to come"""

@@ -64,8 +64,11 @@ models = dict(
               ) 
 
 qchem44 = dict(
-    input_file    = None #The name of the qchem input file 
-            )
+    input_file    = None, #The name of the qchem input file 
+    multiplicity  = 1, #multiplicity of the states in a qchem SF-TDDFT Calculation
+    ssquared_tol  = 0.2, #tolerance when detecting multiplicity of states 
+    sf_states  = None #The initial Q-chem states to start on, from a previous calculation 
+    )
 
 # Remaining properties (mostly optional)
 properties = dict(

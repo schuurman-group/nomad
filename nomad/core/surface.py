@@ -119,7 +119,6 @@ def update_pes(wfn, update_integrals=True):
         for i in range(glbl.mpi['nproc']):
             for j in range(len(global_results[i])):
                 pes_cache[global_results[i][j][0]] = global_results[i][j][1]
-
         # update the bundle:
         # live trajectories
         for i in range(wfn.n_traj()):
@@ -139,6 +138,7 @@ def update_pes(wfn, update_integrals=True):
     # simply run over trajectories in serial (in theory, this too could be cythonized,
     # but unlikely to ever be bottleneck)
     else:
+
         # iterate over trajectories..
         for i in range(wfn.n_traj()):
             if wfn.traj[i].active:
@@ -147,11 +147,9 @@ def update_pes(wfn, update_integrals=True):
                 else:
                     pes_traji = pes_cache[wfn.traj[i].label]
                 wfn.traj[i].update_pes_info(pes_traji)
-                pes_cache[wfn.traj[i].label] = pes_traji
-
+                pes_cache[wfn.traj[i].label] = pes_traji.copy()
         # ...and centroids if need be
         if update_integrals and glbl.modules['integrals'].require_centroids:
-
             for i in range(wfn.n_traj()):
                 for j in range(i):
                 # if centroid not initialized, skip it
