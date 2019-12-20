@@ -3,6 +3,14 @@ Linear algebra library routines.
 """
 import numpy as np
 import nomad.core.glbl as glbl
+import nomad.math.constants as constants
+
+def normalize(vec):
+    """function that returns a normalized copy of vec"""
+    norm = np.linalg.norm(v)
+    if norm == constants.fpzero: 
+       return vec.copy()
+    return vec.copy() / norm
 
 
 def pseudo_inverse(mat):
