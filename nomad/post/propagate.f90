@@ -1,106 +1,47 @@
 !
+! lib_nomad -- a module that defines a data structure to hold
+!              simulation parameters for a nomad simulation
 !
+! M. S. Schuurman -- Oct. 11, 2018
 !
-module propagate_module
- use hdf5
- use nomad_vars
- use libchkpt
+module propagate 
+  implicit none
+  public 
+    integer, parameter :: sik         = selected_int_kind(4)       ! Small integers
+    integer, parameter :: ik          = selected_int_kind(8)       ! 64-bit integers
+    integer, parameter :: hik         = selected_int_kind(15)      ! "Pointer" integers - sufficient to mem address
+    integer, parameter :: drk         = kind(1.d0)                 ! Double-precision real kind
+    integer, parameter :: rk          = selected_real_kind(14,17)  ! Standard reals and complex
+    integer, parameter :: ark         = selected_real_kind(14,17)  ! Possible increased precision reals and complex
 
- public keyword_list
- public read_options
- public initialize_prop
- public propagate
+    !
+    !
+    type trajectory
+      integer(sik)                :: state
+      real(drk),allocatable       :: energy(:)
+      real(drk),allocatable       :: x(:)
+      real(drk),allocatable       :: p(:)
+      real(drk),allocatable       :: deriv(:,:)
+      real(drk),allocatable       :: hessian(:,:)
+    end type trajectory
 
- double precision               :: ti, tf
- character(len=120)             :: ansatz
- character(len=120)             :: chkpt               
-  
- integer                        :: n_sim
- type(keyword_list)             :: params
-
+    !
+    !
+    type traj_table
+      integer(sik)                :: state
+      real(drk),allocatable       :: time(:)
+      real(drk),allocatable       :: energy(:,:)
+      real(drk),allocatable       :: x(:,:)
+      real(drk),allocatable       :: p(:,:)
+      real(drk),allocatable       :: deriv(:,:,:)
+      real(drk),allocatable       :: hessian(:,:,:)
+    end type traj_table 
 
  contains
 
-
- !
- !
- !
- subroutine read_options()
-  implicit none
-  integer                   :: n_arg, i_arg
-  character(len=120)        :: abuf
-
-  n_arg = iargc()
-
-  if(n_arg.lt.1)stop 'need to specify ansatz'
-
-  ! read in file name 
-  call getarg(1,abuf)
-  abuf = trim(adjustl(abuf))
-  read(abuf,*) chkpt
-
-  i_arg = 2
-  do while (i_arg < n_arg)
-    call getarg(i_arg,abuf)
-
-    if (trim(adjustl(abuf)) == '-ti') then
-       i_arg = i_arg + 1
-       call getarg(i_arg,abuf)
-       abuf = trim(adjustl(abuf))
-       read(abuf,*) ti
-
-    elseif (trim(adjustl(abuf)) == '-tf') then
-       i_arg = i_arg + 1
-       call getarg(i_arg,abuf)
-       abuf = trim(adjustl(abuf))
-       read(abuf,*) tf
-
-    elseif (trim(adjustl(abuf)) == '-ansatz') then
-       i_arg = i_arg + 1
-       call getarg(i_arg,abuf)
-       ansatz = trim(adjustl(abuf))
-
-    else
-       stop ' command line argument argument not recognized...'
-
-    endif
-
-    i_arg = i_arg + 1
-  enddo
-
- end subroutine read_options
-
- !
- !
- !
- subroutine initialize_prop()
-  implicit none
-  integer         :: ierr  
- 
-  ! initialize HDF5 system
-  call h5open_f(ierr)
-
-  ! read the simulation parameters
-  call init_table(params)
-  call read_params(chkpt, params)
-
-  ! read in the trajectory information
-  call read_trajectories(chkpt, ti, tf)
-
-
- end subroutine initialize_prop
-
- !
- !
- !
- subroutine propagate()
-  implicit none
+  subroutine add_dataset(
 
 
 
- end subroutine propagate
-
-
-end module propagate_module
-!------------------------------------------------
+end module propagate
 

@@ -111,11 +111,13 @@ def merge_simulations(file_names=None, new_file=None):
         chkpt = h5py.File(file_names[i], 'r', libver='latest')    
         for grp in chkpt:
             if 'wavefunction' in grp:
+                while 'wavefunction.'+str(wcnt) in target:
+                    wcnt += 1
                 chkpt.copy(grp, target, name='wavefunction.'+str(wcnt))
-                wcnt += 1
             elif 'integral' in grp:
+                while 'integral.'+str(icnt) in target:
+                    icnt += 1
                 chkpt.copy(grp, target, name='integral.'+str(icnt))
-                icnt += 1
         chkpt.close()    
 
     target.close()
@@ -128,13 +130,13 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     if chkpt is None and file_name is not None:
         chkpt = h5py.File(file_name.strip(), 'r', libver='latest')
 
+    if grp_name is None:
+        grp_name = 'wavefunction.0'
+
     # if this group doesn't posses a list of times, return
     # 'none'
     if grp_name+'/time' not in chkpt:
         return None
-
-    if grp_name is None:
-        grp_name = 'wavefunction.0'
 
     # if the group name is in the checkpoint file, return
     # the associated time array
@@ -155,28 +157,28 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     return steps
 
 #
-def update_basis(time, parent, child, file_name=None, name=0):
+def update_adapt(time, parent, child, file_name=None, name=0):
     """ Update information regarding new basis functions """
     
-    basis_name = 'basis.'+str(name)
-    dset       = basis_name+'/adapt_log'
+    adapt_name = 'adapt.'+str(name)
+    dset       = adapt_name+'/adapt_log'
 
     if file_name is not None:
         chkpt = h5py.File(file_name.strip(), 'r', libver='latest')
     else:
         chkpt = h5py.File(glbl.paths['chkpt_file'], 'a', libver='latest')
 
-    data_row = package_basis(time, parent, child) 
-    chkpt[basis_name].attrs['current_row'] += 1
-    chkpt[dset][chkpt[basis_name].attrs['current_row']] = data_row
+    data_row = package_adapt(time, parent, child) 
+    chkpt[adapt_name].attrs['current_row'] += 1
+    chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
 
     return
 
 #
-def retrieve_basis(file_name=None, name=0):
+def retrieve_adapt(file_name=None, name=0):
     """Pulls information about the dynamic changes to trajectory basis"""
-    basis_name = 'basis.'+str(name)
-    dset       = basis_name+'/adapt_log'
+    adapt_name = 'adapt.'+str(name)
+    dset       = adapt_name+'/adapt_log'
 
     # default is to use file name from previous write
     if file_name is not None:
@@ -185,27 +187,46 @@ def retrieve_basis(file_name=None, name=0):
     # open chkpoint file
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
-    basis_data = chkpt[dset][0:chkpt[basis_name].attrs['current_row']]
+    adapt_data = chkpt[dset][0:chkpt[adapt_name].attrs['current_row']]
 
     chkpt.close()
 
-    return basis_data
+    return adapt_data
 
 #
-def retrieve_dataset(dset, file_name=None, ti=None, tf=None):
+def retrieve_basis(chkpt):
+    """Returns information about the trajectory basis, including:
+       how many trajectories, start/end time of trajectory, how 
+       many time steps, etc.""" 
+
+    n_wfn   = sum(isWfn(grp) for grp in chkpt.keys())
+    n_traj  = [0] * n_wfn
+    n_steps = [[] for i in range(n_wfn)]
+    t_times = [[] for i in range(n_wfn)]
+
+    w_cnt = -1
+    for i_wfn in chkpt.keys():
+        if isWfn(i_wfn):
+            w_cnt += 1
+            for i_traj in chkpt[i_wfn].keys():
+                if isTrajectory(i_traj):
+                    n_traj[w_cnt] += 1 
+                    steps = time_steps(chkpt, i_wfn+'/'+i_traj)
+                    n_steps[w_cnt].append(len(steps))
+                    t_times[w_cnt].append([steps[0],steps[-1]])
+
+    return n_wfn, n_traj, n_steps, t_times
+
+#
+def retrieve_dataset(chkpt, dset, ti=None, tf=None):
     """Pulls an entire data set into a numpy array"""
 
-    # default is to use file name from previous write
-    if file_name is None:
-        file_name = glbl.paths['chkpt_file']
-
-    # open chkpoint file
-    chkpt = h5py.File(file_name, 'r', libver='latest')
-    root  = '/'+dset.split('/')[0]
-    tset  = '/'.join(dset.split('/')[0:-1])+'/time'
-    
+    root     = '/'.join(dset.split('/')[0:-1])
+    tset     = '/'.join(dset.split('/')[0:-1])+'/time'
+    data_end = chkpt[root].attrs['current_row']  
+ 
     if dset not in chkpt:
-        print("Cannot find "+str(dset)+" in "+str(file_name)+".")
+        print("Cannot find "+str(dset)+" in "+str(chkpt.name)+".")
         return False
     if (ti is not None or ti is not None) and tset not in chkpt:
         print("time dataset not found, cannot request specific times")
@@ -213,13 +234,13 @@ def retrieve_dataset(dset, file_name=None, ti=None, tf=None):
 
     if ti is None:
         ti = chkpt[tset][0]
-    start = np.abs(chkpt[tset][:] - ti).argmin()
+    start = np.abs(chkpt[tset][:data_end] - ti).argmin()
  
     if tf is None:
-        tf = chkpt[tset][chkpt[root].attrs['current_row']]
-    end   = np.abs(chkpt[tset][:] - tf).argmin()
+        tf = chkpt[tset][data_end]
+    end   = np.abs(chkpt[tset][:data_end] - tf).argmin()+1
 
-    return chkpt[dset][start:end,:]
+    return chkpt[tset][start:end+1], chkpt[dset][start:end+1,:]
 
 
 #------------------------------------------------------------------------------------
@@ -255,27 +276,27 @@ def create(file_name, wfn, ints):
 def create_basis(chkpt, wfn, name=0):
     """ Creates a new basis group, with suffix 'name' """
    
-    basis_name = 'basis.'+str(name)
+    adapt_name = 'adapt.'+str(name)
 
-    if basis_name in chkpt.keys():
+    if adapt_name in chkpt.keys():
         raise ValueError('wavefunction='+wfn_name+' already exists.'+
                          'Continuing...') 
     else:
-        chkpt.create_group(basis_name)
-        chkpt[basis_name].attrs['n_traj']      = wfn.n_traj()
-        chkpt[basis_name].attrs['current_row'] = -1
-        chkpt[basis_name].attrs['n_rows']      = 100
+        chkpt.create_group(adapt_name)
+        chkpt[adapt_name].attrs['n_traj']      = wfn.n_traj()
+        chkpt[adapt_name].attrs['current_row'] = -1
+        chkpt[adapt_name].attrs['n_rows']      = 100
 
         # create the 'spawn.log' table 
-        dset     = basis_name+'/adapt_log'
-        dshape   = (chkpt[basis_name].attrs['n_rows'], 13)
+        dset     = adapt_name+'/adapt_log'
+        dshape   = (chkpt[adapt_name].attrs['n_rows'], 13)
         chkpt.create_dataset(dset, dshape, dtype=float, compression="gzip")
 
         # add initial trajectories with a 'born time' of 0
         for i in range(wfn.n_traj()):
-            data_row  = package_basis(wfn.time, wfn.traj[i], wfn.traj[i]) 
-            chkpt[basis_name].attrs['current_row'] += 1         
-            chkpt[dset][chkpt[basis_name].attrs['current_row']] = data_row
+            data_row  = package_adapt(wfn.time, wfn.traj[i], wfn.traj[i]) 
+            chkpt[adapt_name].attrs['current_row'] += 1         
+            chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
         
     return
 
@@ -549,7 +570,7 @@ def write_trajectory(chkpt, traj, time, name=0):
     # time information to existing datasets
     t_grp = grp_name+'/'+t_label
 
-    if t_label in chkpt['wavefunction']:
+    if t_label in chkpt[grp_name].keys():
 
         chkpt[t_grp].attrs['current_row'] += 1
         current_row = chkpt[t_grp].attrs['current_row']
@@ -611,7 +632,7 @@ def write_centroid(chkpt, cent, time, name=0):
     # time information to existing datasets
     c_grp = grp_name+'/'+c_label
 
-    if c_label in chkpt['integral']:
+    if c_label in chkpt[grp_name].keys():
 
         chkpt[c_grp].attrs['current_row'] += 1
         current_row = chkpt[c_grp].attrs['current_row']
@@ -684,7 +705,7 @@ def read_wavefunction(chkpt, time, name=0):
     # dimensions of these objects are not time-dependent
     wfn.time    = chkpt[wfn_name+'/time'][read_row,0]
 
-    wfn_grps =  sorted([str(label) for label in chkpt[wfn_name]])
+    wfn_grps =  sorted([str(label) for label in chkpt[wfn_name].keys()])
     for label in wfn_grps:
 
         #print("time = "+str(time)+" label="+str(label))
@@ -761,7 +782,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     # populate the surface object in the trajectory
 
     # if this time step doesn't exist, return null trajectory
-    if t_row > len(chkpt[t_grp+'/glbl'])-1:
+    if t_row > chkpt[t_grp].attrs['current_row']:
         new_traj = None
     else:
         # set information about the trajectory itself
@@ -788,7 +809,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj.state  = int(state)
         new_traj.parent = int(parent)
         new_traj.update_amplitude(amp_real+1.j*amp_imag)
-        new_traj.last_spawn = data_row[5:]
+        new_traj.last_spawn = last_adapt
 
         new_traj.update_pes_info(pes)
         new_traj.update_x(new_traj.pes.get_data('geom'))
@@ -798,13 +819,13 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
 def read_centroid(chkpt, new_cent, c_grp, c_row):
     """Documentation to come"""
     # if this time step doesn't exist, return null centroid
-    if c_row > len(chkpt[c_grp+'/glbl'])-1:
+    if c_row > chkpt[c_grp].attrs['current_row']:
         new_cent = None
     else:
         # set information about the trajectory itself
         parent = [0.,0.]
         states = [0.,0.]
-        [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/glbl'][c_row]
+        [parent[0], parent[1], states[0], states[1]] = chkpt[c_grp+'/states'][c_row]
 
         # populate the surface object in the trajectory
         pes = surface.Surface()
@@ -864,20 +885,20 @@ def get_time_index(chkpt, grp_name, time):
     return read_row
 
 #
-def package_basis(time, parent, child):
+def package_adapt(time, parent, child):
     """Record when and from whom new basis functions are spawned"""
 
-    basis_data = np.zeros(13, dtype=float)
-    basis_data[[0,1,2]]   = [time, 
+    adapt_data = np.zeros(13, dtype=float)
+    adapt_data[[0,1,2]]   = [time, 
                             parent.last_spawn[child.state],
                             parent.exit_time[child.state]]
-    basis_data[[3,4,5,6]] = [parent.label,      parent.state,
+    adapt_data[[3,4,5,6]] = [parent.label,      parent.state,
                             child.label,        child.state]
-    basis_data[[7,8]]     = [parent.kinetic(),   child.kinetic()] 
-    basis_data[[9,10]]    = [parent.potential(), child.potential()]
-    basis_data[[11,12]]   = [parent.classical(), child.classical()]
+    adapt_data[[7,8]]     = [parent.kinetic(),   child.kinetic()] 
+    adapt_data[[9,10]]    = [parent.potential(), child.potential()]
+    adapt_data[[11,12]]   = [parent.classical(), child.classical()]
 
-    return basis_data
+    return adapt_data
 
 #
 
@@ -932,7 +953,7 @@ def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
         time     = np.array([time],dtype='float'),
-        glbl     = np.concatenate((cent.parents, cent.states)),
+        states   = np.concatenate((cent.parents, cent.states)),
         momentum = cent.p()
                      )
 
@@ -958,6 +979,20 @@ def default_blk_size(time):
     # let's just keep this to small default size: 25
     # need to look into optimizing this more
     return 25
+
+
+def isTrajectory(dset_name):
+    """ returns true is a dset is a valid name for a trajectory"""
+    try:
+        int(dset_name)
+        return True
+    except ValueError:
+        return False
+
+
+def isWfn(dset_name):
+    """ returns true is a dset is a valid name for a trajectory"""
+    return 'wavefunction' in dset_name
 
 
 #-----------------------------------------------------------------------------

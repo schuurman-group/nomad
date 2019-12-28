@@ -173,7 +173,7 @@ def extract_data(wfn, mat, dlst):
 def extract_spawn():
     """print the spawn table"""
 
-    spawn_data = checkpoint.retrieve_basis()
+    spawn_data = checkpoint.retrieve_adapt()
 
     for i in range(len(spawn_data)):
         checkpoint.print_wfn_row('spawn', spawn_data[i][:])

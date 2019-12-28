@@ -85,7 +85,7 @@ def spawn(wfn, dt):
                         basis_grown = True
                         wfn.add_trajectory(child)
                         child_spawn.label = wfn.traj[-1].label # a little hacky...
-                        checkpoint.update_basis(current_time, wfn.traj[i], child)
+                        checkpoint.update_adapt(current_time, wfn.traj[i], child)
                     else:
                         log.print_message('spawn_bad_step',
                                                  ['overlap with bundle too large'])
