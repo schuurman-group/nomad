@@ -5,11 +5,10 @@
 ! M. S. Schuurman, Oct. 11, 2018
 !
 !
-module lib_fms
-
-
-  private
-  public build_matrices
+module fms
+  use libprop
+  public init_propagate
+  public propagate
 
   real, allocatable           :: H(:,:)
   real, allocatable           :: S(:,:)
@@ -20,10 +19,38 @@ module lib_fms
 
   contains
 
+    !
+    !
+    !
+    subroutine init_propagate()
+      implicit none
 
-  subroutine build_matrices(t_basis)
+    end subroutine init_propagate()
+
+    !
+    !
+    !
+    subroutine propagate()
+      implicit none
+
+    end subroutine propagate`
+    
+  
+    !*********************************************
+    !
+    !
+    !
+    subroutine overlap(bra_t, ket_t)
+
+    end subroutine overlap
+
+    !
+    !
+    ! 
+    subroutine ke(bra_t, ket_t)
 
 
+    end subroutine ke
 
-  end subroutine build_matrices
+end module fms 
 

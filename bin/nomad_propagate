@@ -40,28 +40,28 @@ def process_arguments(args):
         tf = float(args[args.index('-tf')+1])
     else:
         tf = None 
-  
+    if '-ansatz' in sys.argv:
+        prop_class = args[args.index('-ti')+1]
+    else:
+        prop_class = 'fms' 
+ 
     return
 
 def main():
     """ main driver routine """
     global chkpt_file, ti, tf
 
+#    prop_classes = ['fms','mce','mca','ehrenfest']
+    prop_classes = ['fms']
+
+    if prop_class not in prop_classes:
+        os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
+
     # load the appropriate library
-#    prop_path = os.enrivon['NOMAD']+'/post/'+prop_class+'.a'
+    prop_path = os.enrivon['NOMAD']+'/post/'+prop_class+'.a'
 #    if not os.path.isfile(prop_path):
 #        raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
-
-#    if prop_class == 'fms':
-#        libsurf = cdll.LoadLibrary(libsurfgen_path)
-#    elif prop_class == 'ehrenfest':
-#        lib_prop = cdll.LoadLibrary(
-#    elif prop_class == 'mce':
-#        lib_prop = cdll.LoadLibrary()
-#    elif prop_cass == 'mca':
-#        lib_prop = cdll.LoadLibrary()
-#    else:
-#        os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
+#    libprop = cdll.LoadLibrary(prop_path)
 
     # reset chkpt_file variable to be consistent with the current path
     chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
@@ -73,10 +73,14 @@ def main():
 
     # extract information about the basis
     n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
+#    libprop.init_trajectories(sum(n_traj), 
+#                              glbl.properties['crd_widths'], 
+#                              glbl.properties['crd_masses'])
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
     batch = 0
+    dsets = ['states','potential','geom','momentum','derivative']
     for wfn_grp in chkpt.keys():
         if 'wavefunction' in wfn_grp:
             batch = batch + 1
@@ -84,21 +88,18 @@ def main():
             for traj_grp in chkpt[wfn_grp].keys():
                 print("\ntraj_grp="+str(traj_grp))
                 if checkpoint.isTrajectory(traj_grp):
-                    state_set = wfn_grp+"/"+traj_grp+"/states"
-                    geom_set  = wfn_grp+"/"+traj_grp+"/geom"
-                    mom_set   = wfn_grp+"/"+traj_grp+"/momentum"
-                    grad_set  = wfn_grp+"/"+traj_grp+"/derivative"
-                    times, states =  checkpoint.retrieve_dataset(chkpt,state_set, ti,tf)
-                    times, x  = checkpoint.retrieve_dataset(chkpt,geom_set,ti,tf)
-                    times, p  = checkpoint.retrieve_dataset(chkpt,mom_set, ti,tf)
-                    times, grad =  checkpoint.retrieve_dataset(chkpt,grad_set, ti,tf)
-                    st = states[0,1]
-#                    lib_prop.add_dataset(batch, st, times, x, p, grad)
+                    data = [None] * len(dsets)
+                    for iset in range(len(dsets)):
+                        dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
+                        t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
+                        data[iset] = datum
+                    args = [batch, t] + data
+#                    libprop.add_trajectory(*args)
     chkpt.close()
 
     # after data is loaded, this is all on the propagation routines
-#    lib_prop.propagate()
-
+#    libprop.init_propagate()
+#    libprop.propagate()
 
 
 if __name__ == '__main__':
