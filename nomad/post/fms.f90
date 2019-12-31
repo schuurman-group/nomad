@@ -10,6 +10,9 @@ module fms
   public init_propagate
   public propagate
 
+  private overlap
+  private ke
+
   real, allocatable           :: H(:,:)
   real, allocatable           :: S(:,:)
   real, allocatable           :: Sdot(:,:)
@@ -22,18 +25,20 @@ module fms
     !
     !
     !
-    subroutine init_propagate()
+    subroutine init_propagate() bind(c, name='init_propagate')
       implicit none
 
-    end subroutine init_propagate()
+
+    end subroutine init_propagate
 
     !
     !
     !
-    subroutine propagate()
+    subroutine propagate() bind(c, name='propagate')
       implicit none
 
-    end subroutine propagate`
+
+    end subroutine propagate
     
   
     !*********************************************
@@ -41,6 +46,8 @@ module fms
     !
     !
     subroutine overlap(bra_t, ket_t)
+      implicit none
+      type(trajectory), intent(in)  :: bra_t, ket_t
 
     end subroutine overlap
 
@@ -48,7 +55,8 @@ module fms
     !
     ! 
     subroutine ke(bra_t, ket_t)
-
+      implicit none
+      type(trajectory), intent(in)  :: bra_t, ket_t
 
     end subroutine ke
 

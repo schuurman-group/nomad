@@ -7,13 +7,14 @@ are written as dynamically loaded libraries
 """
 import os
 import sys as sys
-import h5py
+import h5py as h5py
+import ctypes as ctypes
+import array as array
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
-from ctypes import *
 
-global chkpt_file, ti, tf
+global chkpt_file, prop_class, ti, tf
 
 def init():
     """Initializes the nomad inputs.
@@ -26,7 +27,7 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global chkpt_file, ti, tf
+    global chkpt_file, prop_class, ti, tf
 
     glbl.paths['cwd']        = os.getcwd()
     glbl.paths['chkpt_file'] = args[1]
@@ -41,7 +42,7 @@ def process_arguments(args):
     else:
         tf = None 
     if '-ansatz' in sys.argv:
-        prop_class = args[args.index('-ti')+1]
+        prop_class = args[args.index('-ansatz')+1]
     else:
         prop_class = 'fms' 
  
@@ -49,7 +50,7 @@ def process_arguments(args):
 
 def main():
     """ main driver routine """
-    global chkpt_file, ti, tf
+    global chkpt_file, prop_class, ti, tf
 
 #    prop_classes = ['fms','mce','mca','ehrenfest']
     prop_classes = ['fms']
@@ -58,10 +59,10 @@ def main():
         os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
 
     # load the appropriate library
-    prop_path = os.enrivon['NOMAD']+'/post/'+prop_class+'.a'
-#    if not os.path.isfile(prop_path):
-#        raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
-#    libprop = cdll.LoadLibrary(prop_path)
+    prop_path = os.environ['NOMAD']+'/nomad/post/'+prop_class+'.so'
+    if not os.path.isfile(prop_path):
+        raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
+    libprop = ctypes.cdll.LoadLibrary(prop_path)
 
     # reset chkpt_file variable to be consistent with the current path
     chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
@@ -73,35 +74,81 @@ def main():
 
     # extract information about the basis
     n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
-#    libprop.init_trajectories(sum(n_traj), 
-#                              glbl.properties['crd_widths'], 
-#                              glbl.properties['crd_masses'])
+    libprop.init_trajectories(
+         ctypes.byref(convert_ctypes(sum(n_traj), dtype='int64')))
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
     batch = 0
     dsets = ['states','potential','geom','momentum','derivative']
-    for wfn_grp in chkpt.keys():
-        if 'wavefunction' in wfn_grp:
-            batch = batch + 1
-            print("\nwfn_grp: "+str(wfn_grp))
-            for traj_grp in chkpt[wfn_grp].keys():
-                print("\ntraj_grp="+str(traj_grp))
-                if checkpoint.isTrajectory(traj_grp):
-                    data = [None] * len(dsets)
-                    for iset in range(len(dsets)):
-                        dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
-                        t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
-                        data[iset] = datum
-                    args = [batch, t] + data
-#                    libprop.add_trajectory(*args)
+    wfn_keys = [key_val for key_val in chkpt.keys() 
+                                    if 'wavefunction' in key_val]
+
+    for wfn_grp in wfn_keys: 
+        batch = batch + 1
+        traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
+                                    if checkpoint.isTrajectory(key_val)]
+        for traj_grp in traj_keys:
+            data = [None] * len(dsets)
+            for iset in range(len(dsets)):
+                dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
+                t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
+                data[iset] = datum
+
+            state   = int(data[0][0][1])
+            np      = len(t)
+            ns      = len(data[1][0])
+            nd      = len(glbl.properties['crd_widths'])
+            data[0] = t
+            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')), 
+                    ctypes.byref(convert_ctypes(np, dtype='int64')),
+                    ctypes.byref(convert_ctypes(ns, dtype='int64')),
+                    ctypes.byref(convert_ctypes(nd, dtype='int64')),
+                    ctypes.byref(convert_ctypes(state, dtype='int64')),
+                    convert_ctypes(glbl.properties['crd_widths'],dtype='double'),
+                    convert_ctypes(glbl.properties['crd_masses'],dtype='double')]
+            args  += [convert_ctypes(data[i].flatten('F'), 
+                             dtype='double') for i in range(len(data))]
+            libprop.add_trajectory(*args)
     chkpt.close()
 
     # after data is loaded, this is all on the propagation routines
-#    libprop.init_propagate()
-#    libprop.propagate()
+    libprop.init_propagate()
+    libprop.propagate()
+
+    return
 
 
+def convert_ctypes(py_val, dtype=None):
+    """convert a python array into a C-data type"""
+
+    # note: the current approach is used based on:
+    # https://bugs.python.org/issue27926
+    # Namely, the default Python constructor is _very_ slow.
+    # if that changes, then this function can change too...
+
+    # there are fancier ways to do this by querying both the array and
+    # machine environment, but this will do for now
+    if dtype == 'int32':
+        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_int32
+    elif dtype == 'int64':
+        type_sym = 'i';i_size = 8; ctype_sym = ctypes.c_int64
+    elif dtype == 'double':
+        type_sym = 'd';i_size = 8; ctype_sym = ctypes.c_double
+    else:
+        os.exit('convert_ctypes does not recognize dtype='+str(dtype))
+
+    if isinstance(py_val, (float, int)):
+        print("convert py_val="+str(py_val))
+        return ctype_sym(py_val)
+
+    v = array.array(type_sym, py_val)
+    assert v.itemsize == i_size
+    addr, count = v.buffer_info()
+    c_arr = ctypes.cast(addr, ctypes.POINTER(ctype_sym))
+ 
+    return c_arr
+    
 if __name__ == '__main__':
     # parse command line arguments
     if '-openmp' in sys.argv:
