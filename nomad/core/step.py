@@ -9,13 +9,18 @@ import nomad.adapt.utilities as utilities
 #import nomad.core.matching_pursuit as mp
 
 
-def time_step():
+def time_step(time):
     """ Determine time step based on whether in coupling regime"""
     if glbl.modules['adapt'].in_coupled_regime(glbl.modules['wfn']):
         return float(glbl.properties['coupled_time_step'])
 
     else:
-        return float(glbl.properties['default_time_step'])
+        # when coming out of coupled regime, may need one more 'coupled'
+        # time step to ensure what 
+        if time % float(glbl.properties['default_time_step']) == 0:
+            return float(glbl.properties['default_time_step'])
+        else:
+            return float(time % glbl.properties['default_time_step'])
 
 
 def step_wavefunction(dt):

@@ -48,6 +48,7 @@ def process_arguments(args):
  
     return
 
+#
 def main():
     """ main driver routine """
     global chkpt_file, prop_class, ti, tf
@@ -74,13 +75,43 @@ def main():
 
     # extract information about the basis
     n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
+    n_total  = sum(n_traj)
+    n_states = int(glbl.properties['n_states'])
+    n_crd    = len(glbl.properties['crd_widths'])
+    widths   = np.array(glbl.properties['crd_widths'], dtype=float)
+    masses   = np.array(glbl.properties['crd_masses'], dtype=float)
+    x_ref    = np.array(glbl.properties['init_coords'][0,0],dtype=float)
+    p_ref    = np.array(glbl.properties['init_coords'][0,1],dtype=float)
+
+    # initialize the trajectory table
     libprop.init_trajectories(
-         ctypes.byref(convert_ctypes(sum(n_traj), dtype='int64')))
+         ctypes.byref(convert_ctypes(n_wfn,   dtype='int64')),
+         ctypes.byref(convert_ctypes(n_total, dtype='int64')),
+         ctypes.byref(convert_ctypes(n_states,dtype='int64')),
+         ctypes.byref(convert_ctypes(n_crd,   dtype='int64')),
+         ctypes.byref(convert_ctypes(widths,  dtype='double')),
+         ctypes.byref(convert_ctypes(masses,  dtype='double')),
+         ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
+         ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
+
+    # pass the various run time options to the propagation library
+    t_step      = float(glbl.properties['default_time_step'])
+    full_basis  = True
+    init_method = 2
+    int_method  = 2
+    int_order   = 1
+    libprop.set_parameters(
+         ctypes.byref(convert_ctypes(t_step,      dtype='double')),
+         ctypes.byref(convert_ctypes(full_basis,  dtype='logical')),
+         ctypes.byref(convert_ctypes(init_method, dtype='int64')),
+         ctypes.byref(convert_ctypes(int_method,  dtype='int64')),
+         ctypes.byref(convert_ctypes(int_order,   dtype='int64')))
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
-    batch = 0
-    dsets = ['states','potential','geom','momentum','derivative']
+    t_max  = 0.
+    batch  = 0
+    dsets  = ['states','phase','potential','geom','momentum','derivative']
     wfn_keys = [key_val for key_val in chkpt.keys() 
                                     if 'wavefunction' in key_val]
 
@@ -95,30 +126,39 @@ def main():
                 t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
                 data[iset] = datum
 
+            t_max   = max(t_max, np.amax(t))
             state   = int(data[0][0][1])
-            np      = len(t)
+            nt      = len(t)
             ns      = len(data[1][0])
             nd      = len(glbl.properties['crd_widths'])
             data[0] = t
             args = [ctypes.byref(convert_ctypes(batch, dtype='int64')), 
-                    ctypes.byref(convert_ctypes(np, dtype='int64')),
+                    ctypes.byref(convert_ctypes(nt, dtype='int64')),
                     ctypes.byref(convert_ctypes(ns, dtype='int64')),
                     ctypes.byref(convert_ctypes(nd, dtype='int64')),
                     ctypes.byref(convert_ctypes(state, dtype='int64')),
-                    convert_ctypes(glbl.properties['crd_widths'],dtype='double'),
-                    convert_ctypes(glbl.properties['crd_masses'],dtype='double')]
-            args  += [convert_ctypes(data[i].flatten('F'), 
+                    convert_ctypes(widths,dtype='double'),
+                    convert_ctypes(masses,dtype='double')]
+            # because we're loading by timestep, data in row-major form. 
+            # When we flatten, want to do so to transpose. This is done 
+            # in one step by flattening to 'row-major' C form (rather 
+            # than transposing, then "F" form).
+            args  += [convert_ctypes(data[i].flatten('C'),                        
                              dtype='double') for i in range(len(data))]
             libprop.add_trajectory(*args)
     chkpt.close()
-
+ 
     # after data is loaded, this is all on the propagation routines
-    libprop.init_propagate()
-    libprop.propagate()
+    tend = tf
+    if tend is None:
+        tend = t_max
+    libprop.propagate(
+                    ctypes.byref(convert_ctypes(ti, dtype='double')),
+                    ctypes.byref(convert_ctypes(tend, dtype='double')))
 
     return
 
-
+#
 def convert_ctypes(py_val, dtype=None):
     """convert a python array into a C-data type"""
 
@@ -135,20 +175,19 @@ def convert_ctypes(py_val, dtype=None):
         type_sym = 'i';i_size = 8; ctype_sym = ctypes.c_int64
     elif dtype == 'double':
         type_sym = 'd';i_size = 8; ctype_sym = ctypes.c_double
+    elif dtype == 'logical':
+        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_bool
     else:
-        os.exit('convert_ctypes does not recognize dtype='+str(dtype))
+        sys.exit('convert_ctypes does not recognize dtype='+str(dtype))
 
     if isinstance(py_val, (float, int)):
-        print("convert py_val="+str(py_val))
         return ctype_sym(py_val)
 
-    v = array.array(type_sym, py_val)
-    assert v.itemsize == i_size
-    addr, count = v.buffer_info()
-    c_arr = ctypes.cast(addr, ctypes.POINTER(ctype_sym))
- 
+    c_arr = (ctype_sym * py_val.size)(*py_val) 
+
     return c_arr
-    
+ 
+#   
 if __name__ == '__main__':
     # parse command line arguments
     if '-openmp' in sys.argv:

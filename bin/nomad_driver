@@ -73,7 +73,7 @@ def main():
         # set the time step --> top level time step should always
         # be default time step. fms_step_wfn will decide if/how
         # dt should be shortened for numerics
-        time_step = step.time_step()
+        time_step = step.time_step(glbl.modules['wfn'].time)
 
         # propagate one step forward
         step.step_wavefunction(time_step)

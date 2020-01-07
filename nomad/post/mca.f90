@@ -1,6 +1,6 @@
 !
 ! Builds the Hamiltonian and other requisite quantities
-! necessary to propagate the TDSE using Mulitple-Cloning
+! necessary to propagate the TDSE using the moving crude adiabatic
 ! approach
 !
 ! M. S. Schuurman, Jan. 4, 2020
