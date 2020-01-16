@@ -61,6 +61,8 @@ def main():
 
     # load the appropriate library
     prop_path = os.environ['NOMAD']+'/nomad/post/'+prop_class+'.so'
+    ld_libs   = os.environ['LD_LIBRARY_PATH']
+    print("ld_lib_path="+str(ld_libs))
     if not os.path.isfile(prop_path):
         raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
     libprop = ctypes.cdll.LoadLibrary(prop_path)
@@ -134,8 +136,6 @@ def main():
             data[0] = t
             args = [ctypes.byref(convert_ctypes(batch, dtype='int64')), 
                     ctypes.byref(convert_ctypes(nt, dtype='int64')),
-                    ctypes.byref(convert_ctypes(ns, dtype='int64')),
-                    ctypes.byref(convert_ctypes(nd, dtype='int64')),
                     ctypes.byref(convert_ctypes(state, dtype='int64')),
                     convert_ctypes(widths,dtype='double'),
                     convert_ctypes(masses,dtype='double')]

@@ -1,10 +1,13 @@
 goal: fms.so
 
 #compilers
-F90=ifort -i8 -warn -nofor_main -ipo -O2 -no-prec-div -qopenmp -assume cc_omp -complex_limited_range -debug extended -traceback
+F90=ifort -i8 -warn -nofor_main -ipo -O2 -no-prec-div -qopenmp -assume cc_omp -complex_limited_range -debug extended -traceback -mkl:serial
 
 #additional libraries
-LIBS= -L /software/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin -mkl=sequential -lpthread -L /usr/lib64 -lz
+#LIBS= -L /software/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin -mkl=sequential -lpthread
+#LIBS= -L/software/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64 libmkl_scalapack_ilp64.a libmkl_intel_ilp64.a libmkl_intel_thread.a libmkl_core.a libiomp5.a libpthread.a libm.a libdl.a
+#LIBS= -L /usr/lib -L /usr/lib64
+LIBS=''
 
 #object files
 OBJS=accuracy.o math.o libprop.o fms.o
@@ -14,7 +17,7 @@ OBJS=accuracy.o math.o libprop.o fms.o
 #	ifort -shared fms.so fms.o libprop.o
 
 fms.so:	fms.f90 
-	$(F90) -fpic -shared -o fms.so accuracy.f90 math.f90 libprop.f90 fms.f90
+	$(F90) -fPIC -shared -o fms.so accuracy.f90 math.f90 libprop.f90 fms.f90 $(LIBS)
 
 #libprop.o: libprop.f90
 #	$(F90) -fpic -c libprop.f90

@@ -33,7 +33,6 @@ module libprop
    public qn_vector
    public traj_size
    public amp_size
-   public matrix_exponential
 
     ! total number of trajectories
     integer(ik)                   :: n_total
@@ -121,7 +120,6 @@ module libprop
     type(amplitude_table), allocatable  :: amp_table(:)
     type(trajectory), allocatable       :: traj_list(:)
     type(trajectory)                    :: ref_traj
-    complex(drk),allocatable            :: amp_list(:)
 
  contains
 
@@ -211,8 +209,8 @@ module libprop
     real(drk), intent(in)           :: masses(n_crd)
     real(drk), intent(in)           :: time(np)
     real(drk), intent(in)           :: phase(np)
-    real(drk), intent(in)           :: energy(n_state*np), x(n_crd*np), p(n_crd*np)
-    real(drk), intent(in)           :: deriv(n_crd*n_state*n_state*np)
+    real(drk), intent(in)           :: energy(np*n_state), x(np*n_crd), p(np*n_crd)
+    real(drk), intent(in)           :: deriv(np*n_crd*n_state*n_state)
 
     integer(ik), save               :: traj_cnt = 0
 
@@ -220,7 +218,7 @@ module libprop
     traj_cnt                          = traj_cnt + 1
     basis_table(traj_cnt)%batch       = batch
     basis_table(traj_cnt)%label       = traj_cnt
-    basis_table(traj_cnt)%state       = state
+    basis_table(traj_cnt)%state       = state+1   ! fortran states go 1:n_state, nomad goes 0:n_state-1
     basis_table(traj_cnt)%nsteps      = np  
     basis_table(traj_cnt)%current_row = 1
 
@@ -231,7 +229,7 @@ module libprop
     allocate(basis_table(traj_cnt)%energy(n_state, np))
     allocate(basis_table(traj_cnt)%x(n_crd, np))
     allocate(basis_table(traj_cnt)%p(n_crd, np))
-    allocate(basis_table(traj_cnt)%deriv(n_crd, n_state, n_state, np))
+    allocate(basis_table(traj_cnt)%deriv(n_state, n_state, n_crd, np))
 
     basis_table(traj_cnt)%widths    = widths
     basis_table(traj_cnt)%masses    = masses
@@ -240,14 +238,16 @@ module libprop
     basis_table(traj_cnt)%energy    = reshape(energy, (/n_state, np/))
     basis_table(traj_cnt)%x         = reshape(x,      (/n_crd, np/))
     basis_table(traj_cnt)%p         = reshape(p,      (/n_crd, np/))
-    basis_table(traj_cnt)%deriv     = reshape(deriv,  (/n_crd, n_state, n_state, np/))
+    basis_table(traj_cnt)%deriv     = reshape(deriv,  (/n_crd, n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk, zero_drk/), (/2, 3, 1, 4/))
 
     ! allocate the correpsonding amplitude table
     allocate(amp_table(traj_cnt)%time(np))
     allocate(amp_table(traj_cnt)%amplitude(np))
+    amp_table(traj_cnt)%time        = -1.
     amp_table(traj_cnt)%batch       = batch
     amp_table(traj_cnt)%label       = traj_cnt
     amp_table(traj_cnt)%current_row = 1
+    amp_table(traj_cnt)%amplitude   = zero_c
 
   end subroutine add_trajectory
 
@@ -258,9 +258,12 @@ module libprop
   !
   !
   !
-  subroutine collect_trajectories(t, batch)
-    real(drk), intent(in)             :: t
-    integer(ik), intent(in)           :: batch
+  subroutine collect_trajectories(t, batch, labels)
+    real(drk), intent(in)                   :: t
+    integer(ik), intent(in)                 :: batch
+    integer(ik), allocatable, intent(inout) :: labels(:)
+
+    integer(ik)                             :: i
 
     ! grab all the trajectories that exist at time t
     call locate_trajectory(t, batch)
@@ -273,9 +276,16 @@ module libprop
       call locate_trajectory(t, batch)
     endif
 
-    ! might as well grab the corresponding amplitudes while we're at it
-    call locate_amplitude(t)
-
+    if(.not.allocated(labels)) then
+      allocate(labels(tstep_cnt))
+    elseif(size(labels) /= tstep_cnt) then
+      deallocate(labels)
+      allocate(labels(tstep_cnt))
+    endif
+ 
+    do i = 1,tstep_cnt
+      labels(i) = traj_list(i)%label
+    enddo
 
     return
   end subroutine collect_trajectories
@@ -408,8 +418,6 @@ module libprop
       allocate(traj_list(i_traj)%deriv(n_crd, n_state, n_state))
     enddo
 
-    allocate(amp_list(n_traj))
-
     return
   end subroutine create_traj_list
 
@@ -428,7 +436,6 @@ module libprop
     enddo
 
     if(allocated(traj_list))deallocate(traj_list)
-    if(allocated(amp_list))deallocate(amp_list)
 
     return
   end subroutine destroy_traj_list
@@ -440,14 +447,16 @@ module libprop
   !
   !
   !
-  subroutine init_amplitude(time)
+  function init_amplitude(time) result(amps)
     real(drk)                       :: time
+    complex(drk), allocatable       :: amps(:)
     integer(ik)                     :: i
-    complex(drk)                    :: amps(tstep_cnt)
+
+    allocate(amps(size(traj_list)))
 
     select case(init_amps)
       case('overlap ')
-        do i = 1,tstep_cnt
+        do i = 1,size(traj_list)
           amps(i)   = nuc_overlap(ref_traj, traj_list(i))
         enddo
 
@@ -459,74 +468,116 @@ module libprop
 
     end select
 
-    call normalize_amplitude()
+    amps = normalize_amplitude(amps)
+    print *,'time=',time,' amps=',amps
     call update_amplitude(time, amps)
 
     return
-  end subroutine init_amplitude
-  
+  end function init_amplitude
+ 
+  !
+  !
+  ! 
+  function update_basis(new_label, old_label, c) result(c_new)
+    integer(ik),intent(in)                  :: new_label(:)
+    integer(ik), allocatable, intent(inout) :: old_label(:)
+    complex(drk), intent(in)                :: c(:)
+
+    complex(drk), allocatable       :: c_new(:)
+    integer(ik)                     :: n_new, n_old
+    integer(ik)                     :: i, new_i
+
+    n_new = size(new_label)
+    n_old = size(old_label)
+    allocate(c_new(n_new))
+
+    c_new = zero_c
+    do i = 1,n_old
+      new_i = findloc(new_label, old_label(i), dim=1)
+      if(new_i /= 0) c_new(new_i) = c(i)     
+    enddo
+
+    deallocate(old_label)
+    allocate(old_label(n_new))
+    old_label = new_label
+
+    return
+  end function update_basis
+
   !
   !
   !
-  subroutine propagate_amplitude(H, t_start, t_end)
+  function propagate_amplitude(c0, H, t_start, t_end) result(new_amp)
+    complex(drk), intent(in)        :: c0(:)
     complex(drk), intent(in)        :: H(:,:)
     real(drk), intent(in)           :: t_start
     real(drk), intent(in)           :: t_end
 
-    complex(drk)                    :: B(tstep_cnt, tstep_cnt)
-    complex(drk)                    :: U(tstep_cnt, tstep_cnt)
-    complex(drk)                    :: old_amp(tstep_cnt,1)
-    complex(drk)                    :: new_amp(tstep_cnt,1)
+    complex(drk),allocatable        :: new_amp(:)
+    complex(drk),allocatable        :: amps(:,:)
+    complex(drk),allocatable        :: B(:,:)
+    complex(drk),allocatable        :: U(:,:)
+    integer(ik)                     :: n
 
-    B = -I * H(:tstep_cnt,:tstep_cnt) * (t_start - t_end)
-    call expm(B, U)
-    old_amp(:tstep_cnt,1) = amp_list(:tstep_cnt)
+    n = size(c0)
+    if(n /= size(H, dim=1))stop 'ERROR: size c0 and H do not match'
+    allocate(new_amp(n), amps(n,1), B(n,n), U(n,n))
 
-    new_amp = matmul(U, old_amp)
-    call update_amplitude(t_end, new_amp(:tstep_cnt,1))
+    amps(:n,1) = c0
+    print *,'old_amp=',amps
+    B = -I * H * (t_end - t_start)
+  
+    print *,'B=',B
+    call zexpm(n, B, U)
+
+    print *,'U=',U
+    amps = matmul(U, amps)
+    new_amp = amps(:n,1)
+    print *,'new_amp=',new_amp
+    print *,'new amp norm=',sqrt(dot_product(new_amp, new_amp))
 
     return
-  end subroutine propagate_amplitude
+  end function propagate_amplitude
 
   !
   !
   !
-  subroutine locate_amplitude(time)
+  function locate_amplitude(time) result(amps)
     real(drk), intent(in)             :: time
 
-    integer(ik)                       :: amp_indx
+    complex(drk)                      :: amps(tstep_cnt)
     integer(ik)                       :: i 
     integer(ik)                       :: t_row(2)  
+
 
     ! for now, we need the dimension of the amplitude vector to
     ! be the same as the dimension of the trajectory list. So, we
     ! assume that list is accurate and pull trajectory labels from there.
-    do i = 1,tstep_cnt
-
-      amp_indx = traj_list(i).label
-      t_row    = get_time_index('amps', amp_indx, time)
+    do i = 1,size(traj_list)
+      t_row    = get_time_index('amps', traj_list(i).label, time)
 
       ! if time step doesn't exist, set amplitude to zero
       if(t_row(1) == 0 .or. t_row(2) == -1) then
-        amp_list(i) = zero_c
+        amps(i) = zero_c
 
       ! if we have exactly this time step, use it
       elseif(t_row(2) == 0) then
-        amp_list(i) = amp_table(amp_indx)%amplitude(t_row(1))
+        amps(i) = amp_table(traj_list(i).label)%amplitude(t_row(1))
   
       !...otherwise we have to interpolate
       elseif(t_row(2) /= -1) then
-        amp_list(i) = interpolate_amplitude(amp_indx, time, t_row)
+        amps(i) = interpolate_amplitude(traj_list(i).label, time, t_row)
 
       ! shouldn't get here.. 
       else
         print *,'undefined behavior in locate_amplitude'
-        amp_list(i) = zero_c
+        amps(i) = zero_c
       endif
     enddo
 
+    print *,'amps=',amps
     return
-  end subroutine locate_amplitude
+  end function locate_amplitude
 
   !
   !
@@ -626,7 +677,7 @@ module libprop
 
         ! to save searching through the table over and over again, 
         ! we'll use the previously accessed row as a starting guess
-        if(amp_table(indx)%time(amp_table(indx)%current_row) <= time)then
+        if(amp_table(indx)%time(amp_table(indx)%current_row) <= time) then
           rows(1) = amp_table(indx)%current_row
         else
           rows(1) = 1
@@ -635,7 +686,7 @@ module libprop
         ! search the table for the requested time
         dt = abs(basis_table(indx)%time(rows(1))-time)
         do 
-          if(rows(1) == size(amp_table(indx)%time)) exit
+          if(rows(1) == rows(1) == basis_table(indx)%nsteps) exit
           if(dt < dt_toler .or. &
              amp_table(indx)%time(rows(1)) == -1. .or. &
              amp_table(indx)%time(rows(1)) > time) exit
@@ -675,14 +726,20 @@ module libprop
   !
   !
   !
-  subroutine normalize_amplitude()
+  function normalize_amplitude(c) result(c_norm)
+    complex(drk), intent(in)           :: c(:)
+
+    complex(drk),allocatable           :: c_norm(:)
     complex(drk)                       :: norm_amp
 
-    norm_amp = dot_product(conjg(amp_list), amp_list)
-    amp_list = amp_list / norm_amp
+    allocate(c_norm(size(c)))
+
+    norm_amp = sqrt(dot_product(c, c))
+    if(abs(real(aimag(norm_amp),kind=drk)) > mp_drk) stop 'norm error'
+    c_norm = c / real(norm_amp,kind=drk)
 
     return
-  end subroutine normalize_amplitude
+  end function normalize_amplitude
 
   !
   !
@@ -692,7 +749,7 @@ module libprop
 
     real(drk)                          :: poten
 
-    poten = traj.energy(traj.state)
+    poten = traj%energy(traj%state)
     return
   end function tr_potential
 
@@ -704,7 +761,7 @@ module libprop
 
     real(drk)                          :: kinetic
 
-    kinetic = sum( 0.5 * traj.p * traj.p / masses)
+    kinetic = sum( 0.5 * traj%p * traj%p / masses)
 
     return
   end function tr_kinetic
@@ -717,7 +774,7 @@ module libprop
 
     real(drk)                         :: velocity(n_crd)
 
-    velocity = 0.5 * traj.p / masses
+    velocity = traj%p / masses
 
     return
   end function tr_velocity
@@ -730,7 +787,7 @@ module libprop
   
     real(drk)                         :: force(n_crd)
 
-    force = -traj.deriv(:,traj.state,traj.state)
+    force = -traj%deriv(:, traj%state, traj%state)
 
     return
   end function tr_force
@@ -747,15 +804,15 @@ module libprop
     real(drk)                          :: dx(n_crd), dp(n_crd), prefactor(n_crd)
     real(drk)                          :: x_center(n_crd), real_part(n_crd), imag_part(n_crd)
 
-    dx        = bra_t.x - ket_t.x
-    dp        = bra_t.p - ket_t.p
+    dx        = bra_t%x - ket_t%x
+    dp        = bra_t%p - ket_t%p
     w1_w2     = widths + widths
     w1w2      = widths * widths
     prefactor = sqrt(2. * sqrt(w1w2) / (w1_w2))
-    x_center  = (widths * bra_t.x + widths * ket_t.x) / (w1_w2)
+    x_center  = (widths * bra_t%x + widths * ket_t%x) / (w1_w2)
     real_part = (w1w2*dx**2 + 0.25*dp**2) / (w1_w2)
-    imag_part = (bra_t.x * bra_t.p - ket_t.x * ket_t.p) - x_center * dp
-    S         = exp(I * (ket_t.phase - bra_t.phase)) * product(prefactor) * &
+    imag_part = (bra_t%x * bra_t%p - ket_t%x * ket_t%p) - x_center * dp
+    S         = exp(I * (ket_t%phase - bra_t%phase)) * product(prefactor) * &
                 exp(sum(-real_part + I*imag_part))
     
     return
@@ -811,8 +868,8 @@ module libprop
     qn_vec = zero_c
 
     do i = 1,n_crd
-      qn_vec(i) = S * qn_integral(n, widths(i), bra_t.x(i), bra_t.p(i), &
-                                     widths(i), ket_t.x(i), ket_t.p(i))
+      qn_vec(i) = S * qn_integral(n, widths(i), bra_t%x(i), bra_t%p(i), &
+                                     widths(i), ket_t%x(i), ket_t%p(i))
     enddo
 
     return
@@ -851,35 +908,6 @@ module libprop
     
     return
   end function amp_size
-
-  !
-  !
-  !
-  recursive function factorial(n) result (fac)
-    integer(ik), intent(in)  :: n
-    integer(ik)              :: fac
-
-    if (n==0) then
-       fac = 1
-    else
-       fac = n * factorial(n-one_ik)
-    endif
-  end function factorial
-
-  !
-  !
-  !
-  function matrix_exponential(A) result(eA)
-    complex(drk),intent(in)         :: A(:,:)
-
-    complex(drk)                    :: eA(size(A,dim=1),size(A,dim=2))
-    integer(ik)                     :: n
-
-    eA = zero_c
-    n = size(A, dim=1)
-
-    return
-  end function matrix_exponential
 
 end module libprop 
 

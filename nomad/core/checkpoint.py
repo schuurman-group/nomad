@@ -240,7 +240,9 @@ def retrieve_dataset(chkpt, dset, ti=None, tf=None):
         tf = chkpt[tset][data_end]
     end   = np.abs(chkpt[tset][:data_end] - tf).argmin()+1
 
-    return chkpt[tset][start:end+1], chkpt[dset][start:end+1,:]
+    narg = len(chkpt[dset].shape)-1
+    inds = tuple([slice(start,end+1)]) + tuple(slice(0,None) for i in range(narg))
+    return chkpt[tset][start:end+1], chkpt[dset][inds]
 
 
 #------------------------------------------------------------------------------------
