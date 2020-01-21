@@ -62,7 +62,6 @@ def main():
     # load the appropriate library
     prop_path = os.environ['NOMAD']+'/nomad/post/'+prop_class+'.so'
     ld_libs   = os.environ['LD_LIBRARY_PATH']
-    print("ld_lib_path="+str(ld_libs))
     if not os.path.isfile(prop_path):
         raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
     libprop = ctypes.cdll.LoadLibrary(prop_path)

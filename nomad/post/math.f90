@@ -16,20 +16,20 @@ module math
   public zsolve
 
   !
-  integer(hik), parameter    :: pade_b(0:13,1:5) = (/ (/120, 30240, 17297280, 17643225600, 64764752532480000/), & 
-                                                      (/ 60, 15120, 8648640,  8821612800,  32382376266240000/), &
-                                                      (/ 12, 3360,  1995840,  2075673600,  7771770303897600 /), &
-                                                      (/  1, 420,   277200,   302702400,   1187353796428800 /), &
-                                                      (/  0, 30,    25200,    30270240,    129060195264000  /), &
-                                                      (/  0, 1,     1512,     2162160,     10559470521600   /), &
-                                                      (/  0, 0,     56,       110880,      670442572800     /), &
-                                                      (/  0, 0,     1,        3960,        33522128640      /), &
-                                                      (/  0, 0,     0,        90,          1323241920       /), &
-                                                      (/  0, 0,     0,        1,           40840800         /), &
-                                                      (/  0, 0,     0,        0,           960960           /), &
-                                                      (/  0, 0,     0,        0,           16380            /), &
-                                                      (/  0, 0,     0,        0,           182              /), &
-                                                      (/  0, 0,     0,        0,           1                /)/)
+  integer(8), parameter :: pade_b(0:13,1:5) = reshape( (/ 120, 30240, 17297280, 17643225600, 64764752532480000, & 
+                                                           60, 15120, 8648640,  8821612800,  32382376266240000, &
+                                                           12, 3360,  1995840,  2075673600,  7771770303897600 , &
+                                                            1, 420,   277200,   302702400,   1187353796428800 , &
+                                                            0, 30,    25200,    30270240,    129060195264000  , &
+                                                            0, 1,     1512,     2162160,     10559470521600   , &
+                                                            0, 0,     56,       110880,      670442572800     , &
+                                                            0, 0,     1,        3960,        33522128640      , &
+                                                            0, 0,     0,        90,          1323241920       , &
+                                                            0, 0,     0,        1,           40840800         , &
+                                                            0, 0,     0,        0,           960960           , &
+                                                            0, 0,     0,        0,           16380            , &
+                                                            0, 0,     0,        0,           182              , &
+                                                            0, 0,     0,        0,           1                /), shape(pade_b), order=(/2, 1/))
  
   real(drk), parameter      :: pade_theta(1:5) = (/ 0.01495585217958292,0.2539398330063230, &
                                                  0.9504178996162932, 2.097847961257068, &
@@ -42,8 +42,8 @@ module math
   !
   !
   recursive function factorial(n) result (fac)
-    integer(ik), intent(in)  :: n
-    integer(ik)              :: fac
+    integer(ik), intent(in)   :: n
+    integer(hik)              :: fac
 
     if (n==0) then
        fac = 1
@@ -53,24 +53,57 @@ module math
   end function factorial
   
   !
+  !
+  !
+  subroutine zexpm2(n, A, e_A)
+    integer(ik), intent(in)          :: n
+    complex(drk), intent(in)         :: A(n,n)
+    complex(drk), intent(out)        :: e_A(n,n)
+
+    complex(drk)                     :: Ai(n,n)
+    integer(ik)                      :: i,ordr
+    real(drk)                        :: contrib_i
+    real(drk), parameter             :: thresh = 1d-14
+
+    e_A     = zero_c
+    Ai      = zero_c
+    do i = 1,n
+      e_A(i,i) = one_c
+      Ai(i,i)  = one_c
+    enddo
+
+    contrib_i = 1d0
+    ordr       = 0
+    do while(contrib_i > thresh .and. ordr<15)
+      ordr    = ordr + 1
+      Ai      = matmul(A, Ai) / factorial(ordr)
+      e_A     = e_A + Ai
+      contrib_i = sum(abs(Ai))
+      print *,'n=',ordr,' order_i=',contrib_i,' Ai=',Ai
+    enddo    
+
+    return
+  end subroutine zexpm2
+
+  !
   ! This uses the 
   !
   subroutine zexpm(n, A, e_A)
     integer(ik), intent(in)          :: n
-    complex(drk), intent(inout)      :: A(n,n)
+    complex(drk), intent(in)         :: A(n,n)
     complex(drk), intent(inout)      :: e_A(n,n)
 
     integer(ik)                      :: s
-    integer(ik)                      :: i
+    integer(ik)                      :: i,j
     complex(drk),allocatable         :: U(:,:), V(:,:)
     complex(drk),allocatable         :: An(:,:,:)
     complex(drk),allocatable         :: Id(:,:)
     complex(drk)                     :: traceA
-    real(drk)                        :: znormA
+    real(drk)                        :: znormA, residual
 
     allocate(U(n,n), V(n,n))
     allocate(Id(n,n))
-    allocate(An(n,n,3)) !corresponds to A^2, A^4, A^6
+    allocate(An(n,n,4)) !corresponds to A, A^2, A^4, A^6
 
     ! this is not really necessary, but makes things clearer, at
     ! least to start
@@ -78,13 +111,12 @@ module math
     do i = 1,n
       Id(i,i) = one_c
     enddo 
-
+ 
     ! pre-process to reduce the norm 
-    traceA      = sum( (/ (A(i,i), i=1,n) /) )
-    do i = 1,n
-      A(i,i) = A(i,i) - traceA/n
-    enddo
-    znormA = znorm1(A)
+    traceA    = sum( (/ (A(i,i), i=1,n) /) )
+    An(:,:,1) = A - (traceA/n)*Id
+    znormA    = znorm1(A)
+    s         = 0
 
     ! check if lower-order pade approximants have
     ! sufficient accuracy
@@ -97,25 +129,45 @@ module math
       ! corresponding Pade approximant 
       select case(pade_ordr(i))
         case(3)
-          An(:,:,1) = matmul(A,A)
-          U = pade_b(3,1)*matmul(A,An(:,:,1)) + pade_b(1,1)*A
-          V = pade_b(2,1)*An(:,:,1)           + pade_b(0,1)*Id
+          An(:,:,2) = matmul(An(:,:,1),An(:,:,1)) ! A^2
+          U = pade_b(3,1)*matmul(An(:,:,1),An(:,:,2)) + pade_b(1,1)*An(:,:,1)
+          V = pade_b(2,1)*An(:,:,2)                   + pade_b(0,1)*Id
         case(5)
-          An(:,:,2) = matmul(An(:,:,1),An(:,:,1))
-          U = pade_b(5,2)*matmul(A,An(:,:,2)) + pade_b(3,2)*matmul(A,An(:,:,1)) + pade_b(1,2)*A
-          V = pade_b(4,2)*An(:,:,2)           + pade_b(2,2)*An(:,:,1)           + pade_b(0,2)*Id 
+          An(:,:,3) = matmul(An(:,:,2),An(:,:,2)) ! A^4
+          U = pade_b(5,2)*matmul(An(:,:,1),An(:,:,3)) + pade_b(3,2)*matmul(An(:,:,1),An(:,:,2)) + pade_b(1,2)*An(:,:,1)
+          V = pade_b(4,2)*An(:,:,3)                   + pade_b(2,2)*An(:,:,2)                   + pade_b(0,2)*Id 
         case(7)
-          An(:,:,3) = matmul(An(:,:,1),An(:,:,2))
-          U = pade_b(7,3)*matmul(A,An(:,:,3)) + pade_b(5,3)*matmul(A,An(:,:,2)) + pade_b(3,3)*matmul(A,An(:,:,1)) + pade_b(1,3)*A 
-          V = pade_b(6,3)*An(:,:,3)           + pade_b(4,3)*An(:,:,2)           + pade_b(2,3)*An(:,:,1)           + pade_b(0,3)*Id
+          An(:,:,4) = matmul(An(:,:,2),An(:,:,3)) ! A^6
+          U = pade_b(7,3)*matmul(An(:,:,1),An(:,:,4)) + pade_b(5,3)*matmul(An(:,:,1),An(:,:,3)) + pade_b(3,3)*matmul(An(:,:,1),An(:,:,2)) + pade_b(1,3)*An(:,:,1) 
+          V = pade_b(6,3)*An(:,:,4)                  + pade_b(4,3)*An(:,:,3)                    + pade_b(2,3)*An(:,:,2)                   + pade_b(0,3)*Id
         case(9)
-          e_A = matmul(An(:,:,2), An(:,:,2)) ! store A^8 in e_A
-          U = pade_b(9,4)*matmul(A,e_A)       + pade_b(7,4)*matmul(A,An(:,:,3)) + pade_b(5,4)*matmul(A,An(:,:,2)) + pade_b(3,4)*matmul(A,An(:,:,1)) + pade_b(1,4)*A
-          V = pade_b(8,4)*e_A                 + pade_b(6,4)*An(:,:,3)           + pade_b(4,4)*An(:,:,2)           + pade_b(2,4)*An(:,:,1)           + pade_b(0,4)*Id
+          e_A = matmul(An(:,:,3), An(:,:,3)) ! store A^8 in e_A
+          U = pade_b(9,4)*matmul(An(:,:,1),e_A)+ pade_b(7,4)*matmul(An(:,:,1),An(:,:,4)) + pade_b(5,4)*matmul(An(:,:,1),An(:,:,3)) + pade_b(3,4)*matmul(An(:,:,1),An(:,:,2)) + pade_b(1,4)*An(:,:,1)
+          V = pade_b(8,4)*e_A                  + pade_b(6,4)*An(:,:,4)                   + pade_b(4,4)*An(:,:,3)                   + pade_b(2,4)*An(:,:,2)                   + pade_b(0,4)*Id
+        case(13)
+          s = max(0,ceiling( log(znormA/pade_theta(5)) / log(2.) ))
+          An(:,:,1) = An(:,:,1) / (2.**s)
+          U        = pade_b(13,5)*An(:,:,4) + pade_b(11,5)*An(:,:,3) + pade_b(9,5)*An(:,:,2)
+          U        = matmul(An(:,:,4),U)
+          U        = U + pade_b(7,5)*An(:,:,4) + pade_b(5,5)*An(:,:,3) + pade_b(3,5)*An(:,:,2) + pade_b(1,5)*Id
+          U        = matmul(An(:,:,1),U)
+
+          V        = pade_b(12,5)*An(:,:,4) + pade_b(10,5)*An(:,:,3) + pade_b(8,5)*An(:,:,2)
+          V        = matmul(An(:,:,4),V)
+          V        = V + pade_b(6,5)*An(:,:,4) + pade_b(4,5)*An(:,:,3) + pade_b(2,5)*An(:,:,2) + pade_b(0,5)*Id
       end select
 
-      if(znormA <= pade_theta(i)) then
+      if(znormA <= pade_theta(i) .or. pade_ordr(i) == 13) then
         e_A = zsolve(n, -U+V, U+V)
+        residual = sum(abs(matmul(-U+V, e_A)-U-V))
+        if(abs(residual) > 1d-10) then
+          e_A = zinverse(n, -U+V)
+          e_A = matmul(e_A,  U+V)
+          residual = sum(abs(matmul(-U+V, e_A)-U-V))
+        endif
+        do j = 1,s
+          e_A = matmul(e_A, e_A)
+        enddo
         e_A = exp(traceA/n) * e_A
         deallocate(U, V, An, Id)
         return
@@ -123,28 +175,7 @@ module math
 
     enddo
 
-    ! if we're still here, need to go order 13
-    s = ceiling( log(znormA/pade_theta(5)) / log(2.) )
-    A = A / (2.**s)
- 
-    U = pade_b(13,5)*An(:,:,3) + pade_b(11,5)*An(:,:,2) + pade_b(9,5)*An(:,:,1)
-    U = matmul(An(:,:,3),U)
-    U = U + pade_b(7,5)*An(:,:,3) + pade_b(5,5)*An(:,:,2) + pade_b(3,5)*An(:,:,1) + pade_b(1,5)*Id
-    U = matmul(A,U)
-
-    V = pade_b(12,5)*An(:,:,3) + pade_b(10,5)*An(:,:,2) + pade_b(8,5)*An(:,:,1)
-    V = matmul(An(:,:,3),V)
-    V = V + pade_b(6,5)*An(:,:,3) + pade_b(4,5)*An(:,:,2) + pade_b(2,5)*An(:,:,1) + pade_b(0,5)*Id 
-
-    e_A = zsolve(n, -U+V, U+V)
-    do i = 1,s
-      e_A = matmul(e_A, e_A)
-    enddo
-    e_A = exp(traceA/n) * e_A
-
-    deallocate(U, V, An, Id)
-    return
-  end subroutine
+  end subroutine zexpm
 
   !
   !
@@ -168,7 +199,7 @@ module math
   !
   !
   !
-  function zsolve(n, a, b) result(C)
+  function zsolve(n, a, b) result(c)
     integer(ik), intent(in)        :: n
     complex(drk), intent(in)       :: a(:,:)
     complex(drk), intent(in)       :: b(:,:)
@@ -177,18 +208,19 @@ module math
     external zgetrs 
     complex(drk)                   :: c(n,n)
     complex(drk)                   :: lu(n,n)
-    integer                        :: na
-    integer                        :: ipiv(n)
-    integer                        :: info
+    integer(ik)                    :: na
+    integer(ik)                    :: ipiv(n)
+    integer(ik)                    :: info
    
     na   = n
     lu   = a(:na, :na)
     c    = b(:na, :na)
-    info = 0 
+ 
     call zgetrf(na, na, lu, na, ipiv, info)
-    call zgetrs('N', na, na, lu, na, ipiv, c, na, info)
+    if(info /=0) stop 'error in mkl_zgetrf'
 
-    if(info /=0 )stop 'error in lapack_zgetrs'
+    call zgetrs('N', na, na, lu, na, ipiv, c, na, info)
+    if(info /=0) stop 'error in mkl_zgetrs'
 
     return
   end function zsolve
@@ -202,18 +234,18 @@ module math
     complex(drk), intent(in)        :: a(:,:)
 
     external zgelss
-    double complex                  :: b(n,n)
-    double complex                  :: svd(n,n)
-    double complex, allocatable     :: work(:)
-    double precision                :: rwork(5*n)
-    double precision                :: s(n)
-    integer, save                   :: lwork=0
-    integer                         :: i, na, info, rank
+    complex(drk)                    :: b(n,n)
+    complex(drk)                    :: svd(n,n)
+    complex(drk), allocatable       :: work(:)
+    real(drk)                       :: rwork(5*n)
+    real(drk)                       :: s(n)
+    integer(ik), save               :: lwork
+    integer(ik)                     :: i, na, info, rank
 
     na   = n
     svd  = a(:na,:na)
     b    = zero_c
-    info = 0
+
     do i = 1,na
       b(i,i) = one_c
     enddo
@@ -225,6 +257,7 @@ module math
     if(info == 0) then
       lwork = int(abs(work(1)))
     else
+      print *,'info=',info
       stop 'error in lapack_zgelss'
     endif
 

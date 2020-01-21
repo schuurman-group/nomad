@@ -111,6 +111,7 @@ class Wavefunction:
             old_amp = Ct
 
         new_amp = np.zeros(self.nalive, dtype=complex)
+        print("time = "+str(self.time))
         print("Heff = "+str(self.matrices.mat_dict['heff']))
 
         B = -1j * self.matrices.mat_dict['heff'] * dt

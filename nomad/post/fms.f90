@@ -33,9 +33,12 @@ module fms
     real(drk), intent(in)         :: ti, tf !initial and final propagation times
     real(drk)                     :: t
     integer(ik)                   :: n_runs, i_bat, batch_label
+    real(drk)                     :: pops(n_state)
     complex(drk), allocatable     :: Heff(:,:)
     complex(drk), allocatable     :: c(:)
     integer(ik), allocatable      :: prev_traj(:), active_traj(:)
+    logical                       :: update_traj
+!    integer(ik)                   :: i
 
     if(full_basis) then
       n_runs      = 1
@@ -43,6 +46,8 @@ module fms
     else
       n_runs = n_batch
     endif
+
+    update_traj = .false.
 
     do i_bat = 1,n_runs
 
@@ -60,15 +65,26 @@ module fms
         ! if the basis has changed in any way, make sure the basis label order
         ! in c matches the new trajectory list. Currently, 'update_basis' will
         ! change prev_traj to active_traj once update is complete. 
-        if(size(active_traj) /= size(prev_traj) .or. .not.all(active_traj == prev_traj)) then
+        if(size(active_traj) /= size(prev_traj)) then
+          update_traj = .true.
+        elseif(.not.all(active_traj == prev_traj)) then
+          update_traj = .true.
+        else
+          update_traj = .false.
+        endif
+
+       if(update_traj) then
           c = update_basis(active_traj, prev_traj, c)
+          deallocate(prev_traj)
+          allocate(prev_traj(size(active_traj)))
+          prev_traj = active_traj
         endif
 
         call build_hamiltonian(Heff)
         if(t > ti) then
           c = propagate_amplitude(c, Heff, t-0.5*t_step, t)
           call update_amplitude(t, c)
-          call determine_populations(c)
+          pops = determine_populations(c)
         endif
 
         c = propagate_amplitude(c, Heff, t, t+0.5*t_step)
@@ -135,12 +151,39 @@ module fms
     enddo
 
     Sinv = zinverse(n, S)
-    Heff = matmul(Sinv, H - I*Sdt)
+    Heff = matmul(Sinv, H - I_drk*Sdt)
     deallocate(H, S, T, V, Sinv, Sdt)
 
     return
   end subroutine build_hamiltonian
 
+  !
+  !
+  !
+  function determine_populations(amp) result(pops)
+    complex(drk), intent(in)         :: amp(:)
+
+    complex(drk)                     :: pops(n_state)
+    complex(drk),allocatable         :: Sij(:,:)
+    integer(ik)                      :: st, n_traj
+    integer(ik)                      :: i, j
+
+    n_traj = size(traj_list) 
+    pops   = zero_drk
+    allocate(Sij(n_traj, n_traj))
+    Sij = overlap_mat(traj_list)
+
+    do i = 1,n_traj
+      do j = 1,n_traj
+        st       = traj_list(i)%state
+        pops(st) = pops(st) + conjg(amp(i))*amp(j)*Sij(i,j)
+      enddo
+    enddo
+
+    pops = pops / sum(pops)
+
+    return
+  end function determine_populations
 
   !***********************************************************************
   ! Numerical routines for evaluating matrix elements
@@ -205,7 +248,7 @@ module fms
     psum   = widths*ket_t%p + widths*bra_t%p
     w1w2   = widths*widths
     w1_w2  = widths+widths
-    ke_vec = Sij * (-4.*w1w2*dx*psum*I - 2.*w1w2*w1_w2 + &
+    ke_vec = Sij * (-4.*w1w2*dx*psum*I_drk - 2.*w1w2*w1_w2 + &
                      4.*dx**2 * widths**2 * widths**2 + psum**2) / w1_w2**2
 
     ke_int = -dot_product(0.5/masses, ke_vec)
@@ -296,7 +339,7 @@ module fms
 
     sdot_int = dot_product(deldx, tr_velocity(ket_t)) +&
                dot_product(deldp, tr_force(ket_t)) +&
-               I * phase_dot(ket_t) * Sij
+               I_drk * phase_dot(ket_t) * Sij
 
     return
   end function sdot
@@ -316,7 +359,7 @@ module fms
     w1_w2 = widths + widths
     dx    = bra_t%x - ket_t%x
     psum  = widths*ket_t%p + widths*bra_t%p
-    delx_int = Sij * (2. * w1w2 * dx - I * psum) / w1_w2
+    delx_int = Sij * (2. * w1w2 * dx - I_drk * psum) / w1_w2
 
     return
   end function delx
@@ -335,7 +378,7 @@ module fms
     dx    = bra_t%x - ket_t%x
     dp    = bra_t%p - ket_t%p
     w1_w2 = widths + widths
-    delp_int = Sij * (dp + 2. * I * widths * dx) / (2.*w1_w2)
+    delp_int = Sij * (dp + 2. * I_drk * widths * dx) / (2.*w1_w2)
  
     return
   end function delp

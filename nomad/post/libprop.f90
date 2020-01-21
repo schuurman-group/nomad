@@ -18,7 +18,6 @@ module libprop
    public extract_trajectory
    public interpolate_trajectory
    public locate_amplitude
-   public interpolate_amplitude
    public update_amplitude
    public propagate_amplitude
    public normalize_amplitude
@@ -361,9 +360,11 @@ module libprop
 
     real(drk)                         :: fac
     integer(ik)                       :: t0,t1 
-    real(drk)                         :: intrp_ener(2), intrp_g(2)
-    real(drk)                         :: intrp_x(2), intrp_p(2)
-    real(drk)                         :: intrp_deriv(2)
+    real(drk)                         :: delta_e(n_state)
+    real(drk)                         :: delta_g
+    real(drk)                         :: delta_x(n_crd)
+    real(drk)                         :: delta_p(n_crd)
+    real(drk)                         :: delta_deriv(n_crd,n_state,n_state)
 
     ! confirm that the requested can be interpolated from the 
     ! existing data in trajctory table
@@ -371,31 +372,26 @@ module libprop
     t1  = basis_table(table_indx)%time(table_row(2))
     fac = (time - t0) / (t1 - t0)
 
-    intrp_ener   = (/ basis_table(table_indx)%energy(:,table_row(1)), &
-                      basis_table(table_indx)%energy(:,table_row(2)) -&
-                      basis_table(table_indx)%energy(:,table_row(1)) /)
-    intrp_g      = (/ basis_table(table_indx)%phase(table_row(1)), &
-                      basis_table(table_indx)%phase(table_row(2)) -&
-                      basis_table(table_indx)%phase(table_row(1)) /)
-    intrp_x      = (/ basis_table(table_indx)%x(:,table_row(1)), &
-                      basis_table(table_indx)%x(:,table_row(2)) -&
-                      basis_table(table_indx)%x(:,table_row(1)) /)
-    intrp_p      = (/ basis_table(table_indx)%p(:,table_row(1)), &
-                      basis_table(table_indx)%p(:,table_row(2)) -&
-                      basis_table(table_indx)%p(:,table_row(1)) /)
-    intrp_deriv  = (/ basis_table(table_indx)%deriv(:,:,:,table_row(1)), &
-                      basis_table(table_indx)%deriv(:,:,:,table_row(2)) -&
-                      basis_table(table_indx)%deriv(:,:,:,table_row(1)) /)
+    delta_e      =  basis_table(table_indx)%energy(:,table_row(2)) -&
+                    basis_table(table_indx)%energy(:,table_row(1))
+    delta_g      =  basis_table(table_indx)%phase(table_row(2)) -&
+                    basis_table(table_indx)%phase(table_row(1))
+    delta_x      =  basis_table(table_indx)%x(:,table_row(2)) -&
+                    basis_table(table_indx)%x(:,table_row(1))
+    delta_p      =  basis_table(table_indx)%p(:,table_row(2)) -&
+                    basis_table(table_indx)%p(:,table_row(1))
+    delta_deriv  =  basis_table(table_indx)%deriv(:,:,:,table_row(2)) -&
+                    basis_table(table_indx)%deriv(:,:,:,table_row(1))
 
     traj_list(list_indx)%batch  = basis_table(table_indx)%batch
     traj_list(list_indx)%label  = basis_table(table_indx)%label
     traj_list(list_indx)%state  = basis_table(table_indx)%state
     traj_list(list_indx)%time   = time
-    traj_list(list_indx)%energy = intrp_ener(1)  + fac * intrp_ener(2)
-    traj_list(list_indx)%phase  = intrp_g(1)     + fac * intrp_g(2)
-    traj_list(list_indx)%x      = intrp_x(1)     + fac * intrp_x(2)
-    traj_list(list_indx)%p      = intrp_p(1)     + fac * intrp_p(2)
-    traj_list(list_indx)%deriv  = intrp_deriv(1) + fac * intrp_deriv(2)
+    traj_list(list_indx)%energy = basis_table(table_indx)%energy(:,table_row(1))    + fac*delta_e
+    traj_list(list_indx)%phase  = basis_table(table_indx)%phase(table_row(1))       + fac*delta_g
+    traj_list(list_indx)%x      = basis_table(table_indx)%x(:,table_row(1))         + fac*delta_x
+    traj_list(list_indx)%p      = basis_table(table_indx)%p(:,table_row(1))         + fac*delta_p
+    traj_list(list_indx)%deriv  = basis_table(table_indx)%deriv(:,:,:,table_row(1)) + fac*delta_deriv
 
     return
   end subroutine interpolate_trajectory
@@ -469,7 +465,6 @@ module libprop
     end select
 
     amps = normalize_amplitude(amps)
-    print *,'time=',time,' amps=',amps
     call update_amplitude(time, amps)
 
     return
@@ -480,7 +475,7 @@ module libprop
   ! 
   function update_basis(new_label, old_label, c) result(c_new)
     integer(ik),intent(in)                  :: new_label(:)
-    integer(ik), allocatable, intent(inout) :: old_label(:)
+    integer(ik), allocatable, intent(in)    :: old_label(:)
     complex(drk), intent(in)                :: c(:)
 
     complex(drk), allocatable       :: c_new(:)
@@ -496,10 +491,6 @@ module libprop
       new_i = findloc(new_label, old_label(i), dim=1)
       if(new_i /= 0) c_new(new_i) = c(i)     
     enddo
-
-    deallocate(old_label)
-    allocate(old_label(n_new))
-    old_label = new_label
 
     return
   end function update_basis
@@ -524,17 +515,10 @@ module libprop
     allocate(new_amp(n), amps(n,1), B(n,n), U(n,n))
 
     amps(:n,1) = c0
-    print *,'old_amp=',amps
-    B = -I * H * (t_end - t_start)
-  
-    print *,'B=',B
+    B = -I_drk * H * (t_end - t_start)
     call zexpm(n, B, U)
-
-    print *,'U=',U
     amps = matmul(U, amps)
     new_amp = amps(:n,1)
-    print *,'new_amp=',new_amp
-    print *,'new amp norm=',sqrt(dot_product(new_amp, new_amp))
 
     return
   end function propagate_amplitude
@@ -564,10 +548,6 @@ module libprop
       elseif(t_row(2) == 0) then
         amps(i) = amp_table(traj_list(i).label)%amplitude(t_row(1))
   
-      !...otherwise we have to interpolate
-      elseif(t_row(2) /= -1) then
-        amps(i) = interpolate_amplitude(traj_list(i).label, time, t_row)
-
       ! shouldn't get here.. 
       else
         print *,'undefined behavior in locate_amplitude'
@@ -575,33 +555,8 @@ module libprop
       endif
     enddo
 
-    print *,'amps=',amps
     return
   end function locate_amplitude
-
-  !
-  !
-  !
-  function interpolate_amplitude(amp_indx, time, t_row) result(intrp_amp)
-    integer(ik), intent(in)           :: amp_indx
-    real(drk), intent(in)             :: time
-    integer(ik), intent(in)           :: t_row(2)
-  
-    complex(drk)                      :: intrp_amp
-    complex(drk)                      :: c0,c1
-    real(drk)                         :: t0,t1
-    real(drk)                         :: fac
-
-    t0  = amp_table(amp_indx)%time(t_row(1))
-    t1  = amp_table(amp_indx)%time(t_row(2))
-    c0  = amp_table(amp_indx)%amplitude(t_row(1))
-    c1  = amp_table(amp_indx)%amplitude(t_row(2))
-    fac = (time - t0) / (t1 - t0)
-
-    intrp_amp = c0 + fac * (c1 - c0)
-
-    return
-  end function interpolate_amplitude
 
   !
   !
@@ -812,8 +767,8 @@ module libprop
     x_center  = (widths * bra_t%x + widths * ket_t%x) / (w1_w2)
     real_part = (w1w2*dx**2 + 0.25*dp**2) / (w1_w2)
     imag_part = (bra_t%x * bra_t%p - ket_t%x * ket_t%p) - x_center * dp
-    S         = exp(I * (ket_t%phase - bra_t%phase)) * product(prefactor) * &
-                exp(sum(-real_part + I*imag_part))
+    S         = exp(I_drk * (ket_t%phase - bra_t%phase)) * product(prefactor) * &
+                exp(sum(-real_part + I_drk*imag_part))
     
     return
   end function nuc_overlap
@@ -835,7 +790,7 @@ module libprop
 
     n_2    = int(floor(0.5*n))
     a      = a1+a2 
-    b      = 2.*(a1*x1 + a2*x2) - I*(p1 - p2)
+    b      = 2.*(a1*x1 + a2*x2) - I_drk*(p1 - p2)
 
     qn_int = zero_c
 
