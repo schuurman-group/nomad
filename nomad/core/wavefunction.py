@@ -123,15 +123,8 @@ class Wavefunction:
             old_amp = Ct
 
         new_amp = np.zeros(self.nalive, dtype=complex)
-        print("time = "+str(self.time))
-        print("Heff = "+str(self.matrices.mat_dict['heff']))
-
-        B = -1j * self.matrices.mat_dict['heff'] * dt
-        print("B = "+str(B))
-
-        umat = sp_linalg.expm(B)
-        print("U = "+str(umat))
-
+        B       = -1j * self.matrices.mat_dict['heff'] * dt
+        umat    = sp_linalg.expm(B)
         new_amp = np.dot(umat, old_amp)
 
         for i in range(len(self.alive)):

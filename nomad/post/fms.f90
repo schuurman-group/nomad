@@ -22,7 +22,13 @@ module fms
     module procedure potential_saddle
   end interface
 
-  !
+  ! I suppose exportable matrices will be global variables. This may 
+  ! change in the future....
+  complex(drk), allocatable       :: s(:,:)
+  complex(drk), allocatable       :: t(:,:)
+  complex(drk), allocatable       :: v(:,:)
+  complex(drk), allocatable       :: sdt(:,:)
+  complex(drk), allocatable       :: heff(:,:)
  
  contains
 
@@ -33,7 +39,6 @@ module fms
     real(drk), intent(in)         :: ti, tf !initial and final propagation times
     real(drk)                     :: t
     integer(ik)                   :: n_runs, i_bat, batch_label
-    complex(drk), allocatable     :: Heff(:,:)
     complex(drk), allocatable     :: c(:)
     integer(ik), allocatable      :: prev_traj(:), active_traj(:)
     logical                       :: update_traj
@@ -53,7 +58,6 @@ module fms
 
       t = ti
       call collect_trajectories(ti, batch_label, prev_traj)
-      allocate(Heff(size(prev_traj), size(prev_traj)))
       allocate(c(size(prev_traj)))
       c    = init_amplitude(ti)
 
@@ -74,14 +78,16 @@ module fms
           update_traj = .false.
         endif
 
-       if(update_traj) then
+        if(update_traj) then
           c = update_basis(active_traj, prev_traj, c)
-          deallocate(prev_traj)
-          allocate(prev_traj(size(active_traj)))
+          if(size(prev_traj) /= size(active_traj)) then
+            deallocate(prev_traj)
+            allocate(prev_traj(size(active_traj)))
+          endif
           prev_traj = active_traj
         endif
 
-        call build_hamiltonian(Heff)
+        call build_hamiltonian()
         if(t > ti) then
           c = propagate_amplitude(c, Heff, t-0.5*t_step, t)
           call update_amplitude(t, c)
@@ -91,90 +97,98 @@ module fms
         t = t + t_step
       enddo
 
+      write(*, 1000)i_bat
     enddo
 
+     write(*, 1001)
     return
+
+1000 format(' Propagation of simulation ',i3,' complete.')
+1001 format(' Propagation of all simulations complete using FMS')
   end subroutine propagate
 
   !
   !
   ! 
-  subroutine retrieve_matrices(batch, n, S, T, V, Sdot, make_traj_list)
-    integer(ik), intent(in)                 :: batch
-    integer(ik), intent(in)                 :: n
-    complex(drk), intent(out)               :: S(n,n)
-    complex(drk), intent(out)               :: T(n,n)
-    complex(drk), intent(out)               :: V(n,n)
-    complex(drk), intent(out)               :: Sdot(n,n)
-    logical, intent(in)                     :: make_traj_list   
+  subroutine retrieve_matrices(n, s_r, s_i, t_r, t_i, v_r, v_i, sdt_r, sdt_i, heff_r, heff_i) bind(c, name='retrieve_matrices')
+    integer(ik), intent(in)                 :: n              ! expected dimension of the (square) matrices
+    real(drk), intent(out)                  :: s_r(n*n),    s_i(n*n)
+    real(drk), intent(out)                  :: t_r(n*n),    t_i(n*n)
+    real(drk), intent(out)                  :: v_r(n*n),    v_i(n*n)
+    real(drk), intent(out)                  :: sdt_r(n*n),  sdt_i(n*n)
+    real(drk), intent(out)                  :: heff_r(n*n), heff_i(n*n)
 
     integer(ik), allocatable                :: labels(:)
 
+    if(tstep_cnt /= n) stop 'n != tstep_cnt in retrieve_matrices'
+
     call build_hamiltonian()
 
+    s_r    = reshape( real(s(:n, :n), kind=drk), shape=(/ n*n /) )
+    s_i    = reshape( real(aimag(s(:n, :n)), kind=drk), shape=(/ n*n /) )
+    t_r    = reshape( real(t(:n, :n), kind=drk), shape=(/ n*n /) )
+    t_i    = reshape( real(aimag(t(:n, :n)), kind=drk), shape=(/ n*n /) )
+    v_r    = reshape( real(v(:n, :n), kind=drk), shape=(/ n*n /) )
+    v_i    = reshape( real(aimag(v(:n, :n)), kind=drk), shape=(/ n*n /) )
+    sdt_r  = reshape( real(sdt(:n, :n), kind=drk), shape=(/ n*n /) )
+    sdt_i  = reshape( real(aimag(sdt(:n, :n)), kind=drk), shape=(/ n*n /) )
+    heff_r = reshape( real(heff(:n, :n), kind=drk), shape=(/ n*n /) )
+    heff_i = reshape( real(aimag(heff(:n, :n)), kind=drk), shape=(/ n*n /) )
 
     return
   end subroutine retrieve_matrices
 
 
-!********************************************************************************************
+  !**************************************************************************************
 
   ! Routines to build Hamiltonian and propagate amplitudes
   !
   !
   !
-  subroutine build_hamiltonian(Heff)
-    complex(drk), allocatable, intent(inout) :: Heff(:,:)
+  subroutine build_hamiltonian()
+    complex(drk), allocatable                :: h(:,:), sinv(:,:)
     integer(ik)                              :: n
     integer(ik)                              :: bra, ket
-    complex(drk),allocatable                 :: H(:,:), T(:,:), V(:,:)
-    complex(drk),allocatable                 :: S(:,:), Sinv(:,:), Sdt(:,:)
     complex(drk)                             :: nuc_ovrlp
 
     n = size(traj_list)
-    if(n > size(Heff, dim=1)) then
-      deallocate(Heff)
-      allocate(Heff(n,n))
+    if(n > size(s, dim=1)) then
+      deallocate(s, t, v, sdt, heff)
+      allocate(s(n,n), t(n,n), v(n,n), sdt(n,n), heff(n,n))
     endif
-    allocate(H(n,n))
-    allocate(S(n,n))
-    allocate(T(n,n))
-    allocate(V(n,n))
-    allocate(Sinv(n,n))
-    allocate(Sdt(n,n))
+    allocate(h(n,n), sinv(n,n))
 
-    H    = zero_c
-    S    = zero_c
-    T    = zero_c
-    V    = zero_c
-    Sinv = zero_c
-    Sdt  = zero_c
+    s    = zero_c
+    t    = zero_c
+    v    = zero_c
+    h    = zero_c
+    sdt  = zero_c
 
     do bra = 1, n
       do ket = 1, n
 
         if(hermitian .and. ket < bra) then
-          S(bra,ket)   = conjg(S(ket, bra))
-          T(bra,ket)   = conjg(T(ket, bra))
-          V(bra,ket)   = conjg(V(ket, bra))
-          H(bra,ket)   = conjg(H(ket, bra))
-          Sdt(bra,ket) = sdot(traj_list(ket), traj_list(bra), S(ket, bra))
+          s(bra,ket)   = conjg(s(ket, bra))
+          t(bra,ket)   = conjg(t(ket, bra))
+          v(bra,ket)   = conjg(v(ket, bra))
+          h(bra,ket)   = conjg(h(ket, bra))
+          sdt(bra,ket) = sdot(traj_list(ket), traj_list(bra), S(ket, bra))
           cycle
         endif
 
         nuc_ovrlp     = nuc_overlap(traj_list(bra), traj_list(ket))
-        S(bra, ket)   = overlap(  traj_list(bra), traj_list(ket))
-        Sdt(bra, ket) = sdot(     traj_list(bra), traj_list(ket), nuc_ovrlp)
-        T(bra, ket)   = ke(       traj_list(bra), traj_list(ket), nuc_ovrlp)
-        V(bra, ket)   = potential(traj_list(bra), traj_list(ket), nuc_ovrlp)
-        H(bra, ket)   = T(bra,ket) + V(bra,ket)
+        s(bra, ket)   = overlap(  traj_list(bra), traj_list(ket))
+        t(bra, ket)   = ke(       traj_list(bra), traj_list(ket), nuc_ovrlp)
+        v(bra, ket)   = potential(traj_list(bra), traj_list(ket), nuc_ovrlp)
+        h(bra, ket)   = t(bra, ket) + v(bra, ket)
+        sdt(bra, ket) = sdot(     traj_list(bra), traj_list(ket), nuc_ovrlp)
 
       enddo
     enddo
 
-    Sinv = zinverse(n, S)
-    Heff = matmul(Sinv, H - I_drk*Sdt)
-    deallocate(H, S, T, V, Sinv, Sdt)
+    sinv = zinverse(n, s)
+    heff = matmul(sinv, h - I_drk*sdt)
+    deallocate(h, sinv)
 
     return
   end subroutine build_hamiltonian

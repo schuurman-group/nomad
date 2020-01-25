@@ -15,6 +15,7 @@ import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.trajectory as trajectory
 import nomad.core.surface as surface
+import nomad.core.matrices as matrices
 import nomad.core.checkpoint as checkpoint
 
 
@@ -218,9 +219,37 @@ def main():
                                       p_lst, 
                                       deriv_lst)
 
+            s_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            s_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            t_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            t_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            v_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            v_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            sdt_r  = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            sdt_i  = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            heff_r = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
+            heff_i = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')            
+            libprop.retrieve_matrices(ctypes.byref(n_traj),
+                                      s_r,    s_i,
+                                      t_r,    t_i,
+                                      v_r,    v_i,
+                                      sdt_r,  sdt_i,
+                                      heff_r, heff_i,
+                                      ctypes.byref(convert_ctypes(False, dtype='logical')),
+                                      ctypes.byref(ibat),
+                                      ctypes.byref(time))
+                                
             # build up the wavefunction object
             wfn      = wavefunction.Wavefunction()
             wfn.time = time.value
+            
+            mats     = matrices.Matrices()
+            mats.set('s_traj', np.reshape(np.array(s_r + s_i*1j, dtype=complex), tuple([nt, nt])))
+            mats.set('t',      np.reshape(np.array(t_r + t_i*1j, dtype=complex), tuple([nt, nt])))
+            mats.set('v',      np.reshape(np.array(v_r + v_i*1j, dtype=complex), tuple([nt, nt])))
+            mats.set('sdot',   np.reshape(np.array(sdt_r + sdt_i*1j, dtype=complex), tuple([nt, nt])))
+            mats.set('heff',   np.reshape(np.array(heff_r + heff_i*1j, dtype=complex), tuple([nt, nt])))
+            wfn.update_matrices(mats)            
 
             for itraj in range(nt):
                 
