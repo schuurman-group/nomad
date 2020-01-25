@@ -12,7 +12,9 @@ module libprop
    public init_trajectories
    public set_parameters
    public add_trajectory
-   
+   public next_timestep_info
+   public retrieve_timestep
+
    public collect_trajectories
    public locate_trajectory
    public extract_trajectory
@@ -249,6 +251,105 @@ module libprop
     amp_table(traj_cnt)%amplitude   = zero_c
 
   end subroutine add_trajectory
+
+  !
+  !
+  !
+  subroutine next_timestep_info(first_step, batch, time, n_traj, indices) bind(c, name='next_timestep_info')
+    logical, intent(in)                  :: first_step
+    integer(ik), intent(in)              :: batch
+    real(drk), intent(out)               :: time
+    integer(ik), intent(out)             :: n_traj
+    integer(ik), intent(out)             :: indices(n_total)
+
+    integer(ik)                          :: i, n_bat
+    integer(ik)                          :: indx_raw(size(amp_table))
+
+    time     = -1.
+    indx_raw = 0
+    n_bat    = 0
+    do i = 1,size(amp_table)
+
+      ! if this is not selected batch, move on to next one
+      if(batch > 0 .and. amp_table(i)%batch /= batch) continue
+     
+      n_bat           = n_bat + 1
+      indx_raw(n_bat) = i
+
+      ! if setting counters to first index
+      if(first_step) amp_table(i)%current_row = 1
+
+      ! if figure out which rows contribute to this time 
+      if(time < 0 .and. amp_table(i)%current_row <= size(amp_table(i)%time)) then
+        time = amp_table(i)%time(amp_table(i)%current_row)
+      else
+        time = min(time, amp_table(i)%time(amp_table(i)%current_row))
+      endif
+
+    enddo
+
+    ! now we go through and pick trajectories with correct times
+    n_traj  = 0
+    indices = 0
+
+    ! if time < 0, then we've exhausted our list of trajectories
+    if(time >= 0) then
+      do i = 1,n_bat      
+        if( abs(amp_table(indx_raw(i))%time(amp_table(i)%current_row) - time) < mp_drk) then
+          n_traj          = n_traj + 1
+          indices(n_traj) = indx_raw(i)
+        endif
+      enddo
+    endif
+
+    return
+  end subroutine next_timestep_info
+
+  !
+  !
+  ! 
+  subroutine retrieve_timestep(batch, n, indices, states, amp_r, amp_i, eners, x, p, deriv) bind(c, name='retrieve_timestep')
+    integer(ik), intent(in)                 :: batch
+    integer(ik), intent(in)                 :: n
+    integer(ik), intent(in)                 :: indices(n)
+    integer(ik), intent(out)                :: states(n)
+    real(drk), intent(out)                  :: amp_r(n)
+    real(drk), intent(out)                  :: amp_i(n)
+    real(drk), intent(out)                  :: eners(n*n_state)
+    real(drk), intent(out)                  :: x(n*n_crd)
+    real(drk), intent(out)                  :: p(n*n_crd)
+    real(drk), intent(out)                  :: deriv(n*n_crd*n_state*n_state)
+
+    integer(ik)                             :: i, row, dlen
+    real(drk)                               :: time
+    integer(ik), allocatable                :: labels(:)
+
+    do i = 1,n
+      row      = amp_table(indices(i))%current_row
+      time     = amp_table(indices(i))%time(row)
+      amp_r(i) = real(amp_table(indices(i))%amplitude(row))
+      amp_i(i) = aimag(amp_table(indices(i))%amplitude(row))
+      ! advance the current row counter in amp_table
+      amp_table(indices(i))%current_row = amp_table(indices(i))%current_row + 1
+
+    enddo
+
+    call collect_trajectories(time, batch, labels)
+
+    if(tstep_cnt /= n) stop 'disagreement in retrieve_timestep n /= tstep_cnt'
+
+    dlen = n_crd*n_state*n_state
+    do i = 1,tstep_cnt
+      if(indices(i) /= traj_list(i)%label) stop 'indices(i) /= label: unpredictable results possible'
+      states(i)                        = traj_list(i)%state-1 ! convert back to python numbering
+      eners(n_state*(i-1)+1:n_state*i) = traj_list(i)%energy
+      x(n_crd*(i-1)+1:n_crd*i)         = traj_list(i)%x
+      p(n_crd*(i-1)+1:n_crd*i)         = traj_list(i)%p
+      deriv(dlen*(i-1)+1:dlen*i)       = reshape(traj_list(i)%deriv, shape=(/ dlen /))
+    enddo
+
+    return
+  end subroutine retrieve_timestep
 
   !****************************************************************************************
   !****************************************************************************************

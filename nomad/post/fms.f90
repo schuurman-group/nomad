@@ -33,12 +33,10 @@ module fms
     real(drk), intent(in)         :: ti, tf !initial and final propagation times
     real(drk)                     :: t
     integer(ik)                   :: n_runs, i_bat, batch_label
-    real(drk)                     :: pops(n_state)
     complex(drk), allocatable     :: Heff(:,:)
     complex(drk), allocatable     :: c(:)
     integer(ik), allocatable      :: prev_traj(:), active_traj(:)
     logical                       :: update_traj
-!    integer(ik)                   :: i
 
     if(full_basis) then
       n_runs      = 1
@@ -57,10 +55,13 @@ module fms
       call collect_trajectories(ti, batch_label, prev_traj)
       allocate(Heff(size(prev_traj), size(prev_traj)))
       allocate(c(size(prev_traj)))
-      c = init_amplitude(ti)
+      c    = init_amplitude(ti)
 
       do while(t < tf)
         call collect_trajectories(t, batch_label, active_traj)
+        
+        ! if no more trajectories, exit the loop
+        if(size(active_traj) == 0) exit
 
         ! if the basis has changed in any way, make sure the basis label order
         ! in c matches the new trajectory list. Currently, 'update_basis' will
@@ -84,7 +85,6 @@ module fms
         if(t > ti) then
           c = propagate_amplitude(c, Heff, t-0.5*t_step, t)
           call update_amplitude(t, c)
-          pops = determine_populations(c)
         endif
 
         c = propagate_amplitude(c, Heff, t, t+0.5*t_step)
@@ -96,6 +96,28 @@ module fms
     return
   end subroutine propagate
 
+  !
+  !
+  ! 
+  subroutine retrieve_matrices(batch, n, S, T, V, Sdot, make_traj_list)
+    integer(ik), intent(in)                 :: batch
+    integer(ik), intent(in)                 :: n
+    complex(drk), intent(out)               :: S(n,n)
+    complex(drk), intent(out)               :: T(n,n)
+    complex(drk), intent(out)               :: V(n,n)
+    complex(drk), intent(out)               :: Sdot(n,n)
+    logical, intent(in)                     :: make_traj_list   
+
+    integer(ik), allocatable                :: labels(:)
+
+    call build_hamiltonian()
+
+
+    return
+  end subroutine retrieve_matrices
+
+
+!********************************************************************************************
 
   ! Routines to build Hamiltonian and propagate amplitudes
   !

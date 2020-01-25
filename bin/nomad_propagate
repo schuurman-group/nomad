@@ -12,9 +12,13 @@ import ctypes as ctypes
 import array as array
 import numpy as np
 import nomad.core.glbl as glbl
+import nomad.core.wavefunction as wavefunction
+import nomad.core.trajectory as trajectory
+import nomad.core.surface as surface
 import nomad.core.checkpoint as checkpoint
 
-global chkpt_file, prop_class, ti, tf
+
+global chkpt_file, prop_class, amp_archive, ti, tf
 
 def init():
     """Initializes the nomad inputs.
@@ -27,20 +31,27 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global chkpt_file, prop_class, ti, tf
+    global chkpt_file, prop_class, amp_archive, ti, tf
 
     glbl.paths['cwd']        = os.getcwd()
     glbl.paths['chkpt_file'] = args[1]
     chkpt_file               = args[1]
 
+    if '-o' in sys.argv:
+        amp_archive = str(args[args.index('-o')+1])
+    else:
+        amp_archive = 'amp_archive.hdf5'
+
     if '-ti' in sys.argv:
         ti = float(args[args.index('-ti')+1])
     else:
         ti = float(0.)
+
     if '-tf' in sys.argv:
         tf = float(args[args.index('-tf')+1])
     else:
         tf = None 
+
     if '-ansatz' in sys.argv:
         prop_class = args[args.index('-ansatz')+1]
     else:
@@ -51,7 +62,7 @@ def process_arguments(args):
 #
 def main():
     """ main driver routine """
-    global chkpt_file, prop_class, ti, tf
+    global chkpt_file, prop_class, amp_archive, ti, tf
 
 #    prop_classes = ['fms','mce','mca','ehrenfest']
     prop_classes = ['fms']
@@ -154,6 +165,98 @@ def main():
     libprop.propagate(
                     ctypes.byref(convert_ctypes(ti, dtype='double')),
                     ctypes.byref(convert_ctypes(tend, dtype='double')))
+
+    # once propagation is done, retrieve times, phase-space points and 
+    # amplitudes from libprop
+    glbl.paths['chkpt_file'] = amp_archive
+
+    # this is temporary: only two options, fully coherent or fully incoherent
+    # in the future: should be able to specify arbitrary groupings of initial
+    # conditions
+    if full_basis:
+        nbatch = 1
+    else:
+        nbatch = n_wfn
+
+    time    = convert_ctypes(0., dtype='double')
+    n_traj  = convert_ctypes(0,  dtype='int32') 
+    indices = convert_ctypes(np.zeros(n_total, dtype=int), dtype='int32')
+    for ibatch in range(nbatch):
+        if full_basis:
+            ibat = convert_ctypes(-1, dtype='int32')
+        else:
+            ibat = convert_ctypes(ibatch, dtype='int32')
+
+
+        libprop.next_timestep_info(ctypes.byref(convert_ctypes(True, dtype='logical')),
+                                   ctypes.byref(ibat), 
+                                   ctypes.byref(time),
+                                   ctypes.byref(n_traj),
+                                   indices)
+        nt = n_traj.value
+        print("time="+str(time.value)+" n_traj="+str(nt))
+        print("np.array(indices)="+str(np.array(indices[:nt])))
+
+        while nt != 0:
+ 
+            indx_lst  = convert_ctypes(np.array(indices[:nt], dtype=int), dtype='int32')
+            state_lst = convert_ctypes(np.zeros(nt, dtype=int), dtype='int32')
+            amp_r     = convert_ctypes(np.zeros(nt, dtype=float), dtype='double')
+            amp_i     = convert_ctypes(np.zeros(nt, dtype=float), dtype='double')
+            ener_lst  = convert_ctypes(np.zeros(n_states*nt, dtype=float), dtype='double')
+            x_lst     = convert_ctypes(np.zeros(n_crd*nt, dtype=float), dtype='double')
+            p_lst     = convert_ctypes(np.zeros(n_crd*nt, dtype=float), dtype='double')
+            deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*nt, dtype=float), dtype='double')
+            libprop.retrieve_timestep(ctypes.byref(ibat),
+                                      ctypes.byref(n_traj),
+                                      indx_lst,  
+                                      state_lst, 
+                                      amp_r, 
+                                      amp_i, 
+                                      ener_lst, 
+                                      x_lst, 
+                                      p_lst, 
+                                      deriv_lst)
+
+            # build up the wavefunction object
+            wfn      = wavefunction.Wavefunction()
+            wfn.time = time.value
+
+            for itraj in range(nt):
+                
+                new_surf = surface.Surface()
+                new_traj = trajectory.Trajectory(n_states, n_crd, 
+                                                 width=widths, 
+                                                 mass=masses,
+                                                 label=indx_lst[itraj],
+                                                 kecoef=0.5/masses)
+
+                new_traj.update_x(np.array(x_lst[n_crd*itraj:n_crd*(itraj+1)]))
+                new_traj.update_p(np.array(p_lst[n_crd*itraj:n_crd*(itraj+1)]))
+                new_traj.update_amplitude(complex(float(amp_r[itraj]),float(amp_i[itraj])))
+
+                new_surf.add_data('geom', new_traj.x())
+                new_surf.add_data('potential', np.array(ener_lst[n_states*itraj:n_states*(itraj+1)]) + 
+                                               glbl.properties['pot_shift'])
+
+                dlen = n_crd * n_states * n_states
+                deriv = np.reshape(np.array(deriv_lst[dlen*itraj:dlen*(itraj+1)]), 
+                                            tuple([n_crd, n_states, n_states]))
+                new_surf.add_data('derivative', deriv)
+                new_traj.update_pes_info(new_surf)
+
+                wfn.add_trajectory(new_traj, relabel=False)
+
+            # throw this timestep to the new checkpoint file
+            checkpoint.archive_simulation(wfn, None)
+          
+            # advance to the next time step
+            libprop.next_timestep_info(ctypes.byref(convert_ctypes(False, dtype='logical')),
+                                   ctypes.byref(ibat),
+                                   ctypes.byref(time),
+                                   ctypes.byref(n_traj),
+                                   indices)
+            nt = n_traj.value
 
     return
 

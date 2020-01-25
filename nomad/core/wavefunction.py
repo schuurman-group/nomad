@@ -2,6 +2,7 @@
 The Wavefunction object and its associated functions.
 """
 import copy
+import sys as sys
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.core.timings as timings
@@ -18,7 +19,7 @@ class Wavefunction:
         self.traj      = []
         self.alive     = []
         self.active    = []
-        self.matrices  = matrices.Matrices()
+        self.matrices  = None 
 
     @timings.timed
     def copy(self):
@@ -34,7 +35,8 @@ class Wavefunction:
         new_wfn.ndead    = copy.copy(self.ndead)
         new_wfn.alive    = copy.deepcopy(self.alive)
         new_wfn.active   = copy.deepcopy(self.active)
-        new_wfn.matrices = self.matrices.copy()
+        if self.matrices is not None:
+            new_wfn.matrices = self.matrices.copy()
 
         # copy the trajectory array
         for i in range(self.n_traj()):
@@ -47,27 +49,29 @@ class Wavefunction:
         return self.nalive + self.ndead
 
     @timings.timed
-    def add_trajectory(self, new_traj):
+    def add_trajectory(self, new_traj, relabel=True):
         """Adds a trajectory to the wfn."""
-        self.nalive     += 1
-        self.nactive    += 1
-        new_traj.alive   = True
-        new_traj.active  = True
-        new_traj.label   = self.n_traj() - 1
-        self.alive.append(new_traj.label)
-        self.active.append(new_traj.label)
+        self.nalive       += 1
+        self.nactive      += 1
+        new_traj.alive     = True
+        new_traj.active    = True
+        if relabel:
+            new_traj.label = self.n_traj() - 1
+        self.alive.append(self.n_traj()-1)
+        self.active.append(self.n_traj()-1)
         self.traj.append(new_traj)
 
-    def add_trajectories(self, traj_list):
+    def add_trajectories(self, traj_list, relabel=True):
         """Adds a set of trajectories to the wfn."""
         for new_traj in traj_list:
             self.nalive         += 1
             self.nactive        += 1
             new_traj.alive       = True
             new_traj.active      = True
-            new_traj.label       = self.n_traj() - 1
-            self.alive.append(new_traj.label)
-            self.active.append(new_traj.label)
+            if relabel:
+                new_traj.label   = self.n_traj() - 1
+            self.alive.append(self.n_traj()-1)
+            self.active.append(self.n_traj()-1)
             self.traj.append(new_traj)
 
     @timings.timed
@@ -77,22 +81,30 @@ class Wavefunction:
         The trajectory will no longer contribute to H, S, etc.
         """
         # Remove the trajectory from the list of living trajectories
-        self.alive.remove(label)
-        self.traj[label].alive = False
-        self.nalive          = self.nalive - 1
-        self.ndead           = self.ndead + 1
+        indx = [self.traj[i].label for i in range(self.n_traj())].index(label)
+        try:
+            self.alive.remove(indx)
+            self.traj[indx].alive = False
+            self.nalive           = self.nalive - 1
+            self.ndead            = self.ndead + 1
+        except ValueError:
+            sys.exit('Cannot kill trajectory, label not found')   
 
     @timings.timed
     def revive_trajectory(self, label):
         """
         Moves a dead trajectory to the list of live trajectories.
         """
-        self.traj[label].alive = True
+        indx = [self.traj[i].label for i in range(self.n_traj())].index(label)
 
-        # Add the trajectory to the list of living trajectories
-        self.alive.insert(label,label)
-        self.nalive          = self.nalive + 1
-        self.ndead           = self.ndead - 1
+        try:
+            self.traj[indx].alive = True
+            # Add the trajectory to the list of living trajectories
+            self.alive.insert(indx,label)
+            self.nalive          = self.nalive + 1
+            self.ndead           = self.ndead - 1
+        except ValueError:
+            sys.exit('Cannot revive trajectory, label not found')
 
     @timings.timed
     def update_matrices(self, mats):
@@ -146,6 +158,9 @@ class Wavefunction:
         """Returns the Mulliken-like population."""
         mulliken = 0.
 
+        if self.matrices is None:
+            return mulliken
+
         if not self.traj[label].alive:
             return mulliken
         i = self.alive.index(label)
@@ -159,6 +174,9 @@ class Wavefunction:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
+        if self.matrices is None:
+            return -1.
+
         return np.dot(np.dot(np.conj(self.amplitudes()),
                       self.matrices.mat_dict['s_traj']),self.amplitudes()).real
 
@@ -167,6 +185,9 @@ class Wavefunction:
         """Returns the populations on each of the states."""
         pop    = np.zeros(self.traj[0].nstates, dtype=complex)
         nalive = len(self.alive)
+
+        if self.matrices is None:
+            return pop.real
 
         # live contribution
         for i in range(nalive):
@@ -199,6 +220,9 @@ class Wavefunction:
         """Returns the QM (coupled) potential energy of the wfn.
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
+        if self.matrices is None:
+            return 0.
+
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.matrices.mat_dict['v']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
@@ -217,6 +241,9 @@ class Wavefunction:
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the wfn."""
+        if self.matrices is None:
+            return 0.
+
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.matrices.mat_dict['t']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)

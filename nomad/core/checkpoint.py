@@ -11,6 +11,7 @@ import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.trajectory as trajectory
 import nomad.core.surface as surface
+import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 import nomad.integrals.centroid as centroid
 
@@ -48,7 +49,8 @@ def archive_simulation(wfn, integrals, file_name=None, create_new=False):
     write_wavefunction(chkpt, wfn, time)
 
     # write the integral information to file
-    write_integral(chkpt, integrals, time)
+    if integrals is not None:
+        write_integral(chkpt, integrals, time)
 
     # close the chkpt file
     chkpt.close()
@@ -269,7 +271,8 @@ def create(file_name, wfn, ints):
     create_wfn(chkpt, wfn, name=0)
 
     # integral group -- row information
-    create_int(chkpt, ints, name=0)
+    if ints is not None:
+        create_int(chkpt, ints, name=0)
 
     # close following initialization
     chkpt.close()
@@ -281,7 +284,7 @@ def create_basis(chkpt, wfn, name=0):
     adapt_name = 'adapt.'+str(name)
 
     if adapt_name in chkpt.keys():
-        raise ValueError('wavefunction='+wfn_name+' already exists.'+
+        raise ValueError('adapt='+adapt_name+' already exists.'+
                          'Continuing...') 
     else:
         chkpt.create_group(adapt_name)
@@ -703,6 +706,7 @@ def read_wavefunction(chkpt, time, name=0):
 
     # create the wavefunction object to hold the data
     wfn = wavefunction.Wavefunction()
+    mat = matrices.Matrices()
 
     # dimensions of these objects are not time-dependent
     wfn.time    = chkpt[wfn_name+'/time'][read_row,0]
@@ -714,6 +718,10 @@ def read_wavefunction(chkpt, time, name=0):
         if (label=='time' or label=='pop' or label=='energy'):
             continue
 
+        if label in mat.mat_dict.keys():
+            mat.set(label, chkpt[wfn_name+'/'+label][read_row,:,:]
+
+        # if we're here, we're reading a trajectory
         t_grp = wfn_name+'/'+label
         t_row = get_time_index(chkpt, t_grp, time)
 
@@ -908,12 +916,20 @@ def package_adapt(time, parent, child):
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
-    wfn_data = dict(
+    wfn_data   = dict(
         time   = np.array([wfn.time], dtype='float'),
         pop    = np.array(wfn.pop()),
         energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
-                           wfn.pot_classical(), wfn.kin_classical()])
-                    )
+                           wfn.pot_classical(), wfn.kin_classical()]))
+
+    if glbl.properties['store_matrices']:
+        wfn_data.update(tmat  = wfn.matrices.mat_dict['t'])
+        wfn_data.update(vmat  = wfn.matrices.mat_dict['v'])
+        wfn_data.update(hmat  = wfn.matrices.mat_dict['h'])
+        wfn_data.update(smat  = wfn.matrices.mat_dict['s'])
+        wfn_data.update(straj = wfn.matrices.mat_dict['s_traj'])
+        wfn_data.update(sdot  = wfn.matrices.mat_dict['sdot'])
+        wfn_data.update(heff  = wfn.matrices.mat_dict['heff'])
 
     return wfn_data
 
