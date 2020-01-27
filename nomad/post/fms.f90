@@ -12,10 +12,8 @@ module fms
   implicit none
 
   private
-  public  overlap 
-  public  ke
-  public  potential
-  public  sdot
+  public  propagate
+  public  retrieve_matrices
 
   interface potential  
     module procedure potential_taylor
@@ -100,7 +98,7 @@ module fms
       write(*, 1000)i_bat
     enddo
 
-     write(*, 1001)
+    write(*, 1001)
     return
 
 1000 format(' Propagation of simulation ',i3,' complete.')
@@ -124,16 +122,16 @@ module fms
 
     call build_hamiltonian()
 
-    s_r    = reshape( real(s(:n, :n), kind=drk), shape=(/ n*n /) )
-    s_i    = reshape( real(aimag(s(:n, :n)), kind=drk), shape=(/ n*n /) )
-    t_r    = reshape( real(t(:n, :n), kind=drk), shape=(/ n*n /) )
-    t_i    = reshape( real(aimag(t(:n, :n)), kind=drk), shape=(/ n*n /) )
-    v_r    = reshape( real(v(:n, :n), kind=drk), shape=(/ n*n /) )
-    v_i    = reshape( real(aimag(v(:n, :n)), kind=drk), shape=(/ n*n /) )
-    sdt_r  = reshape( real(sdt(:n, :n), kind=drk), shape=(/ n*n /) )
-    sdt_i  = reshape( real(aimag(sdt(:n, :n)), kind=drk), shape=(/ n*n /) )
-    heff_r = reshape( real(heff(:n, :n), kind=drk), shape=(/ n*n /) )
-    heff_i = reshape( real(aimag(heff(:n, :n)), kind=drk), shape=(/ n*n /) )
+    s_r    = reshape( real(s(:n, :n)), shape=(/ n*n /) )
+    s_i    = reshape( real(aimag(s(:n, :n))), shape=(/ n*n /) )
+    t_r    = reshape( real(t(:n, :n)), shape=(/ n*n /) )
+    t_i    = reshape( real(aimag(t(:n, :n))), shape=(/ n*n /) )
+    v_r    = reshape( real(v(:n, :n)), shape=(/ n*n /) )
+    v_i    = reshape( real(aimag(v(:n, :n))), shape=(/ n*n /) )
+    sdt_r  = reshape( real(sdt(:n, :n)), shape=(/ n*n /) )
+    sdt_i  = reshape( real(aimag(sdt(:n, :n))), shape=(/ n*n /) )
+    heff_r = reshape( real(heff(:n, :n)), shape=(/ n*n /) )
+    heff_i = reshape( real(aimag(heff(:n, :n))), shape=(/ n*n /) )
 
     return
   end subroutine retrieve_matrices
@@ -153,7 +151,11 @@ module fms
 
     n = size(traj_list)
     if(n > size(s, dim=1)) then
-      deallocate(s, t, v, sdt, heff)
+      if(allocated(s))deallocate(s)
+      if(allocated(t))deallocate(t)
+      if(allocated(v))deallocate(v)
+      if(allocated(sdt))deallocate(sdt)
+      if(allocated(heff))deallocate(heff)
       allocate(s(n,n), t(n,n), v(n,n), sdt(n,n), heff(n,n))
     endif
     allocate(h(n,n), sinv(n,n))

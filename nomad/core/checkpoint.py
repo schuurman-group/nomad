@@ -3,6 +3,7 @@ Routines for reading input files and writing log files.
 """
 import os
 import sys
+import math
 import h5py
 import ast as ast
 import shutil as shutil
@@ -138,6 +139,8 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     # if this group doesn't posses a list of times, return
     # 'none'
     if grp_name+'/time' not in chkpt:
+        print("time dataset not found in: "+str(grp_name))
+        print("steps="+str(None))
         return None
 
     # if the group name is in the checkpoint file, return
@@ -156,6 +159,7 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     if chkpt is None and file_name is not None:
         chkpt.close()
 
+    print("steps="+str(steps))
     return steps
 
 #
@@ -472,11 +476,11 @@ def convert_value(kword, val):
 
 def write_wavefunction(chkpt, wfn, time, name=0):
     """Documentation to come"""
-    wfn_data = package_wfn(wfn)
-    n_traj   = wfn.n_traj()
-    n_blk    = default_blk_size(time)
-    resize   = False
-    wfn_name = 'wavefunction.'+str(name)
+    wfn_data,wfn_type = package_wfn(wfn)
+    n_traj            = wfn.n_traj()
+    n_blk             = default_blk_size(time)
+    resize            = False
+    wfn_name          = 'wavefunction.'+str(name)
 
     # if wfn doesn't exist, add it on the fly
     if wfn_name not in chkpt.keys():
@@ -497,16 +501,21 @@ def write_wavefunction(chkpt, wfn, time, name=0):
 
         if dset in chkpt:
             if resize:
-                d_shape  = (n_rows,) + wfn_data[data_label].shape
+                d_shape  = (n_rows,) 
+                if h5py.check_dtype(vlen=wfn_type[data_label]) is None:
+                    d_shape   =  d_shape   + wfn_data[data_label].shape
                 chkpt[dset].resize(d_shape)
             chkpt[dset][current_row] = wfn_data[data_label]
 
         # if this is the first time we're trying to write this bundle,
         # create a new datasets with reasonble default sizes
         else:
-            d_shape   = (n_rows,) +  wfn_data[data_label].shape
-            max_shape = (max_dset_size(),)   + wfn_data[data_label].shape
-            d_type    = wfn_data[data_label].dtype
+            d_shape   = (n_rows,)
+            max_shape = (max_dset_size(),)
+            if h5py.check_dtype(vlen=wfn_type[data_label]) is None:
+                d_shape   =  d_shape   + wfn_data[data_label].shape
+                max_shape =  max_shape + wfn_data[data_label].shape
+            d_type    = wfn_type[data_label]
             chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
             chkpt[dset][current_row] = wfn_data[data_label]
 
@@ -601,6 +610,7 @@ def write_trajectory(chkpt, traj, time, name=0):
         current_row                       = 0
         chkpt[t_grp].attrs['current_row'] = current_row
         chkpt[t_grp].attrs['n_rows']      = n_blk
+        chkpt[t_grp].attrs['kecoef']      = traj.kecoef
         n_rows                            = chkpt[t_grp].attrs['n_rows']
 
         # store surface information from trajectory
@@ -693,9 +703,6 @@ def read_wavefunction(chkpt, time, name=0):
     masses   = glbl.properties['crd_masses']
     dim      = len(widths)
     wfn_name = 'wavefunction.'+str(name)
-    int_name = 'integral.'+str(name)
-    kecoef   = chkpt[int_name].attrs['kecoef'] #indicative of wrongess.
-                                                 #trajectory should be purged of kecoef...
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, wfn_name, time)
@@ -714,12 +721,19 @@ def read_wavefunction(chkpt, time, name=0):
     wfn_grps =  sorted([str(label) for label in chkpt[wfn_name].keys()])
     for label in wfn_grps:
 
-        #print("time = "+str(time)+" label="+str(label))
+        # these are outputs of functions -- no place to put this data
         if (label=='time' or label=='pop' or label=='energy'):
             continue
 
+        # if matrices are present, read those in
         if label in mat.mat_dict.keys():
-            mat.set(label, chkpt[wfn_name+'/'+label][read_row,:,:]
+            mat_raw = chkpt[wfn_name+'/'+label][read_row]
+            n       = math.sqrt(len(mat_raw))
+            if not math.isclose(n, int(n)):
+                sys.exit('error retrieving matrices from '+ 
+                         'read_wavefunction: n not integer')
+            mat.set(label, np.reshape(mat_raw, (int(n),int(n)), order='F'))
+            continue
 
         # if we're here, we're reading a trajectory
         t_grp = wfn_name+'/'+label
@@ -731,8 +745,7 @@ def read_wavefunction(chkpt, time, name=0):
         new_traj = trajectory.Trajectory(nstates, dim,
                                          width=widths,
                                          mass=masses,
-                                         label=label,
-                                         kecoef=kecoef)
+                                         label=label)
         read_trajectory(chkpt, new_traj, t_grp, t_row)
 
         # if there was an error reading the trajectory, return None
@@ -745,13 +758,18 @@ def read_wavefunction(chkpt, time, name=0):
 
 def read_integral(chkpt, time, name=0):
     """Documentation to come"""
+
     nstates  = glbl.properties['n_states']
     widths   = glbl.properties['crd_widths']
     dim      = len(widths)
-
-    int_name = 'integral.'+str(name)   
     ansatz   = glbl.methods['ansatz']
     numerics = glbl.methods['integral_eval'] 
+    int_name = 'integral.'+str(name)
+
+    # return None if no integrals section
+    if int_name not in chkpt:
+        return None
+
     kecoef   = chkpt[int_name].attrs['kecoef'] 
 
     # check that we have the desired time:
@@ -795,6 +813,10 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     if t_row > chkpt[t_grp].attrs['current_row']:
         new_traj = None
     else:
+        # set the kecoef vector by reading the appropriate
+        # trajectory attribute
+        new_traj.set_kecoef(chkpt[t_grp].attrs['kecoef'])
+
         # set information about the trajectory itself
         [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
         [parent, state]      = chkpt[t_grp+'/states'][t_row]
@@ -923,15 +945,27 @@ def package_wfn(wfn):
                            wfn.pot_classical(), wfn.kin_classical()]))
 
     if glbl.properties['store_matrices']:
-        wfn_data.update(tmat  = wfn.matrices.mat_dict['t'])
-        wfn_data.update(vmat  = wfn.matrices.mat_dict['v'])
-        wfn_data.update(hmat  = wfn.matrices.mat_dict['h'])
-        wfn_data.update(smat  = wfn.matrices.mat_dict['s'])
-        wfn_data.update(straj = wfn.matrices.mat_dict['s_traj'])
-        wfn_data.update(sdot  = wfn.matrices.mat_dict['sdot'])
-        wfn_data.update(heff  = wfn.matrices.mat_dict['heff'])
+        wfn_data.update(t      = wfn.matrices.mat_dict['t'].flatten(order='F'))
+        wfn_data.update(v      = wfn.matrices.mat_dict['v'].flatten(order='F'))
+        wfn_data.update(h      = wfn.matrices.mat_dict['h'].flatten(order='F'))
+        wfn_data.update(s      = wfn.matrices.mat_dict['s'].flatten(order='F'))
+        wfn_data.update(s_traj = wfn.matrices.mat_dict['s_traj'].flatten(order='F'))
+        wfn_data.update(sdot   = wfn.matrices.mat_dict['sdot'].flatten(order='F'))
+        wfn_data.update(heff   = wfn.matrices.mat_dict['heff'].flatten(order='F'))
 
-    return wfn_data
+    wfn_types  = dict(
+        time   = np.dtype('float'),
+        pop    = np.dtype('float'),
+        energy = np.dtype('float'),
+        t      = h5py.special_dtype(vlen=np.dtype('complex')),
+        v      = h5py.special_dtype(vlen=np.dtype('complex')),
+        h      = h5py.special_dtype(vlen=np.dtype('complex')),
+        s      = h5py.special_dtype(vlen=np.dtype('complex')),
+        s_traj = h5py.special_dtype(vlen=np.dtype('complex')),
+        sdot   = h5py.special_dtype(vlen=np.dtype('complex')),
+        heff   = h5py.special_dtype(vlen=np.dtype('complex')))
+
+    return wfn_data, wfn_types
 
 
 def package_integral(integral, time):

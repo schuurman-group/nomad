@@ -44,6 +44,7 @@ class Surface:
             return self.data[key]
         else:
             raise ValueError('(get_data('+str(key)+') from Surface: datum not present')
+            return None
 
     def avail_data(self):
         """Adds new item to dictionary"""

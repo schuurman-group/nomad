@@ -55,35 +55,33 @@ def main():
     # extract the time-indpendent/time-irregular information
     extract_logs(data)
 
-    # if we want all times, run through all the data
     if time is None:
         tvals = checkpoint.time_steps(file_name=chkpt_file)
-        # try reading last time -- if anything fails, read up to the penultimate
-        # time, i.e. we grabbed this checkpoint file during a write
-        # status = chk_last_write(tvals[-1])
-        status = True
+    else:
+        tvals = [read_time]
 
-        for i in range(len(tvals)):
+    # try reading last time -- if anything fails, read up to the penultimate
+    # time, i.e. we grabbed this checkpoint file during a write
+    # status = chk_last_write(tvals[-1])
+    status = True
+    for i in range(len(tvals)):
 
-            # skip the occasional duplicated entry related to restart
-            if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
-                continue
-            [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
-            if wfn is not None:
+        # skip the occasional duplicated entry related to restart
+        if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
+            continue
+        [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
+          
+        if wfn is not None:     # successfully extracted a wfn object
+            if wfn.matrices is None and ints is not None:
                 mat.build(wfn, ints)
                 wfn.update_matrices(mat)
-                extract_data(wfn, mat, data)
-            else:
-                print("could not extract wfn for time="+str(tvals[i]))
 
-    # else, print data from current bundle
-    else:
-        # read bundle for the case of a single time
-        [wfn, ints] = checkpoint.retrieve_simulation(time=read_time, file_name=chkpt_file)
-        mat.build(wfn, ints)
-        wfn.update_matrices(mat)
-        extract_data(wfn, mat, data)
+            mat = wfn.matrices
+            extract_data(wfn, mat, data)
+        else:
+            print("could not extract wfn for time="+str(tvals[i]))
 
+#-------------------------------------------------------------------------------------
 
 def chk_read(time):
     """try reading at time, if anything fails, return False"""
@@ -152,15 +150,21 @@ def extract_data(wfn, mat, dlst):
        step."""
 
     if '-all' in dlst or '-energy' in dlst:
+        if mat is None:
+            print("Warning: requisite overlap matrices unavailable. "+
+                  "Wavefunction energies will not be meaningful")
         extract_energy(wfn)
 
     if '-all' in dlst or '-pop' in dlst:
+        if mat is None:
+            print("Warning: requisite overlap matrices unavailable. "+
+                  "Wavefunction populations will not be meaningful")
         extract_pop(wfn)
 
     if '-all' in dlst or '-auto' in dlst:
         extract_auto(wfn)
 
-    if '-all' in dlst or '-matrices' in dlst:
+    if mat is not None and ('-all' in dlst or '-matrices' in dlst):
         extract_matrices(wfn, mat)
 
     if '-all' in dlst or '-trajectories' in dlst:
@@ -201,21 +205,27 @@ def extract_pop(wfn):
 def extract_auto(wfn):
     """Documentation to come"""
     global wfn0, ints
-    wfn_overlap = ints.wfn_overlap(wfn0, wfn)
-    prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.abs(wfn_overlap)]
 
-    checkpoint.print_wfn_row('auto', prnt_data)
+    if ints is not None:
+        wfn_overlap = ints.wfn_overlap(wfn0, wfn)
+        prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.abs(wfn_overlap)]
+
+        checkpoint.print_wfn_row('auto', prnt_data)
+    else:
+        print("Can't evaluate auto-correlation function without"+
+              " integrals module")
 
 #
 def extract_matrices(wfn, mat):
     """Documentation to come"""
-    checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
-    checkpoint.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
-    checkpoint.print_wfn_mat(wfn.time, 't', mat.mat_dict['t'])
-    checkpoint.print_wfn_mat(wfn.time, 'v', mat.mat_dict['v'])
-    checkpoint.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
-    checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
-    checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
+    if mat is not None:
+        checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
+        checkpoint.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
+        checkpoint.print_wfn_mat(wfn.time, 't', mat.mat_dict['t'])
+        checkpoint.print_wfn_mat(wfn.time, 'v', mat.mat_dict['v'])
+        checkpoint.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
+        checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
+        checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
 
 #
 def extract_trajectories(wfn):
@@ -234,26 +244,34 @@ def extract_trajectories(wfn):
         checkpoint.print_traj_row(label, 'traj', prnt_data)
 
         # print potential energies
-        prnt_data = [wfn.time]
-        prnt_data.extend([traj.energy(i) for i in range(traj.nstates)])
-        checkpoint.print_traj_row(label, 'poten', prnt_data)
+        if traj.check_pes_data('potential'):
+            prnt_data = [wfn.time]
+            prnt_data.extend([traj.energy(i) for i in range(traj.nstates)])
+            checkpoint.print_traj_row(label, 'poten', prnt_data)
 
         # print gradients
-        prnt_data = [wfn.time]
-        prnt_data.extend(traj.derivative(traj.state,traj.state))
-        checkpoint.print_traj_row(label, 'grad', prnt_data)
+        if traj.check_pes_data('derivative'):
+            prnt_data = [wfn.time]
+            prnt_data.extend(traj.derivative(traj.state,traj.state))
+            checkpoint.print_traj_row(label, 'grad', prnt_data)
 
         # print coupling
-        prnt_data = [wfn.time]
-        deriv_coup = [np.linalg.norm(traj.derivative(state,i)) for i in range(traj.nstates)]
-        deriv_coup[state] = 0.
-        prnt_data.extend(deriv_coup)
-        prnt_data.extend([traj.coupling(state,i) for i in range(traj.nstates)])
-        checkpoint.print_traj_row(label,'coup', prnt_data)
+        if traj.check_pes_data('derivative'):
+            prnt_data = [wfn.time]
+            deriv_coup = [np.linalg.norm(traj.derivative(state,i)) for i in range(traj.nstates)]
+            deriv_coup[state] = 0.
+            prnt_data.extend(deriv_coup)
+            if traj.check_pes_data('coupling'):
+                prnt_data.extend([traj.coupling(state,i) for i in range(traj.nstates)])
+            else:
+                prnt_data.extend([0. for i in range(traj.nstates)])
+            checkpoint.print_traj_row(label,'coup', prnt_data)
 
         # print hessian
-        #checkpoint.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
+        if traj.check_pes_data('hessian'):
+            checkpoint.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
+        return
 #
 def extract_interface_data(wfn):
     """Documentation to come"""

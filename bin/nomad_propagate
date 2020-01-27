@@ -167,9 +167,11 @@ def main():
                     ctypes.byref(convert_ctypes(ti, dtype='double')),
                     ctypes.byref(convert_ctypes(tend, dtype='double')))
 
+
     # once propagation is done, retrieve times, phase-space points and 
     # amplitudes from libprop
-    glbl.paths['chkpt_file'] = amp_archive
+    glbl.paths['chkpt_file']          = amp_archive
+    glbl.properties['store_matrices'] = True
 
     # this is temporary: only two options, fully coherent or fully incoherent
     # in the future: should be able to specify arbitrary groupings of initial
@@ -195,8 +197,6 @@ def main():
                                    ctypes.byref(n_traj),
                                    indices)
         nt = n_traj.value
-        print("time="+str(time.value)+" n_traj="+str(nt))
-        print("np.array(indices)="+str(np.array(indices[:nt])))
 
         while nt != 0:
  
@@ -234,21 +234,19 @@ def main():
                                       t_r,    t_i,
                                       v_r,    v_i,
                                       sdt_r,  sdt_i,
-                                      heff_r, heff_i,
-                                      ctypes.byref(convert_ctypes(False, dtype='logical')),
-                                      ctypes.byref(ibat),
-                                      ctypes.byref(time))
+                                      heff_r, heff_i) 
                                 
             # build up the wavefunction object
             wfn      = wavefunction.Wavefunction()
             wfn.time = time.value
             
             mats     = matrices.Matrices()
-            mats.set('s_traj', np.reshape(np.array(s_r + s_i*1j, dtype=complex), tuple([nt, nt])))
-            mats.set('t',      np.reshape(np.array(t_r + t_i*1j, dtype=complex), tuple([nt, nt])))
-            mats.set('v',      np.reshape(np.array(v_r + v_i*1j, dtype=complex), tuple([nt, nt])))
-            mats.set('sdot',   np.reshape(np.array(sdt_r + sdt_i*1j, dtype=complex), tuple([nt, nt])))
-            mats.set('heff',   np.reshape(np.array(heff_r + heff_i*1j, dtype=complex), tuple([nt, nt])))
+            s_tra    = np.array(s_r)
+            mats.set('s_traj', np.reshape(np.array(s_r) + 1j*np.array(s_i), tuple([nt, nt])))
+            mats.set('t',      np.reshape(np.array(t_r) + 1j*np.array(t_i), tuple([nt, nt])))
+            mats.set('v',      np.reshape(np.array(v_r) + 1j*np.array(v_i), tuple([nt, nt])))
+            mats.set('sdot',   np.reshape(np.array(sdt_r) + 1j*np.array(sdt_i), tuple([nt, nt])))
+            mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([nt, nt])))
             wfn.update_matrices(mats)            
 
             for itraj in range(nt):

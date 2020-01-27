@@ -167,6 +167,7 @@ class Wavefunction:
     @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
+
         if self.matrices is None:
             return -1.
 

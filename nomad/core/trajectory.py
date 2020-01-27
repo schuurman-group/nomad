@@ -162,6 +162,10 @@ class Trajectory:
     # Functions to update information about the potential energy surface
     #
     #--------------------------------------------------------------------
+    def check_pes_data(self, data_label):
+        """Check if we have energy in pes object"""
+        return data_label in self.pes.avail_data()
+
     def energy(self, state, geom_chk=True):
         """Returns the potential energies.
 
