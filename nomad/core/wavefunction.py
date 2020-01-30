@@ -123,7 +123,7 @@ class Wavefunction:
             old_amp = Ct
 
         new_amp = np.zeros(self.nalive, dtype=complex)
-        B       = -1j * self.matrices.mat_dict['heff'] * dt
+        B       = -1j * self.matrices.matrix['heff'] * dt
         umat    = sp_linalg.expm(B)
         new_amp = np.dot(umat, old_amp)
 
@@ -159,7 +159,7 @@ class Wavefunction:
         i = self.alive.index(label)
         for j in range(len(self.alive)):
             jj = self.alive[j]
-            mulliken += abs(self.matrices.mat_dict['s_traj'][i,j] *
+            mulliken += abs(self.matrices.matrix['s_traj'][i,j] *
                             self.traj[label].amplitude.conjugate() *
                             self.traj[jj].amplitude)
         return mulliken
@@ -172,7 +172,7 @@ class Wavefunction:
             return -1.
 
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.matrices.mat_dict['s_traj']),self.amplitudes()).real
+                      self.matrices.matrix['s_traj']),self.amplitudes()).real
 
     @timings.timed
     def pop(self):
@@ -189,7 +189,7 @@ class Wavefunction:
             state = self.traj[ii].state
             for j in range(nalive):
                 jj = self.alive[j]
-                popij = (self.matrices.mat_dict['s_traj'][i,j]  *
+                popij = (self.matrices.matrix['s_traj'][i,j]  *
                          self.traj[jj].amplitude *
                          self.traj[ii].amplitude.conjugate())
                 pop[state] += popij
@@ -218,7 +218,7 @@ class Wavefunction:
             return 0.
 
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.mat_dict['v']), self.amplitudes()).real
+                             self.matrices.matrix['v']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.V)),self.amplitudes()).real
@@ -239,7 +239,7 @@ class Wavefunction:
             return 0.
 
         return np.dot(np.dot(np.conj(self.amplitudes()),
-                             self.matrices.mat_dict['t']), self.amplitudes()).real
+                             self.matrices.matrix['t']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
         #                     np.dot(Sinv,self.T)),self.amplitudes()).real

@@ -108,7 +108,7 @@ def main():
          ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
 
     # pass the various run time options to the propagation library
-    t_step      = float(glbl.properties['default_time_step'])
+    t_step      = 0.5*float(glbl.properties['default_time_step'])
     full_basis  = True
     init_method = 2
     int_method  = 2
@@ -196,18 +196,18 @@ def main():
                                    ctypes.byref(time),
                                    ctypes.byref(n_traj),
                                    indices)
-        nt = n_traj.value
+        ntraj = n_traj.value
 
-        while nt != 0:
+        while ntraj != 0:
  
-            indx_lst  = convert_ctypes(np.array(indices[:nt], dtype=int), dtype='int32')
-            state_lst = convert_ctypes(np.zeros(nt, dtype=int), dtype='int32')
-            amp_r     = convert_ctypes(np.zeros(nt, dtype=float), dtype='double')
-            amp_i     = convert_ctypes(np.zeros(nt, dtype=float), dtype='double')
-            ener_lst  = convert_ctypes(np.zeros(n_states*nt, dtype=float), dtype='double')
-            x_lst     = convert_ctypes(np.zeros(n_crd*nt, dtype=float), dtype='double')
-            p_lst     = convert_ctypes(np.zeros(n_crd*nt, dtype=float), dtype='double')
-            deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*nt, dtype=float), dtype='double')
+            indx_lst  = convert_ctypes(np.array(indices[:ntraj], dtype=int), dtype='int32')
+            state_lst = convert_ctypes(np.zeros(ntraj, dtype=int), dtype='int32')
+            amp_r     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
+            amp_i     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
+            ener_lst  = convert_ctypes(np.zeros(n_states*ntraj, dtype=float), dtype='double')
+            x_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
+            p_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
+            deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*ntraj, dtype=float), dtype='double')
             libprop.retrieve_timestep(ctypes.byref(ibat),
                                       ctypes.byref(n_traj),
                                       indx_lst,  
@@ -219,16 +219,16 @@ def main():
                                       p_lst, 
                                       deriv_lst)
 
-            s_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            s_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            t_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            t_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            v_r    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            v_i    = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            sdt_r  = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            sdt_i  = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            heff_r = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')
-            heff_i = convert_ctypes(np.zeros(nt*nt, dtype=float), dtype='double')            
+            s_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            s_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            t_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            t_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            v_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            v_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            sdt_r  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            sdt_i  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            heff_r = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
+            heff_i = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')            
             libprop.retrieve_matrices(ctypes.byref(n_traj),
                                       s_r,    s_i,
                                       t_r,    t_i,
@@ -241,23 +241,23 @@ def main():
             wfn.time = time.value
             
             mats     = matrices.Matrices()
-            s_tra    = np.array(s_r)
-            mats.set('s_traj', np.reshape(np.array(s_r) + 1j*np.array(s_i), tuple([nt, nt])))
-            mats.set('t',      np.reshape(np.array(t_r) + 1j*np.array(t_i), tuple([nt, nt])))
-            mats.set('v',      np.reshape(np.array(v_r) + 1j*np.array(v_i), tuple([nt, nt])))
-            mats.set('sdot',   np.reshape(np.array(sdt_r) + 1j*np.array(sdt_i), tuple([nt, nt])))
-            mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([nt, nt])))
+            mats.set('s_traj', np.reshape(np.array(s_r) + 1j*np.array(s_i), tuple([ntraj, ntraj])))
+            mats.set('t',      np.reshape(np.array(t_r) + 1j*np.array(t_i), tuple([ntraj, ntraj])))
+            mats.set('v',      np.reshape(np.array(v_r) + 1j*np.array(v_i), tuple([ntraj, ntraj])))
+            mats.set('sdot',   np.reshape(np.array(sdt_r) + 1j*np.array(sdt_i), tuple([ntraj, ntraj])))
+            mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([ntraj, ntraj])))
             wfn.update_matrices(mats)            
 
-            for itraj in range(nt):
+            for itraj in range(ntraj):
                 
                 new_surf = surface.Surface()
                 new_traj = trajectory.Trajectory(n_states, n_crd, 
                                                  width=widths, 
                                                  mass=masses,
-                                                 label=indx_lst[itraj],
+                                                 label=int(indx_lst[itraj]),
                                                  kecoef=0.5/masses)
 
+                new_traj.state = int(state_lst[itraj])
                 new_traj.update_x(np.array(x_lst[n_crd*itraj:n_crd*(itraj+1)]))
                 new_traj.update_p(np.array(p_lst[n_crd*itraj:n_crd*(itraj+1)]))
                 new_traj.update_amplitude(complex(float(amp_r[itraj]),float(amp_i[itraj])))
@@ -283,7 +283,7 @@ def main():
                                    ctypes.byref(time),
                                    ctypes.byref(n_traj),
                                    indices)
-            nt = n_traj.value
+            ntraj = n_traj.value
 
     return
 

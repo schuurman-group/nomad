@@ -16,11 +16,12 @@ import nomad.integrals.integral as integral
 wfn0  = None
 ints0 = None
 ints  = None
+print_error = True
 
 #
 def main():
     """Runs the main nomad_extract routine."""
-    global wfn0, ints0, ints
+    global print_error, wfn0, ints0, ints
 
     chkpt_file, time, data = process_arguments(sys.argv)
 
@@ -65,6 +66,7 @@ def main():
     # status = chk_last_write(tvals[-1])
     status = True
     for i in range(len(tvals)):
+        print_error = i==0
 
         # skip the occasional duplicated entry related to restart
         if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
@@ -148,15 +150,16 @@ def extract_logs(dlst):
 def extract_data(wfn, mat, dlst):
     """extracts 'data' from checkpoint. Data is updated regularly/every time
        step."""
+    global print_error
 
     if '-all' in dlst or '-energy' in dlst:
-        if mat is None:
+        if mat is None and print_error:
             print("Warning: requisite overlap matrices unavailable. "+
                   "Wavefunction energies will not be meaningful")
         extract_energy(wfn)
 
     if '-all' in dlst or '-pop' in dlst:
-        if mat is None:
+        if mat is None and print_error:
             print("Warning: requisite overlap matrices unavailable. "+
                   "Wavefunction populations will not be meaningful")
         extract_pop(wfn)
@@ -204,36 +207,39 @@ def extract_pop(wfn):
 #
 def extract_auto(wfn):
     """Documentation to come"""
-    global wfn0, ints
+    global wfn0, ints, print_error
 
     if ints is not None:
         wfn_overlap = ints.wfn_overlap(wfn0, wfn)
-        prnt_data = [wfn.time, wfn_overlap.real, wfn_overlap.imag, np.abs(wfn_overlap)]
+        prnt_data = [wfn.time, 
+                     wfn_overlap.real, 
+                     wfn_overlap.imag, 
+                     np.abs(wfn_overlap)]
 
         checkpoint.print_wfn_row('auto', prnt_data)
     else:
-        print("Can't evaluate auto-correlation function without"+
-              " integrals module")
+        if print_error:
+            print("Can't evaluate auto-correlation function without"+
+                  " integrals module")
 
 #
 def extract_matrices(wfn, mat):
     """Documentation to come"""
     if mat is not None:
-        checkpoint.print_wfn_mat(wfn.time, 's', mat.mat_dict['s'])
-        checkpoint.print_wfn_mat(wfn.time, 'sdot', mat.mat_dict['sdot'])
-        checkpoint.print_wfn_mat(wfn.time, 't', mat.mat_dict['t'])
-        checkpoint.print_wfn_mat(wfn.time, 'v', mat.mat_dict['v'])
-        checkpoint.print_wfn_mat(wfn.time, 'h', mat.mat_dict['h'])
-        checkpoint.print_wfn_mat(wfn.time, 'heff', mat.mat_dict['heff'])
-        checkpoint.print_wfn_mat(wfn.time, 't_overlap', mat.mat_dict['s_traj'])
+        for mat_key in mat.avail():
+            if mat_key in checkpoint.bfile_names:
+                checkpoint.print_wfn_mat(wfn.time, mat_key, 
+                                         mat.matrix[mat_key])
 
 #
 def extract_trajectories(wfn):
     """Documentation to come"""
+
     for i in range(wfn.nalive):
         traj  = wfn.traj[wfn.alive[i]]
         label = traj.label
         state = traj.state
+
 
         # print trajectory file
         prnt_data = [wfn.time]
@@ -271,7 +277,7 @@ def extract_trajectories(wfn):
         if traj.check_pes_data('hessian'):
             checkpoint.print_traj_mat(wfn.time, 'hessian', traj.hessian(traj.state))
 
-        return
+    return
 #
 def extract_interface_data(wfn):
     """Documentation to come"""

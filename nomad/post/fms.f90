@@ -59,7 +59,7 @@ module fms
       allocate(c(size(prev_traj)))
       c    = init_amplitude(ti)
 
-      do while(t < tf)
+      do while(t <= tf)
         call collect_trajectories(t, batch_label, active_traj)
         
         ! if no more trajectories, exit the loop
@@ -115,8 +115,6 @@ module fms
     real(drk), intent(out)                  :: v_r(n*n),    v_i(n*n)
     real(drk), intent(out)                  :: sdt_r(n*n),  sdt_i(n*n)
     real(drk), intent(out)                  :: heff_r(n*n), heff_i(n*n)
-
-    integer(ik), allocatable                :: labels(:)
 
     if(tstep_cnt /= n) stop 'n != tstep_cnt in retrieve_matrices'
 
@@ -188,7 +186,7 @@ module fms
       enddo
     enddo
 
-    sinv = zinverse(n, s)
+    sinv = inverse_gelss(n, s)
     heff = matmul(sinv, h - I_drk*sdt)
     deallocate(h, sinv)
 

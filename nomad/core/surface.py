@@ -28,7 +28,7 @@ class Surface:
         self.data = dict()
 
     def rm_data(self, key):
-        """Adds new item to dictionary"""
+        """Removes item from surface object list"""
         del self.data[key]
 
     def add_data(self, key, value):
@@ -39,7 +39,7 @@ class Surface:
             raise KeyError('Cannot add key='+str(key)+' to Surface instance: invalid key')
 
     def get_data(self, key):
-        """Adds new item to dictionary"""
+        """Return an item, named by the label, from a surface object"""
         if key in self.data:
             return self.data[key]
         else:
@@ -47,7 +47,7 @@ class Surface:
             return None
 
     def avail_data(self):
-        """Adds new item to dictionary"""
+        """Return the items currently stored in the surface object"""
         return self.data.keys()
 
     def valid_data(self, key):

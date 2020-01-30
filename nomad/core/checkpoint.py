@@ -139,8 +139,6 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     # if this group doesn't posses a list of times, return
     # 'none'
     if grp_name+'/time' not in chkpt:
-        print("time dataset not found in: "+str(grp_name))
-        print("steps="+str(None))
         return None
 
     # if the group name is in the checkpoint file, return
@@ -159,7 +157,6 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
     if chkpt is None and file_name is not None:
         chkpt.close()
 
-    print("steps="+str(steps))
     return steps
 
 #
@@ -726,16 +723,18 @@ def read_wavefunction(chkpt, time, name=0):
             continue
 
         # if matrices are present, read those in
-        if label in mat.mat_dict.keys():
+        if label in mat.mat_list:
             mat_raw = chkpt[wfn_name+'/'+label][read_row]
             n       = math.sqrt(len(mat_raw))
             if not math.isclose(n, int(n)):
                 sys.exit('error retrieving matrices from '+ 
                          'read_wavefunction: n not integer')
+            print("label="+str(label))
             mat.set(label, np.reshape(mat_raw, (int(n),int(n)), order='F'))
             continue
 
         # if we're here, we're reading a trajectory
+        print("this should be a trajectory: "+label)
         t_grp = wfn_name+'/'+label
         t_row = get_time_index(chkpt, t_grp, time)
 
@@ -753,6 +752,9 @@ def read_wavefunction(chkpt, time, name=0):
             return None
 
         wfn.add_trajectory(new_traj.copy())
+
+    if len(mat.avail()) > 0:
+        wfn.update_matrices(mat)
 
     return wfn
 
@@ -890,6 +892,9 @@ def get_time_index(chkpt, grp_name, time):
     """Documentation to come"""
     time_vals = time_steps(chkpt=chkpt, grp_name=grp_name)
 
+    if time_vals is None:
+        return None
+
     if len(time_vals)==0:
         return None
 
@@ -944,14 +949,10 @@ def package_wfn(wfn):
         energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
                            wfn.pot_classical(), wfn.kin_classical()]))
 
-    if glbl.properties['store_matrices']:
-        wfn_data.update(t      = wfn.matrices.mat_dict['t'].flatten(order='F'))
-        wfn_data.update(v      = wfn.matrices.mat_dict['v'].flatten(order='F'))
-        wfn_data.update(h      = wfn.matrices.mat_dict['h'].flatten(order='F'))
-        wfn_data.update(s      = wfn.matrices.mat_dict['s'].flatten(order='F'))
-        wfn_data.update(s_traj = wfn.matrices.mat_dict['s_traj'].flatten(order='F'))
-        wfn_data.update(sdot   = wfn.matrices.mat_dict['sdot'].flatten(order='F'))
-        wfn_data.update(heff   = wfn.matrices.mat_dict['heff'].flatten(order='F'))
+    if glbl.properties['store_matrices'] and wfn.matrices is not None:
+        avail_mat = wfn.matrices.avail()
+        for label in wfn.matrices.avail():
+            wfn_data[label] = wfn.matrices.matrix[label].flatten(order='F')
 
     wfn_types  = dict(
         time   = np.dtype('float'),

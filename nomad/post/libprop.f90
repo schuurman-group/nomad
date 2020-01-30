@@ -49,6 +49,8 @@ module libprop
     real(drk)                     :: t_step
     ! tolerance for identifying discrete time step with a given time
     real(drk)                     :: dt_toler
+    ! polynomial regression order, currently hardwired to quadratic fit
+    integer(ik),parameter         :: fit_order=2
 
     ! if .true., construct Hamiltonian in full trajectory basis, else,
     ! incoherently average over initial conditions (i.e. indep. first. gen.)
@@ -214,6 +216,7 @@ module libprop
     real(drk), intent(in)           :: deriv(np*n_crd*n_state*n_state)
 
     integer(ik), save               :: traj_cnt = 0
+    integer(ik)                     :: n_amp
 
     ! Set and allocate the trajectory table
     traj_cnt                          = traj_cnt + 1
@@ -242,8 +245,10 @@ module libprop
     basis_table(traj_cnt)%deriv     = reshape(deriv,  (/n_crd, n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk, zero_drk/), (/2, 3, 1, 4/))
 
     ! allocate the correpsonding amplitude table
-    allocate(amp_table(traj_cnt)%time(np))
-    allocate(amp_table(traj_cnt)%amplitude(np))
+    ! for now, calculate how many slots given constant time step. This is not optimal, will fix later
+    n_amp = ceiling( (time(size(time))-time(1)) / t_step)+10
+    allocate(amp_table(traj_cnt)%time(n_amp))
+    allocate(amp_table(traj_cnt)%amplitude(n_amp))
     amp_table(traj_cnt)%time        = -1.
     amp_table(traj_cnt)%batch       = batch
     amp_table(traj_cnt)%label       = traj_cnt
@@ -279,7 +284,8 @@ module libprop
       ! if setting counters to first index
       if(first_step) amp_table(i)%current_row = 1
 
-      ! if figure out which rows contribute to this time 
+      ! determine what the time is for the next step by taking the mininum of the
+      ! current times of from the eligible trajectories
       if(time < 0 .and. amp_table(i)%current_row <= size(amp_table(i)%time)) then
         time = amp_table(i)%time(amp_table(i)%current_row)
       else
@@ -291,7 +297,6 @@ module libprop
     ! now we go through and pick trajectories with correct times
     n_traj  = 0
     indices = 0
-
     ! if time < 0, then we've exhausted our list of trajectories
     if(time >= 0) then
       do i = 1,n_bat      
@@ -330,8 +335,9 @@ module libprop
       amp_r(i) = real(amp_table(indices(i))%amplitude(row))
       amp_i(i) = aimag(amp_table(indices(i))%amplitude(row))
       ! advance the current row counter in amp_table
-      amp_table(indices(i))%current_row = amp_table(indices(i))%current_row + 1
-
+      if(amp_table(indices(i))%current_row < size(amp_table(indices(i))%time))then
+        amp_table(indices(i))%current_row = amp_table(indices(i))%current_row + 1
+      endif
     enddo
 
     call collect_trajectories(time, batch, labels)
@@ -399,8 +405,9 @@ module libprop
     integer(ik), intent(in)           :: batch
 
     integer(ik)                       :: i   ! counter variable
-    integer(ik)                       :: t_row(2) ! row in traj table correpsonding to 'time'
     integer(ik)                       :: max_traj
+    integer(ik)                       :: time_indx
+    real(drk)                         :: time_val
 
     max_traj  = traj_size(traj_list)
     tstep_cnt = 0 
@@ -411,15 +418,15 @@ module libprop
       ! initial condition we're propagating   
       if(batch > 0 .and. basis_table(i)%batch /= batch) continue  
 
-      t_row = get_time_index('traj', basis_table(i)%label, time)
+      call get_time_index('traj', i, time, time_indx, time_val)
 
-      if(t_row(1) /= 0) then
-        basis_table(i)%current_row = t_row(1)
+      if(time_indx /= -1) then
+        basis_table(i)%current_row = time_indx
         tstep_cnt                  = tstep_cnt + 1
-        if(t_row(2) == 0) then
-          if(tstep_cnt <= max_traj)call extract_trajectory(i, t_row(1), tstep_cnt)
+        if(abs(time_val-time) <= dt_toler) then
+          if(tstep_cnt <= max_traj)call extract_trajectory(i, time_indx, tstep_cnt)
         else
-          if(tstep_cnt <= max_traj)call interpolate_trajectory(i, time, t_row, tstep_cnt)
+          if(tstep_cnt <= max_traj)call interpolate_trajectory(i, time, time_indx, tstep_cnt)
         endif
       endif
 
@@ -451,48 +458,54 @@ module libprop
   end subroutine extract_trajectory
 
   !
+  ! does polynomial interpolation
   !
-  !
-  subroutine interpolate_trajectory(table_indx, time, table_row, list_indx)
+  subroutine interpolate_trajectory(table_indx, time, time_indx, list_indx)
     integer(ik), intent(in)           :: table_indx    ! index of the trajectory
     real(drk), intent(in)             :: time          ! the requested time
-    integer(ik), intent(in)           :: table_row(2)  ! closest time in table
+    integer(ik), intent(in)           :: time_indx     ! closest time in table
     integer(ik), intent(in)           :: list_indx     ! interpolated trajectory
 
-    real(drk)                         :: fac
-    integer(ik)                       :: t0,t1 
-    real(drk)                         :: delta_e(n_state)
-    real(drk)                         :: delta_g
-    real(drk)                         :: delta_x(n_crd)
-    real(drk)                         :: delta_p(n_crd)
-    real(drk)                         :: delta_deriv(n_crd,n_state,n_state)
+    integer(ik)                       :: sgn, dx1, dx2, tbnd1, tbnd2 
+    integer(ik)                       :: i,j
 
-    ! confirm that the requested can be interpolated from the 
-    ! existing data in trajctory table
-    t0  = basis_table(table_indx)%time(table_row(1))
-    t1  = basis_table(table_indx)%time(table_row(2))
-    fac = (time - t0) / (t1 - t0)
+    ! Polynomial regression using fit_order+1 points centered about the
+    ! nearest time point 
+    sgn   = int(sign(1.,time - basis_table(table_indx)%time(time_indx)))
+    ! if fit_order is odd, take extra point in direction of requested time, i.e. sgn(time-t0)
+    dx1   =  sgn*ceiling(0.5*fit_order)
+    dx2   = -sgn*floor(0.5*fit_order)
+    if(time_indx+dx1 > basis_table(table_indx)%nsteps .or. &
+       time_indx+dx2 > basis_table(table_indx)%nsteps) then
+       dx1 = dx1 + min(0, basis_table(table_indx)%nsteps - (time_indx+dx2))
+       dx2 = dx2 + min(0, basis_table(table_indx)%nsteps - (time_indx+dx1))
+    endif
+    if(time_indx+dx1 < 1 .or. time_indx+dx2 < 1) then
+       dx1 = dx1 - min(0, 1 - (time_indx+dx2))
+       dx2 = dx2 - min(0, 1 - (time_indx+dx1))
+    endif
+    tbnd1 = max(min(time_indx+dx1, time_indx+dx2),1)
+    tbnd2 = min(max(time_indx+dx1, time_indx+dx2), basis_table(table_indx)%nsteps)
 
-    delta_e      =  basis_table(table_indx)%energy(:,table_row(2)) -&
-                    basis_table(table_indx)%energy(:,table_row(1))
-    delta_g      =  basis_table(table_indx)%phase(table_row(2)) -&
-                    basis_table(table_indx)%phase(table_row(1))
-    delta_x      =  basis_table(table_indx)%x(:,table_row(2)) -&
-                    basis_table(table_indx)%x(:,table_row(1))
-    delta_p      =  basis_table(table_indx)%p(:,table_row(2)) -&
-                    basis_table(table_indx)%p(:,table_row(1))
-    delta_deriv  =  basis_table(table_indx)%deriv(:,:,:,table_row(2)) -&
-                    basis_table(table_indx)%deriv(:,:,:,table_row(1))
+    if(tbnd2-tbnd1 /= fit_order) then
+      stop 'insufficient data to interpolate trajectory'
+    endif
 
     traj_list(list_indx)%batch  = basis_table(table_indx)%batch
     traj_list(list_indx)%label  = basis_table(table_indx)%label
     traj_list(list_indx)%state  = basis_table(table_indx)%state
     traj_list(list_indx)%time   = time
-    traj_list(list_indx)%energy = basis_table(table_indx)%energy(:,table_row(1))    + fac*delta_e
-    traj_list(list_indx)%phase  = basis_table(table_indx)%phase(table_row(1))       + fac*delta_g
-    traj_list(list_indx)%x      = basis_table(table_indx)%x(:,table_row(1))         + fac*delta_x
-    traj_list(list_indx)%p      = basis_table(table_indx)%p(:,table_row(1))         + fac*delta_p
-    traj_list(list_indx)%deriv  = basis_table(table_indx)%deriv(:,:,:,table_row(1)) + fac*delta_deriv
+
+    traj_list(list_indx)%phase  = poly_fit(      fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%phase(tbnd1:tbnd2))
+    traj_list(list_indx)%energy = poly_fit_array(fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%energy(:,tbnd1:tbnd2))
+    traj_list(list_indx)%x      = poly_fit_array(fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%x(:,tbnd1:tbnd2))
+    traj_list(list_indx)%p      = poly_fit_array(fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%p(:,tbnd1:tbnd2))
+    do i = 1,n_state
+      do j = 1,i
+        traj_list(list_indx)%deriv(:,i,j) = poly_fit_array(fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%deriv(:,i,j,tbnd1:tbnd2))
+        if(i /= j) traj_list(list_indx)%deriv(:,j,i) = -traj_list(list_indx)%deriv(:,i,j)
+      enddo
+    enddo
 
     return
   end subroutine interpolate_trajectory
@@ -617,7 +630,7 @@ module libprop
 
     amps(:n,1) = c0
     B = -I_drk * H * (t_end - t_start)
-    call zexpm(n, B, U)
+    call expm_complex(n, B, U)
     amps = matmul(U, amps)
     new_amp = amps(:n,1)
 
@@ -632,27 +645,31 @@ module libprop
 
     complex(drk)                      :: amps(tstep_cnt)
     integer(ik)                       :: i 
-    integer(ik)                       :: t_row(2)  
+    integer(ik)                       :: table_indx
+    integer(ik)                       :: time_indx
+    real(drk)                         :: time_val
 
 
     ! for now, we need the dimension of the amplitude vector to
     ! be the same as the dimension of the trajectory list. So, we
     ! assume that list is accurate and pull trajectory labels from there.
     do i = 1,size(traj_list)
-      t_row    = get_time_index('amps', traj_list(i).label, time)
+
+      table_indx = traj_list(i).label
+      call get_time_index('amps', table_indx, time, time_indx, time_val)
 
       ! if time step doesn't exist, set amplitude to zero
-      if(t_row(1) == 0 .or. t_row(2) == -1) then
+      if(time_indx == -1) then
         amps(i) = zero_c
 
       ! if we have exactly this time step, use it
-      elseif(t_row(2) == 0) then
-        amps(i) = amp_table(traj_list(i).label)%amplitude(t_row(1))
+      elseif(abs(time_val - time) <= dt_toler) then
+        amps(i) = amp_table(traj_list(i).label)%amplitude(time_indx)
   
-      ! shouldn't get here.. 
+      ! else, obtain amplitude via interpolation
       else
-        print *,'undefined behavior in locate_amplitude'
-        amps(i) = zero_c
+        amps(i) = interpolate_amplitude(traj_list(i).label, time, time_indx)
+
       endif
     enddo
 
@@ -662,19 +679,48 @@ module libprop
   !
   !
   !
+  function interpolate_amplitude(amp_indx, time, time_indx) result(new_amp)
+    integer(ik), intent(in)          :: amp_indx
+    real(drk), intent(in)            :: time
+    integer(ik), intent(in)          :: time_indx
+
+    complex(drk)                     :: new_amp
+    integer(ik)                      :: sgn, dx, tbnd1, tbnd2
+
+    ! Polynomial regression using fit_order+1 points centered about the
+    ! nearest time point 
+    sgn   = int(sign(1.,time - amp_table(amp_indx)%time(time_indx)))
+    ! if fit_order is odd, take extra point in direction of requested time, i.e. sgn(time-t0)
+    dx    =  sgn*ceiling(0.5*fit_order)
+    tbnd1 = min(max(1, time_indx+dx), size(amp_table(amp_indx)%time))
+    dx    = -sgn*abs(fit_order - abs(time_indx-tbnd1))
+    tbnd2 = min(max(1, time_indx+dx), size(amp_table(amp_indx)%time))
+
+    if(abs(tbnd1 - tbnd2) /= fit_order)stop 'insufficient data to interpolate amplitude'
+
+    new_amp = poly_fit(fit_order, time, amp_table(amp_indx)%time(tbnd1:tbnd2), amp_table(amp_indx)%amplitude(tbnd1:tbnd2))
+
+    return
+  end function interpolate_amplitude
+
+  !
+  !
+  !
   subroutine update_amplitude(time, amplitudes)
     real(drk), intent(in)            :: time
     complex(drk),intent(in)          :: amplitudes(:)
 
     integer(ik)                      :: i, table_indx
-    integer(ik)                      :: row(2)   
+    integer(ik)                      :: time_indx
+    real(drk)                        :: time_val
 
     do i=1,tstep_cnt    
       table_indx = traj_list(i)%label
-      row = get_time_index('amps', table_indx, time)
-      if(row(2) > 0) stop 'trying update amplitude at unkonwn time'
-      amp_table(table_indx)%time(row(1))      = time
-      amp_table(table_indx)%amplitude(row(1)) = amplitudes(i)
+      call get_time_index('amps', table_indx, time, time_indx, time_val)
+      if(time_indx == -1) stop 'Cannot update amplitude for requested time'
+      amp_table(table_indx)%current_row          = time_indx
+      amp_table(table_indx)%time(time_indx)      = time
+      amp_table(table_indx)%amplitude(time_indx) = amplitudes(i)
     enddo
 
     return
@@ -683,96 +729,80 @@ module libprop
   !
   !
   !
-  function get_time_index(list_type, indx, time) result(rows)
+  subroutine get_time_index(list_type, indx, time, fnd_indx, fnd_time)
     character(len=4), intent(in)     :: list_type
     integer(ik), intent(in)          :: indx
     real(drk), intent(in)            :: time
+    integer(ik), intent(out)         :: fnd_indx
+    real(drk), intent(out)           :: fnd_time
 
-    real(drk)                        :: dt
-    integer(ik)                      :: rows(2)
-
-    rows = 0
+    real(drk)                        :: current_time, dt, dt_new
 
     select case(list_type)
 
       case('traj')
         ! to save searching through the table over and over again, 
         ! we'll use the previously accessed row as a starting guess
-        if(basis_table(indx)%time(basis_table(indx)%current_row) <= time)then
-          rows(1) = basis_table(indx)%current_row
+        current_time = basis_table(indx)%time(basis_table(indx)%current_row)
+        if(current_time <= time)then
+          fnd_indx = basis_table(indx)%current_row
         else
-          rows(1) = 1
+          fnd_indx = 1
         endif
 
         ! search the table for the requested time
-        dt = abs(basis_table(indx)%time(rows(1))-time) 
-        do 
-          if(rows(1) == basis_table(indx)%nsteps)exit
-          if(dt < dt_toler .or. basis_table(indx)%time(rows(1))>time) exit
-          rows(1) = rows(1) + 1
-          dt      = abs(basis_table(indx)%time(rows(1))-time)
+        ! this returns the time closest to the request time       
+        fnd_time = basis_table(indx)%time(fnd_indx)
+        dt       = abs(fnd_time-time) 
+        do
+          if(fnd_indx == basis_table(indx)%nsteps .or. dt <= dt_toler)exit
+          dt_new   = abs(basis_table(indx)%time(fnd_indx+1)-time)
+          if(dt_new > dt) exit
+          fnd_indx = fnd_indx + 1
+          fnd_time = basis_table(indx)%time(fnd_indx)
+          dt       = dt_new 
         enddo 
 
-        ! either the time exists explicitly in the table..
-        if(dt < dt_toler) then
-          continue
-        ! ...the requested time is obtained via interpolation
-        elseif(basis_table(indx)%time(rows(1)) > time) then 
-          if(rows(1) > 1) then
-            rows(2) = rows(1)
-            rows(1) = rows(2)-1
-          else
-            rows(1) = 0
-          endif
-        ! ...else the trajectory doesn't exist at the this time
-        else
-          rows(1) = 0
-        endif
+        ! if the request time sits outside the range of available times
+        ! return a fnd_indx of -1
+        if(fnd_indx == 1 .and. fnd_time > time) fnd_indx = -1
+        if(fnd_indx == basis_table(indx)%nsteps .and. fnd_time < time)fnd_indx = -1
 
       case('amps')
 
         ! to save searching through the table over and over again, 
         ! we'll use the previously accessed row as a starting guess
-        if(amp_table(indx)%time(amp_table(indx)%current_row) <= time) then
-          rows(1) = amp_table(indx)%current_row
+        current_time = amp_table(indx)%time(amp_table(indx)%current_row)
+        if(current_time <= time .and. current_time /= -1.) then
+          fnd_indx = amp_table(indx)%current_row
         else
-          rows(1) = 1
+          fnd_indx = 1
         endif
 
         ! search the table for the requested time
-        dt = abs(basis_table(indx)%time(rows(1))-time)
+        fnd_time = amp_table(indx)%time(fnd_indx)
+        dt = abs(fnd_time-time)
         do 
-          if(rows(1) == rows(1) == basis_table(indx)%nsteps) exit
-          if(dt < dt_toler .or. &
-             amp_table(indx)%time(rows(1)) == -1. .or. &
-             amp_table(indx)%time(rows(1)) > time) exit
-          rows(1) = rows(1) + 1
-          dt      = abs(amp_table(indx)%time(rows(1))-time)
+          if(fnd_indx == size(amp_table(indx)%time) .or. dt <= dt_toler .or. fnd_time==-1.) exit
+          dt_new   = abs(amp_table(indx)%time(fnd_indx+1)-time)
+          if(dt_new > dt .and. amp_table(indx)%time(fnd_indx+1) /= -1.) exit
+          fnd_indx = fnd_indx + 1
+          fnd_time = amp_table(indx)%time(fnd_indx)
+          dt       = dt_new
         enddo
-        
-        ! found the time, return the row
-        if(dt < dt_toler) then
-          continue
-        ! this is a new time, set second index to -1 (super hacky -- will fix later)
-        elseif(amp_table(indx)%time(rows(1)) == -1.) then
-          rows(2) = -1
-        ! see if we can interpolate
-        elseif(amp_table(indx)%time(rows(1)) > time) then
-          if(rows(1) > 1) then
-            rows(2) = rows(1)
-            rows(1) = rows(2)-1
-          else
-            rows(1) = 0
-          endif
-        ! else I don't know what to with this...
-        else
-          rows(1) = 0
-        endif
+
+        ! an unset time of "-1" is always allowed. If this is what is found, exit
+        if(fnd_time /= -1.) then
+          ! if the requested time is before the initial time, return fnd_indx. If time is
+          ! larger than largest existing time, return index of next open time slot.
+          if(fnd_indx == 1 .and. fnd_time > time) fnd_indx = -1
+          if(fnd_indx == size(amp_table(indx)%time) .and. fnd_time < time) fnd_indx = -1
+        endif        
 
     end select
 
     return
-  end function get_time_index
+  end subroutine get_time_index
 
   !**********************************************************************************************
   !**********************************************************************************************

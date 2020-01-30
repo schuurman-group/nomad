@@ -9,11 +9,29 @@ module math
   use accuracy
   implicit none
 
-  private
   public factorial
-  public zexpm 
-  public zinverse
-  public zsolve
+  public expm_complex 
+  public poly_fit_array
+
+  interface norm1
+    module procedure norm1_real
+    module procedure norm1_complex
+  end interface
+
+  interface solve_getrs
+    module procedure solve_getrs_real
+    module procedure solve_getrs_complex
+  end interface
+
+  interface inverse_gelss
+    module procedure inverse_gelss_real
+    module procedure inverse_gelss_complex
+  end interface
+
+  interface poly_fit
+    module procedure poly_fit_real
+    module procedure poly_fit_complex
+  end interface
 
   !
   integer(8), parameter :: pade_b(0:13,1:5) = reshape( (/ 120, 30240, 17297280, 17643225600, 64764752532480000, & 
@@ -40,7 +58,6 @@ module math
 
   !
   !
-  !
   recursive function factorial(n) result (fac)
     integer(ik), intent(in)   :: n
     integer(hik)              :: fac
@@ -51,44 +68,161 @@ module math
        fac = n * factorial(n-one_ik)
     endif
   end function factorial
-  
-  !
-  !
-  !
-  subroutine zexpm2(n, A, e_A)
-    integer(ik), intent(in)          :: n
-    complex(drk), intent(in)         :: A(n,n)
-    complex(drk), intent(out)        :: e_A(n,n)
 
-    complex(drk)                     :: Ai(n,n)
-    integer(ik)                      :: i,ordr
-    real(drk)                        :: contrib_i
-    real(drk), parameter             :: thresh = 1d-14
+  !
+  !
+  !
+  function norm1_real(matrix) result(norm)
+    real(drk), intent(in)            :: matrix(:,:)
 
-    e_A     = zero_c
-    Ai      = zero_c
-    do i = 1,n
-      e_A(i,i) = one_c
-      Ai(i,i)  = one_c
+    real(drk)                        :: norm
+    integer(ik)                      :: i, n1, n2
+
+    n1   = size(matrix, 1)
+    n2   = size(matrix, 2)
+    norm = 0.
+    do i = 1,n2
+      norm = max(norm, sum(abs(matrix(:n1,n2))))
     enddo
 
-    contrib_i = 1d0
-    ordr       = 0
-    do while(contrib_i > thresh .and. ordr<15)
-      ordr    = ordr + 1
-      Ai      = matmul(A, Ai) / factorial(ordr)
-      e_A     = e_A + Ai
-      contrib_i = sum(abs(Ai))
-      print *,'n=',ordr,' order_i=',contrib_i,' Ai=',Ai
-    enddo    
+    return
+  end function norm1_real
+
+  !
+  !
+  !
+  function norm1_complex(matrix) result(norm)
+    complex(drk), intent(in)         :: matrix(:,:)
+
+    real(drk)                        :: norm
+    integer(ik)                      :: i, n1, n2
+
+    n1   = size(matrix, 1)
+    n2   = size(matrix, 2)
+    norm = 0.
+    do i = 1,n2
+      norm = max(norm, sum(abs(matrix(:n1,n2))))
+    enddo
 
     return
-  end subroutine zexpm2
+  end function norm1_complex
+
+  !
+  !
+  !
+  function poly_fit_array(ordr, x0, x_data, y_data) result(y_fit)
+    integer(ik), intent(in)         :: ordr
+    real(drk), intent(in)           :: x0
+    real(drk), intent(in)           :: x_data(:)
+    real(drk), intent(in)           :: y_data(:,:) !y_data is nfit x npt array
+
+    real(drk), allocatable          :: y_fit(:)
+    real(drk), allocatable          :: beta(:,:)
+    real(drk), allocatable          :: X(:,:)
+    real(drk)                       :: XtX(0:ordr, 0:ordr)
+    real(drk)                       :: XtXinv(0:ordr, 0:ordr)
+    integer(ik)                     :: npt
+    integer(ik)                     :: nfit
+    integer(ik)                     :: i
+
+    npt  = size(x_data)
+    nfit = size(y_data, dim=1)
+
+    allocate(X(npt, 0:ordr))
+    allocate(beta(0:ordr, nfit))
+    allocate(y_fit(nfit))
+
+    do i = 0,ordr
+      X(:,i) = (x_data-x0)**i
+    enddo
+
+    XtX      = matmul(transpose(X), X)
+    XtXinv   = inverse_gelss_real(ordr+1, XtX)
+    beta     = matmul(XtXinv, matmul(transpose(X), transpose(y_data)))
+    y_fit    = beta(0,:)
+
+    deallocate(X, beta)
+    return
+  end function poly_fit_array
+
+  !
+  !
+  !
+  function poly_fit_real(ordr, x0, x_data, y_data) result(y_fit)
+    integer(ik), intent(in)         :: ordr
+    real(drk), intent(in)           :: x0
+    real(drk), intent(in)           :: x_data(:)
+    real(drk), intent(in)           :: y_data(:)
+
+    real(drk)                       :: y_fit
+    real(drk), allocatable          :: y_mat(:,:)
+    real(drk), allocatable          :: beta(:,:)
+    real(drk), allocatable          :: X(:,:)
+    real(drk)                       :: XtX(0:ordr, 0:ordr)
+    real(drk)                       :: XtXinv(0:ordr, 0:ordr)
+    integer(ik)                     :: npt
+    integer(ik)                     :: i
+
+    npt  = size(x_data)
+
+    allocate(X(npt, 0:ordr))
+    allocate(beta(0:ordr, 1))
+    allocate(y_mat(1, npt))
+
+    y_mat(1, :npt) = y_data(:npt)
+    do i = 0,ordr
+      X(:,i) = (x_data-x0)**i
+    enddo
+    XtX      = matmul(transpose(X), X)
+    XtXinv   = inverse_gelss_real(size(XtX, dim=1), XtX)
+    beta     = matmul(XtXinv, matmul(transpose(X), transpose(y_mat)))
+    y_fit    = beta(0,1)
+
+    deallocate(X, y_mat, beta)
+    return
+  end function poly_fit_real
+
+  !
+  !
+  !
+  function poly_fit_complex(ordr, x0, x_data, y_data) result(y_fit)
+    integer(ik), intent(in)         :: ordr
+    real(drk), intent(in)           :: x0
+    real(drk), intent(in)           :: x_data(:)
+    complex(drk), intent(in)        :: y_data(:)
+
+    complex(drk)                    :: y_fit
+    complex(drk), allocatable       :: y_mat(:,:)
+    complex(drk), allocatable       :: beta(:,:)
+    complex(drk), allocatable       :: X(:,:)
+    complex(drk)                    :: XtX(0:ordr, 0:ordr)
+    complex(drk)                    :: XtXinv(0:ordr, 0:ordr)
+    integer(ik)                     :: npt
+    integer(ik)                     :: i
+
+    npt = size(x_data)
+
+    allocate(X(npt, 0:ordr))
+    allocate(beta(0:ordr, 1))
+    allocate(y_mat(1, npt))
+
+    y_mat(1, :npt) = y_data(:npt)
+    do i = 0,ordr
+        X(:,i) = one_c*(x_data-x0)**i
+    enddo
+    XtX      = matmul(transpose(X), X)
+    XtXinv   = inverse_gelss_complex(size(XtX,dim=1), XtX)
+    beta     = matmul(XtXinv, matmul(transpose(X), transpose(y_mat)))
+    y_fit    = beta(0,1)
+
+    deallocate(X, beta, y_mat)
+    return
+  end function poly_fit_complex
 
   !
   ! This uses the 
   !
-  subroutine zexpm(n, A, e_A)
+  subroutine expm_complex(n, A, e_A)
     integer(ik), intent(in)          :: n
     complex(drk), intent(in)         :: A(n,n)
     complex(drk), intent(inout)      :: e_A(n,n)
@@ -115,7 +249,7 @@ module math
     ! pre-process to reduce the norm 
     traceA    = sum( (/ (A(i,i), i=1,n) /) )
     An(:,:,1) = A - (traceA/n)*Id
-    znormA    = znorm1(A)
+    znormA    = norm1_complex(A)
     s         = 0
 
     ! check if lower-order pade approximants have
@@ -147,21 +281,21 @@ module math
         case(13)
           s = max(0,ceiling( log(znormA/pade_theta(5)) / log(2.) ))
           An(:,:,1) = An(:,:,1) / (2.**s)
-          U        = pade_b(13,5)*An(:,:,4) + pade_b(11,5)*An(:,:,3) + pade_b(9,5)*An(:,:,2)
-          U        = matmul(An(:,:,4),U)
-          U        = U + pade_b(7,5)*An(:,:,4) + pade_b(5,5)*An(:,:,3) + pade_b(3,5)*An(:,:,2) + pade_b(1,5)*Id
-          U        = matmul(An(:,:,1),U)
+          U = pade_b(13,5)*An(:,:,4) + pade_b(11,5)*An(:,:,3) + pade_b(9,5)*An(:,:,2)
+          U = matmul(An(:,:,4),U)
+          U = U + pade_b(7,5)*An(:,:,4) + pade_b(5,5)*An(:,:,3) + pade_b(3,5)*An(:,:,2) + pade_b(1,5)*Id
+          U = matmul(An(:,:,1),U)
 
-          V        = pade_b(12,5)*An(:,:,4) + pade_b(10,5)*An(:,:,3) + pade_b(8,5)*An(:,:,2)
-          V        = matmul(An(:,:,4),V)
-          V        = V + pade_b(6,5)*An(:,:,4) + pade_b(4,5)*An(:,:,3) + pade_b(2,5)*An(:,:,2) + pade_b(0,5)*Id
+          V = pade_b(12,5)*An(:,:,4) + pade_b(10,5)*An(:,:,3) + pade_b(8,5)*An(:,:,2)
+          V = matmul(An(:,:,4),V)
+          V = V + pade_b(6,5)*An(:,:,4) + pade_b(4,5)*An(:,:,3) + pade_b(2,5)*An(:,:,2) + pade_b(0,5)*Id
       end select
 
       if(znormA <= pade_theta(i) .or. pade_ordr(i) == 13) then
-        e_A = zsolve(n, -U+V, U+V)
+        e_A = solve_getrs_complex(n, -U+V, U+V)
         residual = sum(abs(matmul(-U+V, e_A)-U-V))
         if(abs(residual) > 1d-10) then
-          e_A = zinverse(n, -U+V)
+          e_A = inverse_gelss_complex(n, -U+V)
           e_A = matmul(e_A,  U+V)
           residual = sum(abs(matmul(-U+V, e_A)-U-V))
         endif
@@ -175,31 +309,41 @@ module math
 
     enddo
 
-  end subroutine zexpm
+  end subroutine expm_complex
 
   !
   !
   !
-  function znorm1(matrix) result(norm)
-    complex(drk), intent(in)         :: matrix(:,:)
+  function solve_getrs_real(n, a, b) result(c)
+    integer(ik), intent(in)        :: n
+    real(drk), intent(in)          :: a(:,:)
+    real(drk), intent(in)          :: b(:,:)
 
-    real(drk)                        :: norm
-    integer(ik)                      :: i, n1, n2
+    external zgetrf
+    external zgetrs
+    real(drk)                      :: c(n,n)
+    real(drk)                      :: lu(n,n)
+    integer(ik)                    :: na
+    integer(ik)                    :: ipiv(n)
+    integer(ik)                    :: info
 
-    n1   = size(matrix, 1)
-    n2   = size(matrix, 2)
-    norm = 0. 
-    do i = 1,n2
-      norm = max(norm, sum(abs(matrix(:n1,n2))))
-    enddo
+    na   = n
+    lu   = a(:na, :na)
+    c    = b(:na, :na)
+
+    call dgetrf(na, na, lu, na, ipiv, info)
+    if(info /=0) stop 'error in mkl_dgetrf'
+
+    call dgetrs('N', na, na, lu, na, ipiv, c, na, info)
+    if(info /=0) stop 'error in mkl_dgetrs'
 
     return
-  end function znorm1
+  end function solve_getrs_real
 
   !
   !
   !
-  function zsolve(n, a, b) result(c)
+  function solve_getrs_complex(n, a, b) result(c)
     integer(ik), intent(in)        :: n
     complex(drk), intent(in)       :: a(:,:)
     complex(drk), intent(in)       :: b(:,:)
@@ -223,13 +367,50 @@ module math
     if(info /=0) stop 'error in mkl_zgetrs'
 
     return
-  end function zsolve
+  end function solve_getrs_complex
 
+  !
+  !
+  !
+  function inverse_gelss_real(n, a) result(b)
+    integer(ik), intent(in)         :: n
+    real(drk), intent(in)           :: a(:,:)
+
+    external gelss
+    real(drk)                       :: b(n,n)
+    real(drk)                       :: svd(n,n)
+    real(drk), allocatable          :: work(:)
+    real(drk)                       :: s(n)
+    integer(ik), save               :: lwork
+    integer(ik)                     :: i, na, info,rank
+    
+    na   = n
+    svd  = a(:na,:na)
+    b    = zero_drk
+
+    do i = 1,na
+      b(i,i) = one_drk
+    enddo
+    if(lwork < 5*na)lwork = 5*na
+    allocate(work(lwork))
+
+    call dgelss(na, na, na, svd, na, b, na, s, 100.0d0*spacing(1.0d0), &
+                             rank, work, lwork, info)
+
+    if(info == 0) then
+      lwork = int(abs(work(1)))
+    else
+      stop 'error in lapack_dgelss'
+    endif
+
+    deallocate(work)
+    return
+  end function inverse_gelss_real
 
   !
   !
   !
-  function zinverse(n, a) result(b)
+  function inverse_gelss_complex(n, a) result(b)
     integer(ik),  intent(in)        :: n
     complex(drk), intent(in)        :: a(:,:)
 
@@ -263,7 +444,7 @@ module math
 
     deallocate(work)
     return
-  end function zinverse
+  end function inverse_gelss_complex
 
 end module math 
 

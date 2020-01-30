@@ -23,30 +23,26 @@ import nomad.core.timings as timings
 class Matrices:
     """Object containing the Hamiltonian and associated matrices."""
     def __init__(self):
-        self.mat_dict = dict(
-            t      = np.empty((0, 0)),
-            v      = np.empty((0, 0)),
-            h      = np.empty((0, 0)),
-            s_traj = np.empty((0, 0)),
-            s_nuc  = np.empty((0, 0)),
-            s_elec = np.empty((0, 0)),
-            s      = np.empty((0, 0)),
-            sinv   = np.empty((0, 0)),
-            sdot   = np.empty((0, 0)),
-            heff   = np.empty((0, 0))
-                             )
+        self.mat_list = ['s','sinv','s_traj','s_nuc','s_elec',
+                         't',   'v',     'h', 'sdot',  'heff']
+        self.matrix = dict()
 
     def set(self, name, matrix):
         """Sets the matrices in the current matrix object equal
         to the passed matrix object"""
-        self.mat_dict[name] = copy.deepcopy(matrix)
+        if name in self.mat_list:
+            self.matrix[name] = copy.deepcopy(matrix)
+
+    def avail(self):
+        """returns the list of matrices included in matrix"""
+        return self.matrix.keys()
 
     def copy(self):
         """Documentation to come"""
         new_matrices = Matrices()
 
-        for typ,matrix in self.mat_dict.items():
-            new_matrices.set(typ, matrix)
+        for typ,mat in self.matrix.items():
+            new_matrices.set(typ, mat)
 
         return new_matrices
 
@@ -54,23 +50,25 @@ class Matrices:
     def build(self, wfn, integrals):
         """Builds the Hamiltonian matrix from a list of trajectories."""
         n_alive = wfn.nalive
+        m_shape = (n_alive, n_alive)
 
         if integrals.hermitian:
             n_elem  = int(n_alive * (n_alive + 1) / 2)
         else:
             n_elem  = n_alive * n_alive
 
-        if self.mat_dict['heff'].shape != (n_alive, n_alive):
-            self.mat_dict['t']       = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['v']       = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['h']       = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['s_traj']  = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['s_nuc']   = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['s_elec']  = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['s']       = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['sinv']    = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['sdot']    = np.zeros((n_alive, n_alive), dtype=complex)
-            self.mat_dict['heff']    = np.zeros((n_alive, n_alive), dtype=complex)
+        if (any([mat.shape != m_shape for typ,mat in self.matrix.items()]) or
+            len(self.avail()) != len(self.mat_list)):
+            self.matrix['t']       = np.zeros(m_shape, dtype=complex)
+            self.matrix['v']       = np.zeros(m_shape, dtype=complex)
+            self.matrix['h']       = np.zeros(m_shape, dtype=complex)
+            self.matrix['s_traj']  = np.zeros(m_shape, dtype=complex)
+            self.matrix['s_nuc']   = np.zeros(m_shape, dtype=complex)
+            self.matrix['s_elec']  = np.zeros(m_shape, dtype=complex)
+            self.matrix['s']       = np.zeros(m_shape, dtype=complex)
+            self.matrix['sinv']    = np.zeros(m_shape, dtype=complex)
+            self.matrix['sdot']    = np.zeros(m_shape, dtype=complex)
+            self.matrix['heff']    = np.zeros(m_shape, dtype=complex)
 
         # now evaluate the hamiltonian matrix
         for ij in range(n_elem):
@@ -86,60 +84,60 @@ class Matrices:
             s_elec = integrals.elec_overlap(wfn.traj[ii],wfn.traj[jj])
 
             # nuclear overlap matrix (excluding electronic component)
-            self.mat_dict['s_nuc'][i,j]  = s_nuc
+            self.matrix['s_nuc'][i,j]  = s_nuc
 
             # nuclear overlap matrix (excluding electronic component)
-            self.mat_dict['s_elec'][i,j] = s_elec
+            self.matrix['s_elec'][i,j] = s_elec
 
             # compute overlap of trajectories (different from S, which may or may
             # not involve integration in a gaussian basis
-            self.mat_dict['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj])
+            self.matrix['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj])
 
             # overlap matrix (including electronic component)
-            self.mat_dict['s'][i,j]      = integrals.s_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['s'][i,j]      = integrals.s_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # time-derivative of the overlap matrix (not hermitian in general)
-            self.mat_dict['sdot'][i,j]   = integrals.sdot_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['sdot'][i,j]   = integrals.sdot_integral(wfn.traj[ii],wfn.traj[jj],
                                                                    nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # kinetic energy matrix
-            self.mat_dict['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # potential energy matrix
-            self.mat_dict['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # Hamiltonian matrix in non-orthogonal basis
-            self.mat_dict['h'][i,j]      = self.mat_dict['t'][i,j] + self.mat_dict['v'][i,j]
+            self.matrix['h'][i,j]      = self.matrix['t'][i,j] + self.matrix['v'][i,j]
 
             # if hermitian matrix, set (j,i) indices
             if integrals.hermitian and i!=j:
-                self.mat_dict['s_nuc'][j,i]   = self.mat_dict['s_nuc'][i,j].conjugate()
-                self.mat_dict['s_elec'][j,i]  = self.mat_dict['s_elec'][i,j].conjugate()
-                self.mat_dict['s_traj'][j,i]  = self.mat_dict['s_traj'][i,j].conjugate()
-                self.mat_dict['s'][j,i]       = self.mat_dict['s'][i,j].conjugate()
-                self.mat_dict['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj], wfn.traj[ii],
-                                                nuc_ovrlp=self.mat_dict['s_nuc'][j,i],
-                                                elec_ovrlp=self.mat_dict['s_elec'][j,i])
-                self.mat_dict['t'][j,i]       = self.mat_dict['t'][i,j].conjugate()
-                self.mat_dict['v'][j,i]       = self.mat_dict['v'][i,j].conjugate()
-                self.mat_dict['h'][j,i]       = self.mat_dict['h'][i,j].conjugate()
+                self.matrix['s_nuc'][j,i]   = self.matrix['s_nuc'][i,j].conjugate()
+                self.matrix['s_elec'][j,i]  = self.matrix['s_elec'][i,j].conjugate()
+                self.matrix['s_traj'][j,i]  = self.matrix['s_traj'][i,j].conjugate()
+                self.matrix['s'][j,i]       = self.matrix['s'][i,j].conjugate()
+                self.matrix['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj], wfn.traj[ii],
+                                                nuc_ovrlp=self.matrix['s_nuc'][j,i],
+                                                elec_ovrlp=self.matrix['s_elec'][j,i])
+                self.matrix['t'][j,i]       = self.matrix['t'][i,j].conjugate()
+                self.matrix['v'][j,i]       = self.matrix['v'][i,j].conjugate()
+                self.matrix['h'][j,i]       = self.matrix['h'][i,j].conjugate()
 
         if integrals.hermitian:
             # compute the S^-1, needed to compute Heff
             timings.start('linalg.pinvh')
-            self.mat_dict['sinv'] = sp_linalg.pinvh(self.mat_dict['s'])
+            self.matrix['sinv'] = sp_linalg.pinvh(self.matrix['s'])
             #Sinv, cond = linalg.pseudo_inverse2(S)
             timings.stop('linalg.pinvh')
         else:
             # compute the S^-1, needed to compute Heff
             timings.start('hamiltonian.pseudo_inverse')
-            self.mat_dict['sinv'], cond = linalg.pseudo_inverse(self.mat_dict['s'])
+            self.matrix['sinv'], cond = linalg.pseudo_inverse(self.matrix['s'])
             timings.stop('hamiltonian.pseudo_inverse')
 
-        self.mat_dict['heff'] = np.dot( self.mat_dict['sinv'], self.mat_dict['h'] - 1j * self.mat_dict['sdot'] )
+        self.matrix['heff'] = np.dot( self.matrix['sinv'], self.matrix['h'] - 1j * self.matrix['sdot'] )
 
     def ut_ind(self,index):
         """Gets the (i,j) index of an upper triangular matrix from the
