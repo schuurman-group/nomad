@@ -4,6 +4,7 @@ Routines for propagating a wavefunction forward by a time step.
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.log as log
+import nomad.core.checkpoint as checkpoint
 import nomad.core.surface as evaluate
 import nomad.adapt.utilities as utilities
 #import nomad.core.matching_pursuit as mp
@@ -92,6 +93,14 @@ def step_wavefunction(dt):
             # update the running log
             log.print_message('t_step',[glbl.modules['wfn'].time, time_step, glbl.modules['wfn'].nalive])
             #del wfn_start
+
+            # save the simulation here, so we capture all the
+            # intermediate time steps as well 
+            if glbl.mpi['rank'] == 0:
+                # update the checkpoint, if necessary
+                checkpoint.archive_simulation(glbl.modules['wfn'],
+                                          glbl.modules['integrals'])
+
 
         else:
             # recall -- this time trying to propagate to the failed step

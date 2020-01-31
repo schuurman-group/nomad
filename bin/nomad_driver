@@ -83,10 +83,10 @@ def main():
             break
 
         # determine whether it is necessary to update the output logs
-        if glbl.mpi['rank'] == 0:
+#        if glbl.mpi['rank'] == 0:
             # update the checkpoint, if necessary
-            checkpoint.archive_simulation(glbl.modules['wfn'],
-                                          glbl.modules['integrals'])
+#            checkpoint.archive_simulation(glbl.modules['wfn'],
+#                                          glbl.modules['integrals'])
 
     # clean up, stop the global timer and write logs
     log.cleanup_end()

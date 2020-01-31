@@ -729,12 +729,10 @@ def read_wavefunction(chkpt, time, name=0):
             if not math.isclose(n, int(n)):
                 sys.exit('error retrieving matrices from '+ 
                          'read_wavefunction: n not integer')
-            print("label="+str(label))
             mat.set(label, np.reshape(mat_raw, (int(n),int(n)), order='F'))
             continue
 
         # if we're here, we're reading a trajectory
-        print("this should be a trajectory: "+label)
         t_grp = wfn_name+'/'+label
         t_row = get_time_index(chkpt, t_grp, time)
 

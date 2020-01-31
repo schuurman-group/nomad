@@ -84,6 +84,7 @@ module libprop
       real(drk), allocatable      :: x(:)
       real(drk), allocatable      :: p(:)
       real(drk), allocatable      :: deriv(:,:,:)
+      real(drk), allocatable      :: coup(:,:)
     end type trajectory
     !
     ! this data type holds all the trajectory data
@@ -104,6 +105,7 @@ module libprop
       real(drk),allocatable       :: x(:,:)
       real(drk),allocatable       :: p(:,:)
       real(drk),allocatable       :: deriv(:,:,:,:)
+      real(drk),allocatable       :: coup(:,:,:)
     end type trajectory_table
     !
     !
@@ -204,7 +206,7 @@ module libprop
   !
   !
   !
-  subroutine add_trajectory(batch, np, state, widths, masses, time, phase, energy, x, p, deriv) bind(c, name='add_trajectory')
+  subroutine add_trajectory(batch, np, state, widths, masses, time, phase, energy, x, p, deriv, coup) bind(c, name='add_trajectory')
     integer(ik), intent(in)         :: batch
     integer(ik), intent(in)         :: np !number of time steps
     integer(ik), intent(in)         :: state
@@ -214,6 +216,7 @@ module libprop
     real(drk), intent(in)           :: phase(np)
     real(drk), intent(in)           :: energy(np*n_state), x(np*n_crd), p(np*n_crd)
     real(drk), intent(in)           :: deriv(np*n_crd*n_state*n_state)
+    real(drk), intent(in)           :: coup(np*n_state*n_state)
 
     integer(ik), save               :: traj_cnt = 0
     integer(ik)                     :: n_amp
@@ -234,6 +237,7 @@ module libprop
     allocate(basis_table(traj_cnt)%x(n_crd, np))
     allocate(basis_table(traj_cnt)%p(n_crd, np))
     allocate(basis_table(traj_cnt)%deriv(n_state, n_state, n_crd, np))
+    allocate(basis_table(traj_cnt)%coup(n_state, n_state, np))
 
     basis_table(traj_cnt)%widths    = widths
     basis_table(traj_cnt)%masses    = masses
@@ -243,6 +247,7 @@ module libprop
     basis_table(traj_cnt)%x         = reshape(x,      (/n_crd, np/))
     basis_table(traj_cnt)%p         = reshape(p,      (/n_crd, np/))
     basis_table(traj_cnt)%deriv     = reshape(deriv,  (/n_crd, n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk, zero_drk/), (/2, 3, 1, 4/))
+    basis_table(traj_cnt)%coup      = reshape(coup,   (/n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk/), (/2, 1, 3/))
 
     ! allocate the correpsonding amplitude table
     ! for now, calculate how many slots given constant time step. This is not optimal, will fix later
@@ -313,7 +318,7 @@ module libprop
   !
   !
   ! 
-  subroutine retrieve_timestep(batch, n, indices, states, amp_r, amp_i, eners, x, p, deriv) bind(c, name='retrieve_timestep')
+  subroutine retrieve_timestep(batch, n, indices, states, amp_r, amp_i, eners, x, p, deriv, coup) bind(c, name='retrieve_timestep')
     integer(ik), intent(in)                 :: batch
     integer(ik), intent(in)                 :: n
     integer(ik), intent(in)                 :: indices(n)
@@ -324,8 +329,9 @@ module libprop
     real(drk), intent(out)                  :: x(n*n_crd)
     real(drk), intent(out)                  :: p(n*n_crd)
     real(drk), intent(out)                  :: deriv(n*n_crd*n_state*n_state)
+    real(drk), intent(out)                  :: coup(n*n_state*n_state)
 
-    integer(ik)                             :: i, row, dlen
+    integer(ik)                             :: i, row, dlen, clen
     real(drk)                               :: time
     integer(ik), allocatable                :: labels(:)
 
@@ -345,6 +351,7 @@ module libprop
     if(tstep_cnt /= n) stop 'disagreement in retrieve_timestep n /= tstep_cnt'
 
     dlen = n_crd*n_state*n_state
+    clen = n_state*n_state
     do i = 1,tstep_cnt
       if(indices(i) /= traj_list(i)%label) stop 'indices(i) /= label: unpredictable results possible'
       states(i)                        = traj_list(i)%state-1 ! convert back to python numbering
@@ -352,6 +359,7 @@ module libprop
       x(n_crd*(i-1)+1:n_crd*i)         = traj_list(i)%x
       p(n_crd*(i-1)+1:n_crd*i)         = traj_list(i)%p
       deriv(dlen*(i-1)+1:dlen*i)       = reshape(traj_list(i)%deriv, shape=(/ dlen /))
+      coup(clen*(i-1)+1:clen*i)        = reshape(traj_list(i)%coup, shape=(/ clen /))
     enddo
 
     return
@@ -453,7 +461,8 @@ module libprop
     traj_list(indx)%x      = basis_table(table_indx)%x(:,t_row)
     traj_list(indx)%p      = basis_table(table_indx)%p(:,t_row)
     traj_list(indx)%deriv  = basis_table(table_indx)%deriv(:,:,:,t_row)
-    
+    traj_list(indx)%coup   = basis_table(table_indx)%coup(:,:,t_row)    
+
     return
   end subroutine extract_trajectory
 
@@ -503,7 +512,11 @@ module libprop
     do i = 1,n_state
       do j = 1,i
         traj_list(list_indx)%deriv(:,i,j) = poly_fit_array(fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%deriv(:,i,j,tbnd1:tbnd2))
-        if(i /= j) traj_list(list_indx)%deriv(:,j,i) = -traj_list(list_indx)%deriv(:,i,j)
+        traj_list(list_indx)%coup(i,j)    = poly_fit(      fit_order, time, basis_table(table_indx)%time(tbnd1:tbnd2), basis_table(table_indx)%coup(i,j,tbnd1:tbnd2))
+        if(i /= j) then
+          traj_list(list_indx)%deriv(:,j,i) = -traj_list(list_indx)%deriv(:,i,j)
+          traj_list(list_indx)%coup(j,i)    = -traj_list(list_indx)%coup(i,j)
+        endif
       enddo
     enddo
 
@@ -526,6 +539,7 @@ module libprop
       allocate(traj_list(i_traj)%x(n_crd))
       allocate(traj_list(i_traj)%p(n_crd))
       allocate(traj_list(i_traj)%deriv(n_crd, n_state, n_state))
+      allocate(traj_list(i_traj)%coup(n_state, n_state))
     enddo
 
     return
@@ -543,6 +557,7 @@ module libprop
       deallocate(traj_list(i_traj)%x)
       deallocate(traj_list(i_traj)%p)
       deallocate(traj_list(i_traj)%deriv)
+      deallocate(traj_list(i_traj)%coup)
     enddo
 
     if(allocated(traj_list))deallocate(traj_list)

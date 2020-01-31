@@ -193,34 +193,6 @@ module fms
     return
   end subroutine build_hamiltonian
 
-  !
-  !
-  !
-  function determine_populations(amp) result(pops)
-    complex(drk), intent(in)         :: amp(:)
-
-    complex(drk)                     :: pops(n_state)
-    complex(drk),allocatable         :: Sij(:,:)
-    integer(ik)                      :: st, n_traj
-    integer(ik)                      :: i, j
-
-    n_traj = size(traj_list) 
-    pops   = zero_drk
-    allocate(Sij(n_traj, n_traj))
-    Sij = overlap_mat(traj_list)
-
-    do i = 1,n_traj
-      do j = 1,n_traj
-        st       = traj_list(i)%state
-        pops(st) = pops(st) + conjg(amp(i))*amp(j)*Sij(i,j)
-      enddo
-    enddo
-
-    pops = pops / sum(pops)
-
-    return
-  end function determine_populations
-
   !***********************************************************************
   ! Numerical routines for evaluating matrix elements
   !

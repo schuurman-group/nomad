@@ -124,7 +124,8 @@ def main():
     # objects and add each trajectory to the dll
     t_max  = 0.
     batch  = 0
-    dsets  = ['states','phase','potential','geom','momentum','derivative']
+    dsets  = ['states',       'phase', 'potential','geom',
+              'momentum','derivative', 'coupling']
     wfn_keys = [key_val for key_val in chkpt.keys() 
                                     if 'wavefunction' in key_val]
 
@@ -208,6 +209,7 @@ def main():
             x_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
             p_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
             deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*ntraj, dtype=float), dtype='double')
+            coup_lst  = convert_ctypes(np.zeros(n_states*n_states*ntraj, dtype=float), dtype='double')
             libprop.retrieve_timestep(ctypes.byref(ibat),
                                       ctypes.byref(n_traj),
                                       indx_lst,  
@@ -217,7 +219,8 @@ def main():
                                       ener_lst, 
                                       x_lst, 
                                       p_lst, 
-                                      deriv_lst)
+                                      deriv_lst,
+                                      coup_lst)
 
             s_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
             s_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
@@ -263,14 +266,21 @@ def main():
                 new_traj.update_amplitude(complex(float(amp_r[itraj]),float(amp_i[itraj])))
 
                 new_surf.add_data('geom', new_traj.x())
-                new_surf.add_data('potential', np.array(ener_lst[n_states*itraj:n_states*(itraj+1)]) + 
-                                               glbl.properties['pot_shift'])
+                new_surf.add_data('potential', np.array(ener_lst[n_states*itraj:n_states*(itraj+1)]))
 
-                dlen = n_crd * n_states * n_states
+                dlen  = n_crd * n_states * n_states
                 deriv = np.reshape(np.array(deriv_lst[dlen*itraj:dlen*(itraj+1)]), 
                                             tuple([n_crd, n_states, n_states]))
                 new_surf.add_data('derivative', deriv)
+
+                clen  = n_states * n_states
+                coup  = np.reshape(np.array(coup_lst[clen*itraj:clen*(itraj+1)]), 
+                                            tuple([n_states, n_states]))
+                new_surf.add_data('coupling', coup)
+
                 new_traj.update_pes_info(new_surf)
+
+        
 
                 wfn.add_trajectory(new_traj, relabel=False)
 

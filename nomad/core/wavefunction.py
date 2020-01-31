@@ -126,6 +126,11 @@ class Wavefunction:
         B       = -1j * self.matrices.matrix['heff'] * dt
         umat    = sp_linalg.expm(B)
         new_amp = np.dot(umat, old_amp)
+        if self.time > 350. and self.time < 450.:
+            print("bmat="+str(B))
+            print("time="+str(self.time))
+            print("umat="+str(umat))
+            print("new_amp="+str(new_amp))
 
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
