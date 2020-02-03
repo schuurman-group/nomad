@@ -33,7 +33,7 @@ def step_wavefunction(dt):
                             glbl.modules['wfn'].time)
     min_time_step = dt / 2.**5
 
-    while not step_complete(glbl.modules['wfn'].time, end_time, dt):
+    while not step_complete(glbl.modules['wfn'].time, end_time, time_step):
         # save the wavefunction from previous step in case step rejected
         wfn_start = glbl.modules['wfn'].copy()
 
@@ -41,7 +41,7 @@ def step_wavefunction(dt):
         time_step = min(time_step, end_time-glbl.modules['wfn'].time)
 
         # propagate amplitudes for 1/2 time step using x0
-        glbl.modules['wfn'].update_amplitudes(0.5*dt)
+        glbl.modules['wfn'].update_amplitudes(0.5*time_step)
 
         # the propagators update the potential energy surface as need be.
         glbl.modules['propagator'].propagate_wfn(glbl.modules['wfn'], time_step)
@@ -53,7 +53,7 @@ def step_wavefunction(dt):
         # propagate amplitudes for 1/2 time step using x1
         glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
-        glbl.modules['wfn'].update_amplitudes(0.5*dt)
+        glbl.modules['wfn'].update_amplitudes(0.5*time_step)
 
         # Renormalization
         if glbl.properties['renorm'] == 1:

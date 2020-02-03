@@ -12,8 +12,9 @@ module libprop
    public init_trajectories
    public set_parameters
    public add_trajectory
-   public next_timestep_info
+   public timestep_info
    public retrieve_timestep
+   public next_timestep
 
    public collect_trajectories
    public locate_trajectory
@@ -25,6 +26,9 @@ module libprop
    public normalize_amplitude
 
    public get_time_index
+   public get_current_time
+   public step_current_time
+
    public tr_potential
    public tr_kinetic
    public tr_velocity
@@ -265,55 +269,17 @@ module libprop
   !
   !
   !
-  subroutine next_timestep_info(first_step, batch, time, n_traj, indices) bind(c, name='next_timestep_info')
-    logical, intent(in)                  :: first_step
+  subroutine timestep_info(first_time, batch, time, n_traj, indices) bind(c, name='timestep_info')
+    logical, intent(in)                  :: first_time
     integer(ik), intent(in)              :: batch
     real(drk), intent(out)               :: time
     integer(ik), intent(out)             :: n_traj
     integer(ik), intent(out)             :: indices(n_total)
 
-    integer(ik)                          :: i, n_bat
-    integer(ik)                          :: indx_raw(size(amp_table))
-
-    time     = -1.
-    indx_raw = 0
-    n_bat    = 0
-    do i = 1,size(amp_table)
-
-      ! if this is not selected batch, move on to next one
-      if(batch > 0 .and. amp_table(i)%batch /= batch) continue
-     
-      n_bat           = n_bat + 1
-      indx_raw(n_bat) = i
-
-      ! if setting counters to first index
-      if(first_step) amp_table(i)%current_row = 1
-
-      ! determine what the time is for the next step by taking the mininum of the
-      ! current times of from the eligible trajectories
-      if(time < 0 .and. amp_table(i)%current_row <= size(amp_table(i)%time)) then
-        time = amp_table(i)%time(amp_table(i)%current_row)
-      else
-        time = min(time, amp_table(i)%time(amp_table(i)%current_row))
-      endif
-
-    enddo
-
-    ! now we go through and pick trajectories with correct times
-    n_traj  = 0
-    indices = 0
-    ! if time < 0, then we've exhausted our list of trajectories
-    if(time >= 0) then
-      do i = 1,n_bat      
-        if( abs(amp_table(indx_raw(i))%time(amp_table(i)%current_row) - time) < mp_drk) then
-          n_traj          = n_traj + 1
-          indices(n_traj) = indx_raw(i)
-        endif
-      enddo
-    endif
+    call get_current_time(first_time, 'amps', batch, time, n_traj, indices)
 
     return
-  end subroutine next_timestep_info
+  end subroutine timestep_info
 
   !
   !
@@ -340,10 +306,6 @@ module libprop
       time     = amp_table(indices(i))%time(row)
       amp_r(i) = real(amp_table(indices(i))%amplitude(row))
       amp_i(i) = aimag(amp_table(indices(i))%amplitude(row))
-      ! advance the current row counter in amp_table
-      if(amp_table(indices(i))%current_row < size(amp_table(indices(i))%time))then
-        amp_table(indices(i))%current_row = amp_table(indices(i))%current_row + 1
-      endif
     enddo
 
     call collect_trajectories(time, batch, labels)
@@ -364,6 +326,20 @@ module libprop
 
     return
   end subroutine retrieve_timestep
+
+  !
+  !
+  !
+  subroutine next_timestep(n, indices, done) bind(c, name='next_timestep')
+    integer(ik), intent(in)                 :: n
+    integer(ik), intent(in)                 :: indices(n)
+    logical, intent(out)                    :: done
+
+    done = step_current_time('amps', n, indices)
+
+    return
+  end subroutine next_timestep
+
 
   !****************************************************************************************
   !****************************************************************************************
@@ -582,7 +558,7 @@ module libprop
     select case(init_amps)
       case('overlap ')
         do i = 1,size(traj_list)
-          amps(i)   = nuc_overlap(ref_traj, traj_list(i))
+          amps(i)   = nuc_overlap(traj_list(i), ref_traj)
         enddo
 
       case('uniform ')
@@ -744,6 +720,129 @@ module libprop
   !
   !
   !
+  subroutine get_current_time(first_time, list_type, batch, time, n_fnd, indices)
+    logical, intent(in)              :: first_time
+    character(len=4), intent(in)     :: list_type
+    integer(ik), intent(in)          :: batch
+    real(drk), intent(out)           :: time
+    integer(ik), intent(out)         :: n_fnd
+    integer(ik), intent(out)         :: indices(:)
+
+    integer(ik)                      :: i
+    integer(ik)                      :: n_test
+    integer(ik)                      :: i_max
+    integer(ik)                      :: index_test(n_total)
+
+    i_max  = size(indices)
+    time   = -1.
+    n_fnd  = 0
+    n_test = 0
+    select case(list_type)
+
+      case('traj')
+        do i = 1,n_total
+
+          ! if this is not selected batch, move on to next one
+          if(batch > 0 .and. basis_table(i)%batch /= batch) continue
+          
+          ! if setting counters to first index
+          if(first_time) basis_table(i)%current_row = 1
+
+          ! add this indx to indices to check after time established
+          n_test             = n_test + 1
+          index_test(n_test) = i 
+
+          ! determine what the time is for the next step by taking the mininum of the
+          ! current times of from the eligible trajectories
+          if(time < 0 .and. basis_table(i)%current_row <= basis_table(i)%nsteps) then
+            time = basis_table(i)%time(basis_table(i)%current_row)
+          else
+            time = min(time, basis_table(i)%time(basis_table(i)%current_row))
+          endif
+        enddo
+
+        do i = 1,n_test
+          if( abs(basis_table(index_test(i))%time(basis_table(index_test(i))%current_row)-time) < mp_drk) then
+            n_fnd          = n_fnd + 1
+            if(n_fnd <= i_max)indices(n_fnd) = index_test(i)
+          endif
+        enddo 
+
+      case('amps')
+        do i = 1,n_total
+
+          ! if this is not selected batch, move on to next one
+          if(batch > 0 .and. amp_table(i)%batch /= batch) continue
+
+          ! if setting counters to first index
+          if(first_time) amp_table(i)%current_row = 1
+
+          ! add this indx to idices to check after time established
+          n_test             = n_test + 1
+          index_test(n_test) = i
+
+          ! determine what the time is for the next step by taking the mininum of the
+          ! current times of from the eligible trajectories
+          if(time < 0. .and. amp_table(i)%current_row <= size(amp_table(i)%time)) then
+            time = amp_table(i)%time(amp_table(i)%current_row)
+          elseif(amp_table(i)%time(amp_table(i)%current_row) >= 0.)then
+            time = min(time, amp_table(i)%time(amp_table(i)%current_row))
+          endif
+        enddo
+
+        if(time >= 0.)then
+          do i = 1,n_test
+            if( abs(amp_table(index_test(i))%time(amp_table(index_test(i))%current_row)-time) < mp_drk) then
+              n_fnd          = n_fnd + 1
+              if(n_fnd <= i_max)indices(n_fnd) = index_test(i)
+            endif
+          enddo
+        endif 
+
+      end select
+
+      return
+  end subroutine get_current_time
+
+  !
+  ! Iterate all current_row pointers which are <= value of time by "1"
+  !
+  function step_current_time(list_type, n_step, indices) result(done)
+    character(len=4), intent(in)     :: list_type
+    integer(ik), intent(in)          :: n_step
+    integer(ik), intent(in)          :: indices(:)
+ 
+    integer(ik)                      :: i
+    logical                          :: done
+ 
+    if(size(indices) < n_step) stop 'ERROR in step_current_time: n_step > size(indices)'
+    done = .true.
+
+    select case(list_type)
+      case('traj')
+        do i = 1,n_step
+          if(basis_table(indices(i))%current_row < basis_table(indices(i))%nsteps) then
+            basis_table(indices(i))%current_row = basis_table(indices(i))%current_row + 1
+            done = .false.
+          endif
+        enddo
+
+      case('amps')
+        do i = 1,n_step
+          if(amp_table(indices(i))%current_row < size(amp_table(indices(i))%time)) then
+            amp_table(indices(i))%current_row = amp_table(indices(i))%current_row + 1
+            done = .false.
+          endif
+        enddo
+    end select
+    
+    return
+  end function step_current_time
+
+
+  !
+  !
+  !
   subroutine get_time_index(list_type, indx, time, fnd_indx, fnd_time)
     character(len=4), intent(in)     :: list_type
     integer(ik), intent(in)          :: indx
@@ -751,6 +850,8 @@ module libprop
     integer(ik), intent(out)         :: fnd_indx
     real(drk), intent(out)           :: fnd_time
 
+    real(drk), allocatable           :: time_buf(:)
+    complex(drk), allocatable        :: amp_buf(:)
     real(drk)                        :: current_time, dt, dt_new
 
     select case(list_type)
@@ -808,10 +909,29 @@ module libprop
 
         ! an unset time of "-1" is always allowed. If this is what is found, exit
         if(fnd_time /= -1.) then
+
+          ! if fnd_indx is bigger than the amplitude table, expand the table
+          if(fnd_indx == size(amp_table(indx)%time) .and. fnd_time < time) then
+            allocate(time_buf(size(amp_table(indx)%time)))
+            allocate(amp_buf(size(amp_table(indx)%amplitude)))
+            time_buf = amp_table(indx)%time
+            amp_buf  = amp_table(indx)%amplitude
+            deallocate(amp_table(indx)%time)
+            deallocate(amp_table(indx)%amplitude)
+            allocate(amp_table(indx)%time(floor(1.5*size(time_buf))))
+            allocate(amp_table(indx)%amplitude(floor(1.5*size(amp_buf))))
+            amp_table(indx)%time                       = -1.
+            amp_table(indx)%amplitude                  = zero_c
+            amp_table(indx)%time(1:size(time_buf))     = time_buf
+            amp_table(indx)%amplitude(1:size(amp_buf)) = amp_buf
+            fnd_indx = fnd_indx + 1
+            fnd_time = amp_table(indx)%time(fnd_indx)
+            deallocate(time_buf, amp_buf)
+          endif
+
           ! if the requested time is before the initial time, return fnd_indx. If time is
           ! larger than largest existing time, return index of next open time slot.
           if(fnd_indx == 1 .and. fnd_time > time) fnd_indx = -1
-          if(fnd_indx == size(amp_table(indx)%time) .and. fnd_time < time) fnd_indx = -1
         endif        
 
     end select
