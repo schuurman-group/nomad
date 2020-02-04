@@ -35,13 +35,11 @@ module fms
   !
   subroutine propagate(ti , tf) bind(c, name='propagate')
     real(drk), intent(in)         :: ti, tf !initial and final propagation times
-    real(drk)                     :: t, t_old, time_step
+    real(drk)                     :: t, t_step
     integer(ik)                   :: n_runs, i_bat, batch_label
-    integer(ik)                   :: nfunc
-    integer(ik), allocatable      :: indices(:)
     complex(drk), allocatable     :: c(:)
     integer(ik), allocatable      :: prev_traj(:), active_traj(:)
-    logical                       :: done, update_traj
+    logical                       :: update_traj
 
     if(full_basis) then
       n_runs      = 1
@@ -49,7 +47,6 @@ module fms
     else
       n_runs = n_batch
     endif
-    allocate(indices(100))
 
     update_traj = .false.
 
@@ -57,18 +54,13 @@ module fms
 
       if(.not.full_basis) batch_label = i_bat
 
-      done = .false.
-      time_step = t_step
-      call get_current_time(.true., 'traj', batch_label, t, nfunc, indices)
       call collect_trajectories(ti, batch_label, prev_traj)
-!      t = ti
-!      call collect_trajectories(ti, batch_label, prev_traj)
-     
-
       allocate(c(size(prev_traj)))
-      c    = init_amplitude(ti)
+      c      = init_amplitude(ti)
+      t      = ti
+      t_step = time_step(batch_label, t) - t
 
-      do while(.not.done)
+      do while(t <= tf)
         call collect_trajectories(t, batch_label, active_traj)
         
         ! if no more trajectories, exit the loop
@@ -77,12 +69,11 @@ module fms
         ! if the basis has changed in any way, make sure the basis label order
         ! in c matches the new trajectory list. Currently, 'update_basis' will
         ! change prev_traj to active_traj once update is complete. 
+        update_traj = .false.
         if(size(active_traj) /= size(prev_traj)) then
           update_traj = .true.
         elseif(.not.all(active_traj == prev_traj)) then
           update_traj = .true.
-        else
-          update_traj = .false.
         endif
 
         if(update_traj) then
@@ -96,17 +87,13 @@ module fms
 
         call build_hamiltonian()
         if(t > ti) then
-          c = propagate_amplitude(c, Heff, t-0.5*time_step, t)
+          c = propagate_amplitude(c, Heff, t-0.5*t_step, t)
           call update_amplitude(t, c)
         endif
 
-        c = propagate_amplitude(c, Heff, t, t+0.5*time_step)
-
-        done = step_current_time('traj', nfunc, indices)
-        t_old = t
-        call get_current_time(.false., 'traj', batch_label, t, nfunc, indices)
-        time_step = t - t_old
-!        t = t + t_step
+        c      = propagate_amplitude(c, Heff, t, t+0.5*t_step)
+        t_step = time_step(batch_label, t) - t
+        t      = t + t_step
       enddo
 
       write(*, 1000)i_bat

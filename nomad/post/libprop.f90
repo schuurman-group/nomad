@@ -15,6 +15,7 @@ module libprop
    public timestep_info
    public retrieve_timestep
    public next_timestep
+   public time_step
 
    public collect_trajectories
    public locate_trajectory
@@ -49,8 +50,6 @@ module libprop
     integer(ik)                   :: n_state
     ! the trajectory count for the _current timestep_
     integer(ik)                   :: tstep_cnt
-    ! default time step used in simulation
-    real(drk)                     :: t_step
     ! tolerance for identifying discrete time step with a given time
     real(drk)                     :: dt_toler
     ! polynomial regression order, currently hardwired to quadratic fit
@@ -67,6 +66,12 @@ module libprop
     ! implemented integration schemes
     character(len=6),parameter    :: integral_methods(1:3) = (/'saddle',  'taylor', 'dirac '/)
     character(len=6)              :: integrals
+    ! allowed time step determination methods
+    character(len=7),parameter    :: timestep_methods(1:2) = (/'nascent', 'static '/)
+    character(len=7)              :: timestep
+    real(drk)                     :: default_tstep
+
+
     integer(ik)                   :: integral_ordr
 
     ! widths are genereally _not_ time- or trajectory-dependent. Let's put this here for now
@@ -178,16 +183,26 @@ module libprop
   !
   !
   !
-  subroutine set_parameters(time_step, coherent, init_method, int_method, int_order) bind(c, name='set_parameters')
-    real(drk), intent(in)           :: time_step
+  subroutine set_parameters(default_timestep, coherent, tstep_method, init_method, int_method, int_order) bind(c, name='set_parameters')
+    real(drk), intent(in)           :: default_timestep
     logical, intent(in)             :: coherent
+    integer(ik), intent(in)         :: tstep_method
     integer(ik), intent(in)         :: init_method
     integer(ik), intent(in)         :: int_method
     integer(ik), intent(in)         :: int_order
 
-    t_step     = time_step
-    dt_toler   = 0.01 * t_step
-    full_basis = coherent
+    default_tstep = default_timestep
+    dt_toler      = 0.01 * default_tstep
+    full_basis    = coherent
+    timestep      = timestep_methods(1)
+    init_amps     = initial_conds(1)
+    integrals     = integral_methods(1) 
+
+    if(tstep_method <= size(timestep_methods)) then
+      timestep = timestep_methods(tstep_method)
+    else
+      stop 'time step method not recognized'
+    endif
 
     if(init_method <= size(initial_conds)) then
       init_amps = initial_conds(init_method)
@@ -255,7 +270,11 @@ module libprop
 
     ! allocate the correpsonding amplitude table
     ! for now, calculate how many slots given constant time step. This is not optimal, will fix later
-    n_amp = ceiling( (time(size(time))-time(1)) / t_step)+10
+    if(timestep == 'nascent') then
+      n_amp = np + 1
+    elseif(timestep == 'static ') then
+      n_amp = ceiling( (time(size(time))-time(1)) / default_tstep) + 1
+    endif
     allocate(amp_table(traj_cnt)%time(n_amp))
     allocate(amp_table(traj_cnt)%amplitude(n_amp))
     amp_table(traj_cnt)%time        = -1.
@@ -344,6 +363,38 @@ module libprop
   !****************************************************************************************
   !****************************************************************************************
   ! Trajectory/data storage, manipulation and retrieval
+
+  function time_step(batch, current_time) result (new_time)
+    integer(ik), intent(in)                 :: batch
+    real(drk), intent(in)                   :: current_time
+    real(drk)                               :: new_time
+
+    logical                                 :: done
+    integer(ik)                             :: n_traj
+    integer(ik)                             :: indices(n_total)
+
+    select case(timestep)
+      case('nascent')
+        call get_current_time(.false., 'traj', batch, new_time, n_traj, indices)
+        if(new_time > current_time)call get_current_time(.true., 'traj', batch, new_time, n_traj, indices)
+        done = .false.
+        ! iterate until new_time is larger than current_time
+        do while(new_time-current_time <= mp_drk .and. .not.done)
+          done = step_current_time('traj', n_traj, indices)
+          call get_current_time(.false., 'traj', batch, new_time, n_traj, indices)
+        enddo
+        ! if we've reached the end of the time array, or, we've hit a padded zero, return 
+        ! the default_tstep to ensure proper ending behavior
+        if(done) new_time = current_time + default_tstep
+
+
+      case('static ')
+        new_time = current_time + default_tstep
+
+      end select
+
+      return
+  end function time_step
 
   !
   !

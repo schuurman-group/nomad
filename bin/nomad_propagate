@@ -10,7 +10,6 @@ import sys as sys
 import h5py as h5py
 import ctypes as ctypes
 import array as array
-import scipy.linalg as sp_linalg
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
@@ -20,7 +19,19 @@ import nomad.core.matrices as matrices
 import nomad.core.checkpoint as checkpoint
 
 
-global chkpt_file, prop_class, amp_archive, ti, tf
+chkpt_file    = ''
+prop_class    = ''
+amp_archive   = ''
+ti            = 0.
+tf            = 0.
+full_basis    = False
+t_method      = ''
+init_method   = ''
+int_method    = ''
+int_order     = ''
+tstep_methods = ['nascent', 'static']
+init_methods  = ['overlap','uniform','explicit']
+int_methods   = ['saddle', 'taylor', 'dirac']
 
 def init():
     """Initializes the nomad inputs.
@@ -34,6 +45,8 @@ def init():
 def process_arguments(args):
     """Process command line arguments."""
     global chkpt_file, prop_class, amp_archive, ti, tf
+    global full_basis, t_method, t_step, init_method, int_method, int_order
+    global tstep_methods, init_methods, int_methods
 
     glbl.paths['cwd']        = os.getcwd()
     glbl.paths['chkpt_file'] = args[1]
@@ -54,6 +67,42 @@ def process_arguments(args):
     else:
         tf = None 
 
+    if '-timestep' in sys.argv:
+        t_step = float(args[args.index('-timestep')+1])
+    else:
+        t_step = 0.
+
+    if '-propagate' in sys.argv:
+        t_method = str(args[args.index('-propagate')+1])
+        if t_method not in tstep_methods:
+            sys.exit('time step method not recognized')
+    else:
+        t_method = 'nascent'
+
+    if '-full_basis' in sys.argv:
+        full_basis = True
+    else:
+        full_basis = False
+
+    if '-initial_amps' in sys.argv:
+        init_method = str(args[args.index('-initial_amps')+1])
+        if init_method not in init_methods:
+            sys.exit('initialization approach not recognized')
+    else:
+        init_method = 'overlap'
+
+    if '-integrals' in sys.argv:
+        int_method =  str(args[args.index('-integrals')+1])
+        if int_method not in int_methods:
+            sys.exit('integration scheme not recognized')
+    else:
+        int_method = 'taylor'        
+
+    if '-integral_order' in sys.argv:
+        int_order = int(args[args.index('-integral_order')+1])
+    else:
+        int_order = 1
+
     if '-ansatz' in sys.argv:
         prop_class = args[args.index('-ansatz')+1]
     else:
@@ -65,6 +114,8 @@ def process_arguments(args):
 def main():
     """ main driver routine """
     global chkpt_file, prop_class, amp_archive, ti, tf
+    global full_basis, t_step, t_method, init_method, int_method, int_order
+    global tstep_methods, init_methods, int_methods
 
 #    prop_classes = ['fms','mce','mca','ehrenfest']
     prop_classes = ['fms']
@@ -78,12 +129,6 @@ def main():
     if not os.path.isfile(prop_path):
         raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
     libprop = ctypes.cdll.LoadLibrary(prop_path)
-
-    bmat=np.array([[complex(0.000000000000000E+000,0.427710964800491),complex(4.257513651041962E-002,2.256657939439040E-003)],
-                   [complex(-4.257513651041962E-002,2.256657939439040E-003),complex(0.000000000000000E+000,0.374249783152644)]],dtype=complex)
-    umat    = sp_linalg.expm(bmat)
-    print("umat="+str(umat))
-    
 
     # reset chkpt_file variable to be consistent with the current path
     chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
@@ -105,27 +150,32 @@ def main():
 
     # initialize the trajectory table
     libprop.init_trajectories(
-         ctypes.byref(convert_ctypes(n_wfn,   dtype='int64')),
-         ctypes.byref(convert_ctypes(n_total, dtype='int64')),
-         ctypes.byref(convert_ctypes(n_states,dtype='int64')),
-         ctypes.byref(convert_ctypes(n_crd,   dtype='int64')),
+         ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
+         ctypes.byref(convert_ctypes(n_total, dtype='int32')),
+         ctypes.byref(convert_ctypes(n_states,dtype='int32')),
+         ctypes.byref(convert_ctypes(n_crd,   dtype='int32')),
          ctypes.byref(convert_ctypes(widths,  dtype='double')),
          ctypes.byref(convert_ctypes(masses,  dtype='double')),
          ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
          ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
 
     # pass the various run time options to the propagation library
-    t_step      = float(glbl.properties['default_time_step'])
-    full_basis  = True
-    init_method = 1 
-    int_method  = 2
-    int_order   = 1
+    if t_step != 0:
+        default_step = t_step
+        tstep_method = ['nascent', 'static'].index('static')+1
+    else:
+        default_step = float(glbl.properties['default_time_step'])
+        tstep_method = ['nascent', 'static'].index(t_method)+1
+    init_method  = ['overlap', 'uniform', 'explicit'].index(init_method)+1
+    int_method   = ['saddle', 'taylor', 'dirac'].index(int_method)+1 
+
     libprop.set_parameters(
-         ctypes.byref(convert_ctypes(t_step,      dtype='double')),
-         ctypes.byref(convert_ctypes(full_basis,  dtype='logical')),
-         ctypes.byref(convert_ctypes(init_method, dtype='int64')),
-         ctypes.byref(convert_ctypes(int_method,  dtype='int64')),
-         ctypes.byref(convert_ctypes(int_order,   dtype='int64')))
+         ctypes.byref(convert_ctypes(default_step, dtype='double')),
+         ctypes.byref(convert_ctypes(full_basis,   dtype='logical')),
+         ctypes.byref(convert_ctypes(tstep_method, dtype='int32')),
+         ctypes.byref(convert_ctypes(init_method,  dtype='int32')),
+         ctypes.byref(convert_ctypes(int_method,   dtype='int32')),
+         ctypes.byref(convert_ctypes(int_order,    dtype='int32')))
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
@@ -166,7 +216,7 @@ def main():
                              dtype='double') for i in range(len(data))]
             libprop.add_trajectory(*args)
     chkpt.close()
- 
+
     # after data is loaded, this is all on the propagation routines
     tend = tf
     if tend is None:
@@ -176,6 +226,7 @@ def main():
                     ctypes.byref(convert_ctypes(tend, dtype='double')))
 
 
+    print("propagate complete")
     # once propagation is done, retrieve times, phase-space points and 
     # amplitudes from libprop
     glbl.paths['chkpt_file']          = amp_archive
