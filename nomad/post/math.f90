@@ -54,6 +54,9 @@ module math
                                                  5.371920351148152 /)
   integer(ik), parameter    :: pade_ordr(1:5)  = (/ 3,5,7,9,13 /)
 
+  real(drk), parameter      :: pi   = 3.141592653589793
+  real(drk), parameter      :: log2 = 0.693147180559945309417232 
+
  contains
 
   !

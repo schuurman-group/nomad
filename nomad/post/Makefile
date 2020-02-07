@@ -12,14 +12,14 @@ F90=ifort -warn -nofor_main -ipo -O2 -no-prec-div -qopenmp -assume cc_omp -compl
 LIBS=''
 
 #object files
-OBJS=accuracy.o math.o libprop.o fms.o
+OBJS=accuracy.o math.o lib_traj.o lib_amp.o fms.o
 
 ######## library ######
 #fms.so:	fms.o libprop.o
 #	ifort -shared fms.so fms.o libprop.o
 
 fms.so:	fms.f90 
-	$(F90) -fPIC -shared -o fms.so accuracy.f90 math.f90 libprop.f90 fms.f90 $(LIBS)
+	$(F90) -fPIC -shared -o fms.so accuracy.f90 math.f90 lib_traj.f90 lib_amp.f90 fms.f90 $(LIBS)
 
 #libprop.o: libprop.f90
 #	$(F90) -fpic -c libprop.f90
