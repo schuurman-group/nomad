@@ -9,6 +9,7 @@ integration grid to employ is defined in an input file that
 is parsed by this script.
 """
 import os
+import math
 import sys as sys
 import h5py as h5py
 import ctypes as ctypes
@@ -17,6 +18,14 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
 
+input_file  = ''
+chkpt_file  = ''
+valid_coord = ['stre', 'bend',  'tors',  '|tors|', 
+               'oop',  '|oop|', 'plane', '|plane|']
+valid_ops   = ['sum', 'max', '|sum|']
+max_states  = 10
+max_prim    = 8
+max_atoms   = 8*6
 
 def init():
     """Initializes the nomad inputs.
@@ -29,39 +38,29 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
+    global input_file, chkpt_file 
 
-    glbl.paths['cwd']        = os.getcwd()
-    glbl.paths['chkpt_file'] = args[1]
-    chkpt_file               = args[1]
+    input_file = str(args[1])
 
-    if '-o' in sys.argv:
-        amp_archive = str(args[args.index('-o')+1])
+    if '-chkpt' in sys.argv:
+        chkpt_file = str(args[args.index('-chkpt')+1])
+        glbl.paths['cwd']        = os.getcwd()
     else:
-        amp_archive = 'amp_archive.hdf5'
-
-    if '-ti' in sys.argv:
-        ti = float(args[args.index('-ti')+1])
-    else:
-        ti = float(0.)
-
-    if '-tf' in sys.argv:
-        tf = float(args[args.index('-tf')+1])
-    else:
-        tf = None 
-
-    if '-timestep' in sys.argv:
-        t_step = float(args[args.index('-timestep')+1])
-    else:
-        t_step = 0.
+        chkpt_file = '' 
 
     return
 
 #
 def main():
     """ main driver routine """
+    global input_file, chkpt_file
+    global valid_coord, valid_ops
+    global max_states, max_prim, max_atoms
+
+    input_kwords = parse_input(input_file)
 
     # load the appropriate library
-    den_path  = os.environ['NOMAD']+'/nomad/post/libden.so'
+    den_path  = os.environ['NOMAD']+'/nomad/post/lib_den.so'
     ld_libs   = os.environ['LD_LIBRARY_PATH']
     if not os.path.isfile(den_path):
         raise FileNotFoundError('density library not found: '+den_path)
@@ -75,6 +74,14 @@ def main():
     # file we're operating on.
     glbl.paths['chkpt_file'] = chkpt_file
 
+    # pass the various run time options to the propagation library
+    default_step = float(glbl.properties['default_time_step'])
+    tstep_method = ['nascent', 'static'].index('static')+1
+
+    libden.traj_init_table(
+           ctypes.byref(convert_ctypes(default_step, dtype='double')),
+           ctypes.byref(convert_ctypes(tstep_method, dtype='int32')))
+
     # extract information about the basis
     n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
     n_total  = sum(n_traj)
@@ -82,33 +89,69 @@ def main():
     n_crd    = len(glbl.properties['crd_widths'])
     widths   = np.array(glbl.properties['crd_widths'], dtype=float)
     masses   = np.array(glbl.properties['crd_masses'], dtype=float)
+    x_ref    = np.array(glbl.properties['init_coords'][0,0],dtype=float)
+    p_ref    = np.array(glbl.properties['init_coords'][0,1],dtype=float)
 
     # initialize the trajectory table
-    libprop.init_trajectories(
-         ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
-         ctypes.byref(convert_ctypes(n_total, dtype='int32')),
-         ctypes.byref(convert_ctypes(n_states,dtype='int32')),
-         ctypes.byref(convert_ctypes(n_crd,   dtype='int32')),
-         ctypes.byref(convert_ctypes(widths,  dtype='double')),
-         ctypes.byref(convert_ctypes(masses,  dtype='double')),
-         ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
-         ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
+    libden.traj_create_table(
+           ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
+           ctypes.byref(convert_ctypes(n_total, dtype='int32')),
+           ctypes.byref(convert_ctypes(n_states,dtype='int32')),
+           ctypes.byref(convert_ctypes(n_crd,   dtype='int32')),
+           ctypes.byref(convert_ctypes(widths,  dtype='double')),
+           ctypes.byref(convert_ctypes(masses,  dtype='double')),
+           ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
+           ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
 
+    # initialize the density module by processing input keywords
+    random_seed= 1.
+    n_intl     = len(den_kwords['coords'])
+    state_list = np.zeros(max_states)
+    coord_list = np.zeros(max_prim*n_intl)
+    cf_list    = np.zeros(max_prim*n_intl)
+    atm_list   = np.zeros(max_atoms*n_intl)
+    op_list    = np.zeros(n_intl)
+    bnds       = np.zeros(2*n_intl)
+    npts       = np.zeros(n_intl)
+ 
+    if den_kwords['normalize']:
+        for i_crd in range(n_intl):
+            cf = np.array(den_kwords['coefs'][i_crd], dtype=float)
+            cf *= 1./math.sqrt(np.dot(cf, cf))
+            den_kwords['coefs'][i_crd] = cf.tolist()
+ 
+    for state in range(len(den_kwords['states'])):
+        state_list[state] = int(den_kwords['states'][state])
+    for crd in range(n_intl):
+        npts[crd]     = float(den_kwords['npts'][crd])
+        op_list[crd]  = int(valid_ops.index(den_kwords['op'][crd]))
+        bnds[2*crd]   = float(den_kwords['bounds'][crd][0])
+        bnds[2*crd+1] = float(den_kwords['bounds'][crd][1])
+        for prim in range(len(den_kwords['coords'][crd])):
+            indx = max_prim*crd + prim
+            coord_list[indx] = int(valid_coord.index(den_kwords['coords'][crd][prim]))
+            cf_list[indx]    = float(den_kwords['coefs'][crd][prim])
+        for atm in range(len(den_kwords['atoms'][crd])):
+            indx = max_atoms*crd + atm
+            atm_list[indx]   = int(den_kwords['atoms'][crd][atm])
 
-    libprop.set_parameters(
-         ctypes.byref(convert_ctypes(default_step, dtype='double')),
-         ctypes.byref(convert_ctypes(full_basis,   dtype='logical')),
-         ctypes.byref(convert_ctypes(tstep_method, dtype='int32')),
-         ctypes.byref(convert_ctypes(init_method,  dtype='int32')),
-         ctypes.byref(convert_ctypes(int_method,   dtype='int32')),
-         ctypes.byref(convert_ctypes(int_order,    dtype='int32')))
+    libden.init_density(
+           ctypes.byref(convert_ctypes(random_seed, dtype='int32')), 
+           ctypes.byref(convert_ctypes(n_wfn,       dtype='int32')),
+           ctypes.byref(convert_ctypes(n_intl,      dtype='int32')),
+           ctypes.byref(convert_ctypes(state_list,  dtype='int32')),
+           ctypes.byref(convert_ctypes(coord_list,  dtype='int32')),
+           ctypes.byref(convert_ctypes(cf_list,     dtype='double')),
+           ctypes.byref(convert_ctypes(atm_list,    dtype='int32')),
+           ctypes.byref(convert_ctypes(op_list,     dtype='int32')),
+           ctypes.byref(convert_ctypes(bounds,      dtype='double')),
+           ctypes.byref(convert_ctypes(npts,        dtype='int32')))
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
     t_max  = 0.
     batch  = 0
-    dsets  = ['states',       'phase', 'potential','geom',
-              'momentum','derivative', 'coupling']
+    dsets  = ['states', 'phase', 'potential', 'geom', 'momentum']
     wfn_keys = [key_val for key_val in chkpt.keys() 
                                     if 'wavefunction' in key_val]
 
@@ -140,154 +183,53 @@ def main():
             # than transposing, then "F" form).
             args  += [convert_ctypes(data[i].flatten('C'),                        
                              dtype='double') for i in range(len(data))]
-            libprop.add_trajectory(*args)
+            libden.add_trajectory(*args)
     chkpt.close()
 
     # after data is loaded, this is all on the propagation routines
-    tend = tf
+    ti     = float(den_kwords['tinit'])
+    tend   = float(den_kwords['tfinal'])
+    t_step = float(den_kwords['tstep'])
     if tend is None:
         tend = t_max
-    libprop.propagate(
-                    ctypes.byref(convert_ctypes(ti, dtype='double')),
-                    ctypes.byref(convert_ctypes(tend, dtype='double')))
-
-
-    print("propagate complete")
-    # once propagation is done, retrieve times, phase-space points and 
-    # amplitudes from libprop
-    glbl.paths['chkpt_file']          = amp_archive
-    glbl.properties['store_matrices'] = True
-
-    # this is temporary: only two options, fully coherent or fully incoherent
-    # in the future: should be able to specify arbitrary groupings of initial
-    # conditions
-    if full_basis:
-        nbatch = 1
-    else:
-        nbatch = n_wfn
-
-    time    = convert_ctypes(0., dtype='double')
-    n_traj  = convert_ctypes(0,  dtype='int32') 
-    indices = convert_ctypes(np.zeros(n_total, dtype=int), dtype='int32')
-    for ibatch in range(nbatch):
-        if full_basis:
-            ibat = convert_ctypes(-1, dtype='int32')
-        else:
-            ibat = convert_ctypes(ibatch, dtype='int32')
-
-
-        libprop.timestep_info(ctypes.byref(convert_ctypes(True, dtype='logical')),
-                              ctypes.byref(ibat), 
-                              ctypes.byref(time),
-                              ctypes.byref(n_traj),
-                              indices)
-
-        ntraj     = n_traj.value
-        max_step  = convert_ctypes(False, dtype='logical') 
-        while ntraj>0 and not max_step.value:
- 
-            indx_lst  = convert_ctypes(np.array(indices[:ntraj], dtype=int), dtype='int32')
-            state_lst = convert_ctypes(np.zeros(ntraj, dtype=int), dtype='int32')
-            amp_r     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
-            amp_i     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
-            ener_lst  = convert_ctypes(np.zeros(n_states*ntraj, dtype=float), dtype='double')
-            x_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
-            p_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
-            deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*ntraj, dtype=float), dtype='double')
-            coup_lst  = convert_ctypes(np.zeros(n_states*n_states*ntraj, dtype=float), dtype='double')
-            libprop.retrieve_timestep(ctypes.byref(ibat),
-                                      ctypes.byref(n_traj),
-                                      indx_lst,  
-                                      state_lst, 
-                                      amp_r, 
-                                      amp_i, 
-                                      ener_lst, 
-                                      x_lst, 
-                                      p_lst, 
-                                      deriv_lst,
-                                      coup_lst)
-
-            s_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            s_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            t_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            t_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            v_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            v_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            sdt_r  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            sdt_i  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            heff_r = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            heff_i = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')            
-            libprop.retrieve_matrices(ctypes.byref(n_traj),
-                                      s_r,    s_i,
-                                      t_r,    t_i,
-                                      v_r,    v_i,
-                                      sdt_r,  sdt_i,
-                                      heff_r, heff_i) 
-                                
-            # build up the wavefunction object
-            wfn      = wavefunction.Wavefunction()
-            wfn.time = time.value
-            
-            mats     = matrices.Matrices()
-            mats.set('s_traj', np.reshape(np.array(s_r) + 1j*np.array(s_i), tuple([ntraj, ntraj])))
-            mats.set('t',      np.reshape(np.array(t_r) + 1j*np.array(t_i), tuple([ntraj, ntraj])))
-            mats.set('v',      np.reshape(np.array(v_r) + 1j*np.array(v_i), tuple([ntraj, ntraj])))
-            mats.set('sdot',   np.reshape(np.array(sdt_r) + 1j*np.array(sdt_i), tuple([ntraj, ntraj])))
-            mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([ntraj, ntraj])))
-            wfn.update_matrices(mats)            
-
-            for itraj in range(ntraj):
-                
-                new_surf = surface.Surface()
-                new_traj = trajectory.Trajectory(n_states, n_crd, 
-                                                 width=widths, 
-                                                 mass=masses,
-                                                 label=int(indx_lst[itraj]),
-                                                 kecoef=0.5/masses)
-
-                new_traj.state = int(state_lst[itraj])
-                new_traj.update_x(np.array(x_lst[n_crd*itraj:n_crd*(itraj+1)]))
-                new_traj.update_p(np.array(p_lst[n_crd*itraj:n_crd*(itraj+1)]))
-                new_traj.update_amplitude(complex(float(amp_r[itraj]),float(amp_i[itraj])))
-
-                new_surf.add_data('geom', new_traj.x())
-                new_surf.add_data('potential', np.array(ener_lst[n_states*itraj:n_states*(itraj+1)]))
-
-                dlen  = n_crd * n_states * n_states
-                deriv = np.reshape(np.array(deriv_lst[dlen*itraj:dlen*(itraj+1)]), 
-                                            tuple([n_crd, n_states, n_states]))
-                new_surf.add_data('derivative', deriv)
-
-                clen  = n_states * n_states
-                coup  = np.reshape(np.array(coup_lst[clen*itraj:clen*(itraj+1)]), 
-                                            tuple([n_states, n_states]))
-                new_surf.add_data('coupling', coup)
-
-                new_traj.update_pes_info(new_surf)
-
+    
+    # evaluate density at each requested time
+    int_grid = np.zeros(np.prod(npts), dtype=float)
+    for time in range(ti, tend, t_step): 
+        libden.evaluate_density(
+                ctypes.byref(convert_ctypes(time,     dtype='double')),
+                ctypes.byref(convert_ctypes(n_total,  dtype='int32')),
+                ctypes.byref(convert_ctypes(int_grid, dtype='double')))
         
-
-                wfn.add_trajectory(new_traj, relabel=False)
-
-            # throw this timestep to the new checkpoint file
-            checkpoint.archive_simulation(wfn, None)
-        
-            # advance to the next time step
-            libprop.next_timestep(ctypes.byref(n_traj), indx_lst, ctypes.byref(max_step))
-  
-            # if we've reached the maximum time step, we're done
-            if max_step.value:
-                ntraj = 0
-            else:
-                # get info on next time step
-                libprop.timestep_info(ctypes.byref(convert_ctypes(False, dtype='logical')),
-                                      ctypes.byref(ibat),
-                                      ctypes.byref(time),
-                                      ctypes.byref(n_traj),
-                                      indices)
-                ntraj = n_traj.value
 
     return
+
+# parse the input file
+def parse_input(input_file):
+    """parse an density file"""
+
+    den_kwords = {'tinit'    :0,
+                  'tfinal'   :0,
+                  'tsteps'   :10,
+                  'states'   :[0],
+                  'coords'   :[[]],
+                  'atoms'    :[[]],
+                  'coefs'    :[[]],
+                  'normalize':False,
+                  'bounds'   :[[]],
+                  'npts'     :[],
+                  'op'       :[]}
+
+    #with open(glbl.paths['home_path'] + fname, 'r') as infile:
+    with open(input_file, 'r') as infile:
+        den_input = infile.readlines()
+    
+    for line in den_input:
+        for kword in den_kwords.keys():
+            if kword in line and '=' in line:
+                den_kwords[kword] = exec(line[line.index('=')+1:])  
+
+    return den_kwords
 
 #
 def convert_ctypes(py_val, dtype=None):

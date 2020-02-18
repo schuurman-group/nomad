@@ -5,13 +5,15 @@
 module libden
   use accuracy
   use math
-  use libtraj
+  use lib_traj
   implicit none
 
   private
-  public load_parameters
+  public init_density 
   public evaluate_density
 
+  ! fuzzy integration function recursion order
+  integer(ik), parameter        :: fuzzy_order = 3
   ! maximum number of iterations
   integer(ik)                   :: iter_max = 100000
   ! number of internal coordinates
@@ -20,114 +22,197 @@ module libden
   real(drk), allocatable        :: den_grid(:)
   ! density that lies off-grid
   real(drk)                     :: off_grid
-  ! number of batches to average over
-  integer(ik),allocatable       :: batch_list(:)
+  ! number of simulations to average over
+  integer(ik)                   :: n_batch
   ! states in to include
   integer(ik), allocatable      :: state_list(:)
+  ! bin boundary locations for each integration dimension
+  real(drk), allocatable        :: grid_bnds(:,:)
+  ! number of grid pts
+  integer(ik), allocatable      :: grid_npts(:)
+  ! width of grid bins
+  real(drk), allocatable        :: grid_width(:)
 
+  type intcoord
+    integer(ik)                      :: n_prim
+    character(len=5)                 :: op
+    character(len=7), allocatable    :: coord_types(:)                 
+    real(ik), allocatable            :: cf(:)
+    integer(ik), allocatable         :: atoms(:,:)
+  end type intcoord
+
+  type(intcoord), allocatable        :: int_coords(:)
+
+  character(len=7), dimension(8)     :: coord_types  = (/ 'stre   ', 'bend   ', 'tors   ', '|tors| ', &
+                                                          'oop    ', '|oop|  ', 'plane  ', '|plane|' /)
+  character(len=5), dimension(3)     :: op_types     = (/ 'sum  ', 'max  ', '|sum|' /)
+  integer(ik), dimension(8)          :: n_atms_coord = (/  2, 3, 4, 4, 4, 4, 6, 6 /)
+  integer(ik), parameter             :: max_states  = 10
+  integer(ik), parameter             :: max_prim    = 8
+  integer(ik), parameter             :: max_atoms   = 6*8
 
   contains
 
     !
     !
     !
-    subroutine load_parameters(rseed, n_batch, batch_lst, n_coord, coord_lst, cf_lst, atm_lst, grid_bnds, n_grid) bind(c, name='load_parameters')
+    subroutine init_density(rseed, n_wfn, n_coord, state_lst, coord_lst, cf_lst, atm_lst, op_lst, bounds, npts) bind(c, name='init_density')
       integer(ik), intent(in)                  :: rseed
-      integer(ik), intent(in)                  :: n_batch
-      integer(ik), intent(in)                  :: batch_lst(n_batch)
+      integer(ik), intent(in)                  :: n_wfn
       integer(ik), intent(in)                  :: n_coord
-      integer(ik), intent(in)                  :: coord_lst(8, n_coord)
-      real(drk), intent(in)                    :: cf_lst(8, n_coord)
-      integer(ik), intent(in)                  :: atm_lst(16, n_coord)
-      real(drk), intent(in)                    :: grid_bnds(2, n_coord)
-      integer(ik), intent(in)                  :: n_grid(n_coord)
+      integer(ik), intent(in)                  :: state_lst(max_states)
+      integer(ik), intent(in)                  :: coord_lst(max_prim*n_coord)
+      real(drk), intent(in)                    :: cf_lst(max_prim*n_coord)
+      integer(ik), intent(in)                  :: atm_lst(max_atoms*n_coord)
+      integer(ik), intent(in)                  :: op_lst(n_coord)
+      real(drk), intent(in)                    :: bounds(2*n_coord)
+      integer(ik), intent(in)                  :: npts(n_coord)
+
+      integer(ik)                              :: i,j,n_prim
+      integer(ik)                              :: scr_vec(max_prim)
 
       call seed(rseed)
 
-      allocate(batch_list(n_batch)
-      batch_list(1:n_batch) = batch_lst(1:n_batch)
-
+      ! simulation averaging parameters
+      n_batch = n_wfn
+ 
+      ! internal coordinate definitions  
       n_intl = n_coord
-      allocate(den_grid(product(n_grid)))
-      
+      allocate(int_coords(n_intl))
+      do i = 1,n_intl
+        scr_vec = coord_lst(max_prim*(i-1)+1:max_prim*i)
+        n_prim  = count(scr_vec > 0 .and. scr_vec < len(coord_types))
+
+        int_coords(i)%n_prim = n_prim
+        int_coords(i)%op     = op_types(op_lst(i))
+        allocate(int_coords(i)%coord_types(n_prim))
+        allocate(int_coords(i)%cf(n_prim))
+        allocate(int_coords(i)%atoms(max_atoms, n_prim))
+        do j = 1,n_prim
+          int_coords(i)%coord_types(j) = coord_types(scr_vec(j))
+          int_coords(i)%cf(j)          = cf_lst(max_prim*(i-1)+j)
+          int_coords(i)%atoms(:,j)     = atm_lst(max_atoms*(i-1)+1:max_atoms*i)
+        enddo
+      enddo
+
+      ! integration grid initialization
+      allocate(den_grid(product(npts)))
+      allocate(grid_bnds(2, n_intl))
+      allocate(grid_npts(n_intl))
+      allocate(grid_width(n_intl))
+
+      den_grid   = zero_drk
+      grid_bnds  = reshape(bounds, (/ 2, n_coord /))
+      grid_npts  = npts
+      grid_width = (grid_bnds(2,:) - grid_bnds(1,:)) / grid_npts
 
       return
-    end subroutine load_parameters
+    end subroutine init_density
 
     !
     !
     !
-    subroutine evaluate_density(time) bind(c, name='load_parameters')
-      real(drk)                               :: time
-      integer(ik)                             :: batch = 0
-      integer(ik), allocatable                :: traj(:)
-      complex(drk), allocatable               :: smat(:,:)
-      integer(ik)                             :: i
-      integer(ik)                             :: itraj, ntraj
-      integer(ik)                             :: nindx
-      real(drk)                               :: geom(n_cart)
-      real(drk)                               :: igeom(n_intl)
+    subroutine evaluate_density(time, npts, density) bind(c, name='evaluate_density')
+      real(drk), intent(in)                   :: time
+      integer(ik), intent(in)                 :: npts
+      real(drk), intent(out)                  :: density(npts)
+
+      type(trajectory), allocatable           :: traj_list(:)
       real(drk), allocatable                  :: wgt_list(:)
+      real(drk),allocatable                   :: geom(:)
+      complex(drk), allocatable               :: smat(:,:)
+      integer(ik), allocatable                :: labels(:)
+      real(drk)                               :: igeom(n_intl)
+      real(drk)                               :: den
+      real(drk)                               :: wts(9)
+      real(drk)                               :: off_grid
+      integer(ik)                             :: i, j, iter
+      integer(ik)                             :: n_traj
+      integer(ik)                             :: n_cart
+      integer(ik)                             :: n_indx
+      integer(ik)                             :: itraj
+      integer(ik)                             :: ibatch
+      integer(ik)                             :: indices(9)
+      logical                                 :: converged
+ 
 
-      do ibatch = 1,size(batch_list)
+      if(npts /= product(grid_npts))stop 'grid mismatch in evaluate_density'
+      den_grid = zero_drk
 
-        call collect_trajectories(time, batch_list(ibatch), traj)
-        ntraj = size(traj)
+      do ibatch = 1,n_batch
+
+        ! get list of trajectories for this time and batch
+        call locate_trajectories(time, ibatch, labels, traj_list)
+        n_traj = size(labels) 
+        if(n_traj == 0)cycle
+        n_cart = size(traj_list(1)%x)
+
+        ! allocate data structures
+        if(allocated(wgt_list))deallocate(wgt_list)
+        allocate(wgt_list(0:n_traj))
+        allocate(geom(n_cart))
+        allocate(smat(n_traj, n_traj))
 
         ! make weighted list of trajectories to do importance sampling
-        if(allocated(wgt_list))deallocate(wgt_list)
-        allocate(wgt_list(0:ntraj))
-        call amp_weight_list(wgt_list)        
+        call amp_weight_list(n_traj, traj_list, wgt_list)        
 
         ! construct overlap matrix
-        allocate(smat(ntraj, ntraj))
         smat = zero_c
-        do i = 1,ntraj
+        do i = 1,n_traj
           do j = 1,i
-            if(traj_list(i)%state == traj_list(j)%state)smat(i,j) = nuc_overlap(traj_lst(i), traj_lst(j))
+            if(traj_list(i)%state == traj_list(j)%state) then 
+              smat(i,j) = nuc_overlap(traj_list(i), traj_list(j))
+            endif
           enddo
         enddo
 
+        ! perform MC integration of the density
         converged = .false.
         iter      = 1
         do while(.not.converged .and. iter <= iter_max)
           itraj     =  select_trajectory(wgt_list)
-          geom      =  generate_cartesian_geom(itraj)
+          geom      =  generate_cartesian_geom(n_cart, traj_list(itraj)%x, traj_list(itraj)%width)
           igeom     =  internal_coordinates(geom)
-          den       =  compute_density(geom, smat)
+          den       =  compute_density(geom, n_traj, traj_list)
 
-          call grid_indices(igeom, nindx, indices, wts) 
-          do i = 1,nindx
-            den_grid(indices(i)) = den_grid(indices(i) + wts(i) * den
+          call grid_indices(igeom, n_indx, indices, wts) 
+          do i = 1,n_indx
+            den_grid(indices(i)) = den_grid(indices(i)) + wts(i) * den
           enddo
-          if(nindx == 0)off_grid = off_grid + den
+          if(n_indx == 0)off_grid = off_grid + den
 
           iter = iter + 1
         enddo
 
       enddo  
    
+      density = den_grid
+   
+      print *,'off_grid = ',off_grid
+
       return
     end subroutine evaluate_density
 
-!#################################################
-! Density routines
-!
-!#################################################
+    !#################################################
+    ! Density routines
+    !
+    !#################################################
+
     !
     !
     !
-    function compute_density(geom, smat) result(den)
+    function compute_density(geom, n, traj_list) result(den)
       real(drk), intent(in)             :: geom(:)
-      complex(drk), intent(in)          :: smat(:,:)
+      integer(ik), intent(in)           :: n
+      type(trajectory), intent(in)      :: traj_list(n)
 
       real(drk)                         :: den
       complex(drk)                      :: dpt
       integer(ik)                       :: i,j
 
-      den = zero
-      do i = 1,size(traj_list)
-        if(.not.any(state_list) == traj_list(i)%state)cycle
+      den = zero_drk
+      do i = 1,n
+        if(.not.any(state_list == traj_list(i)%state))cycle
         do j = 1,i
           if(traj_list(j)%state /= traj_list(i)%state) cycle
           dpt = conjg(traj_list(i)%amplitude)*traj_list(j)%amplitude* &
@@ -141,15 +226,13 @@ module libden
       return
     end function compute_density
 
-
     !
     !
     !
     function select_trajectory(wgt_list) result(traj_indx)
       real(drk),intent(in)              :: wgt_list(:)
-      integer(ik),intent(out)           :: traj_indx
 
-      integer(ik)                       :: i
+      integer(ik)                       :: traj_indx
       real(drk)                         :: num
       
       call random_number(num)
@@ -165,16 +248,19 @@ module libden
     !
     !
     !
-    function generate_cartesian_geom(itraj) result(geom)
-      integer(ik), intent(in)             :: itraj
+    function generate_cartesian_geom(n, x, width) result(geom)
+      integer(ik), intent(in)             :: n
+      real(drk), intent(in)               :: x(n)
+      real(drk), intent(in)               :: width(n)
 
-      real(drk)                           :: geom(n_crd)
-      real(drk)                           :: dx(n_crd)
+      real(drk)                           :: geom(n)
+      real(drk)                           :: dx(n)
       real(drk)                           :: sig, rsq
       real(drk)                           :: dx1, dx2
+      integer(ik)                         :: i
 
-      do i = 1,n_crd
-        sig = sqrt(1./(4.*widths(i)))
+      do i = 1,n
+        sig = sqrt(1./(4.*width(i)))
         rsq = 2.
         do
           if(rsq.lt.1.d0.and.rsq.ne.0.d0)exit
@@ -187,7 +273,7 @@ module libden
         dx(i) = sig * dx1 * sqrt(-2.d0*log(rsq)/rsq)
       enddo
 
-      geom = traj_list(itraj)%x + dx
+      geom = x + dx
 
       return
     end function generate_cartesian_geom
@@ -196,57 +282,73 @@ module libden
     !
     !
     function internal_coordinates(geom) result(intgeom)
-      real(drk), intent(in)               :: geom(n_crd)
+      real(drk), intent(in)               :: geom(:)
 
       real(drk)                           :: intgeom(n_intl)
-      real(drk)                           :: intvec(8)
+      real(drk)                           :: intvec(max_prim)
       integer(ik)                         :: i
+      integer(ik)                         :: i_prim
 
       intgeom = zero_drk
 
       do i = 1,n_intl
 
-        icrd = 1
-        do while(coord_lst(icrd, i) /= 0)
-
-          select case(coord_lst(icrd,i))          
+        do i_prim = 1,int_coords(i)%n_prim
+          select case(trim(int_coords(i)%coord_types(i_prim)))          
             ! distance
-            case(1):
-              intvec(icrd) = intgeom(i) + cf_lst(icrd,i) * &
-                          dist(geom, atm_lst(1, icrd, i), atm_lst(2, icrd, i))
+            case('stre')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               dist(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim))
             ! angle
-            case(2):
-              intvec(icrd) = intgeom(i) + cf_lst(icrd,i) * &
-                          angle(geom, atm_lst(1, icrd, i), atm_lst(2, icrd, i), atm_lst(3, icrd, i))
+            case('bend')
+              intvec(i_prim) = intgeom(i) +int_coords(i)%cf(i_prim) * &
+                               angle(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim))
             ! torsion
-            case(3):
-              intvec(icrd) = intgeom(i) + cf_lst(icrd,i) * &
-                          tors(geom, atm_lst(1, icrd, i), atm_lst(2, icrd, i), atm_lst(3, icrd, i), atm_lst(4, icrd, i))
+            case('tors')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               tors(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim))
+            ! torsion
+            case('|tors|')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               abs(tors(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim)))
             ! out of plane angle
-            case(4):
-              intvec(icrd) = intgeom(i) + cf_lst(icrd,i) * &
-                          oops(geom, atm_lst(1, icrd, i), atm_lst(2, icrd, i), atm_lst(3, icrd, i), atm_lst(4, icrd, i))
+            case('oop')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               oop(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim))
+            case('|oop|')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               abs(oop(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim)))
             ! plane angle
-            case(5):
-              intvec(icrd) = intgeom(i) + cf_lst(icrd,i) * &
-                          plane(geom, atm_lst(1, icrd, i), atm_lst(2, icrd, i), atm_lst(3, icrd, i), atm_lst(4, icrd, i), atm_lst(5, icrd, i), atm_lst(6, icrd, i))
+            case('plane')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               plane(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim), &
+                               int_coords(i)%atoms(5,i_prim), int_coords(i)%atoms(6,i_prim))
+            case('|plane|')
+              intvec(i_prim) = intgeom(i) + int_coords(i)%cf(i_prim) * &
+                               abs(plane(geom, int_coords(i)%atoms(1,i_prim), int_coords(i)%atoms(2,i_prim), &
+                               int_coords(i)%atoms(3,i_prim), int_coords(i)%atoms(4,i_prim), &
+                               int_coords(i)%atoms(5,i_prim), int_coords(i)%atoms(6,i_prim)))
           end select
-
-          icrd = icrd + 1
         enddo
 
-        select case(coord_op(i))
+        select case(trim(int_coords(i)%op))
           ! simple sum
-          case(1):
-            intgeom(i) = sum(intvec(1:icrd))
+          case('sum')
+            intgeom(i) = sum(intvec(1:int_coords(i)%n_prim))
  
           ! maximum value
-          case(2)
-            intgeom(i) = maxval(intvec(1:icrd))
+          case('max')
+            intgeom(i) = maxval(intvec(1:int_coords(i)%n_prim))
 
           ! absolute value of the sum
-          case(3):
-            integeom(i) = abs(sum(intvec(1:icrd)))
+          case('|sum|')
+            intgeom(i) = abs(sum(intvec(1:int_coords(i)%n_prim)))
         end select
 
       enddo
@@ -257,33 +359,151 @@ module libden
     !
     !
     !
-    subroutine amp_weight_list(wgt_lst)
-      real(ik), intent(out)               :: wgt_lst(:)
+    subroutine amp_weight_list(n, traj_list, wgt_lst)
+      integer(ik), intent(in)             :: n
+      type(trajectory), intent(in)        :: traj_list(n)
+      real(drk), intent(out)              :: wgt_lst(n+1)
 
       complex(drk),allocatable            :: amps(:)
       real(drk),allocatable               :: norms(:)
-      integer(ik)                         :: i
+      integer(ik)                         :: i  
 
-      if(size(traj_list) > size(wgt_lst))stop 'ddn < size(traj_list) in amp_weighted_list'
-      allocate(amps(size(traj_list)))
-      allocate(norms(size(traj_list)))
+      allocate(amps(n))
+      allocate(norms(n))
 
-      do i = 1,size(traj_list)
+      do i = 1,n
         amps(i) = traj_list(i)%amplitude
       enddo
       
       norms   = real(conjg(amps)*amps / dot_product(amps,amps))
-      do i = 1,size(traj_list)
+      wgt_lst = zero_drk
+      do i = 1,n
         wgt_lst(i) = sum(norms(1:i))
       enddo
 
       return
-    end subroutine amp_weighted_list
+    end subroutine amp_weight_list
 
-!#################################################
-! Coordinate routines
-!
-!#################################################
+    !
+    !
+    !
+    subroutine grid_indices(igeom, n_indx, indices, wgts)
+      real(drk), intent(in)               :: igeom(n_intl)
+      integer(ik), intent(out)            :: n_indx
+      integer(ik), intent(out)            :: indices(:)
+      real(drk), intent(out)              :: wgts(:)
+
+      integer(ik)                         :: i
+      integer(ik)                         :: indx
+      integer(ik)                         :: iaddr
+      integer(ik)                         :: center_bin(n_intl)
+      integer(ik)                         :: step_bin(n_intl)
+      real(drk)                           :: grid_loc(n_intl)
+      integer(ik)                         :: delta(n_intl)
+      integer(ik)                         :: max_step = 1
+
+      indices = -1
+      wgts    = -1
+      n_indx  = 0
+
+      do i = 1,n_intl
+        grid_loc(i)   = (igeom(i) - grid_bnds(1,i))/grid_width(i)
+        center_bin(i) = ceiling(grid_loc(i))
+      enddo 
+
+      delta    = -max_step
+      delta(1) = delta(1) - 1
+      do while(sum(delta) < n_intl*max_step)
+
+        ! iterate the delta counter
+        indx = 1
+        do while(delta(indx) == max_step)
+          delta(indx) = -max_step
+          indx        = indx - 1
+        enddo
+        delta(indx) = delta(indx) + 1
+
+        step_bin = center_bin + delta
+        iaddr    = grid_address(step_bin)
+        if(iaddr /= -1) then
+          n_indx          = n_indx + 1
+          indices(n_indx) = iaddr
+          wgts(n_indx)    = bin_wgt(delta, grid_loc)
+        endif
+
+      enddo
+
+      return
+    end subroutine 
+  
+    !
+    !
+    !
+    function grid_address(bin_vals) result(addr)
+      integer(ik), intent(in)            :: bin_vals(n_intl)
+
+      integer(ik)                        :: addr
+      integer(ik)                        :: i
+     
+      if(any(bin_vals < 1) .or. any(bin_vals > grid_npts)) then
+        addr = -1
+      else
+        addr = 0
+        do i = 1,n_intl-1
+          addr = addr + bin_vals(i) * product(grid_npts(i+1:n_intl))
+        enddo
+        addr = addr + bin_vals(n_intl)
+      endif
+
+      return
+    end function grid_address
+
+    !
+    !
+    !
+    function bin_wgt(step, grid_val) result(wgt)
+      integer(ik), intent(in)            :: step(:)
+      real(drk), intent(in)              :: grid_val(:)
+
+      real(drk)                          :: distance(n_intl)
+      real(drk)                          :: wgt
+      real(drk)                          :: r
+      integer(ik)                        :: i
+
+      do i = 1,n_intl
+        distance(i) = grid_val(i) - (ceiling(grid_val(i))+step(i)-0.5)
+      enddo
+
+      r   = sqrt(dot_product(distance, distance))
+      wgt = wgt_function(r, fuzzy_order)
+
+      return
+    end function bin_wgt
+
+    !
+    ! the value of the region function for a specified recursion level
+    !
+    recursive function wgt_function(x, n) result(f)
+      integer(ik), intent(in)            :: n
+      real(drk), intent(in)              :: x
+
+      real(drk)                          :: f
+
+      if(n.eq.0) then
+        f = x
+      else
+        f = wgt_function(1.5*x-0.5*x**3,n-1)
+      endif
+
+      return
+    end function wgt_function
+
+
+
+    !#################################################
+    ! Coordinate routines
+    !
+    !#################################################
 
     ! 
     ! distance between two atoms
@@ -302,6 +522,7 @@ module libden
       return
     end function dist
 
+    !
     ! distance between the centroid of atoms1 and atom2
     ! and atom3
     !
@@ -315,7 +536,7 @@ module libden
       real(drk)                        :: centroid(3)
       real(drk)                        :: rvec(3)
 
-      centroid = 0.5 * (geom(geom(3*(atom1-1)+1:3*atom1) + geom(3*(atom2-1)+1:3*atom2))
+      centroid = 0.5 * (geom(3*(atom1-1)+1:3*atom1) + geom(3*(atom2-1)+1:3*atom2))
       rvec     = centroid - geom(3*(atom3-1)+1:3*atom3)
       r        = sqrt(dot_product(rvec, rvec))
       return
@@ -344,10 +565,132 @@ module libden
       return
     end function angle
     
+    !
+    ! torsional angle 
+    !
+    function tors(geom, atom1, atom2, atom3, atom4) result(tau)
+      real(drk), intent(in)            :: geom(:)
+      integer(ik), intent(in)          :: atom1,atom2,atom3,atom4
 
+      real(drk)                        :: tau
+      real(drk)                        :: x,y
+!      real(drk)                        :: shft=0.5*pi
+      real(drk)                        :: e1(3), e2(3), e3(3)
+      real(drk)                        :: cp1(3),cp2(3),cp3(3)
 
+      e1  = vec( geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2) )
+      e3  = vec( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2) )
+      e2  = vec( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4) )
 
+      cp1 = cross_prod(e1, e3)
+      cp2 = cross_prod(e2, e3)
 
+      e1  = vec(cp1)
+      e2  = vec(cp2)
+      cp3 = cross_prod(e1, e2)
+
+      x   = -dot_product(e1,e2)
+      y   = sqrt(dot_product(cp3, cp3))
+      tau = atan2(y,x)
+
+      return
+    end function tors
+
+    !
+    ! compute out-plane angle: atom1(oop), atom2/atom3 (in plane)
+    !                          atom4 (center)
+    !
+    function oop(geom, atom1, atom2, atom3, atom4) result(alpha)
+      real(drk), intent(in)            :: geom(:)
+      integer(ik), intent(in)          :: atom1
+      integer(ik), intent(in)          :: atom2
+      integer(ik), intent(in)          :: atom3
+      integer(ik), intent(in)          :: atom4
+
+      real(drk)                        :: alpha
+      real(drk)                        :: e1(3),e2(3),e3(3)
+      real(drk)                        :: cp(3),stheta,ctheta
+
+      e1 = vec(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom4-1)+1:3*atom4))
+      e2 = vec(geom(3*(atom2-1)+1:3*atom2)-geom(3*(atom4-1)+1:3*atom4))
+      e3 = vec(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4))
+
+      cp = cross_prod(e2, e3)
+      e2 = vec(cp)
+
+      stheta = dot_product(e1,e2)
+      ctheta = sqrt(1 - stheta**2)
+      alpha  = acos(ctheta)
+      if(stheta.lt.0)alpha = -alpha
+
+      return
+    end function oop
+
+    !
+    ! compute the angle between two planes
+    !
+    function plane(geom, atom1, atom2, atom3, atom4, atom5, atom6) result(theta)
+      real(drk), intent(in)            :: geom(:)
+      integer(ik), intent(in)          :: atom1
+      integer(ik), intent(in)          :: atom2
+      integer(ik), intent(in)          :: atom3
+      integer(ik), intent(in)          :: atom4
+      integer(ik), intent(in)          :: atom5
+      integer(ik), intent(in)          :: atom6
+
+      real(drk)                        :: theta
+      real(drk)                        :: m(3),n(3)
+      real(drk)                        :: m1(3),m2(3)
+      real(drk)                        :: n1(3),n2(3)
+      real(drk)                        :: m_norm, n_norm
+
+      m1 = vec(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2))
+      m2 = vec(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2))
+
+      n1 = vec(geom(3*(atom4-1)+1:3*atom4)-geom(3*(atom5-1)+1:3*atom5))
+      n2 = vec(geom(3*(atom6-1)+1:3*atom6)-geom(3*(atom5-1)+1:3*atom5))
+
+      m  = cross_prod(m1,m2)
+      n  = cross_prod(n1,n2)
+      m_norm = sqrt(dot_product(m, m))
+      n_norm = sqrt(dot_product(n, n))
+
+      theta = abs(acos( dot_product(m,n) / (m_norm*n_norm) ))
+
+      return
+    end function plane
+
+    !
+    !
+    !
+    function vec(v) result(u)
+      real(drk), intent(in)              :: v(3)
+   
+      real(drk)                          :: u(3)
+      real(drk)                          :: nrm
+ 
+      u   = zero_drk     
+      nrm = sqrt(dot_product(v, v))
+      if(nrm > mp_drk) u = v / nrm
+
+      return
+    end function
+
+    !
+    !
+    !
+    function cross_prod(v1, v2) result(u)
+      real(drk), intent(in)               :: v1(3)
+      real(drk), intent(in)               :: v2(3)
+
+      real(drk)                           :: u(3)
+
+      u(1) = v1(2)*v2(3) - v1(3)*v2(2)
+      u(2) = v1(3)*v2(1) - v1(1)*v2(3)
+      u(3) = v1(1)*v2(2) - v1(2)*v2(1)
+
+      return
+    end function cross_prod
 
 
 end module libden
