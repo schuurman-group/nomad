@@ -9,6 +9,7 @@ integration grid to employ is defined in an input file that
 is parsed by this script.
 """
 import os
+import ast
 import math
 import sys as sys
 import h5py as h5py
@@ -60,11 +61,11 @@ def main():
     input_kwords = parse_input(input_file)
 
     # load the appropriate library
-    den_path  = os.environ['NOMAD']+'/nomad/post/lib_den.so'
+    den_path  = os.environ['NOMAD']+'/nomad/analysis/lib_den.so'
     ld_libs   = os.environ['LD_LIBRARY_PATH']
     if not os.path.isfile(den_path):
         raise FileNotFoundError('density library not found: '+den_path)
-    libden = ctypes.cdll.LoadLibrary(den_path)
+    lib_den = ctypes.cdll.LoadLibrary(den_path)
 
     # reset chkpt_file variable to be consistent with the current path
     chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
@@ -78,7 +79,7 @@ def main():
     default_step = float(glbl.properties['default_time_step'])
     tstep_method = ['nascent', 'static'].index('static')+1
 
-    libden.traj_init_table(
+    lib_den.traj_init_table(
            ctypes.byref(convert_ctypes(default_step, dtype='double')),
            ctypes.byref(convert_ctypes(tstep_method, dtype='int32')))
 
@@ -93,7 +94,7 @@ def main():
     p_ref    = np.array(glbl.properties['init_coords'][0,1],dtype=float)
 
     # initialize the trajectory table
-    libden.traj_create_table(
+    lib_den.traj_create_table(
            ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
            ctypes.byref(convert_ctypes(n_total, dtype='int32')),
            ctypes.byref(convert_ctypes(n_states,dtype='int32')),
@@ -104,15 +105,21 @@ def main():
            ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
 
     # initialize the density module by processing input keywords
-    random_seed= 1.
+    den_kwords = parse_input(input_file)
+    print("den_kwords="+str(den_kwords))
+    t_init  = float(den_kwords['tinit'])
+    t_final = float(den_kwords['tfinal'])
+    t_step  = float(den_kwords['tstep'])
+
+    random_seed= 1
     n_intl     = len(den_kwords['coords'])
-    state_list = np.zeros(max_states)
-    coord_list = np.zeros(max_prim*n_intl)
-    cf_list    = np.zeros(max_prim*n_intl)
-    atm_list   = np.zeros(max_atoms*n_intl)
-    op_list    = np.zeros(n_intl)
-    bnds       = np.zeros(2*n_intl)
-    npts       = np.zeros(n_intl)
+    state_list = np.full( (max_states),-1,  dtype=int)
+    coord_list = np.zeros(max_prim*n_intl,  dtype=int)
+    cf_list    = np.zeros(max_prim*n_intl,  dtype=float)
+    atm_list   = np.zeros(max_atoms*n_intl, dtype=int)
+    op_list    = np.zeros(n_intl,   dtype=int)
+    bnds       = np.zeros(2*n_intl, dtype=float)
+    npts       = np.zeros(n_intl,   dtype=int)
  
     if den_kwords['normalize']:
         for i_crd in range(n_intl):
@@ -124,18 +131,18 @@ def main():
         state_list[state] = int(den_kwords['states'][state])
     for crd in range(n_intl):
         npts[crd]     = float(den_kwords['npts'][crd])
-        op_list[crd]  = int(valid_ops.index(den_kwords['op'][crd]))
+        op_list[crd]  = int(valid_ops.index(den_kwords['op'][crd])+1)
         bnds[2*crd]   = float(den_kwords['bounds'][crd][0])
         bnds[2*crd+1] = float(den_kwords['bounds'][crd][1])
         for prim in range(len(den_kwords['coords'][crd])):
             indx = max_prim*crd + prim
-            coord_list[indx] = int(valid_coord.index(den_kwords['coords'][crd][prim]))
+            coord_list[indx] = int(valid_coord.index(den_kwords['coords'][crd][prim])+1)
             cf_list[indx]    = float(den_kwords['coefs'][crd][prim])
         for atm in range(len(den_kwords['atoms'][crd])):
             indx = max_atoms*crd + atm
             atm_list[indx]   = int(den_kwords['atoms'][crd][atm])
 
-    libden.init_density(
+    lib_den.init_density(
            ctypes.byref(convert_ctypes(random_seed, dtype='int32')), 
            ctypes.byref(convert_ctypes(n_wfn,       dtype='int32')),
            ctypes.byref(convert_ctypes(n_intl,      dtype='int32')),
@@ -144,18 +151,20 @@ def main():
            ctypes.byref(convert_ctypes(cf_list,     dtype='double')),
            ctypes.byref(convert_ctypes(atm_list,    dtype='int32')),
            ctypes.byref(convert_ctypes(op_list,     dtype='int32')),
-           ctypes.byref(convert_ctypes(bounds,      dtype='double')),
+           ctypes.byref(convert_ctypes(bnds,        dtype='double')),
            ctypes.byref(convert_ctypes(npts,        dtype='int32')))
 
     # start processing trajectory data by looping over wavefunction
     # objects and add each trajectory to the dll
     t_max  = 0.
     batch  = 0
-    dsets  = ['states', 'phase', 'potential', 'geom', 'momentum']
+    dsets  = ['states',       'phase', 'potential','geom',
+              'momentum','derivative', 'coupling', 'amp']
     wfn_keys = [key_val for key_val in chkpt.keys() 
                                     if 'wavefunction' in key_val]
 
     for wfn_grp in wfn_keys: 
+        print('wfn_grp='+str(wfn_grp))
         batch = batch + 1
         traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
                                     if checkpoint.isTrajectory(key_val)]
@@ -163,7 +172,8 @@ def main():
             data = [None] * len(dsets)
             for iset in range(len(dsets)):
                 dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
-                t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
+                t, datum = checkpoint.retrieve_dataset(chkpt, dset, 
+                                                         t_init, t_final)
                 data[iset] = datum
 
             t_max   = max(t_max, np.amax(t))
@@ -172,33 +182,34 @@ def main():
             ns      = len(data[1][0])
             nd      = len(glbl.properties['crd_widths'])
             data[0] = t
-            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')), 
-                    ctypes.byref(convert_ctypes(nt, dtype='int64')),
+
+            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')),
+                    ctypes.byref(convert_ctypes(nt,    dtype='int64')),
                     ctypes.byref(convert_ctypes(state, dtype='int64')),
-                    convert_ctypes(widths,dtype='double'),
-                    convert_ctypes(masses,dtype='double')]
+                    convert_ctypes(widths,             dtype='double'),
+                    convert_ctypes(masses,             dtype='double')]
             # because we're loading by timestep, data in row-major form. 
             # When we flatten, want to do so to transpose. This is done 
             # in one step by flattening to 'row-major' C form (rather 
             # than transposing, then "F" form).
-            args  += [convert_ctypes(data[i].flatten('C'),                        
-                             dtype='double') for i in range(len(data))]
-            libden.add_trajectory(*args)
+            args  += [convert_ctypes(data[i].flatten('C'),
+                             dtype='double') for i in range(len(data)-1)]
+            # add amps separately
+            ampr  = convert_ctypes(data[len(data)-1][:,0], dtype='double') 
+            ampi  = convert_ctypes(data[len(data)-1][:,1], dtype='double')
+            args  += [ampr, ampi] 
+            lib_den.add_trajectory(*args)
+
+    # FINALLY -- close the checkpoint file
     chkpt.close()
 
-    # after data is loaded, this is all on the propagation routines
-    ti     = float(den_kwords['tinit'])
-    tend   = float(den_kwords['tfinal'])
-    t_step = float(den_kwords['tstep'])
-    if tend is None:
-        tend = t_max
-    
     # evaluate density at each requested time
-    int_grid = np.zeros(np.prod(npts), dtype=float)
-    for time in range(ti, tend, t_step): 
-        libden.evaluate_density(
+    n_grid   = int(np.prod(npts))
+    int_grid = np.zeros(n_grid, dtype=float)
+    for time in np.arange(t_init, t_final+0.5*t_step, t_step): 
+        lib_den.evaluate_density(
                 ctypes.byref(convert_ctypes(time,     dtype='double')),
-                ctypes.byref(convert_ctypes(n_total,  dtype='int32')),
+                ctypes.byref(convert_ctypes(n_grid,   dtype='int32')),
                 ctypes.byref(convert_ctypes(int_grid, dtype='double')))
         
 
@@ -208,17 +219,11 @@ def main():
 def parse_input(input_file):
     """parse an density file"""
 
-    den_kwords = {'tinit'    :0,
-                  'tfinal'   :0,
-                  'tsteps'   :10,
-                  'states'   :[0],
-                  'coords'   :[[]],
-                  'atoms'    :[[]],
-                  'coefs'    :[[]],
-                  'normalize':False,
-                  'bounds'   :[[]],
-                  'npts'     :[],
-                  'op'       :[]}
+    den_kwords = {'tinit'    :0,    'tfinal'   :0, 'tstep'   :10,
+                  'states'   :[0],  'coords'   :[[]],
+                  'atoms'    :[[]], 'coefs'    :[[]],
+                  'normalize':False,'bounds'   :[[]],
+                  'npts'     :[],    'op'       :[]}
 
     #with open(glbl.paths['home_path'] + fname, 'r') as infile:
     with open(input_file, 'r') as infile:
@@ -227,7 +232,7 @@ def parse_input(input_file):
     for line in den_input:
         for kword in den_kwords.keys():
             if kword in line and '=' in line:
-                den_kwords[kword] = exec(line[line.index('=')+1:])  
+                den_kwords[kword] = ast.literal_eval(line[line.index('=')+1:].strip())  
 
     return den_kwords
 

@@ -154,7 +154,7 @@ def time_steps(chkpt=None, grp_name=None, file_name=None):
         raise ValueError('grp_name: '+str(grp_name)+' not present in checkpoint file')
 
     # if opening from file name, close file when done
-    if chkpt is None and file_name is not None:
+    if file_name is not None:
         chkpt.close()
 
     return steps
@@ -412,10 +412,14 @@ def write_keyword(chkpt, grp, kword, val):
                   " -- "+str(e)+"\n")
 
 
-def read_keywords(chkpt):
+def read_keywords(chkpt=None):
     """Read keywords from archive file"""
     # open chkpoint file
-    chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
+    close_file = False
+
+    if chkpt is None:
+        close_file = True
+        chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
     #loop over the dictionaries in glbl
     for keyword_section in glbl.sections.keys():
@@ -432,7 +436,10 @@ def read_keywords(chkpt):
             except Exception as e:
                 print("Failed to set keyword:"+str(keyword)+" -- "+str(e)+"\n")
 
-    chkpt.close()
+    if close_file:
+        chkpt.close()
+
+    return
 
 
 def read_keyword(chkpt, grp, kword):
