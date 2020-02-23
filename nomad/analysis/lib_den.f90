@@ -197,11 +197,20 @@ module libden
         integral_value = zero_drk
         rolling_ave    = zero_drk
         do while(.not.converged .and. iter <= iter_max)
+          ! select a trajectory, weighted by magnitude of amplitude
           itraj     =  select_trajectory(wgt_list)
+          ! generate a trial geometry via sampling about cartesian geometry
+          ! using a distribution obtained from basis function width
           geom      =  generate_cartesian_geom(n_cart, traj_list(itraj)%x, traj_list(itraj)%width)
+          ! determine internal coordiante values corresponding to sampled
+          ! geometry
           igeom     =  internal_coordinates(geom)
+          ! determine the value of the density at this point
           den       =  compute_density(geom, n_traj, traj_list)
 
+          ! determine which grid points to update. Since we're using fuzzy
+          ! integration bounds, this will involve a "region" around the 
+          ! central grid pt.
           call grid_indices(igeom, n_indx, indices, wts, off_wt) 
           do i = 1,n_indx
             batch_den(indices(i)) = batch_den(indices(i)) + wts(i) * den 
@@ -210,6 +219,8 @@ module libden
           enddo
           batch_off = batch_off + off_wt * den 
           
+          ! the converge criteria is the value of the integral, where the max grid pt is 
+          ! normlized to "1". We use a rolling average of the difference to smooth out the noise
           if(n_indx > 0) then
             call update_average(abs(integral_value - (batch_on/max_bin)*volume_element), rolling_ave, first_run)
             integral_value = (batch_on/max_bin)*volume_element
@@ -244,7 +255,8 @@ module libden
     !#################################################
 
     !
-    !
+    ! compute the density at a specific coordinate specificed
+    ! by geom.
     !
     function compute_density(geom, n, traj_list) result(den)
       real(drk), intent(in)             :: geom(:)
@@ -274,7 +286,8 @@ module libden
     end function compute_density
 
     !
-    !
+    ! compute the total wfn amplitude on states enumerated
+    ! in state_list
     !
     function state_population(n, traj_list) result(pop)
       integer(ik), intent(in)           :: n
@@ -305,7 +318,8 @@ module libden
     end function state_population
 
     !
-    !
+    ! randomly select a trajectory from the trajectory list, 
+    ! with a probability weighted by the norms of the trajectories
     !
     function select_trajectory(wgt_list) result(traj_indx)
       real(drk),intent(in)              :: wgt_list(0:)
@@ -324,7 +338,7 @@ module libden
     end function select_trajectory
 
     !
-    !
+    ! generate a cartesian geometry by sampling about a pt "x"
     !
     function generate_cartesian_geom(n, x, width) result(geom)
       integer(ik), intent(in)             :: n
@@ -357,7 +371,8 @@ module libden
     end function generate_cartesian_geom
 
     !
-    !
+    ! compute a set of internal coordinates corresponding to
+    ! to cartesian geometry geom
     !
     function internal_coordinates(geom) result(intgeom)
       real(drk), intent(in)               :: geom(:)
@@ -435,7 +450,8 @@ module libden
     end function internal_coordinates
 
     !
-    !
+    !  create the sets of weights for the trajectories in
+    !  traj_list corresponding to the trajectory amplitudes
     !
     subroutine amp_weight_list(n, traj_list, wgt_lst)
       integer(ik), intent(in)             :: n
@@ -466,7 +482,8 @@ module libden
     end subroutine amp_weight_list
 
     !
-    !
+    ! compute the grid indices, and corresponding weights
+    ! that correspond to the internal coordinates in igeom
     !
     subroutine grid_indices(igeom, n_indx, indices, wgts, wgt_off)
       real(drk), intent(in)               :: igeom(n_intl)
@@ -529,7 +546,8 @@ module libden
     end subroutine 
   
     !
-    !
+    ! given a set of grid indices, compute the address in the
+    ! density vector
     !
     function grid_address(bin_vals) result(addr)
       integer(ik), intent(in)            :: bin_vals(n_intl)
@@ -551,7 +569,8 @@ module libden
     end function grid_address
 
     !
-    !
+    ! compute the grid weight given the distance from
+    ! a particular internal coordiante value
     !
     function bin_wgt(step, grid_val) result(wgt)
       integer(ik), intent(in)            :: step(:)
@@ -596,7 +615,8 @@ module libden
     end function wgt_function
 
     !
-    !
+    ! update the rolling average corresponding to the iteration-
+    ! by-iteration change to the density integral 
     !
     subroutine update_average(new_value, average, re_init)
       real(drk), intent(in)             :: new_value
@@ -705,15 +725,15 @@ module libden
       real(drk)                        :: e1(3), e2(3), e3(3)
       real(drk)                        :: cp1(3),cp2(3),cp3(3)
 
-      e1  = vec( geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2) )
-      e3  = vec( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2) )
-      e2  = vec( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4) )
+      e1  = normalized( geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2) )
+      e3  = normalized( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2) )
+      e2  = normalized( geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4) )
 
       cp1 = cross_prod(e1, e3)
       cp2 = cross_prod(e2, e3)
 
-      e1  = vec(cp1)
-      e2  = vec(cp2)
+      e1  = normalized(cp1)
+      e2  = normalized(cp2)
       cp3 = cross_prod(e1, e2)
 
       x   = -dot_product(e1,e2)
@@ -738,12 +758,12 @@ module libden
       real(drk)                        :: e1(3),e2(3),e3(3)
       real(drk)                        :: cp(3),stheta,ctheta
 
-      e1 = vec(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom4-1)+1:3*atom4))
-      e2 = vec(geom(3*(atom2-1)+1:3*atom2)-geom(3*(atom4-1)+1:3*atom4))
-      e3 = vec(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4))
+      e1 = normalized(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom4-1)+1:3*atom4))
+      e2 = normalized(geom(3*(atom2-1)+1:3*atom2)-geom(3*(atom4-1)+1:3*atom4))
+      e3 = normalized(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom4-1)+1:3*atom4))
 
       cp = cross_prod(e2, e3)
-      e2 = vec(cp)
+      e2 = normalized(cp)
 
       stheta = dot_product(e1,e2)
       ctheta = sqrt(1 - stheta**2)
@@ -771,11 +791,11 @@ module libden
       real(drk)                        :: n1(3),n2(3)
       real(drk)                        :: m_norm, n_norm
 
-      m1 = vec(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2))
-      m2 = vec(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2))
+      m1 = normalized(geom(3*(atom1-1)+1:3*atom1)-geom(3*(atom2-1)+1:3*atom2))
+      m2 = normalized(geom(3*(atom3-1)+1:3*atom3)-geom(3*(atom2-1)+1:3*atom2))
 
-      n1 = vec(geom(3*(atom4-1)+1:3*atom4)-geom(3*(atom5-1)+1:3*atom5))
-      n2 = vec(geom(3*(atom6-1)+1:3*atom6)-geom(3*(atom5-1)+1:3*atom5))
+      n1 = normalized(geom(3*(atom4-1)+1:3*atom4)-geom(3*(atom5-1)+1:3*atom5))
+      n2 = normalized(geom(3*(atom6-1)+1:3*atom6)-geom(3*(atom5-1)+1:3*atom5))
 
       m  = cross_prod(m1,m2)
       n  = cross_prod(n1,n2)
@@ -788,9 +808,9 @@ module libden
     end function plane
 
     !
+    ! return a normalized vector u from v
     !
-    !
-    function vec(v) result(u)
+    function normalized(v) result(u)
       real(drk), intent(in)              :: v(3)
    
       real(drk)                          :: u(3)
@@ -804,7 +824,7 @@ module libden
     end function
 
     !
-    !
+    !  compute cross-product between to 3D vectors
     !
     function cross_prod(v1, v2) result(u)
       real(drk), intent(in)               :: v1(3)
