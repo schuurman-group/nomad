@@ -16,16 +16,16 @@ module libden
   integer(ik), parameter        :: fuzzy_order = 3
   ! a numerical parameter that defines the extent of the 
   ! penetration of the "fuzziness" into neighboring cells
-  integer(ik), parameter        :: fuzzy_depth = 1
+  integer(ik), parameter        :: fuzzy_depth = 1 
+  ! number of iterations to include in rolling average 
+  integer(ik), parameter        :: n_rolling = 100
   ! number of grid indices set for a single sampling,
   ! equal to (2*fuzzy_depth+1)**n_intl
   integer(ik)                   :: n_fuzzy
   ! maximum number of iterations
-  integer(ik)                   :: iter_max = 10000
+  integer(ik)                   :: iter_max = 25000
   ! number of internal coordinates
   integer(ik)                   :: n_intl  
-  ! N-dimensional density grid
-  real(drk), allocatable        :: den_grid(:)
   ! number of simulations to average over
   integer(ik)                   :: n_batch
   ! states in to include
@@ -103,27 +103,32 @@ module libden
       enddo
 
       ! integration grid initialization
-      allocate(den_grid(product(npts)))
       allocate(grid_bnds(2, n_intl))
       allocate(grid_npts(n_intl))
       allocate(grid_width(n_intl))
 
-      den_grid   = zero_drk
       grid_bnds  = reshape(bounds, (/ 2, n_coord /))
       grid_npts  = npts
       grid_width = (grid_bnds(2,:) - grid_bnds(1,:)) / grid_npts
-      n_fuzzy    = (2*fuzzy_depth+1)**n_intl
- 
+      if(fuzzy_depth > 0) then
+        n_fuzzy    = (2*fuzzy_depth+1)**n_intl
+      else
+        n_fuzzy    = 1
+      endif 
+
       return
     end subroutine init_density
 
     !
     !
     !
-    subroutine evaluate_density(time, npts, density) bind(c, name='evaluate_density')
+    subroutine evaluate_density(time, npts, density, converge, norm_on, norm_off) bind(c, name='evaluate_density')
       real(drk), intent(in)                   :: time
       integer(ik), intent(in)                 :: npts
       real(drk), intent(out)                  :: density(npts)
+      real(drk), intent(out)                  :: converge
+      real(drk), intent(out)                  :: norm_on
+      real(drk), intent(out)                  :: norm_off
 
       type(trajectory), allocatable           :: traj_list(:)
       real(drk), allocatable                  :: wgt_list(:)
@@ -131,14 +136,18 @@ module libden
       real(drk)                               :: wts(n_fuzzy)
       integer(ik), allocatable                :: labels(:)
       integer(ik)                             :: indices(n_fuzzy)
+      real(drk)                               :: batch_den(npts)
       real(drk)                               :: igeom(n_intl)
       real(drk)                               :: den
-      real(drk)                               :: off_grid
       real(drk)                               :: off_wt
       real(drk)                               :: volume_element
       real(drk)                               :: total_pop
-      real(drk)                               :: den_total
-      real(drk)                               :: ave_val, new_ave_val
+      real(drk)                               :: batch_pop
+      real(drk)                               :: batch_on
+      real(drk)                               :: batch_off
+      real(drk)                               :: max_bin
+      real(drk)                               :: integral_value
+      real(drk)                               :: rolling_ave
       integer(ik)                             :: i, iter
       integer(ik)                             :: n_traj
       integer(ik)                             :: n_cart
@@ -146,17 +155,19 @@ module libden
       integer(ik)                             :: itraj
       integer(ik)                             :: ibatch
       logical                                 :: converged
- 
+      logical                                 :: first_run
 
       if(npts /= product(grid_npts))stop 'grid mismatch in evaluate_density'
       density        = zero_drk
-      off_grid       = zero_drk
+      total_pop      = zero_drk
+      norm_on        = zero_drk
+      norm_off       = zero_drk
       volume_element = product(grid_width)
 
       do ibatch = 1,n_batch
 
         ! zero out the initial trial density
-        den_grid = zero_drk
+        batch_den = zero_drk
 
         ! get list of trajectories for this time and batch
         call locate_trajectories(time, ibatch, labels, traj_list)
@@ -173,44 +184,56 @@ module libden
         call amp_weight_list(n_traj, traj_list, wgt_list)        
 
         ! determine the total population on the states to be integrated
-        total_pop = state_population(n_traj, traj_list)
+        batch_pop = state_population(n_traj, traj_list)
+        total_pop = total_pop + batch_pop
 
         ! perform MC integration of the density
-        converged = .false.
-        iter      = 1
-        den_total = 0
-        ave_val   = zero_drk
+        converged      = .false.
+        first_run      = .true.
+        iter           = 1
+        batch_on       = zero_drk
+        batch_off      = zero_drk
+        max_bin        = zero_drk
+        integral_value = zero_drk
+        rolling_ave    = zero_drk
         do while(.not.converged .and. iter <= iter_max)
           itraj     =  select_trajectory(wgt_list)
           geom      =  generate_cartesian_geom(n_cart, traj_list(itraj)%x, traj_list(itraj)%width)
           igeom     =  internal_coordinates(geom)
           den       =  compute_density(geom, n_traj, traj_list)
-          den_total =  den_total + den
 
           call grid_indices(igeom, n_indx, indices, wts, off_wt) 
           do i = 1,n_indx
-            den_grid(indices(i)) = den_grid(indices(i)) + wts(i) * den
+            batch_den(indices(i)) = batch_den(indices(i)) + wts(i) * den 
+            max_bin               = max(max_bin, batch_den(indices(i)))
+            batch_on              = batch_on + wts(i) * den
           enddo
-          off_grid = off_grid + off_wt * den
+          batch_off = batch_off + off_wt * den 
+          
+          if(n_indx > 0) then
+            call update_average(abs(integral_value - (batch_on/max_bin)*volume_element), rolling_ave, first_run)
+            integral_value = (batch_on/max_bin)*volume_element
+            first_run      = .false.
+          endif
 
-          ave_val = (grid_bnds(2,1)-grid_bnds(1,1)) * sum(den_grid) / iter          
           iter = iter + 1 
-          print *,'ave_val= ',ave_val
+          converged = (rolling_ave <= 1.e-5) .and. (iter > n_rolling)
         enddo
 
         ! add the density from this batch
-        density = density + den_grid * ( total_pop / (den_total * volume_element) )
-   
+        density  = density  + batch_den * (batch_pop / (batch_on + batch_off))
+        norm_off = norm_off + batch_off * (batch_pop / (batch_on + batch_off))    
+        converge = max(converge, rolling_ave)
+
       enddo  
   
       ! total density is incoherent sum of nbatch simulations -- renormalize to "1"
-      if(n_batch >= 1) then
-        density  = density / n_batch
-        off_grid = off_grid / n_batch 
+      if(total_pop > mp_drk) then
+        density  = density / total_pop
+        norm_off = norm_off / total_pop
       endif
 
-      print *,'on_grid = ',sum(density)*volume_element
-      print *,'off_grid = ',off_grid
+      norm_on  = sum(density)
 
       return
     end subroutine evaluate_density
@@ -537,6 +560,7 @@ module libden
       real(drk)                          :: distance(n_intl)
       real(drk)                          :: wgt
       real(drk)                          :: r
+      real(drk)                          :: r_scale
       integer(ik)                        :: i
 
       do i = 1,n_intl
@@ -545,9 +569,10 @@ module libden
 
       ! nascent r defined on range 0 -> sqrt(n_intl)*fuzzy_depth
       ! scale so that r define on range 0 -> 2, then subtract one so range is -1,1
-      ! this is range that Becke function defined on      
-      r   = sqrt(dot_product(distance, distance)) * 2. / (sqrt(dble(n_intl)) * fuzzy_depth) - 1
-      wgt = 0.5 * (1 - wgt_function(r, fuzzy_order))
+      ! this is range that Becke function defined on
+      r_scale = max(1., sqrt(dble(n_intl)) * fuzzy_depth)      
+      r       = sqrt(dot_product(distance, distance)) * 2. / r_scale - 1
+      wgt     = 0.5 * (1 - wgt_function(r, fuzzy_order))
 
       return
     end function bin_wgt
@@ -569,6 +594,36 @@ module libden
 
       return
     end function wgt_function
+
+    !
+    !
+    !
+    subroutine update_average(new_value, average, re_init)
+      real(drk), intent(in)             :: new_value
+      real(drk), intent(out)            :: average
+      logical, intent(in)               :: re_init
+
+      real(drk), save                   :: vec(n_rolling)
+      real(drk), save                   :: current_sum
+      integer(ik), save                 :: current_indx
+      integer(ik), save                 :: n_indx 
+
+      if(re_init) then
+        vec          = zero_drk
+        current_sum  = zero_drk
+        current_indx = 0
+        n_indx       = 0
+      endif
+
+      current_indx      = current_indx + 1
+      if(current_indx > n_rolling) current_indx = 1
+      n_indx            = min(n_indx+1, n_rolling)
+      current_sum       = current_sum - vec(current_indx) + new_value
+      vec(current_indx) = new_value
+
+      average           = current_sum / n_indx
+
+    end subroutine update_average
 
 
 

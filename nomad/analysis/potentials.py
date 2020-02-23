@@ -3,8 +3,6 @@ Module for interpreting potential energies for plotting.
 """
 import os
 import numpy as np
-from fmsinterpreter import fileio
-
 
 def conv_nrg(lbl, e, order=None, conv=1., base=None, states=None):
     """Reorders labels and energies according to pltorder and converts

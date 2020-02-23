@@ -791,9 +791,9 @@ module lib_traj
  
     a1      = bra_t%width
     a2      = ket_t%width
-    argr    = a1*(pt - bra_t%x)**2   + a2*(pt - ket_t%x)**2
-    argi    = ket_t%p*(pt - ket_t%x) - bra_t%p*(pt - bra_t%x)
-    den_vec = sqrt(2.*a1/pi) * exp(-argr + I_drk*argi)
+    argr    = -a1*(pt - bra_t%x)**2   - a2*(pt - ket_t%x)**2
+    argi    = -bra_t%p*(pt - bra_t%x) + ket_t%p*(pt - ket_t%x)
+    den_vec = ((4*a1*a2/(pi**2))**0.25) * exp(argr + I_drk*argi)
     den     = product(den_vec)
 
     return

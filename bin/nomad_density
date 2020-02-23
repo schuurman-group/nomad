@@ -18,15 +18,18 @@ import array as array
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
+import nomad.analysis.plot as plot
 
 input_file  = ''
 chkpt_file  = ''
 valid_coord = ['stre', 'bend',  'tors',  '|tors|', 
                'oop',  '|oop|', 'plane', '|plane|']
-valid_ops   = ['sum', 'max', '|sum|']
-max_states  = 10
-max_prim    = 8
-max_atoms   = 8*6
+valid_ops           = ['sum', 'max', '|sum|']
+max_states          = 10
+max_prim            = 8
+max_atoms           = 8*6
+time_conv           = 1./41.334
+print_density_files = False
 
 def init():
     """Initializes the nomad inputs.
@@ -57,6 +60,7 @@ def main():
     global input_file, chkpt_file
     global valid_coord, valid_ops
     global max_states, max_prim, max_atoms
+    global print_density_files, time_conv
 
     input_kwords = parse_input(input_file)
 
@@ -106,7 +110,6 @@ def main():
 
     # initialize the density module by processing input keywords
     den_kwords = parse_input(input_file)
-    print("den_kwords="+str(den_kwords))
     t_init  = float(den_kwords['tinit'])
     t_final = float(den_kwords['tfinal'])
     t_step  = float(den_kwords['tstep'])
@@ -164,7 +167,6 @@ def main():
                                     if 'wavefunction' in key_val]
 
     for wfn_grp in wfn_keys: 
-        print('wfn_grp='+str(wfn_grp))
         batch = batch + 1
         traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
                                     if checkpoint.isTrajectory(key_val)]
@@ -204,14 +206,64 @@ def main():
     chkpt.close()
 
     # evaluate density at each requested time
-    n_grid   = int(np.prod(npts))
-    int_grid = np.zeros(n_grid, dtype=float)
+    n_grid      = int(np.prod(npts))
+    convergence = convert_ctypes(0., dtype='double')
+    norm_on     = convert_ctypes(0., dtype='double')
+    norm_off    = convert_ctypes(0., dtype='double')
+    int_grid    = convert_ctypes(np.zeros(n_grid, dtype=float), dtype='double')
+    out_nd_grid = np.zeros(npts, dtype=float)
+
+    # if n_intl == 1, plot density vs. time
+    if n_intl == 1:
+        nt        = math.floor( (t_final - t_init)/t_step ) + 1
+        wid       = math.floor( (bnds[1] - bnds[0]) / (npts[0]-1) )
+        x_axis    = np.array([t_init +  i*t_step for i in range(nt)], dtype=float)
+        y_axis    = np.array([bnds[0] + i*wid for i in range(npts[0])], dtype=float)
+        plot_grid = np.zeros((nt, npts[0]), dtype=float)
+    # if n_intl == 2, plot coupled density plot for each time step
+    if n_intl == 2:
+        widx      = math.floor( (bnds[1] - bnds[0]) / (npts[0]-1) )
+        widy      = math.floor( (bnds[3] - bnds[2]) / (npts[1]-1) )
+        x_axis    = np.array([bnds[0] + i*widx for i in range(npts[0])], dtype=float)
+        y_axis    = np.array([bnds[2] + i*widy for i in range(npts[1])], dtype=float)
+        plot_grid = np.zeros((npts[0],npts[1]), dtype=float)
+
+    # main loop over the time steps
+    den_report = open('nomad_density.out', 'w')
+    out_str    = ("time: {:10.4f}, wfn norm on grid:  {:10.4f}, "+
+                 "wfn norm off grid: {:10.4f}, convergence: {:10.7f}\n")
     for time in np.arange(t_init, t_final+0.5*t_step, t_step): 
+
         lib_den.evaluate_density(
-                ctypes.byref(convert_ctypes(time,     dtype='double')),
-                ctypes.byref(convert_ctypes(n_grid,   dtype='int32')),
-                ctypes.byref(convert_ctypes(int_grid, dtype='double')))
-        
+                ctypes.byref(convert_ctypes(time,   dtype='double')),
+                ctypes.byref(convert_ctypes(n_grid, dtype='int32')),
+                int_grid,
+                ctypes.byref(convergence),
+                ctypes.byref(norm_on),
+                ctypes.byref(norm_off))
+
+        den_report.write(out_str.format(time, 
+                          float(norm_on.value), 
+                          float(norm_off.value), 
+                          float(convergence.value)))
+
+        out_nd_grid = np.reshape(np.array(int_grid, dtype=float), tuple(npts))
+        if n_intl == 1:
+            t_indx  =  int(round( (time - t_init)/t_step ))
+            plot_grid[t_indx, :] = out_nd_grid        
+        if n_intl == 2:
+            plot_grid = out_nd_grid
+            plot.heatmap(x_axis, y_axis, plot_grid)
+        if n_intl > 2 or print_density_files:
+            print_nd_array('nomad_den.t'+str(time), bnds, npts, out_nd_grid)
+
+    den_report.close()
+
+    if n_intl == 1:
+        x_axis        *= time_conv
+        den_plot, axis = plot.heatmap(x_axis, y_axis, plot_grid.T, 
+                                 xlabel='time (fs)',ylabel='coord')
+        plot.save('density.png', figure=den_plot)
 
     return
 
@@ -235,6 +287,27 @@ def parse_input(input_file):
                 den_kwords[kword] = ast.literal_eval(line[line.index('=')+1:].strip())  
 
     return den_kwords
+
+# print a n-column n-D array to file
+def print_nd_array(file_name, bounds, npts, grid_values):
+    """print an nD-array to file"""
+    nd = len(npts)-1  
+    bin_wid = [(bounds[2*i+1] - bounds[2*i])/npts[i] for i in range(len(npts))]
+
+    with open(file_name, 'w') as den_file:
+        counter     = np.zeros(len(npts), dtype=int)
+        counter[nd] = -1
+        while sum(counter) < sum(npts-1):
+            indx = nd
+            while counter[indx] == (npts[indx]-1):
+                counter[indx] = 0
+                indx         -= 1
+            counter[indx] += 1
+            
+            row_str  = ['{:10.6f}'.format(bounds[2*i] + counter[i]*bin_wid[i])
+                                   for i in range(len(npts))]
+            row_str += ['{:10.4f}'.format(grid_values[tuple(counter)])]
+            den_file.write(' '.join(row_str)+"\n")        
 
 #
 def convert_ctypes(py_val, dtype=None):
