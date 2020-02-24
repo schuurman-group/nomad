@@ -12,19 +12,16 @@ import os
 import ast
 import math
 import sys as sys
-import h5py as h5py
 import ctypes as ctypes
-import array as array
+import h5py as h5py
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
+import nomad.analysis.lib_utils as lib_utils
 import nomad.analysis.plot as plot
 
 input_file  = ''
 chkpt_file  = ''
-valid_coord = ['stre', 'bend',  'tors',  '|tors|', 
-               'oop',  '|oop|', 'plane', '|plane|']
-valid_ops           = ['sum', 'max', '|sum|']
 max_states          = 10
 max_prim            = 8
 max_atoms           = 8*6
@@ -58,7 +55,6 @@ def process_arguments(args):
 def main():
     """ main driver routine """
     global input_file, chkpt_file
-    global valid_coord, valid_ops
     global max_states, max_prim, max_atoms
     global print_density_files, time_conv
 
@@ -82,136 +78,34 @@ def main():
     # pass the various run time options to the propagation library
     default_step = float(glbl.properties['default_time_step'])
     tstep_method = ['nascent', 'static'].index('static')+1
+    lib_utils.init_table(lib_den, default_step, tstep_method)
 
-    lib_den.traj_init_table(
-           ctypes.byref(convert_ctypes(default_step, dtype='double')),
-           ctypes.byref(convert_ctypes(tstep_method, dtype='int32')))
-
-    # extract information about the basis
-    n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
-    n_total  = sum(n_traj)
-    n_states = int(glbl.properties['n_states'])
-    n_crd    = len(glbl.properties['crd_widths'])
-    widths   = np.array(glbl.properties['crd_widths'], dtype=float)
-    masses   = np.array(glbl.properties['crd_masses'], dtype=float)
-    x_ref    = np.array(glbl.properties['init_coords'][0,0],dtype=float)
-    p_ref    = np.array(glbl.properties['init_coords'][0,1],dtype=float)
-
-    # initialize the trajectory table
-    lib_den.traj_create_table(
-           ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
-           ctypes.byref(convert_ctypes(n_total, dtype='int32')),
-           ctypes.byref(convert_ctypes(n_states,dtype='int32')),
-           ctypes.byref(convert_ctypes(n_crd,   dtype='int32')),
-           ctypes.byref(convert_ctypes(widths,  dtype='double')),
-           ctypes.byref(convert_ctypes(masses,  dtype='double')),
-           ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
-           ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
+    # create the trajectory table
+    kwords = lib_utils.create_table(lib_den, chkpt)
 
     # initialize the density module by processing input keywords
     den_kwords = parse_input(input_file)
     t_init  = float(den_kwords['tinit'])
     t_final = float(den_kwords['tfinal'])
     t_step  = float(den_kwords['tstep'])
+    lib_utils.init_density(
+                lib_den, chkpt, den_kwords, max_states, max_prim, max_atoms)
 
-    random_seed= 1
-    n_intl     = len(den_kwords['coords'])
-    state_list = np.full( (max_states),-1,  dtype=int)
-    coord_list = np.zeros(max_prim*n_intl,  dtype=int)
-    cf_list    = np.zeros(max_prim*n_intl,  dtype=float)
-    atm_list   = np.zeros(max_atoms*n_intl, dtype=int)
-    op_list    = np.zeros(n_intl,   dtype=int)
-    bnds       = np.zeros(2*n_intl, dtype=float)
-    npts       = np.zeros(n_intl,   dtype=int)
- 
-    if den_kwords['normalize']:
-        for i_crd in range(n_intl):
-            cf = np.array(den_kwords['coefs'][i_crd], dtype=float)
-            cf *= 1./math.sqrt(np.dot(cf, cf))
-            den_kwords['coefs'][i_crd] = cf.tolist()
- 
-    for state in range(len(den_kwords['states'])):
-        state_list[state] = int(den_kwords['states'][state])
-    for crd in range(n_intl):
-        npts[crd]     = float(den_kwords['npts'][crd])
-        op_list[crd]  = int(valid_ops.index(den_kwords['op'][crd])+1)
-        bnds[2*crd]   = float(den_kwords['bounds'][crd][0])
-        bnds[2*crd+1] = float(den_kwords['bounds'][crd][1])
-        for prim in range(len(den_kwords['coords'][crd])):
-            indx = max_prim*crd + prim
-            coord_list[indx] = int(valid_coord.index(den_kwords['coords'][crd][prim])+1)
-            cf_list[indx]    = float(den_kwords['coefs'][crd][prim])
-        for atm in range(len(den_kwords['atoms'][crd])):
-            indx = max_atoms*crd + atm
-            atm_list[indx]   = int(den_kwords['atoms'][crd][atm])
-
-    lib_den.init_density(
-           ctypes.byref(convert_ctypes(random_seed, dtype='int32')), 
-           ctypes.byref(convert_ctypes(n_wfn,       dtype='int32')),
-           ctypes.byref(convert_ctypes(n_intl,      dtype='int32')),
-           ctypes.byref(convert_ctypes(state_list,  dtype='int32')),
-           ctypes.byref(convert_ctypes(coord_list,  dtype='int32')),
-           ctypes.byref(convert_ctypes(cf_list,     dtype='double')),
-           ctypes.byref(convert_ctypes(atm_list,    dtype='int32')),
-           ctypes.byref(convert_ctypes(op_list,     dtype='int32')),
-           ctypes.byref(convert_ctypes(bnds,        dtype='double')),
-           ctypes.byref(convert_ctypes(npts,        dtype='int32')))
-
-    # start processing trajectory data by looping over wavefunction
-    # objects and add each trajectory to the dll
-    t_max  = 0.
-    batch  = 0
-    dsets  = ['states',       'phase', 'potential','geom',
-              'momentum','derivative', 'coupling', 'amp']
-    wfn_keys = [key_val for key_val in chkpt.keys() 
-                                    if 'wavefunction' in key_val]
-
-    for wfn_grp in wfn_keys: 
-        batch = batch + 1
-        traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
-                                    if checkpoint.isTrajectory(key_val)]
-        for traj_grp in traj_keys:
-            data = [None] * len(dsets)
-            for iset in range(len(dsets)):
-                dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
-                t, datum = checkpoint.retrieve_dataset(chkpt, dset, 
-                                                         t_init, t_final)
-                data[iset] = datum
-
-            t_max   = max(t_max, np.amax(t))
-            state   = int(data[0][0][1])
-            nt      = len(t)
-            ns      = len(data[1][0])
-            nd      = len(glbl.properties['crd_widths'])
-            data[0] = t
-
-            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')),
-                    ctypes.byref(convert_ctypes(nt,    dtype='int64')),
-                    ctypes.byref(convert_ctypes(state, dtype='int64')),
-                    convert_ctypes(widths,             dtype='double'),
-                    convert_ctypes(masses,             dtype='double')]
-            # because we're loading by timestep, data in row-major form. 
-            # When we flatten, want to do so to transpose. This is done 
-            # in one step by flattening to 'row-major' C form (rather 
-            # than transposing, then "F" form).
-            args  += [convert_ctypes(data[i].flatten('C'),
-                             dtype='double') for i in range(len(data)-1)]
-            # add amps separately
-            ampr  = convert_ctypes(data[len(data)-1][:,0], dtype='double') 
-            ampi  = convert_ctypes(data[len(data)-1][:,1], dtype='double')
-            args  += [ampr, ampi] 
-            lib_den.add_trajectory(*args)
+    # load all the trajectories into a library
+    kwords = lib_utils.load_trajectories(
+                lib_den, chkpt, kwords, t_init, t_final)
 
     # FINALLY -- close the checkpoint file
     chkpt.close()
 
     # evaluate density at each requested time
+    n_intl  = len(den_kwords['coords'])
+    npts    = np.array([int(den_kwords['npts'][crd]) for crd in range(n_intl)])
+    bnds    = np.zeros(2*n_intl, dtype=float)
+    for crd in range(n_intl):
+        bnds[2*crd]   = float(den_kwords['bounds'][crd][0])
+        bnds[2*crd+1] = float(den_kwords['bounds'][crd][1])
     n_grid      = int(np.prod(npts))
-    convergence = convert_ctypes(0., dtype='double')
-    norm_on     = convert_ctypes(0., dtype='double')
-    norm_off    = convert_ctypes(0., dtype='double')
-    int_grid    = convert_ctypes(np.zeros(n_grid, dtype=float), dtype='double')
-    out_nd_grid = np.zeros(npts, dtype=float)
 
     # if n_intl == 1, plot density vs. time
     if n_intl == 1:
@@ -230,32 +124,26 @@ def main():
 
     # main loop over the time steps
     den_report = open('nomad_density.out', 'w')
-    out_str    = ("time: {:10.4f}, wfn norm on grid:  {:10.4f}, "+
-                 "wfn norm off grid: {:10.4f}, convergence: {:10.7f}\n")
+    out_str    = ("time: {:10.4f},"+
+                  " total number of trajectories: {:6d},"+
+                  " number of Monte-Carlo samples: {:10d},"+
+                  " wfn norm: on {:7.4f} / off {:7.4f},"+
+                  " convergence: {:10.7f}\n")
     for time in np.arange(t_init, t_final+0.5*t_step, t_step): 
 
-        lib_den.evaluate_density(
-                ctypes.byref(convert_ctypes(time,   dtype='double')),
-                ctypes.byref(convert_ctypes(n_grid, dtype='int32')),
-                int_grid,
-                ctypes.byref(convergence),
-                ctypes.byref(norm_on),
-                ctypes.byref(norm_off))
+        density, conv, n_sample, n_traj, norm_on, norm_off = \
+                        lib_utils.evaluate_density(lib_den, time, npts)
+        den_report.write(out_str.format(
+                        time, n_traj, n_sample, norm_on, norm_off, conv)) 
 
-        den_report.write(out_str.format(time, 
-                          float(norm_on.value), 
-                          float(norm_off.value), 
-                          float(convergence.value)))
-
-        out_nd_grid = np.reshape(np.array(int_grid, dtype=float), tuple(npts))
         if n_intl == 1:
             t_indx  =  int(round( (time - t_init)/t_step ))
-            plot_grid[t_indx, :] = out_nd_grid        
+            plot_grid[t_indx, :] = density        
         if n_intl == 2:
-            plot_grid = out_nd_grid
+            plot_grid = density
             plot.heatmap(x_axis, y_axis, plot_grid)
         if n_intl > 2 or print_density_files:
-            print_nd_array('nomad_den.t'+str(time), bnds, npts, out_nd_grid)
+            print_nd_array('nomad_den.t'+str(time), bnds, npts, density)
 
     den_report.close()
 
@@ -309,35 +197,6 @@ def print_nd_array(file_name, bounds, npts, grid_values):
             row_str += ['{:10.4f}'.format(grid_values[tuple(counter)])]
             den_file.write(' '.join(row_str)+"\n")        
 
-#
-def convert_ctypes(py_val, dtype=None):
-    """convert a python array into a C-data type"""
-
-    # note: the current approach is used based on:
-    # https://bugs.python.org/issue27926
-    # Namely, the default Python constructor is _very_ slow.
-    # if that changes, then this function can change too...
-
-    # there are fancier ways to do this by querying both the array and
-    # machine environment, but this will do for now
-    if dtype == 'int32':
-        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_int32
-    elif dtype == 'int64':
-        type_sym = 'i';i_size = 8; ctype_sym = ctypes.c_int64
-    elif dtype == 'double':
-        type_sym = 'd';i_size = 8; ctype_sym = ctypes.c_double
-    elif dtype == 'logical':
-        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_bool
-    else:
-        sys.exit('convert_ctypes does not recognize dtype='+str(dtype))
-
-    if isinstance(py_val, (float, int)):
-        return ctype_sym(py_val)
-
-    c_arr = (ctype_sym * py_val.size)(*py_val) 
-
-    return c_arr
- 
 #   
 if __name__ == '__main__':
     # parse command line arguments

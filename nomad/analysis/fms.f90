@@ -81,6 +81,8 @@ module fms
     complex(drk), allocatable          :: s(:,:), t(:,:), v(:,:), h(:,:)
     complex(drk), allocatable          :: sdt(:,:), sinv(:,:), heff(:,:)
 
+    logical                            :: adapt_basis
+
     if(.not.traj_table_exists() .or. .not.amp_table_exists()) &
        stop 'lib_traj needs to be initialized before fms'
     current_traj  = 0
@@ -139,7 +141,13 @@ module fms
         ! if the basis has changed in any way, make sure the basis label order
         ! in c matches the new trajectory list. Currently, 'update_basis' will
         ! change prev_traj to active_traj once update is complete. 
-        if(n_old /= n_current .or. .not.all(old_traj == current_traj)) then
+        adapt_basis = .false.
+        if(n_old /= n_current) then
+          adapt_basis = .true.
+        elseif(.not.all(old_traj == current_traj)) then
+          adapt_basis = .true.
+        endif
+        if(adapt_basis) then
           c = update_basis(current_traj, old_traj, c)
           old_traj = current_traj
           n_old = n_current
@@ -495,6 +503,40 @@ module fms
     return
   end function phase_dot
 
+  !
+  !
+  !
+  function populations(n_states, n_traj, traj_list) result(pops)
+    integer(ik), intent(in)        :: n_states
+    integer(ik), intent(in)        :: n_traj
+    type(trajectory), intent(in)   :: traj_list(n_traj)
+ 
+    real(drk)                      :: pops(n_states)
+    complex(drk)                   :: zpops(n_states)
+    complex(drk)                   :: zpop
+    integer(ik)                    :: i,j
+    integer(ik)                    :: state 
+
+    pops  = zero_drk
+    zpops = zero_c
+
+    do i = 1,n_traj
+      state = traj_list(i)%state
+      if(state > n_states)stop 'error in populations, state>n_states'
+      do j = 1,i
+        zpop = conjg(traj_list(i)%amplitude) * traj_list(j)%amplitude * &
+               overlap(traj_list(i), traj_list(j)) 
+        zpops(state) = zpops(state) + zpop 
+        if(i/=j) zpops(state) = zpops(state) + conjg(zpop)
+      enddo
+    enddo
+
+    pops = real(zpops)
+    if(sum(abs(aimag(zpops))) > mp_drk) then
+      stop 'error in populations -- imaginary component in populations'
+    endif
+
+  end function populations
  
 end module fms 
 

@@ -13,10 +13,8 @@ import array as array
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
-import nomad.core.trajectory as trajectory
-import nomad.core.surface as surface
-import nomad.core.matrices as matrices
 import nomad.core.checkpoint as checkpoint
+import nomad.analysis.lib_utils as lib_utils
 
 
 chkpt_file    = ''
@@ -124,138 +122,65 @@ def main():
         os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
 
     # load the appropriate library
-    prop_path = os.environ['NOMAD']+'/nomad/post/'+prop_class+'.so'
+    prop_path = os.environ['NOMAD']+'/nomad/analysis/'+prop_class+'.so'
     ld_libs   = os.environ['LD_LIBRARY_PATH']
     if not os.path.isfile(prop_path):
         raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
-    libprop = ctypes.cdll.LoadLibrary(prop_path)
+    lib_prop = ctypes.cdll.LoadLibrary(prop_path)
 
     # reset chkpt_file variable to be consistent with the current path
     chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
     checkpoint.read_keywords(chkpt)
 
     # change the current default checkpoint file path to the checkpoint
-    # file we're operating on.
+     # file we're operating on.
     glbl.paths['chkpt_file'] = chkpt_file
 
     # pass the various run time options to the propagation library
     if t_step != 0:
         default_step = t_step
-        tstep_method = ['nascent', 'static'].index('static')+1
+        step_method  = ['nascent', 'static'].index('static')+1
     else:
         default_step = float(glbl.properties['default_time_step'])
-        tstep_method = ['nascent', 'static'].index(t_method)+1
+        step_method  = ['nascent', 'static'].index(t_method)+1
     init_method  = ['overlap', 'uniform', 'explicit'].index(init_method)+1
     int_method   = ['saddle', 'taylor', 'dirac'].index(int_method)+1 
 
-    libprop.traj_init_table(
-         ctypes.byref(convert_ctypes(default_step, dtype='double')),
-         ctypes.byref(convert_ctypes(tstep_method, dtype='int32')))
-   
-    libprop.amp_init_table(
-         ctypes.byref(convert_ctypes(default_step, dtype='double')),
-         ctypes.byref(convert_ctypes(tstep_method, dtype='int32')),
-         ctypes.byref(convert_ctypes(init_method,  dtype='int32')))
-
-    libprop.init_propagate(
-         ctypes.byref(convert_ctypes(full_basis,   dtype='logical')),
-         ctypes.byref(convert_ctypes(int_method,   dtype='int32')),
-         ctypes.byref(convert_ctypes(int_order,    dtype='int32')))
-
-    # extract information about the basis
-    n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
-    n_total  = sum(n_traj)
-    n_states = int(glbl.properties['n_states'])
-    n_crd    = len(glbl.properties['crd_widths'])
-    widths   = np.array(glbl.properties['crd_widths'], dtype=float)
-    masses   = np.array(glbl.properties['crd_masses'], dtype=float)
-    x_ref    = np.array(glbl.properties['init_coords'][0,0],dtype=float)
-    p_ref    = np.array(glbl.properties['init_coords'][0,1],dtype=float)
-
     # initialize the trajectory table
-    libprop.traj_create_table(
-         ctypes.byref(convert_ctypes(n_wfn,   dtype='int32')),
-         ctypes.byref(convert_ctypes(n_total, dtype='int32')),
-         ctypes.byref(convert_ctypes(n_states,dtype='int32')),
-         ctypes.byref(convert_ctypes(n_crd,   dtype='int32')),
-         ctypes.byref(convert_ctypes(widths,  dtype='double')),
-         ctypes.byref(convert_ctypes(masses,  dtype='double')),
-         ctypes.byref(convert_ctypes(x_ref,   dtype='double')),
-         ctypes.byref(convert_ctypes(p_ref,   dtype='double')))
+    lib_utils.init_table(lib_prop, default_step, step_method)
 
-    # initialize the time and label arrays for the amplitude table
-    batch_labels = np.zeros(n_total, dtype=int)
-    n_steps      = np.zeros(n_total, dtype=int)
-    t_bnds       = np.zeros(2*n_total, dtype=float)
-    icnt         = 0
+    # initialize the table that holds trajectory amplitudes
+    lib_utils.init_amplitudes(
+                 lib_prop, default_step, step_method, init_method)   
 
-    # start processing trajectory data by looping over wavefunction
-    # objects and add each trajectory to the dll
-    t_max  = 0.
-    batch  = 0
-    dsets  = ['states',       'phase', 'potential','geom',
-              'momentum','derivative', 'coupling', 'amp']
-    wfn_keys = [key_val for key_val in chkpt.keys() 
-                                    if 'wavefunction' in key_val]
+    # initlize the propagation routines
+    lib_utils.init_propagate(
+                 lib_prop, full_basis, int_method, int_order)
 
-    for wfn_grp in wfn_keys: 
-        batch = batch + 1
-        traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
-                                    if checkpoint.isTrajectory(key_val)]
-        for traj_grp in traj_keys:
-            data = [None] * len(dsets)
-            for iset in range(len(dsets)):
-                dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
-                t, datum = checkpoint.retrieve_dataset(chkpt,dset,ti,tf)
-                data[iset] = datum
+    # create the trajectory table
+    kwords = lib_utils.create_table(
+                 lib_prop, chkpt)
 
-            t_max   = max(t_max, np.amax(t))
-            state   = int(data[0][0][1])
-            nt      = len(t)
-            ns      = len(data[1][0])
-            nd      = len(glbl.properties['crd_widths'])
-            data[0] = t
-            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')), 
-                    ctypes.byref(convert_ctypes(nt,    dtype='int64')),
-                    ctypes.byref(convert_ctypes(state, dtype='int64')),
-                    convert_ctypes(widths,             dtype='double'),
-                    convert_ctypes(masses,             dtype='double')]
-            # because we're loading by timestep, data in row-major form. 
-            # When we flatten, want to do so to transpose. This is done 
-            # in one step by flattening to 'row-major' C form (rather 
-            # than transposing, then "F" form).
-            args  += [convert_ctypes(data[i].flatten('C'),                        
-                             dtype='double') for i in range(len(data)-1)]
-            # add amps separately
-            args  += [convert_ctypes(data[len(data)-1].real.flatten('C'),
-                             dtype='double')]
-            args  += [convert_ctypes(data[len(data)-1].imag.flatten('C'),
-                             dtype='double')]
-            libprop.add_trajectory(*args)
-
-            # add data for amplitude table
-            batch_labels[icnt]      = batch
-            n_steps[icnt]           = nt
-            t_bnds[2*icnt:2*icnt+2] = np.array([t[0], np.amax(t)])
-            icnt += 1
+    # load the trajectories into the table
+    kwords = lib_utils.load_trajectories(
+                 lib_prop, chkpt, kwords, ti, tf)
+   
+    # close the current checkpoint file 
     chkpt.close()
 
     # create the amplitude table
-    libprop.amp_create_table(
-             ctypes.byref(convert_ctypes(n_total, dtype='int32')),
-                          convert_ctypes(batch_labels, dtype='int32'),
-                          convert_ctypes(n_steps,      dtype='int32'),
-                          convert_ctypes(t_bnds,       dtype='double'))
+    lib_utils.create_amp_table(lib_prop, kwords)
 
     # after data is loaded, this is all on the propagation routines
-    tend = tf
+    tstart = ti
+    tend   = tf
     if tend is None:
-        tend = t_max
-    libprop.propagate(
-                    ctypes.byref(convert_ctypes(ti, dtype='double')),
-                    ctypes.byref(convert_ctypes(tend, dtype='double')))
+        tend = kwords['tmax']
+
+    lib_utils.propagate(lib_prop, tstart, tend)
 
     print("propagate complete")
+
     # once propagation is done, retrieve times, phase-space points and 
     # amplitudes from libprop
     glbl.paths['chkpt_file']          = amp_archive
@@ -264,171 +189,57 @@ def main():
     # this is temporary: only two options, fully coherent or fully incoherent
     # in the future: should be able to specify arbitrary groupings of initial
     # conditions
+    nbatch = kwords['nbatch']
     if full_basis:
         nbatch = 1
-    else:
-        nbatch = n_wfn
 
-    time    = convert_ctypes(0., dtype='double')
-    n_traj  = convert_ctypes(0,  dtype='int32') 
-    indices = convert_ctypes(np.zeros(n_total, dtype=int), dtype='int32')
-    for ibatch in range(nbatch):
+    for ibat in range(nbatch):
+        ibatch = ibat
         if full_basis:
-            ibat = convert_ctypes(-1, dtype='int32')
-        else:
-            ibat = convert_ctypes(ibatch, dtype='int32')
+            ibatch = -1 
 
-        # retrieve the time-step from the amplitude table
-        libprop.amp_timestep_info(ctypes.byref(convert_ctypes(True, dtype='logical')),
-                                  ctypes.byref(ibat), 
-                                  ctypes.byref(time),
-                                  ctypes.byref(n_traj),
-                                  indices)
+        # retrieve the time-step info from the amplitude table
+        time, n_traj, indices = lib_utils.amp_timestep_info(
+                            lib_prop, True, ibatch, kwords['ntotal'])
 
-        ntraj     = n_traj.value
-        max_step  = convert_ctypes(False, dtype='logical') 
-        while ntraj>0 and not max_step.value:
+        while n_traj>0:
 
-            # retrieve the trajectory information for the time specified from amplitude table
-            state_lst = convert_ctypes(np.zeros(ntraj, dtype=int), dtype='int32')
-            amp_r     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
-            amp_i     = convert_ctypes(np.zeros(ntraj, dtype=float), dtype='double')
-            ener_lst  = convert_ctypes(np.zeros(n_states*ntraj, dtype=float), dtype='double')
-            x_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
-            p_lst     = convert_ctypes(np.zeros(n_crd*ntraj, dtype=float), dtype='double')
-            deriv_lst = convert_ctypes(np.zeros(n_crd*n_states*n_states*ntraj, dtype=float), dtype='double')
-            coup_lst  = convert_ctypes(np.zeros(n_states*n_states*ntraj, dtype=float), dtype='double')
-            libprop.traj_retrieve_timestep(ctypes.byref(time),
-                                           ctypes.byref(ibat),
-                                           ctypes.byref(n_traj),
-                                           state_lst, 
-                                           amp_r, 
-                                           amp_i, 
-                                           ener_lst, 
-                                           x_lst, 
-                                           p_lst, 
-                                           deriv_lst,
-                                           coup_lst)
+            # retrieve a list of trajectories
+            traj_list = lib_utils.traj_retrieve_timestep( 
+                            lib_prop, kwords, indices, time, ibatch, n_traj)
+            amp_list  = lib_utils.amp_retrieve_timestep(
+                            lib_prop, indices)
 
-            # now retrieve the amplitude from the amplitude table
-            indx_lst  = convert_ctypes(np.array(indices[:ntraj], dtype=int), dtype='int32')
-            libprop.amp_retrieve_timestep(ctypes.byref(n_traj),indx_lst, amp_r, amp_i)
-
-            # build up the wavefunction object
             wfn      = wavefunction.Wavefunction()
-            wfn.time = time.value
-           
-            # add trajectories one at a time 
-            for itraj in range(ntraj):
-                
-                new_surf = surface.Surface()
-                new_traj = trajectory.Trajectory(n_states, n_crd, 
-                                                 width=widths, 
-                                                 mass=masses,
-                                                 label=int(indx_lst[itraj]),
-                                                 kecoef=0.5/masses)
-
-                new_traj.state = int(state_lst[itraj])
-                new_traj.update_x(np.array(x_lst[n_crd*itraj:n_crd*(itraj+1)]))
-                new_traj.update_p(np.array(p_lst[n_crd*itraj:n_crd*(itraj+1)]))
-                new_traj.update_amplitude(complex(float(amp_r[itraj]),float(amp_i[itraj])))
-
-                new_surf.add_data('geom', new_traj.x())
-                new_surf.add_data('potential', np.array(ener_lst[n_states*itraj:n_states*(itraj+1)]))
-
-                dlen  = n_crd * n_states * n_states
-                deriv = np.reshape(np.array(deriv_lst[dlen*itraj:dlen*(itraj+1)]), 
-                                            tuple([n_crd, n_states, n_states]))
-                new_surf.add_data('derivative', deriv)
-
-                clen  = n_states * n_states
-                coup  = np.reshape(np.array(coup_lst[clen*itraj:clen*(itraj+1)]), 
-                                            tuple([n_states, n_states]))
-                new_surf.add_data('coupling', coup)
-
-                # add the potential energy surface object to the trajectory
-                new_traj.update_pes_info(new_surf)
+            wfn.time = time
+            for itraj in range(len(traj_list)):
+                new_traj = traj_list[itraj]
+                new_traj.update_amplitude(amp_list[itraj])
 
                 # add trajectory to the wavefunction object
                 wfn.add_trajectory(new_traj, relabel=False)
 
-            # lastly, retrieve the matrices generated using the propagation method of choice
-            s_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            s_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            t_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            t_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            v_r    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            v_i    = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            sdt_r  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            sdt_i  = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            heff_r = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            heff_i = convert_ctypes(np.zeros(ntraj*ntraj, dtype=float), dtype='double')
-            libprop.retrieve_matrices(ctypes.byref(time),
-                                      ctypes.byref(ibat),
-                                      ctypes.byref(n_traj),
-                                      s_r,    s_i,
-                                      t_r,    t_i,
-                                      v_r,    v_i,
-                                      sdt_r,  sdt_i,
-                                      heff_r, heff_i)
-
-            mats     = matrices.Matrices()
-            mats.set('s_traj', np.reshape(np.array(s_r) + 1j*np.array(s_i), tuple([ntraj, ntraj])))
-            mats.set('t',      np.reshape(np.array(t_r) + 1j*np.array(t_i), tuple([ntraj, ntraj])))
-            mats.set('v',      np.reshape(np.array(v_r) + 1j*np.array(v_i), tuple([ntraj, ntraj])))
-            mats.set('sdot',   np.reshape(np.array(sdt_r) + 1j*np.array(sdt_i), tuple([ntraj, ntraj])))
-            mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([ntraj, ntraj])))
+            # retrieve the matrices -- maybe useful for analysis
+            mats = lib_utils.retrieve_matrices(lib_prop, time, ibatch, n_traj)
             wfn.update_matrices(mats)
 
             # throw this timestep to the new checkpoint file
             checkpoint.archive_simulation(wfn, None)
-        
+
             # advance to the next time step
-            libprop.amp_next_timestep(ctypes.byref(n_traj), indx_lst, ctypes.byref(max_step))
-  
+            print("current time="+str(time)+" advancing to next")
+            max_step = lib_utils.amp_next_timestep(lib_prop, indices, n_traj)
+
             # if we've reached the maximum time step, we're done
-            if max_step.value:
-                ntraj = 0
+            if max_step:
+                n_traj = 0
             else:
                 # get info on next time step
-                libprop.amp_timestep_info(ctypes.byref(convert_ctypes(False, dtype='logical')),
-                                          ctypes.byref(ibat),
-                                          ctypes.byref(time),
-                                          ctypes.byref(n_traj),
-                                          indices)
-                ntraj = n_traj.value
+                time, n_traj, indices = lib_utils.amp_timestep_info(
+                           lib_prop, False, ibatch, kwords['ntotal'])
 
     return
 
-#
-def convert_ctypes(py_val, dtype=None):
-    """convert a python array into a C-data type"""
-
-    # note: the current approach is used based on:
-    # https://bugs.python.org/issue27926
-    # Namely, the default Python constructor is _very_ slow.
-    # if that changes, then this function can change too...
-
-    # there are fancier ways to do this by querying both the array and
-    # machine environment, but this will do for now
-    if dtype == 'int32':
-        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_int32
-    elif dtype == 'int64':
-        type_sym = 'i';i_size = 8; ctype_sym = ctypes.c_int64
-    elif dtype == 'double':
-        type_sym = 'd';i_size = 8; ctype_sym = ctypes.c_double
-    elif dtype == 'logical':
-        type_sym = 'i';i_size = 4; ctype_sym = ctypes.c_bool
-    else:
-        sys.exit('convert_ctypes does not recognize dtype='+str(dtype))
-
-    if isinstance(py_val, (float, int)):
-        return ctype_sym(py_val)
-
-    c_arr = (ctype_sym * py_val.size)(*py_val) 
-
-    return c_arr
- 
 #   
 if __name__ == '__main__':
     # parse command line arguments

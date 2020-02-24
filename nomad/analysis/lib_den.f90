@@ -122,11 +122,13 @@ module libden
     !
     !
     !
-    subroutine evaluate_density(time, npts, density, converge, norm_on, norm_off) bind(c, name='evaluate_density')
+    subroutine evaluate_density(time, npts, density, converge, total_iter, total_basis, norm_on, norm_off) bind(c, name='evaluate_density')
       real(drk), intent(in)                   :: time
       integer(ik), intent(in)                 :: npts
       real(drk), intent(out)                  :: density(npts)
       real(drk), intent(out)                  :: converge
+      integer(ik), intent(out)                :: total_iter
+      integer(ik), intent(out)                :: total_basis
       real(drk), intent(out)                  :: norm_on
       real(drk), intent(out)                  :: norm_off
 
@@ -163,6 +165,8 @@ module libden
       norm_on        = zero_drk
       norm_off       = zero_drk
       volume_element = product(grid_width)
+      total_iter     = 0
+      total_basis    = 0
 
       do ibatch = 1,n_batch
 
@@ -173,7 +177,9 @@ module libden
         call locate_trajectories(time, ibatch, labels, traj_list)
         n_traj = size(labels) 
         if(n_traj == 0)cycle
-        n_cart = size(traj_list(1)%x)
+
+        total_basis = total_basis + n_traj
+        n_cart      = size(traj_list(1)%x)
 
         ! allocate data structures
         if(allocated(wgt_list))deallocate(wgt_list)
@@ -232,9 +238,10 @@ module libden
         enddo
 
         ! add the density from this batch
-        density  = density  + batch_den * (batch_pop / (batch_on + batch_off))
-        norm_off = norm_off + batch_off * (batch_pop / (batch_on + batch_off))    
-        converge = max(converge, rolling_ave)
+        density    = density  + batch_den * (batch_pop / (batch_on + batch_off))
+        norm_off   = norm_off + batch_off * (batch_pop / (batch_on + batch_off))    
+        converge   = max(converge, rolling_ave)
+        total_iter = total_iter + iter
 
       enddo  
   
