@@ -27,7 +27,7 @@ def error_amps(stamps, nboot=1000, bthrsh=1e-3):
         bdel += ei * (bstamp - bavg)
         if np.all(np.abs(bavg - tavg) < bthrsh):
             break
-    print('n_boot = {:d}'.format(i+1))
+    #print('n_boot = {:d}'.format(i+1))
     if i+1 == nboot:
         print('Warning: bootstrap not converged.')
         print('max absolute error = '

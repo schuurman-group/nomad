@@ -148,6 +148,7 @@ def main():
     den_report.close()
 
     if n_intl == 1:
+        print("plotgrid="+str(plot_grid))
         x_axis        *= time_conv
         den_plot, axis = plot.heatmap(x_axis, y_axis, plot_grid.T, 
                                  xlabel='time (fs)',ylabel='coord')

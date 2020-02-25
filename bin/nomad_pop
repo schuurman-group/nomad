@@ -17,8 +17,10 @@ import nomad.analysis.lib_utils as lib_utils
 import nomad.analysis.populations as populations
 import nomad.analysis.plot as plot
 
-chkpt_file = ''
-prop_class = ''
+chkpt_file     = ''
+prop_class     = ''
+plot_file      = ''
+print_pop_file = False
 
 def init():
     """Initializes the nomad inputs.
@@ -31,7 +33,7 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global chkpt_file, prop_class
+    global chkpt_file, prop_class, plot_file, print_pop_file
 
     glbl.paths['cwd']        = os.getcwd()
     glbl.paths['chkpt_file'] = args[1]
@@ -41,13 +43,22 @@ def process_arguments(args):
         prop_class = args[args.index('-ansatz')+1]
     else:
         prop_class = 'fms' 
- 
+    if '-o' in sys.argv:
+        plot_file  = args[args.index('-o')+1]
+    else:
+        plot_file  = 'pop_plot.png'
+    if '-print_file' in sys.argv:
+        print_pop_file = True
+    else: 
+        print_pop_file = False
+
+
     return
 
 #
 def main():
     """ main driver routine """
-    global chkpt_file, prop_class
+    global chkpt_file, prop_class, plot_file, print_plot_file
 
     prop_classes = ['fms']
 
@@ -98,23 +109,28 @@ def main():
 
     for ibat in range(nbatch):
         itime = 0
-        for time in np.arange(tstart, tend, tstep): 
+        for time in np.arange(tstart, tend+0.5*tstep, tstep): 
             times[itime]       = time*au2fs
             pops[ibat,:,itime] = lib_utils.populations(lib_traj, time, ibat, kwords['nstates'])
             itime += 1
     
     ave_pop, boot_err = populations.error_amps(pops, nboot=1000, bthrsh=1e-3)
- 
-    print("ave_pop="+str(ave_pop.shape))
-    print("times="+str(times.shape))
-    print("bott_err="+str(boot_err.shape))
-
     labels  = ['$S_{:d}$'.format(i) for i in range(kwords['nstates'])]
-    fig, ax = plot.lineplot(times, ave_pop, err=boot_err, xlabel='Time / fs',
+
+    fig, ax = plot.lineplot(times, ave_pop.T, err=boot_err.T, xlabel='Time / fs',
                             ylabel='Adiabatic population',
                             xlim='range', ylim=(0,1), legend=labels)
 
-    plot.save('pop_plot.png', figure=fig)    
+    plot.save(plot_file, figure=fig)    
+    if print_pop_file:
+        file_name = plot_file[0:plot_file.rindex(".")]+str('.dat')
+        with open(file_name, 'w') as pop_file:
+            for ti in range(nt):
+                out_str = ' '.join(['{:8.4f}'.format(ave_pop[st,ti]) 
+                                    for st in range(kwords['nstates'])])
+                out_str = '{:8.4f} '+out_str+'\n'
+                pop_file.write(out_str.format(float(times[ti])))
+
     return
 
 #   
