@@ -227,7 +227,6 @@ def main():
             checkpoint.archive_simulation(wfn, None)
 
             # advance to the next time step
-            print("current time="+str(time)+" advancing to next")
             max_step = lib_utils.amp_next_timestep(lib_prop, indices, n_traj)
 
             # if we've reached the maximum time step, we're done

@@ -230,6 +230,46 @@ module fms
     return
   end subroutine retrieve_matrices
 
+  !
+  !
+  !
+  subroutine populations(time, batch, n_states, pops) bind(c, name='populations')
+    real(drk), intent(in)          :: time
+    integer(ik), intent(in)        :: batch
+    integer(ik), intent(in)        :: n_states
+    real(drk), intent(out)         :: pops(n_states)
+
+    integer(ik), allocatable       :: indices(:)
+    type(trajectory), allocatable  :: traj_list(:)
+    integer(ik)                    :: n_traj
+    complex(drk)                   :: zpops(n_states)
+    complex(drk)                   :: zpop
+    integer(ik)                    :: i,j
+    integer(ik)                    :: state
+
+    call locate_trajectories(time, batch, indices, traj_list)
+    pops   = zero_drk
+    zpops  = zero_c
+    n_traj = traj_size(traj_list)
+
+    do i = 1,n_traj
+      state = traj_list(i)%state
+      if(state > n_states)stop 'error in populations, state>n_states'
+      do j = 1,i
+        zpop = conjg(traj_list(i)%amplitude) * traj_list(j)%amplitude * &
+               overlap(traj_list(i), traj_list(j))
+        zpops(state) = zpops(state) + zpop
+        if(i/=j) zpops(state) = zpops(state) + conjg(zpop)
+      enddo
+    enddo
+
+    pops = real(zpops)
+    if(sum(abs(aimag(zpops))) > mp_drk) then
+      stop 'error in populations -- imaginary component in populations'
+    endif
+
+  end subroutine populations
+
 
   !**************************************************************************************
 
@@ -503,41 +543,6 @@ module fms
     return
   end function phase_dot
 
-  !
-  !
-  !
-  function populations(n_states, n_traj, traj_list) result(pops)
-    integer(ik), intent(in)        :: n_states
-    integer(ik), intent(in)        :: n_traj
-    type(trajectory), intent(in)   :: traj_list(n_traj)
- 
-    real(drk)                      :: pops(n_states)
-    complex(drk)                   :: zpops(n_states)
-    complex(drk)                   :: zpop
-    integer(ik)                    :: i,j
-    integer(ik)                    :: state 
-
-    pops  = zero_drk
-    zpops = zero_c
-
-    do i = 1,n_traj
-      state = traj_list(i)%state
-      if(state > n_states)stop 'error in populations, state>n_states'
-      do j = 1,i
-        zpop = conjg(traj_list(i)%amplitude) * traj_list(j)%amplitude * &
-               overlap(traj_list(i), traj_list(j)) 
-        zpops(state) = zpops(state) + zpop 
-        if(i/=j) zpops(state) = zpops(state) + conjg(zpop)
-      enddo
-    enddo
-
-    pops = real(zpops)
-    if(sum(abs(aimag(zpops))) > mp_drk) then
-      stop 'error in populations -- imaginary component in populations'
-    endif
-
-  end function populations
- 
 end module fms 
 
 

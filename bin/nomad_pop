@@ -1,0 +1,131 @@
+#!/usr/bin/env python
+"""
+This is the driver for the hamiltonian propagation. This driver
+reads the checkpoint file, passes the trajectory data (in batches,
+if need be) to the Hamiltonian propagation routines, which
+are written as dynamically loaded libraries
+"""
+import os
+import sys as sys
+import h5py as h5py
+import ctypes as ctypes
+import numpy as np
+import math as math
+import nomad.core.glbl as glbl
+import nomad.core.checkpoint as checkpoint
+import nomad.analysis.lib_utils as lib_utils
+import nomad.analysis.populations as populations
+import nomad.analysis.plot as plot
+
+chkpt_file = ''
+prop_class = ''
+
+def init():
+    """Initializes the nomad inputs.
+
+    This must be separate from main so that an error which occurs
+    before the input file is created will be written to stdout.
+    """
+
+    process_arguments(sys.argv)
+
+def process_arguments(args):
+    """Process command line arguments."""
+    global chkpt_file, prop_class
+
+    glbl.paths['cwd']        = os.getcwd()
+    glbl.paths['chkpt_file'] = args[1]
+    chkpt_file               = args[1]
+
+    if '-ansatz' in sys.argv:
+        prop_class = args[args.index('-ansatz')+1]
+    else:
+        prop_class = 'fms' 
+ 
+    return
+
+#
+def main():
+    """ main driver routine """
+    global chkpt_file, prop_class
+
+    prop_classes = ['fms']
+
+    if prop_class not in prop_classes:
+        os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
+
+    # load the appropriate library
+    prop_path = os.environ['NOMAD']+'/nomad/analysis/'+prop_class+'.so'
+    ld_libs   = os.environ['LD_LIBRARY_PATH']
+    if not os.path.isfile(prop_path):
+        raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
+    lib_traj = ctypes.cdll.LoadLibrary(prop_path)
+
+    # reset chkpt_file variable to be consistent with the current path
+    chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
+    checkpoint.read_keywords(chkpt)
+
+    # change the current default checkpoint file path to the checkpoint
+     # file we're operating on.
+    glbl.paths['chkpt_file'] = chkpt_file
+
+    default_step = float(glbl.properties['default_time_step'])
+    step_method  = ['nascent', 'static'].index('nascent')+1
+
+    # initialize the trajectory table
+    lib_utils.init_table(lib_traj, default_step, step_method)
+
+    # create the trajectory table
+    kwords = lib_utils.create_table(lib_traj, chkpt)
+
+    # load the trajectories into the table
+    kwords = lib_utils.load_trajectories(
+                 lib_traj, chkpt, kwords, None, None)
+   
+    # close the current checkpoint file 
+    chkpt.close()
+
+    # after data is loaded, this is all on the propagation routines
+    tstart = 0.
+    tstep  = 10.
+    tend   = kwords['tmax']
+    nbatch = kwords['nbatch']
+
+    nt     = math.floor((tend - tstart)/tstep)+1
+    times  = np.zeros(nt, dtype=float)
+    pops   = np.zeros((nbatch, kwords['nstates'], nt), dtype=float)
+    au2fs  = 1/41.334
+
+    for ibat in range(nbatch):
+        itime = 0
+        for time in np.arange(tstart, tend, tstep): 
+            times[itime]       = time*au2fs
+            pops[ibat,:,itime] = lib_utils.populations(lib_traj, time, ibat, kwords['nstates'])
+            itime += 1
+    
+    ave_pop, boot_err = populations.error_amps(pops, nboot=1000, bthrsh=1e-3)
+ 
+    print("ave_pop="+str(ave_pop.shape))
+    print("times="+str(times.shape))
+    print("bott_err="+str(boot_err.shape))
+
+    labels  = ['$S_{:d}$'.format(i) for i in range(kwords['nstates'])]
+    fig, ax = plot.lineplot(times, ave_pop, err=boot_err, xlabel='Time / fs',
+                            ylabel='Adiabatic population',
+                            xlim='range', ylim=(0,1), legend=labels)
+
+    plot.save('pop_plot.png', figure=fig)    
+    return
+
+#   
+if __name__ == '__main__':
+    # parse command line arguments
+    if '-openmp' in sys.argv:
+        glbl.mpi['parallel'] = True
+
+    # initialize
+    init()
+
+    # run the main routine
+    main()
+

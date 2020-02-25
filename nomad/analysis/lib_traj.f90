@@ -636,13 +636,21 @@ module lib_traj
   !
   !
   !
-  subroutine get_time_index(indx, time, fnd_indx, fnd_time)
+  subroutine get_time_index(indx, time, fnd_indx, fnd_time, freeze_on_end)
     integer(ik), intent(in)          :: indx
     real(drk), intent(in)            :: time
     integer(ik), intent(out)         :: fnd_indx
     real(drk), intent(out)           :: fnd_time
+    logical, intent(in), optional    :: freeze_on_end
 
     real(drk)                        :: current_time, dt, dt_new
+    logical                          :: freeze
+
+    if(present(freeze_on_end)) then
+      freeze = freeze_on_end
+    else
+      freeze = .false.
+    endif
 
     ! to save searching through the table over and over again, 
     ! we'll use the previously accessed row as a starting guess
@@ -669,7 +677,15 @@ module lib_traj
     ! if the request time sits outside the range of available times
     ! return a fnd_indx of -1
     if(fnd_indx == 1 .and. fnd_time > time) fnd_indx = -1
-    if(fnd_indx == basis_table(indx)%nsteps .and. fnd_time < time)fnd_indx = -1
+    if(fnd_indx == basis_table(indx)%nsteps .and. fnd_time < time) then
+      if(freeze) then
+        ! freeze is true, assume that trajectory stops evolving from
+        ! it's end time, and return as a valid trajectory
+        fnd_time = time
+      else
+        fnd_indx = -1
+      endif
+    endif
 
     return
   end subroutine get_time_index

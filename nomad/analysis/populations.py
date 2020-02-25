@@ -4,53 +4,9 @@ finding transferred population and fitting population curves.
 """
 import os
 import numpy as np
-import scipy.optimize.curve_fit
+from scipy.optimize import curve_fit
 import nomad.analysis.fileio
 import nomad.analysis.fitting
-
-
-def read_amps(fnames, aconv=1.):
-    """Reads the amplitudes of each trajectory at given times and returns
-    list of arrays of amplitudes, times and trajectory info."""
-    amps = [np.empty(0) for fn in fnames]
-    times = [np.empty(0) for fn in fnames]
-    for i, fname in enumerate(fnames):
-        times[i], amps[i] = fileio.read_dat(fname, skiprow=1, usecols=(0,-2)).T
-        amps[i] *= aconv
-
-    return amps, times
-
-
-def read_ndat(fnames, nstates, aconv=1.):
-    """Reads the amplitudes directly from N.dat and returns a list of
-    amplitudes and times."""
-    amps = [np.empty((nstates, 0)) for fn in fnames]
-    times = [np.empty(0) for fn in fnames]
-    for i, fname in enumerate(fnames):
-        rawdat = fileio.read_dat(fname, skiprow=1).T
-        times[i] = rawdat[0]
-        amps[i] = np.empty((nstates, len(times[i])))
-        for j in range(nstates):
-            amps[i][j] = rawdat[j+1] * aconv
-
-    return amps, times
-
-
-def total_amps(fnames, times, nstates, aconv=1.):
-    """Reads the trajectory amplitudes and sums them by their
-    adiabatic state label for set time bins."""
-    aseed, tseed = read_ndat(fnames, nstates, aconv=aconv)
-    stamps = np.zeros((len(fnames), nstates, len(times)))
-    for i in range(len(fnames)):
-        tlocal = tseed[i]
-        for j, t in enumerate(times):
-            if t > tlocal[-1]:
-                stamps[i,:,j:] += aseed[i][:,len(tlocal)-1:]
-                break
-            elif t > tlocal[0] - 1e-6:
-                stamps[i,:,j] += aseed[i][:,np.argmin(np.abs(tlocal - t))]
-
-    return stamps
 
 
 def error_amps(stamps, nboot=1000, bthrsh=1e-3):
@@ -77,16 +33,6 @@ def error_amps(stamps, nboot=1000, bthrsh=1e-3):
         print('max absolute error = '
               '{:7.4e}'.format(np.max(np.abs(bavg - tavg))))
     return bavg, np.sqrt(bdel / i)
-
-
-def read_tjinfo(fnames, noparent=False):
-    """Reads the trajectory information for all files and returns
-    an array."""
-    tjinfo = np.empty((len(fnames), 5), dtype=int)
-    for i, fname in enumerate(fnames):
-        tjinfo[i] = get_spawn_info(fname, noparent=noparent)
-
-    return tjinfo
 
 
 def get_spawn_info(fname, first_lbl=1, noparent=False):

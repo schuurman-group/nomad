@@ -229,6 +229,19 @@ def propagate(prop_lib, ti, tf):
 
     return
 
+#
+def populations(traj_lib, time, batch, nstates):
+    """return the state populations at time=time for batch=batch"""
+
+    pops = convert_ctypes(np.zeros(nstates), dtype='double')
+
+    traj_lib.populations(
+               ctypes.byref(convert_ctypes(time, dtype='double')),
+               ctypes.byref(convert_ctypes(batch, dtype='int32')),
+               ctypes.byref(convert_ctypes(nstates,dtype='int32')),
+               pops)               
+
+    return np.array(pops)
 
 #
 def evaluate_density(den_lib, time, npts):
@@ -256,6 +269,26 @@ def evaluate_density(den_lib, time, npts):
     return out_nd_grid, float(converge.value), int(n_sample.value), \
                         int(n_traj.value),    float(norm_on.value), \
                         float(norm_off.value)
+
+#
+def traj_timestep_info(traj_lib, reset, batch, ntotal):
+    """return how many trajectories in batch=batch exist at 
+       time specified by the 'current_time' in the trajectory table"""
+
+    time    = convert_ctypes(0., dtype='double')
+    n_traj  = convert_ctypes(0,  dtype='int32')
+    indices = convert_ctypes(np.zeros(ntotal, dtype=int), dtype='int32')
+
+    traj_lib.traj_timestep_info(
+                       ctypes.byref(convert_ctypes(reset, dtype='logical')),
+                       ctypes.byref(convert_ctypes(batch, dtype='int32')),
+                       ctypes.byref(time),
+                       ctypes.byref(n_traj),
+                       indices)
+
+    return float(time.value), int(n_traj.value), np.array(indices[:int(n_traj.value)], dtype=int)
+
+
 
 #
 def amp_timestep_info(amp_lib, reset, batch, ntotal):
