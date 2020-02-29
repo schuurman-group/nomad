@@ -207,9 +207,10 @@ module lib_traj
   !
   !
   !
-  subroutine add_trajectory(batch, np, state, widths, masses, time, phase, energy, x, p, deriv, coup, ampr, ampi) bind(c, name='add_trajectory')
+  subroutine add_trajectory(batch, np, tid, state, widths, masses, time, phase, energy, x, p, deriv, coup, ampr, ampi) bind(c, name='add_trajectory')
     integer(ik), intent(in)         :: batch
     integer(ik), intent(in)         :: np !number of time steps
+    integer(ik), intent(in)         :: tid
     integer(ik), intent(in)         :: state
     real(drk), intent(in)           :: widths(n_crd)
     real(drk), intent(in)           :: masses(n_crd)
@@ -228,7 +229,7 @@ module lib_traj
     ! Set and allocate the trajectory table
     traj_cnt                          = traj_cnt + 1
     basis_table(traj_cnt)%batch       = batch
-    basis_table(traj_cnt)%label       = traj_cnt
+    basis_table(traj_cnt)%label       = tid
     basis_table(traj_cnt)%state       = state+1   ! fortran states go 1:n_state, nomad goes 0:n_state-1
     basis_table(traj_cnt)%nsteps      = np  
     basis_table(traj_cnt)%current_row = 1
@@ -275,10 +276,12 @@ module lib_traj
   !
   !
   !
-  subroutine traj_retrieve_timestep(time, batch, n, states, amp_r, amp_i, eners, x, p, deriv, coup) bind(c, name='traj_retrieve_timestep')
+  subroutine traj_retrieve_timestep(time, batch, n, n_fnd, labels, states, amp_r, amp_i, eners, x, p, deriv, coup) bind(c, name='traj_retrieve_timestep')
     real(drk), intent(in)                   :: time
     integer(ik), intent(in)                 :: batch
     integer(ik), intent(in)                 :: n
+    integer(ik), intent(out)                :: n_fnd
+    integer(ik), intent(out)                :: labels(n)
     integer(ik), intent(out)                :: states(n)
     real(drk), intent(out)                  :: amp_r(n)
     real(drk), intent(out)                  :: amp_i(n)
@@ -289,16 +292,18 @@ module lib_traj
     real(drk), intent(out)                  :: coup(n*n_state*n_state)
 
     integer(ik)                             :: i, dlen, clen
-    integer(ik),allocatable, save           :: traj_labels(:)
+    integer(ik),allocatable, save           :: indices(:)
     type(trajectory), allocatable,save      :: traj_list(:)
 
-    call locate_trajectories(time, batch, traj_labels, traj_list)
+    call locate_trajectories(time, batch, indices, traj_list)
+    n_fnd = traj_size(traj_list)
 
-    if(size(traj_list) > n)stop 'cannot retrieve all data in traj_retrieve_timestep, size(traj_list) > n'
+    if(n_fnd > n)stop 'cannot retrieve all data in traj_retrieve_timestep, size(traj_list) > n'
 
-    dlen = n_crd*n_state*n_state
-    clen = n_state*n_state
-    do i = 1,n
+    dlen  = n_crd*n_state*n_state
+    clen  = n_state*n_state
+    do i = 1,n_fnd
+      labels(i)                        = traj_list(i)%label
       states(i)                        = traj_list(i)%state-1 ! convert back to python numbering
       amp_r(i)                         = real(traj_list(i)%amplitude)
       amp_i(i)                         = real(aimag(traj_list(i)%amplitude))
@@ -315,9 +320,10 @@ module lib_traj
   !
   !
   ! 
-  subroutine traj_retrieve_next_timestep(n, indices, states, amp_r, amp_i, eners, x, p, deriv, coup) bind(c, name='traj_retrieve_next_timestep')
+  subroutine traj_retrieve_next_timestep(n, indices, t_ids, states, amp_r, amp_i, eners, x, p, deriv, coup) bind(c, name='traj_retrieve_next_timestep')
     integer(ik), intent(in)                 :: n
     integer(ik), intent(in)                 :: indices(n)
+    integer(ik), intent(out)                :: t_ids(n)
     integer(ik), intent(out)                :: states(n)
     real(drk), intent(out)                  :: amp_r(n)
     real(drk), intent(out)                  :: amp_i(n)
@@ -333,6 +339,7 @@ module lib_traj
     clen = n_state*n_state
     do i = 1,n
       t_indx                           = basis_table(indices(i))%current_row
+      t_ids(i)                         = basis_table(indices(i))%label
       states(i)                        = basis_table(indices(i))%state-1 ! convert back to python numbering
       eners(n_state*(i-1)+1:n_state*i) = basis_table(indices(i))%energy(:,t_indx)
       amp_r(i)                         = real(basis_table(indices(i))%amplitude(t_indx))
@@ -396,16 +403,18 @@ module lib_traj
   !
   !
   !
-  subroutine locate_trajectories(time, batch, labels, traj_list)
+  subroutine locate_trajectories(time, batch, indices, traj_list)
     real(drk), intent(in)                      :: time
     integer(ik), intent(in)                    :: batch
-    integer(ik), intent(out), allocatable      :: labels(:)
-    type(trajectory), intent(out), allocatable :: traj_list(:)
+    integer(ik), intent(out), allocatable      :: indices(:)
+    type(trajectory), intent(inout), allocatable :: traj_list(:)
 
     integer(ik)                                :: i
-    integer(ik)                                :: basis_labels(size(basis_table))
     integer(ik)                                :: n_fnd
     integer(ik)                                :: time_indx
+    integer(ik)                                :: table_indx(size(basis_table))
+    integer(ik)                                :: indx_vec(size(basis_table))
+    real(drk)                                  :: time_vec(size(basis_table))
     real(drk)                                  :: time_val
 
     ! go through table once to figure out how many trajectories
@@ -413,32 +422,38 @@ module lib_traj
     n_fnd = 0
     do i = 1,size(basis_table)
       ! skip if trajectory(i) is in wrong batch
-      if(batch > 0 .and. basis_table(i)%batch /= batch) continue
+      if(batch >= 0 .and. basis_table(i)%batch /= batch) continue
       call get_time_index(i, time, time_indx, time_val)
       if(time_indx /= -1) then
         n_fnd = n_fnd + 1
-        basis_labels(n_fnd) = i
+        table_indx(n_fnd)   = i
+        indx_vec(n_fnd)     = time_indx
+        time_vec(n_fnd)     = time_val
       endif
     enddo
 
     ! now set traj_list to the right size and populate with the 
     ! trajectories
-    if(allocated(labels)) then
-      if(size(labels) /= n_fnd)deallocate(labels)
+    if(allocated(indices)) then
+      if(size(indices) /= n_fnd)deallocate(indices)
     endif
     if(allocated(traj_list)) then
-      if(size(traj_list) /= n_fnd) then
-        do i = 1,n_fnd
-          deallocate(traj_list(i)%x,traj_list(i)%p)
-          deallocate(traj_list(i)%mass, traj_list(i)%width)
-          deallocate(traj_list(i)%energy,traj_list(i)%deriv,traj_list(i)%coup)
+      if(traj_size(traj_list) /= n_fnd) then
+        do i = 1,traj_size(traj_list)
+          deallocate(traj_list(i)%mass)
+          deallocate(traj_list(i)%width)
+          deallocate(traj_list(i)%x)
+          deallocate(traj_list(i)%p)
+          deallocate(traj_list(i)%energy)
+          deallocate(traj_list(i)%deriv)
+          deallocate(traj_list(i)%coup)
         enddo
         deallocate(traj_list)
       endif
     endif
 
     ! create the trajectory list
-    if(.not.allocated(labels))allocate(labels(n_fnd))
+    if(.not.allocated(indices))allocate(indices(n_fnd))
     if(.not.allocated(traj_list)) then
       allocate(traj_list(n_fnd))
       do i = 1,n_fnd 
@@ -454,14 +469,12 @@ module lib_traj
 
     ! now go through and add entries to the trajectory list
     do i = 1,n_fnd
-      labels(i) = basis_labels(i) 
-      call get_time_index(labels(i), time, time_indx, time_val)
-      basis_table(labels(i))%current_row = time_indx
-        
-      if(abs(time_val-time) <= dt_toler) then
-        call extract_trajectory(labels(i), time_indx, traj_list(i))
+      indices(i)                          = table_indx(i) 
+      basis_table(indices(i))%current_row = indx_vec(i)
+      if(abs(time_vec(i)-time) <= dt_toler) then
+        call extract_trajectory(indices(i), indx_vec(i), traj_list(i))
       else
-        call interpolate_trajectory(labels(i), time, time_indx, traj_list(i))
+        call interpolate_trajectory(indices(i), time, indx_vec(i), traj_list(i))
       endif
     enddo
 
@@ -479,14 +492,14 @@ module lib_traj
   subroutine extract_trajectory(table_indx, time_indx, traj)
     integer(ik), intent(in)           :: table_indx
     integer(ik), intent(in)           :: time_indx
-    type(trajectory), intent(out)     :: traj
+    type(trajectory), intent(inout)     :: traj
 
     traj%batch  = basis_table(table_indx)%batch
     traj%label  = basis_table(table_indx)%label
     traj%state  = basis_table(table_indx)%state
     traj%mass   = basis_table(table_indx)%mass
     traj%width  = basis_table(table_indx)%width
-    
+   
     traj%time      = basis_table(table_indx)%time(time_indx)
     traj%amplitude = basis_table(table_indx)%amplitude(time_indx)
     traj%phase     = basis_table(table_indx)%phase(time_indx)
@@ -506,7 +519,7 @@ module lib_traj
     integer(ik), intent(in)           :: table_indx    ! index of the trajectory
     real(drk), intent(in)             :: time          ! the requested time
     integer(ik), intent(in)           :: time_indx     ! closest time in table
-    type(trajectory), intent(out)     :: traj
+    type(trajectory), intent(inout)   :: traj
 
     integer(ik)                       :: sgn, dx1, dx2, tbnd1, tbnd2 
     integer(ik)                       :: i,j
@@ -581,7 +594,7 @@ module lib_traj
     do i = 1,size(basis_table)
 
       ! if this is not selected batch, move on to next one
-      if(batch > 0 .and. basis_table(i)%batch /= batch) continue
+      if(batch >= 0 .and. basis_table(i)%batch /= batch) continue
       
       ! if setting counters to first index
       if(first_time) basis_table(i)%current_row = 1

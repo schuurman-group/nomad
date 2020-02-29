@@ -2,7 +2,7 @@
 ! libden
 !
 !
-module libden
+module lib_den
   use accuracy
   use math
   use lib_traj
@@ -168,7 +168,7 @@ module libden
       total_iter     = 0
       total_basis    = 0
 
-      do ibatch = 1,n_batch
+      do ibatch = 0,n_batch-1
 
         ! zero out the initial trial density
         batch_den = zero_drk
@@ -847,4 +847,4 @@ module libden
     end function cross_prod
 
 
-end module libden
+end module lib_den

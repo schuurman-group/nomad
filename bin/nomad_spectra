@@ -1,0 +1,147 @@
+#!/usr/bin/env python
+"""
+This is the driver for the hamiltonian propagation. This driver
+reads the checkpoint file, passes the trajectory data (in batches,
+if need be) to the Hamiltonian propagation routines, which
+are written as dynamically loaded libraries
+"""
+import os
+import sys as sys
+import h5py as h5py
+import ctypes as ctypes
+import numpy as np
+import math as math
+import nomad.core.glbl as glbl
+import nomad.core.checkpoint as checkpoint
+import nomad.analysis.lib_utils as lib_utils
+import nomad.analysis.plot as plot
+
+input_file     = ''
+chkpt_file     = ''
+output_dir     = ''
+output_file    = ''
+jtype          = ''
+tstep          = 0.
+jobtypes       = ['geoms', 'spectra']
+
+def init():
+    """Initializes the nomad inputs.
+
+    This must be separate from main so that an error which occurs
+    before the input file is created will be written to stdout.
+    """
+
+    process_arguments(sys.argv)
+
+def process_arguments(args):
+    """Process command line arguments."""
+    global input_file, chkpt_file, output_dir, output_file
+    global jtype, jobtypes, tstep
+
+    glbl.paths['cwd']  = os.getcwd()
+    input_file         = args[1]
+
+    if '-jobtype' in sys.argv:
+        jtype = args[args.index('-jobtype')+1]
+    else:
+        jtype = ''
+
+    if jtype == 'geoms':
+        chkpt_file         = input_file
+    elif jtype not in jobtypes:
+        os.exit('error: '+str(jtype)+' not a valid job type')
+
+    if '-tstep' in sys.argv:
+        tstep = float(args[args.index('-tstep')+1])
+    else:
+        tstep = 5.
+
+    if '-odir' in sys.argv:
+        output_dir  = args[args.index('-odir')+1]
+    else:
+        output_dir  = ''
+
+    if '-ofile' in sys.argv:
+        output_file = args[args.index('-ofile')+1]
+    else: 
+        output_file = 'geoms'
+
+    return
+
+#
+def main():
+    """ main driver routine """
+    global input_file, chkpt_file, output_dir, output_file
+    global jtype, jobtypes,tstep
+
+    au2fs = 1./41.334
+
+    # if we're generating geometries, just open chkpt file and
+    # read them out at each time step
+    if jtype == 'geoms':
+
+        #load the appropriate library
+        lib_path  = os.environ['NOMAD']+'/nomad/analysis/lib_traj.so'
+        if not os.path.isfile(lib_path):
+            raise FileNotFoundError('density library not found: '+lib_path)
+        lib_traj = ctypes.cdll.LoadLibrary(lib_path)
+
+        # reset chkpt_file variable to be consistent with the current path
+        chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
+        checkpoint.read_keywords(chkpt)
+
+        # change the current default checkpoint file path to the checkpoint
+        # file we're operating on.
+        glbl.paths['chkpt_file'] = chkpt_file
+    
+        # pass the various run time options to the propagation library
+        default_step = float(glbl.properties['default_time_step'])
+        step_method = ['nascent', 'static'].index('static')+1
+        lib_utils.init_table(lib_traj, default_step, step_method)
+
+        # create the trajectory table
+        kwords = lib_utils.create_table(lib_traj, chkpt)
+
+        # load all the trajectories into a library
+        kwords = lib_utils.load_trajectories(
+                       lib_traj, chkpt, kwords, None, None)
+
+        # FINALLY -- close the checkpoint file
+        chkpt.close()
+
+        for ibatch in range(kwords['nbatch']):
+            time_final = float(kwords['tbnds'][2*ibatch+1])*au2fs
+            n_traj     = int(kwords['ntraj'][ibatch])
+            geom_file  = open(output_file+'.'+str(ibatch+1)+'.xyz', 'w')
+            prev_step  = dict() 
+            offset     = 0
+            for time in np.arange(0., time_final, tstep):
+
+                traj_list = lib_utils.traj_retrieve_timestep(
+                               lib_traj, kwords, time/au2fs, ibatch, n_traj)
+                lib_utils.print_geom_file(traj_list, geom_file, time, prev_step)
+
+                for traj in range(len(traj_list)):
+                    prev_step[traj_list[traj].label] = offset + traj
+                offset += len(traj_list)
+
+            geom_file.close()
+
+    if jtype == 'spectra':
+        print("not yet implemented")
+
+
+    return
+
+#   
+if __name__ == '__main__':
+    # parse command line arguments
+    if '-openmp' in sys.argv:
+        glbl.mpi['parallel'] = True
+
+    # initialize
+    init()
+
+    # run the main routine
+    main()
+

@@ -419,7 +419,7 @@ module lib_amp
     do i = 1,amp_total
 
       ! if this is not selected batch, move on to next one
-      if(batch > 0 .and. amp_table(i)%batch /= batch) continue
+      if(batch >= 0 .and. amp_table(i)%batch /= batch) continue
 
       ! if setting counters to first index
       if(first_time) amp_table(i)%current_row = 1

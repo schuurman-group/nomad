@@ -164,7 +164,7 @@ def main():
     # load the trajectories into the table
     kwords = lib_utils.load_trajectories(
                  lib_prop, chkpt, kwords, ti, tf)
-   
+
     # close the current checkpoint file 
     chkpt.close()
 
@@ -193,7 +193,7 @@ def main():
     if full_basis:
         nbatch = 1
 
-    for ibat in range(nbatch):
+    for ibat in kwords['batches']:
         ibatch = ibat
         if full_basis:
             ibatch = -1 
@@ -206,7 +206,7 @@ def main():
 
             # retrieve a list of trajectories
             traj_list = lib_utils.traj_retrieve_timestep( 
-                            lib_prop, kwords, indices, time, ibatch, n_traj)
+                            lib_prop, kwords, time, ibatch, n_traj)
             amp_list  = lib_utils.amp_retrieve_timestep(
                             lib_prop, indices)
 

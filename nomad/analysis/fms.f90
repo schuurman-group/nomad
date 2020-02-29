@@ -89,8 +89,8 @@ module fms
     old_traj      = 0
 
     if(full_basis) then
-      n_runs      = 1
-      batch_label = 0
+      n_runs      =  1
+      batch_label = -1 
     else
       n_runs      = n_batches()
     endif

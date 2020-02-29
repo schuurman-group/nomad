@@ -33,7 +33,7 @@ class Trajectory:
             self.kecoef = kecoef
 
         # unique identifier for trajectory
-        self.label        = label
+        self.label      = label
         # trajectory that spawned this one:
         self.parent     = parent
 

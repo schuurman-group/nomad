@@ -94,7 +94,7 @@ def main():
     # load all the trajectories into a library
     kwords = lib_utils.load_trajectories(
                 lib_den, chkpt, kwords, t_init, t_final)
-
+  
     # FINALLY -- close the checkpoint file
     chkpt.close()
 

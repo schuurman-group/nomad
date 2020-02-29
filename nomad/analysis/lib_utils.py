@@ -11,6 +11,8 @@ import nomad.core.surface as surface
 import nomad.core.trajectory as trajectory
 import nomad.core.matrices as matrices
 import nomad.core.checkpoint as checkpoint
+import nomad.core.atom_lib as atom_lib
+import nomad.math.constants as constants
 
 valid_coord = ['stre', 'bend',  'tors',  '|tors|',
                'oop',  '|oop|', 'plane', '|plane|']
@@ -143,7 +145,7 @@ def create_amp_table(amp_lib, kwords):
 
     amp_lib.amp_create_table(
              ctypes.byref(convert_ctypes(kwords['ntotal'], dtype='int32')),
-                          convert_ctypes(kwords['labels'], dtype='int32'),
+                          convert_ctypes(kwords['tbatch'], dtype='int32'),
                           convert_ctypes(kwords['nsteps'], dtype='int32'),
                           convert_ctypes(kwords['tbnds'],  dtype='double'))
     return
@@ -153,9 +155,12 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
     """ load all the trajectories from chkpt into traj_lib"""
 
     # initialize the time and label arrays for the amplitude table
-    kwords['labels'] = np.zeros(kwords['ntotal'],   dtype=int)
-    kwords['nsteps'] = np.zeros(kwords['ntotal'],   dtype=int)    
-    kwords['tbnds']  = np.zeros(2*kwords['ntotal'], dtype=float)
+    kwords['tbatch']  = np.zeros(kwords['ntotal'],   dtype=int)
+    kwords['nsteps']  = np.zeros(kwords['ntotal'],   dtype=int)    
+    kwords['tbnds']   = np.zeros(2*kwords['ntotal'], dtype=float)
+    kwords['parent']  = dict()
+    kwords['batches'] = []
+    kwords['traj_id'] = dict()
 
     batch_labels = np.zeros(kwords['ntotal'],   dtype=int)
     n_steps      = np.zeros(kwords['ntotal'],   dtype=int)
@@ -166,7 +171,6 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
     # objects and add each trajectory to the dll
     icnt   = 0
     t_max  = 0.
-    batch  = 0
     widths = kwords['widths']
     masses = kwords['masses']
     dsets  = ['states',       'phase', 'potential','geom',
@@ -175,16 +179,25 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
                                     if 'wavefunction' in key_val]
 
     for wfn_grp in wfn_keys:
-        batch = batch + 1
+        batch = int(wfn_grp[wfn_grp.index('.')+1:])
+        kwords['batches'].extend([batch])
+        kwords['parent'][batch] = dict()
+        kwords['traj_id'][batch] = []
+
         traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
                                     if checkpoint.isTrajectory(key_val)]
         for traj_grp in traj_keys:
+
+            tid = int(traj_grp)
+            kwords['traj_id'][batch].extend([tid])
+
             data = [None] * len(dsets)
             for iset in range(len(dsets)):
                 dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
                 t, datum = checkpoint.retrieve_dataset(chkpt, dset, ti, tf)
                 data[iset] = datum
 
+            kwords['parent'][batch][int(traj_grp)] = int(data[0][0][0])
             t_max   = max(t_max, np.amax(t))
             state   = int(data[0][0][1])
             nt      = len(t)
@@ -192,9 +205,10 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
             nd      = len(glbl.properties['crd_widths'])
             data[0] = t
 
-            args = [ctypes.byref(convert_ctypes(batch, dtype='int64')),
-                    ctypes.byref(convert_ctypes(nt,    dtype='int64')),
-                    ctypes.byref(convert_ctypes(state, dtype='int64')),
+            args = [ctypes.byref(convert_ctypes(batch, dtype='int32')),
+                    ctypes.byref(convert_ctypes(nt,    dtype='int32')),
+                    ctypes.byref(convert_ctypes(tid,   dtype='int32')),
+                    ctypes.byref(convert_ctypes(state, dtype='int32')),
                     convert_ctypes(widths,             dtype='double'),
                     convert_ctypes(masses,             dtype='double')]
             # because we're loading by timestep, data in row-major form. 
@@ -210,7 +224,7 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
             traj_lib.add_trajectory(*args)
 
             # add data for summary output
-            kwords['labels'][icnt]           = batch
+            kwords['tbatch'][icnt]           = batch
             kwords['nsteps'][icnt]           = nt
             kwords['tbnds'][2*icnt:2*icnt+2] = np.array([t[0], np.amax(t)])
             icnt += 1
@@ -308,7 +322,7 @@ def amp_timestep_info(amp_lib, reset, batch, ntotal):
     return float(time.value), int(n_traj.value), np.array(indices[:int(n_traj.value)], dtype=int)
 
 #
-def traj_retrieve_timestep(traj_lib, kwords, labels, time, batch, ntraj):
+def traj_retrieve_timestep(traj_lib, kwords, time, batch, ntraj):
     """retrieve a list of trajectories from a trajectory table
        at time = time."""
 
@@ -321,9 +335,11 @@ def traj_retrieve_timestep(traj_lib, kwords, labels, time, batch, ntraj):
     t_current = convert_ctypes(time,  dtype='double')
     i_batch   = convert_ctypes(batch, dtype='int32')
     n_traj    = convert_ctypes(ntraj, dtype='int32')
+    n_fnd     = convert_ctypes(0,     dtype='int32')
 
     # retrieve the trajectory information for the time specified from amplitude table
-    state = convert_ctypes(np.zeros(nt,            dtype=int), dtype='int32')
+    t_ids = convert_ctypes(np.zeros(nt,          dtype=int),   dtype='int32')
+    state = convert_ctypes(np.zeros(nt,          dtype=int),   dtype='int32')
     amp_r = convert_ctypes(np.zeros(nt,          dtype=float), dtype='double')
     amp_i = convert_ctypes(np.zeros(nt,          dtype=float), dtype='double')
     eners = convert_ctypes(np.zeros(ns*nt,       dtype=float), dtype='double')
@@ -334,6 +350,8 @@ def traj_retrieve_timestep(traj_lib, kwords, labels, time, batch, ntraj):
     traj_lib.traj_retrieve_timestep(ctypes.byref(t_current),
                                     ctypes.byref(i_batch),
                                     ctypes.byref(n_traj),
+                                    ctypes.byref(n_fnd),
+                                    t_ids,
                                     state,
                                     amp_r,
                                     amp_i,
@@ -345,15 +363,22 @@ def traj_retrieve_timestep(traj_lib, kwords, labels, time, batch, ntraj):
 
     # add trajectories one at a time 
     traj_list = []
+    labels    = np.array(t_ids, dtype=int)
 
-    for itraj in range(nt):
+    for itraj in range(int(n_fnd.value)):
 
+        parent_traj = -1 
+        if batch in kwords['parent'].keys():
+            if labels[itraj] in kwords['parent'][batch].keys():
+                parent_traj = kwords['parent'][batch][labels[itraj]]
+       
         new_surf = surface.Surface()
         new_traj = trajectory.Trajectory(ns, nc,
                                          width=widths,
                                          mass=masses,
                                          label=labels[itraj],
-                                         kecoef=0.5/masses)
+                                         kecoef=0.5/masses,
+                                         parent=parent_traj)
 
         new_traj.state = int(state[itraj])
         new_traj.update_x(np.array(x[nc*itraj:nc*(itraj+1)]))
@@ -452,6 +477,40 @@ def retrieve_matrices(amp_lib, time, batch, n):
     mats.set('heff',   np.reshape(np.array(heff_r) + 1j*np.array(heff_i), tuple([n,n])))
 
     return mats
+
+#
+def print_geom_file(traj_list, geom_file, time, prev_step):
+    """print a set of geometries to geom_file"""
+
+    for traj in traj_list:
+        mass     = traj.masses() / constants.amu2au
+        x        = traj.x()
+        natm     = int(len(mass)/3.)
+        atm_indx = [np.where((mass[3*i] - atom_lib.atom_mass).round() 
+                                   == 0 )[0][0] for i in range(natm)]
+        atms = [atom_lib.atom_name[atm_indx[i]] for i in range(natm)]
+
+        if traj.label in prev_step.keys():
+            prev = prev_step[traj.label]
+        elif traj.parent in prev_step.keys():
+            prev = prev_step[traj.parent]
+        else:
+            prev = -1
+
+        out_str = str(natm)+"\n"
+        out_str = out_str      + str(time) + \
+                          "    " + str(traj.label)+ \
+                          "    " + str(traj.state)+ \
+                          "    " + str(prev)+ \
+                          "  " + '{:12.8f}'.format(traj.amplitude)+"\n"
+        for iatm in range(natm):
+            line = atms[iatm] + '{:12.6f} {:12.6f} {:12.6f}'.format(
+                                           *x[3*iatm:3*iatm+3])
+            out_str = out_str + line + "\n"
+
+        geom_file.write(out_str)
+
+    return
 
 #
 def convert_ctypes(py_val, dtype=None):

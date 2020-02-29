@@ -1,4 +1,4 @@
-goal: fms.so lib_den.so
+goal: fms.so lib_traj.so lib_den.so
 
 #compilers
 F90=ifort -warn -nofor_main -ipo -O2 -no-prec-div -qopenmp -assume cc_omp -complex_limited_range -debug extended -traceback -check all -mkl:serial
@@ -18,6 +18,9 @@ OBJS=accuracy.o math.o lib_traj.o lib_amp.o fms.o lib_den.o
 
 fms.so:	fms.f90 
 	$(F90) -fPIC -shared -o fms.so accuracy.f90 math.f90 lib_traj.f90 lib_amp.f90 fms.f90 $(LIBS)
+
+lib_traj.so: lib_traj.f90
+	$(F90) -fPIC -shared -o lib_traj.so accuracy.f90 math.f90 lib_traj.f90 $(LIBS)
 
 lib_den.so: lib_den.f90
 	$(F90) -fPIC -shared -o lib_den.so accuracy.f90 math.f90 lib_traj.f90 lib_den.f90 $(LIBS)
