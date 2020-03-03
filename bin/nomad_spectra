@@ -10,19 +10,22 @@ import sys as sys
 import h5py as h5py
 import ctypes as ctypes
 import numpy as np
+from scipy.ndimage.filters import gaussian_filter
 import math as math
+import nomad.math.constants as constants
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
 import nomad.analysis.lib_utils as lib_utils
+import nomad.analysis.fileio as fileio
 import nomad.analysis.plot as plot
+import nomad.analysis.plot_defaults as default
 
-input_file     = ''
 chkpt_file     = ''
 output_dir     = ''
 output_file    = ''
 jtype          = ''
 tstep          = 0.
-jobtypes       = ['geoms', 'spectra']
+jobtypes       = ['geoms', 'trpes']
 
 def init():
     """Initializes the nomad inputs.
@@ -35,21 +38,20 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global input_file, chkpt_file, output_dir, output_file
+    global chkpt_file, output_dir, output_file
     global jtype, jobtypes, tstep
 
     glbl.paths['cwd']  = os.getcwd()
-    input_file         = args[1]
+
+    if '-chkpt' in sys.argv:
+        chkpt_file = args[args.index('-chkpt')+1]
+    else:
+        chkpt_file = ''
 
     if '-jobtype' in sys.argv:
         jtype = args[args.index('-jobtype')+1]
     else:
         jtype = ''
-
-    if jtype == 'geoms':
-        chkpt_file         = input_file
-    elif jtype not in jobtypes:
-        os.exit('error: '+str(jtype)+' not a valid job type')
 
     if '-tstep' in sys.argv:
         tstep = float(args[args.index('-tstep')+1])
@@ -61,10 +63,14 @@ def process_arguments(args):
     else:
         output_dir  = ''
 
-    if '-ofile' in sys.argv:
+    if '-geom_files' in sys.argv:
         output_file = args[args.index('-ofile')+1]
     else: 
         output_file = 'geoms'
+
+
+    if jtype not in jobtypes:
+        os.exit('error: '+str(jtype)+' not a valid job type')
 
     return
 
@@ -74,7 +80,7 @@ def main():
     global input_file, chkpt_file, output_dir, output_file
     global jtype, jobtypes,tstep
 
-    au2fs = 1./41.334
+    au2fs = 1./constants.fs2au
 
     # if we're generating geometries, just open chkpt file and
     # read them out at each time step
@@ -127,9 +133,72 @@ def main():
 
             geom_file.close()
 
-    if jtype == 'spectra':
-        print("not yet implemented")
+    if jtype == 'trpes':
 
+        inp = default.trpesplot
+        fileio.cfg_update(inp, default.inpname['trpesplot'])
+
+        fnames = fileio.get_fnames(inp['seed_files'])
+        nseed = len(fnames)
+
+        ebins = np.linspace(inp['emin'] - 3*inp['esig'],
+                            inp['emax'] + 3*inp['esig'], inp['nebins'])
+        tstrt = inp['tinc']*round((inp['tmin'] - 3*inp['tsig'])/(au2fs*inp['tinc']))
+        tbins = np.arange(tstrt, (inp['tmax'] + 3*inp['tsig'])/au2fs + inp['tinc'],
+                                  inp['tinc']) - inp['tinc'] // 2
+        ecent = (ebins[1:] + ebins[:-1]) / 2
+        tcent = au2fs*(tbins[1:] + tbins[:-1]) / 2
+        sigma = (inp['tsig'] / (au2fs*(tbins[1]-tbins[0])),
+                 inp['esig'] / (ebins[1]-ebins[0]))
+        spec = np.empty((nseed, len(tbins)-1, len(ebins)-1))
+
+        for i, fn in enumerate(fnames):
+            rawdat = np.genfromtxt(fn).T
+            nd = (len(rawdat) - 3) // 2
+            times = np.tile(rawdat[0], nd)
+            energies = rawdat[3::2].flatten()
+            if inp['dyson_norms']:
+                wgts = (rawdat[2] * rawdat[4::2]).flatten()
+            else:
+                wgts = np.tile(rawdat[2], nd)
+
+            stick = np.histogram2d(times, inp['eprobe'] - energies,
+                                   bins=(tbins, ebins), weights=wgts)[0]
+            spec[i] = gaussian_filter(stick, sigma=sigma)
+
+        total_spec = np.average(spec, axis=0)
+        emask = np.logical_and(ecent >= inp['emin'], ecent <= inp['emax'])
+        tmask = np.logical_and(tcent >= inp['tmin'], tcent <= inp['tmax'])
+        scale = np.max(total_spec[np.ix_(tmask, emask)])
+        total_spec /= scale
+        kwargs = dict(xlabel='Kinetic Energy / eV', ylabel='Time / fs',
+                      xlim=(inp['emin'], inp['emax']),
+                      ylim=(inp['tmin'], inp['tmax']))
+        header = np.hstack((0, ecent))
+
+        if inp['calc_err']:
+            spec /= scale
+            total_spec, total_err = populations.error_amps(spec,
+                                               nboot=inp['n_bootstrap'],
+                                               bthrsh=inp['boot_thrsh'])
+
+            data = np.vstack((tcent, 100*total_err.T)).T
+            fileio.write_dat(inp['err_name'], np.vstack((header, data)),
+                             charwid=10)
+            if inp['err_plot_name'] is not None:
+                vmax = np.max(total_err[np.ix_(tmask, emask)])
+                total_err[total_err > vmax] = 0
+                fig, ax = plot.contourf(ecent, tcent, total_err, **kwargs)
+                plot.save(inp['err_plot_name'])
+
+        data = np.vstack((tcent, 100*total_spec.T)).T
+        fileio.write_dat(inp['data_name'], np.vstack((header, data)),
+                         charwid=10)
+
+        if inp['plot_name'] is not None:
+            #fig, ax = plot.heatmap(ebins, tbins, total_spec, **kwargs)
+            fig, ax = plot.contourf(ecent, tcent, total_spec, **kwargs)
+            plot.save(inp['plot_name'])
 
     return
 

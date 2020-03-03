@@ -104,20 +104,6 @@ def natural_keys(s):
     return [int(c) if c.isdigit() else c for c in re.split('(\d+)', s)]
 
 
-def traj_to_xyz(string, outfile, elem=None, comment=''):
-    """Takes a line from a TrajDump file and converts it to an
-    XYZ format."""
-    line = np.array(string.split(), dtype=float)
-    natm = len(line) // 6 - 1
-    if elem is None:
-        elem = np.array(['X'] * natm)
-
-    xyz = line[1:3*natm+1].reshape(natm, 3) * 0.52917721
-    outfile.write(' {:d}\n{:s}\n'.format(natm, comment))
-    for atm, xyzi in zip(elem, xyz):
-        outfile.write('{:4s}{:12.6f}{:12.6f}{:12.6f}\n'.format(atm, *xyzi))
-
-
 def read_dat(fname, dtype=float, skiprow=0, skipcol=0, labels=None,
              usecols=None):
     """Reads an array of data from an input file.
