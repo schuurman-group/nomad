@@ -18,14 +18,15 @@ import nomad.core.checkpoint as checkpoint
 import nomad.analysis.lib_utils as lib_utils
 import nomad.analysis.fileio as fileio
 import nomad.analysis.plot as plot
-import nomad.analysis.plot_defaults as default
+import nomad.analysis.defaults as defaults
 
-chkpt_file     = ''
-output_dir     = ''
-output_file    = ''
-jtype          = ''
-tstep          = 0.
-jobtypes       = ['geoms', 'trpes']
+input_file  = ''
+job_type    = ''
+output_dir  = ''
+output_file = ''
+tstep       = 0.
+jobtypes    = ['geoms', 'trpes']
+valid_args  = ['jobtype','odir','ofiles','tstep']
 
 def init():
     """Initializes the nomad inputs.
@@ -38,53 +39,53 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global chkpt_file, output_dir, output_file
-    global jtype, jobtypes, tstep
+    global input_file, job_type, output_dir, output_file, tstep
+    global jobtypes, valid_args
 
     glbl.paths['cwd']  = os.getcwd()
 
-    if '-chkpt' in sys.argv:
-        chkpt_file = args[args.index('-chkpt')+1]
-    else:
-        chkpt_file = ''
+    if '-'+args[1].strip() not in valid_args:
+        input_file = args[1]
 
     if '-jobtype' in sys.argv:
-        jtype = args[args.index('-jobtype')+1]
+        job_type = args[args.index('-jobtype')+1]
     else:
-        jtype = ''
+        job_type = ''
 
-    if '-tstep' in sys.argv:
-        tstep = float(args[args.index('-tstep')+1])
+    if '-ofiles' in sys.argv:
+        output_file = args[args.index('-ofile')+1]
     else:
-        tstep = 5.
+        output_file = 'geoms'
 
     if '-odir' in sys.argv:
         output_dir  = args[args.index('-odir')+1]
     else:
         output_dir  = ''
 
-    if '-geom_files' in sys.argv:
-        output_file = args[args.index('-ofile')+1]
-    else: 
-        output_file = 'geoms'
+    if '-tstep' in sys.argv:
+        tstep = float(args[args.index('-tstep')+1])
+    else:
+        tstep = 5.
 
-
-    if jtype not in jobtypes:
+    if job_type not in jobtypes:
         os.exit('error: '+str(jtype)+' not a valid job type')
+
+    if job_type == 'geoms' and input_file == '':
+        os.exit('error: checkpoint file needs to be specified'+
+                'in order to generate geometries')
 
     return
 
 #
 def main():
     """ main driver routine """
-    global input_file, chkpt_file, output_dir, output_file
-    global jtype, jobtypes,tstep
+    global input_file, job_type, output_dir, output_file, tstep
 
     au2fs = 1./constants.fs2au
 
     # if we're generating geometries, just open chkpt file and
     # read them out at each time step
-    if jtype == 'geoms':
+    if job_type == 'geoms':
 
         #load the appropriate library
         lib_path  = os.environ['NOMAD']+'/nomad/analysis/lib_traj.so'
@@ -93,12 +94,12 @@ def main():
         lib_traj = ctypes.cdll.LoadLibrary(lib_path)
 
         # reset chkpt_file variable to be consistent with the current path
-        chkpt = h5py.File(chkpt_file, 'r+', libver='latest')
+        chkpt = h5py.File(input_file, 'r+', libver='latest')
         checkpoint.read_keywords(chkpt)
 
         # change the current default checkpoint file path to the checkpoint
         # file we're operating on.
-        glbl.paths['chkpt_file'] = chkpt_file
+        glbl.paths['chkpt_file'] = input_file
     
         # pass the various run time options to the propagation library
         default_step = float(glbl.properties['default_time_step'])
@@ -116,15 +117,16 @@ def main():
         chkpt.close()
 
         for ibatch in range(kwords['nbatch']):
-            time_final = float(kwords['tbnds'][2*ibatch+1])*au2fs
+            batch      = int(kwords['batches'][ibatch])
             n_traj     = int(kwords['ntraj'][ibatch])
-            geom_file  = open(output_file+'.'+str(ibatch+1)+'.xyz', 'w')
+            time_final = float(kwords['tbnds'][2*ibatch+1])*au2fs
+            geom_file  = open(output_file+'.'+str(batch+1)+'.xyz', 'w')
             prev_step  = dict() 
             offset     = 0
             for time in np.arange(0., time_final, tstep):
 
                 traj_list = lib_utils.traj_retrieve_timestep(
-                               lib_traj, kwords, time/au2fs, ibatch, n_traj)
+                               lib_traj, kwords, time/au2fs, batch, n_traj)
                 lib_utils.print_geom_file(traj_list, geom_file, time, prev_step)
 
                 for traj in range(len(traj_list)):
@@ -133,11 +135,17 @@ def main():
 
             geom_file.close()
 
-    if jtype == 'trpes':
+    if job_type == 'trpes':
 
-        inp = default.trpesplot
-        fileio.cfg_update(inp, default.inpname['trpesplot'])
+        # first set all the defaults
+        inp = defaults.trpesplot
+ 
+        # update the defaults if an input file is specified
+        if input_file == '':
+            input_file = defaults.inpname['trpesplot']
+        fileio.cfg_update(inp, input_file)
 
+        # load spectral information
         fnames = fileio.get_fnames(inp['seed_files'])
         nseed = len(fnames)
 

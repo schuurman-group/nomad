@@ -56,7 +56,8 @@ def init_density(den_lib, chkpt, kwords, max_states, max_prim, max_atoms):
     """ initialize the density table"""
     global valid_coord, valid_ops
 
-    n_wfn, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
+    wfn_id, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
+    n_wfn   = len(wfn_id)
     t_init  = float(kwords['tinit'])
     t_final = float(kwords['tfinal'])
     t_step  = float(kwords['tstep'])
@@ -115,8 +116,10 @@ def create_table(traj_lib, chkpt):
     kwords = dict()
 
     # extract information about the basis
-    kwords['nbatch'], kwords['ntraj'], n_steps, t_times = \
+    kwords['batches'], kwords['ntraj'], n_steps, t_times = \
                                      checkpoint.retrieve_basis(chkpt)
+
+    kwords['nbatch']  = len(kwords['batches'])
     kwords['ntotal']  = sum(kwords['ntraj'])
     kwords['nstates'] = int(glbl.properties['n_states'])
     kwords['ncrds']   = len(glbl.properties['crd_widths'])
@@ -160,6 +163,7 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
     kwords['tbnds']   = np.zeros(2*kwords['ntotal'], dtype=float)
     kwords['parent']  = dict()
     kwords['batches'] = []
+    kwords['ntraj']   = []
     kwords['traj_id'] = dict()
 
     batch_labels = np.zeros(kwords['ntotal'],   dtype=int)
@@ -174,7 +178,10 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
     widths = kwords['widths']
     masses = kwords['masses']
     dsets  = ['states',       'phase', 'potential','geom',
-              'momentum','derivative', 'coupling', 'amp']
+              'momentum','derivative', 'coupling', 'amp', 'glbl']
+
+    dbl_set = ['time', 'phase', 'potential', 'geom', 'momentum',
+               'derivative', 'coupling']
     wfn_keys = [key_val for key_val in chkpt.keys()
                                     if 'wavefunction' in key_val]
 
@@ -183,6 +190,7 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
         kwords['batches'].extend([batch])
         kwords['parent'][batch] = dict()
         kwords['traj_id'][batch] = []
+        kwords['ntraj'].extend([0])
 
         traj_keys = [key_val for key_val in chkpt[wfn_grp].keys()
                                     if checkpoint.isTrajectory(key_val)]
@@ -191,19 +199,34 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
             tid = int(traj_grp)
             kwords['traj_id'][batch].extend([tid])
 
-            data = [None] * len(dsets)
-            for iset in range(len(dsets)):
-                dset = wfn_grp+"/"+traj_grp+"/"+dsets[iset]
-                t, datum = checkpoint.retrieve_dataset(chkpt, dset, ti, tf)
-                data[iset] = datum
+            data = dict()
+            t    = None
+            for iset in dsets:
+                dset = wfn_grp+"/"+traj_grp+"/"+iset
+                if dset in chkpt:
+                    t, data[iset] = checkpoint.retrieve_dataset(chkpt, dset, ti, tf)
 
-            kwords['parent'][batch][int(traj_grp)] = int(data[0][0][0])
+            # piece of code for backwards compatability -- can be removed
+            # eventually
+            if 'glbl' in data.keys():
+                data['states'] = np.column_stack((data['glbl'][:,0],
+                                                  data['glbl'][:,1]))
+                data['phase']  = np.array(data['glbl'][:,2], dtype=float)
+                data['amp']    = np.column_stack((data['glbl'][:,3],
+                                                  data['glbl'][:,4]))
+
+            # go through and confirm that the leading dimension for all
+            # vector arguments is <= nt
+            for datum in data.keys():
+                if len(data[datum]) != len(t.flatten()):
+                    sys.exit("len("+str(datum)+") != "+str(len(t.flatten()))) 
+
+            kwords['parent'][batch][int(traj_grp)] = int(data['states'][0,0])
             t_max   = max(t_max, np.amax(t))
-            state   = int(data[0][0][1])
-            nt      = len(t)
-            ns      = len(data[1][0])
+            state   = int(data['states'][0,1])
+            nt      = len(t.flatten())
             nd      = len(glbl.properties['crd_widths'])
-            data[0] = t
+            data['time'] = t.flatten()
 
             args = [ctypes.byref(convert_ctypes(batch, dtype='int32')),
                     ctypes.byref(convert_ctypes(nt,    dtype='int32')),
@@ -216,14 +239,15 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
             # in one step by flattening to 'row-major' C form (rather 
             # than transposing, then "F" form).
             args  += [convert_ctypes(data[i].flatten('C'),
-                             dtype='double') for i in range(len(data)-1)]
+                             dtype='double') for i in dbl_set]
             # add amps separately
-            ampr  = convert_ctypes(data[len(data)-1][:,0], dtype='double')
-            ampi  = convert_ctypes(data[len(data)-1][:,1], dtype='double')
+            ampr  = convert_ctypes(data['amp'][:,0], dtype='double')
+            ampi  = convert_ctypes(data['amp'][:,1], dtype='double')
             args  += [ampr, ampi]
             traj_lib.add_trajectory(*args)
 
             # add data for summary output
+            kwords['ntraj'][-1]             += 1
             kwords['tbatch'][icnt]           = batch
             kwords['nsteps'][icnt]           = nt
             kwords['tbnds'][2*icnt:2*icnt+2] = np.array([t[0], np.amax(t)])
@@ -498,11 +522,14 @@ def print_geom_file(traj_list, geom_file, time, prev_step):
             prev = -1
 
         out_str = str(natm)+"\n"
-        out_str = out_str      + str(time) + \
-                          "    " + str(traj.label)+ \
-                          "    " + str(traj.state)+ \
-                          "    " + str(prev)+ \
-                          "  " + '{:12.8f}'.format(traj.amplitude)+"\n"
+        out_str = out_str + " t/fs "   + str(time) + \
+                            " id "     + str(traj.label) + \
+                            " state "  + str(traj.state) + \
+                            " prev  "  + str(prev) + \
+                            " energy " + str([traj.energy(st) - 
+                                           glbl.properties['pot_shift'] 
+                                         for st in range(traj.nstates)]) + \
+                            " amp "    + '{:12.8f}'.format(traj.amplitude)+"\n"
         for iatm in range(natm):
             line = atms[iatm] + '{:12.6f} {:12.6f} {:12.6f}'.format(
                                            *x[3*iatm:3*iatm+3])

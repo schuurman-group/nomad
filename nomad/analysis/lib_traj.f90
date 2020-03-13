@@ -224,6 +224,8 @@ module lib_traj
     real(drk), intent(in)           :: ampr(np)
     real(drk), intent(in)           :: ampi(np)
 
+    integer(ik)                     :: ibra, iket, icrd, ipt
+    integer(ik)                     :: len1, len2, len3, len4
     integer(ik), save               :: traj_cnt = 0
 
     ! Set and allocate the trajectory table
@@ -241,7 +243,7 @@ module lib_traj
     allocate(basis_table(traj_cnt)%energy(n_state, np))
     allocate(basis_table(traj_cnt)%x(n_crd, np))
     allocate(basis_table(traj_cnt)%p(n_crd, np))
-    allocate(basis_table(traj_cnt)%deriv(n_state, n_state, n_crd, np))
+    allocate(basis_table(traj_cnt)%deriv(n_crd, n_state, n_state, np))
     allocate(basis_table(traj_cnt)%coup(n_state, n_state, np))
     allocate(basis_table(traj_cnt)%amplitude(np))
 
@@ -249,13 +251,33 @@ module lib_traj
     basis_table(traj_cnt)%mass      = masses
     basis_table(traj_cnt)%time      = time
     basis_table(traj_cnt)%phase     = phase
-    basis_table(traj_cnt)%energy    = reshape(energy, (/n_state, np/))
-    basis_table(traj_cnt)%x         = reshape(x,      (/n_crd, np/))
-    basis_table(traj_cnt)%p         = reshape(p,      (/n_crd, np/))
-    basis_table(traj_cnt)%deriv     = reshape(deriv,  (/n_crd, n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk, zero_drk/), (/2, 3, 1, 4/))
-    basis_table(traj_cnt)%coup      = reshape(coup,   (/n_state, n_state, np/), (/zero_drk, zero_drk, zero_drk/), (/2, 1, 3/))
+
     basis_table(traj_cnt)%amplitude = ampr + I_drk*ampi
 
+    len1 = n_state * n_state
+    len2 = n_state
+    len3 = n_state*n_state*n_crd
+    len4 = n_state*n_crd
+    do ipt = 1,np
+
+      do iket = 1,n_state
+        basis_table(traj_cnt)%energy(iket, ipt) = energy( (ipt-1)*len2 + iket )
+        do ibra = 1,n_state
+          basis_table(traj_cnt)%coup(ibra, iket, ipt) = coup( (ipt-1)*len1 + (iket-1)*len2 + ibra )
+          do icrd = 1,n_crd
+            basis_table(traj_cnt)%deriv(icrd, ibra, iket, ipt) = deriv( (ipt-1)*len3 + (ibra-1)*len4 + (iket-1)*n_crd + icrd )
+          enddo
+        enddo
+      enddo
+
+      do icrd = 1,n_crd
+        basis_table(traj_cnt)%x(icrd, ipt) = x( (ipt-1)*n_crd + icrd )
+        basis_table(traj_cnt)%p(icrd, ipt) = p( (ipt-1)*n_crd + icrd )
+      enddo
+
+    enddo
+
+    return
   end subroutine add_trajectory
 
   !
@@ -298,7 +320,10 @@ module lib_traj
     call locate_trajectories(time, batch, indices, traj_list)
     n_fnd = traj_size(traj_list)
 
-    if(n_fnd > n)stop 'cannot retrieve all data in traj_retrieve_timestep, size(traj_list) > n'
+    if(n_fnd > n) then
+      print *,'nfound = ',traj_size(traj_list),' expecting at most: ',n
+      stop 'cannot retrieve all data in traj_retrieve_timestep, size(traj_list) > n'
+    endif
 
     dlen  = n_crd*n_state*n_state
     clen  = n_state*n_state
@@ -422,7 +447,7 @@ module lib_traj
     n_fnd = 0
     do i = 1,size(basis_table)
       ! skip if trajectory(i) is in wrong batch
-      if(batch >= 0 .and. basis_table(i)%batch /= batch) continue
+      if(batch >= 0 .and. basis_table(i)%batch /= batch) cycle 
       call get_time_index(i, time, time_indx, time_val)
       if(time_indx /= -1) then
         n_fnd = n_fnd + 1
@@ -594,7 +619,7 @@ module lib_traj
     do i = 1,size(basis_table)
 
       ! if this is not selected batch, move on to next one
-      if(batch >= 0 .and. basis_table(i)%batch /= batch) continue
+      if(batch >= 0 .and. basis_table(i)%batch /= batch) cycle 
       
       ! if setting counters to first index
       if(first_time) basis_table(i)%current_row = 1

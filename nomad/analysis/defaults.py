@@ -40,7 +40,7 @@ contourplot = dict(
                    )
 
 denplot = dict(
-    file_stub = '../density/fmsDen_t',
+    file_stub = 'nomad_t',
     tinc = 50,
     tmin = 0.,
     tmax = 12000.,

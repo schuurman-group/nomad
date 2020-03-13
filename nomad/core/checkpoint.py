@@ -108,6 +108,18 @@ def merge_simulations(file_names=None, new_file=None):
     shutil.copy(file_names[0], new_file)    
     target = h5py.File(new_file, 'a', libver='latest')   
 
+    # make sure wavefunction groups satisfy naming convention
+    # of "wavefunction.x", "integral.x" mostly for backwards compatability
+    # we can likely delete this eventually
+    lbl = 0
+    for grp in target.keys():
+        if grp == 'wavefunction': #this wfn does not have a label suffix
+            while grp+'.'+str(lbl) in target.keys():
+                lbl += 1
+            target.move('wavefunction','wavefunction.'+str(lbl))
+            if 'integral' in target.keys():
+                target.move('integral','integral.'+str(lbl))
+
     wcnt = sum('wavefunction' in grp for grp in target.keys())
     icnt = sum('integral' in grp for grp in target.keys())
     for i in range(1,len(file_names)):
@@ -203,7 +215,8 @@ def retrieve_basis(chkpt):
        many time steps, etc.""" 
 
     n_wfn   = sum(isWfn(grp) for grp in chkpt.keys())
-    n_traj  = [0] * n_wfn
+    wfn_id  = [-1] * n_wfn
+    n_traj  = [0]  * n_wfn
     n_steps = [[] for i in range(n_wfn)]
     t_times = [[] for i in range(n_wfn)]
 
@@ -211,6 +224,7 @@ def retrieve_basis(chkpt):
     for i_wfn in chkpt.keys():
         if isWfn(i_wfn):
             w_cnt += 1
+            wfn_id[w_cnt] = i_wfn
             for i_traj in chkpt[i_wfn].keys():
                 if isTrajectory(i_traj):
                     n_traj[w_cnt] += 1 
@@ -218,7 +232,7 @@ def retrieve_basis(chkpt):
                     n_steps[w_cnt].append(len(steps))
                     t_times[w_cnt].append([steps[0],steps[-1]])
 
-    return n_wfn, n_traj, n_steps, t_times
+    return wfn_id, n_traj, n_steps, t_times
 
 #
 def retrieve_dataset(chkpt, dset, ti=None, tf=None):

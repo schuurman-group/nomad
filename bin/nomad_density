@@ -18,10 +18,13 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.checkpoint as checkpoint
 import nomad.analysis.lib_utils as lib_utils
+import nomad.analysis.defaults as defaults
+import nomad.analysis.fileio as fileio
 import nomad.analysis.plot as plot
 
-input_file  = ''
+coord_file  = ''
 chkpt_file  = ''
+plot_file   = ''
 max_states          = 10
 max_prim            = 8
 max_atoms           = 8*6
@@ -41,14 +44,15 @@ def process_arguments(args):
     """Process command line arguments."""
     global input_file, chkpt_file 
 
-    input_file = str(args[1])
+    coord_file = str(args[1])
 
     if '-chkpt' in sys.argv:
         chkpt_file = str(args[args.index('-chkpt')+1])
         glbl.paths['cwd']        = os.getcwd()
-    else:
-        chkpt_file = '' 
 
+    if '-plot' in sys.argv:
+        plot_file = str(args[args.index('-plot')+1])
+        
     return
 
 #
@@ -58,7 +62,12 @@ def main():
     global max_states, max_prim, max_atoms
     global print_density_files, time_conv
 
-    input_kwords = parse_input(input_file)
+    den_inp      = defaults.denplot
+    input_kwords = parse_input(coord_file)
+    # update the defaults if an input file is specified
+    if plot_file == '':
+        plot_file = defaults.inpname['denplot']
+    fileio.cfg_update(den_inp, plot_file)
 
     # load the appropriate library
     den_path  = os.environ['NOMAD']+'/nomad/analysis/lib_den.so'
@@ -141,18 +150,19 @@ def main():
             plot_grid[t_indx, :] = density        
         if n_intl == 2:
             plot_grid = density
-            plot.heatmap(x_axis, y_axis, plot_grid)
+            fig, ax = plot.heatmap(x_axis, y_axis, plot_grid, 
+                          xlabel=den_inp['coordlbl'], ylabel=ylbl)
+            plot.save(inp['plot_name']+'t'+str(time)+'.png', figure=fig)
         if n_intl > 2 or print_density_files:
             print_nd_array('nomad_den.t'+str(time), bnds, npts, density)
 
     den_report.close()
 
     if n_intl == 1:
-        print("plotgrid="+str(plot_grid))
-        x_axis        *= time_conv
-        den_plot, axis = plot.heatmap(x_axis, y_axis, plot_grid.T, 
-                                 xlabel='time (fs)',ylabel='coord')
-        plot.save('density.png', figure=den_plot)
+        # plot the density
+        fig, ax = plot.heatmap(x_axis, y_axis, plot_grid, 
+                          xlabel=den_inp['coordlbl'], ylabel=ylbl)
+        plot.save(inp['plot_name'], figure=fig)
 
     return
 
