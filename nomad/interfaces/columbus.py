@@ -67,7 +67,7 @@ mem_str      = ''
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path, log_file
-    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim
+    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim, n_drt
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
     global coup_de_thresh, dummy_lst
 
@@ -148,14 +148,17 @@ def init_interface():
     # now -- pull information from columbus input
     n_atoms    = natm
     n_cart     = natm * p_dim
-    n_orbs     = int(read_pipe_keyword('input/cidrtmsin',
-                                       'orbitals per irrep'))
+    n_orb_str  = read_pipe_keyword('input/cidrtmsin',
+                                   'orbitals per irrep')
+    n_orbs     = [int(orb_str) for orb_str in n_orb_str]
     n_mcstates = int(read_nlist_keyword('input/mcscfin',
                                         'NAVST'))
     n_cistates = int(read_nlist_keyword('input/ciudgin.drt1',
                                         'NROOT'))
     mrci_lvl   = int(read_pipe_keyword('input/cidrtmsin',
                                        'maximum excitation level'))
+    n_drt      = int(read_pipe_keyword('input/mcdrtin.1',
+                                       'input the number of irreps'))
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
@@ -1179,7 +1182,12 @@ def read_pipe_keyword(infile, keyword):
     for line in f:
         if keyword in line:
             f.close()
-            return line.split()[0]
+            # if the pipe keyword is an array, return array
+            if len(line.split('/')[0].split()) > 1:
+                return line.split('/')[0].split()
+            # else return a scalar
+            else:
+                return line.split()[0]
 
 
 def read_nlist_keyword(infile, keyword):
