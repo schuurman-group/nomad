@@ -17,11 +17,11 @@ wfn0  = None
 ints0 = None
 ints  = None
 print_error = True
-
+chkpt_file = None
 #
 def main():
     """Runs the main nomad_extract routine."""
-    global print_error, wfn0, ints0, ints
+    global print_error, wfn0, ints0, ints, chkpt_file
 
     chkpt_file, time, data = process_arguments(sys.argv)
 
@@ -116,7 +116,7 @@ def process_arguments(args):
     chkpt_file = args[1]
 
     if not os.path.isfile(chkpt_file):
-        raise ValueError('input file: '+str(ckhpt_file)+' not found')
+        raise ValueError('input file: '+str(chkpt_file)+' not found')
 
     iarg = 2
     while iarg < len(args):
@@ -179,8 +179,9 @@ def extract_data(wfn, mat, dlst):
 #------------------------------------------------------------------------------------
 def extract_spawn():
     """print the spawn table"""
+    global chkpt_file
 
-    spawn_data = checkpoint.retrieve_adapt()
+    spawn_data = checkpoint.retrieve_adapt(file_name=chkpt_file)
 
     for i in range(len(spawn_data)):
         checkpoint.print_wfn_row('spawn', spawn_data[i][:])

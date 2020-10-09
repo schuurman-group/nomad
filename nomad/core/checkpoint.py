@@ -186,6 +186,7 @@ def update_adapt(time, parent, child, file_name=None, name=0):
     data_row = package_adapt(time, parent, child) 
     chkpt[adapt_name].attrs['current_row'] += 1
     chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
+    chkpt.close()
 
     return
 
