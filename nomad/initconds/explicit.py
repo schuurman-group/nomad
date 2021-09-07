@@ -7,22 +7,22 @@ import nomad.core.trajectory as trajectory
 import nomad.core.log as log
 
 
-def set_initial_coords(wfn):
+def gen_initial_coords(cnt):
     """Takes initial position and momentum from geometry specified in input"""
     coords = glbl.properties['init_coords']
     ndim   = coords.shape[-1]
 
     log.print_message('string',[' Initial coordinates taken from input file(s).\n'])
 
-    for coord in coords:
-        itraj = trajectory.Trajectory(glbl.properties['n_states'], ndim,
+    coord    = coords[cnt]
+    new_traj = trajectory.Trajectory(glbl.properties['n_states'], ndim,
                                       width=glbl.properties['crd_widths'],
                                       mass=glbl.properties['crd_masses'],
-                                      parent=0, kecoef=glbl.modules['integrals'].kecoef)
+                                      parent=0, kecoef=glbl.modules['integrals'].kecoef) 
 
-        # set position and momentum
-        itraj.update_x(np.array(coord[0]))
-        itraj.update_p(np.array(coord[1]))
+    # set position and momentum
+    new_traj.update_x(np.array(coord[0]))
+    new_traj.update_p(np.array(coord[1]))
 
-        # add a single trajectory specified by geometry.dat
-        wfn.add_trajectory(itraj)
+    return new_traj
+

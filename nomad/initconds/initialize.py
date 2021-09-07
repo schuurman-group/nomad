@@ -112,13 +112,24 @@ def init_wavefunction():
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
 
     else:
-        # first generate the initial nuclear coordinates and momenta
-        # and add the resulting trajectories to the bundle
-        glbl.modules['init_conds'].set_initial_coords(glbl.modules['wfn'])
 
-        # set the initial state of the trajectories in bundle. This may
-        # require evaluation of electronic structure
-        set_initial_state(glbl.modules['wfn'])
+        # iterate through initial trajectories and set gm/momt and initial
+        # state, and then check that any constraints are satisfied
+        for icond in range(glbl.properties['n_init_traj']):
+
+            accept = False
+            while not accept:
+                # first generate the initial nuclear coordinates and momenta
+                # and add the resulting trajectories to the bundle
+                trial_traj = glbl.modules['init_conds'].gen_initial_coords(icond)
+                # set the initial state of the trajectories in bundle. This may
+                # require evaluation of electronic structure
+                trial_traj = set_initial_state(trial_traj, icond)
+                # check if this a valid starting geometry and state
+                accept = check_initial_condition(trial_traj)
+
+            # if accepted, add to wfn
+            glbl.modules['wfn'].add_trajectory(trial_traj)
 
         # set the initial amplitudes of the basis functions
         set_initial_amplitudes(glbl.modules['wfn'])
@@ -168,43 +179,101 @@ def init_wavefunction():
 # Private routines
 #
 #----------------------------------------------------------------------------
-def set_initial_state(wfn):
+def check_initial_condition(trial_traj):
+    """checks to see if all constraints on an initial condition 
+       is satisified"""
+
+    passed     = True
+    chk_funcs  = ['square']
+    chk_params = [2]
+
+    func       = glbl.properties['filter_func']
+    params     = glbl.properties['filter_params']
+
+    if func is not None: 
+        if func in chk_funcs:
+           f_name = chk_funcs.index(func)
+           if len(params) == chk_params[f_name]:
+
+               # if square function
+               if f_name == 0:
+                   istate = trial_traj.state
+                   e_low   = float(params[0] - 0.5*params[1])
+                   e_high  = float(params[0] + 0.5*params[1])
+                   delta_e = float(trial_traj.energy(istate) - 
+                                   trial_traj.energy(0))
+                   passed = delta_e >= e_low and delta_e <= e_high
+                   # if condition rejected, print message
+                   if not passed:
+                       log.print_message('general',
+                                [str(delta_e)+' not within ' + 
+                                str([e_low,e_high])+', retrying...'])
+                   else:
+                       log.print_message('general',
+                                [str(delta_e)+' is within ' + 
+                                str([e_low,e_high])+', accpeted'])
+
+           # else number of params is wrong
+           else:
+               raise ValueError('number of filter params wrong'+
+                             str(len(params))+
+                             '!='+ str(len(chk_params[f_name])))
+
+        #else the function function is not recognized
+        else:
+           raise ValueError('filter function not recognized: ' +
+                            str(func)+' not in '+str(chk_funcs))
+
+    return passed
+
+
+def set_initial_state(trial_traj, icond):
     """Sets the initial state of the trajectories in the bundle."""
 
     if glbl.properties['init_brightest']:
         # initialize to the state with largest transition dipole moment
         # set all states to the ground state
-        for i in range(wfn.n_traj()):
-            wfn.traj[i].state = 0
-            # compute transition dipoles
-            evaluate.update_pes_traj(wfn.traj[i])
+        trial_traj.state = 0
+        # compute transition dipoles
+        evaluate.update_pes_traj(trial_traj)
 
         # set the initial state to the one with largest t. dip.
-        for i in range(wfn.n_traj()):
-            if 'dipole' not in wfn.traj[i].pes.avail_data():
-                raise KeyError('trajectory '+str(i)+
-                               ': Cannot set state by transition moments - '+
-                               'dipole not in pes.avail_data()')
+        if 'dipole' not in trial_traj.pes.avail_data():
+            raise KeyError('trajectory '+str(i)+
+                           ': Cannot set state by transition moments - '+
+                           'dipole not in pes.avail_data()')
 
-            tr_dipole = wfn.traj[i].pes.get_data('dipole')
-            tdip = np.array([np.linalg.norm(tr_dipole[:,0,j])
-                             for j in range(1, glbl.properties['n_states'])])
-            log.print_message('general',
-                             ['Initializing trajectory '+str(i)+
-                              ' to state '+str(np.argmax(tdip)+1)+
-                              ' | tr. dipople array='+np.array2string(tdip, \
-                              formatter={'float_kind':lambda x: "%.4f" % x})])
-            wfn.traj[i].state = np.argmax(tdip)+1
-    elif len(glbl.properties['init_state']) == wfn.n_traj():
+        # load transition dipoles
+        tr_dipole = trial_traj.pes.get_data('dipole')
+
+        # if "bright_states" is set, only consider states in the array,
+        # else, consider transition dipoles to all states in simulation.
+        if glbl.properties['bright_states'] is None:
+            br_states = [i for i in range(1,glbl.properties['n_states'])]
+        else:
+            br_states = glbl.properties['bright_states']
+        tdip = np.array([np.linalg.norm(tr_dipole[:,0,j])
+                         for j in br_states])
+        trial_traj.state = br_states[np.argmax(tdip)]
+        log.print_message('general',
+                         ['Initializing trajectory '+str(icond)+
+                          ' to state '+str(trial_traj.state)+
+                          ' | tr. dipople array='+np.array2string(tdip, \
+                          formatter={'float_kind':lambda x: "%.4f" % x})])
+
+    elif len(glbl.properties['init_state']) > icond:
         # use "init_state" to set the initial state
-        for i in range(wfn.n_traj()):
-            istate = glbl.properties['init_state'][i]
-            if istate < 0:
-                wfn.traj[i].state = glbl.properties['n_states'] + istate
-            else:
-                wfn.traj[i].state = istate
+        istate = glbl.properties['init_state'][icond]
+        # if istate is less than zero, determine state number 'from the
+        # right'. I forget why this would be desirable...
+        if istate < 0:
+            trial_traj.state = glbl.properties['n_states'] + istate
+        else:
+            trial_traj.state = istate
     else:
         raise ValueError('Ambiguous initial state assignment.')
+
+    return trial_traj
 
 
 def set_initial_amplitudes(wfn):

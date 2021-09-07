@@ -67,7 +67,7 @@ mem_str      = ''
 def init_interface():
     """Initializes the Columbus calculation from the Columbus input."""
     global columbus_path, input_path, work_path, restart_path, log_file
-    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim
+    global a_sym, a_num, a_mass, n_atoms, n_dummy, n_cart, p_dim, n_drt
     global n_orbs, n_mcstates, n_cistates, max_l, mrci_lvl, mem_str
     global coup_de_thresh, dummy_lst
 
@@ -148,14 +148,17 @@ def init_interface():
     # now -- pull information from columbus input
     n_atoms    = natm
     n_cart     = natm * p_dim
-    n_orbs     = int(read_pipe_keyword('input/cidrtmsin',
-                                       'orbitals per irrep'))
+    n_orb_str  = read_pipe_keyword('input/cidrtmsin',
+                                   'orbitals per irrep')
+    n_orbs     = [int(orb_str) for orb_str in n_orb_str]
     n_mcstates = int(read_nlist_keyword('input/mcscfin',
                                         'NAVST'))
     n_cistates = int(read_nlist_keyword('input/ciudgin.drt1',
                                         'NROOT'))
     mrci_lvl   = int(read_pipe_keyword('input/cidrtmsin',
                                        'maximum excitation level'))
+    n_drt      = int(read_pipe_keyword('input/mcdrtin.1',
+                                       'input the number of irreps'))
     max_l      = ang_mom_dalton('input/daltaoin')
 
     # all COLUMBUS modules will be run with the amount of meomry specified by mem_per_core
@@ -221,6 +224,9 @@ def evaluate_trajectory(traj, t=None):
     dipoles = np.zeros((3, nstates, nstates))
     for i in range(nstates):
         dipoles[:,i,i] = perm_dipoles[:,i]
+
+    # transform integrals to using gradient ci tape
+    transform_ints(label)
 
     # run transition dipoles
     init_states = [0, state]
@@ -295,8 +301,13 @@ def evaluate_centroid(cent, t=None):
     col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
+
     deriv = np.zeros((cent.dim, nstates, nstates))
     if state_i != state_j:
+
+        # tranform integrals if we computing couplings
+        transform_ints(label)
+
         # run coupling between states
         nad_coup = run_col_coupling(cent, potential, t)
         deriv[:,state_i, state_j] =  nad_coup[:,state_j]
@@ -428,14 +439,16 @@ def run_col_mcscf(traj, t):
     # mcscf/cas density (for gradients and couplings)
     if mrci_lvl == 0:
         with open('mcdenin', 'w', encoding='utf-8') as mcden:
-            mcden.write('MCSCF')
+            mcden.write('MCSCF\n')
             # diagonal densities (for gradients)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(i, i)
+                mcden.write('1  {:2d}  1  {:2d}\n'.format(i+1, i+1))
             # off-diagonal densities (for couplings)
             for i in range(n_mcstates):
-                mcden.write('1  {:2d}  1  {:2d}').format(min(i, state),
-                                                         max(i, state))
+                if i == state:
+                    continue
+                mcden.write('1  {:2d}  1  {:2d}\n'.format(min(i+1, state+1),
+                                                        max(i+1, state+1)))
 
     # try running mcscf a couple times this can be tweaked if one
     # develops other strategies to deal with convergence problems
@@ -489,8 +502,6 @@ def run_col_mrci(traj, ci_restart, t):
     # determine if trajectory or centroid, and compute densities
     # accordingly
     if type(traj) is trajectory.Trajectory:
-        # perform density transformation for gradient computations
-        int_trans = True
         # compute densities between all states and trajectory state
         tran_den = []
         init_states = [0, traj.state]
@@ -503,7 +514,6 @@ def run_col_mrci(traj, ci_restart, t):
         # this is a centroid, only need gradient if statei != statej
         state_i = min(traj.states)
         state_j = max(traj.states)
-        int_trans = (traj.states[0] != traj.states[1])
         tran_den  = [[state_i+1, state_j+1]]
 
     # append entries in tran_den to ciudgin file
@@ -590,20 +600,23 @@ def run_col_mrci(traj, ci_restart, t):
     # grab mrci output
     append_log(label,'mrci', t)
 
-    # transform integrals using cidrtfl.cigrd
-    if int_trans:
-        frzn_core = int(read_nlist_keyword('cigrdin', 'assume_fc'))
-        if frzn_core == 1:
-            os.remove('moints')
-            os.remove('cidrtfl')
-            os.remove('cidrtfl.1')
-            link_force('cidrtfl.cigrd', 'cidrtfl')
-            link_force('cidrtfl.cigrd', 'cidrtfl.1')
-            shutil.copy(input_path + '/tranin', 'tranin')
-            run_prog(label, 'tran.x', args=['-m', mem_str])
-
     return energies, atom_pops
 
+def transform_ints(traj_label):
+    """transforms integrals to mo basis using cidrtfl.cigrd"""
+    global mem_str, input_path
+
+    frzn_core = int(read_nlist_keyword('cigrdin', 'assume_fc'))
+    if frzn_core == 1:
+        os.remove('moints')
+        os.remove('cidrtfl')
+        os.remove('cidrtfl.1')
+        link_force('cidrtfl.cigrd', 'cidrtfl')
+        link_force('cidrtfl.cigrd', 'cidrtfl.1')
+        shutil.copy(input_path + '/tranin', 'tranin')
+        run_prog(traj_label, 'tran.x', args=['-m', mem_str])
+
+    return
 
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
@@ -616,7 +629,7 @@ def run_col_multipole(traj):
     dip_moms  = np.zeros((p_dim, traj.nstates))
     sec_moms  = np.zeros((p_dim, p_dim, traj.nstates))
 
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         type_str   = 'mc'
     else:
         type_str   = 'ci'
@@ -676,7 +689,7 @@ def run_col_tdipole(label, state_i, state_j):
     if state_i == state_j:
         return None
 
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         with open('transftin', 'w') as ofile:
             ofile.write('y\n1\n' + str(j1) + '\n1\n' + str(i1))
         run_prog(label, 'transft.x', in_pipe='transftin', out_pipe='transftls')
@@ -689,12 +702,14 @@ def run_col_tdipole(label, state_i, state_j):
         shutil.copy('mcoftfl.1', 'mcoftfl')
 
     else:
+
         with open('trnciin', 'w') as ofile:
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
         run_prog(label, 'transci.x', args=['-m', mem_str])
 
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
+
 
     tran_dip = np.zeros(p_dim)
 
@@ -703,7 +718,6 @@ def run_col_tdipole(label, state_i, state_j):
             if 'total (elec)' in line:
                 line_arr = line.split()
                 for dim in range(p_dim):
-                    tran_dip[dim] = float(line_arr[dim+2])
                     tran_dip[dim] = float(line_arr[dim+2])
 
     return tran_dip
@@ -720,7 +734,7 @@ def run_col_gradient(traj, t):
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     tstate = traj.state + 1
 
-    if mrci_lvl > 0:
+    if mrci_lvl > -1:
         link_force('cid1fl.drt1.state' + str(tstate), 'cid1fl')
         link_force('cid2fl.drt1.state' + str(tstate), 'cid2fl')
         shutil.copy(input_path + '/trancidenin', 'tranin')
@@ -792,7 +806,7 @@ def run_col_coupling(traj, ci_ener, t):
     # copy some clean files to the work directory
     shutil.copy(input_path + '/cigrdin', 'cigrdin')
     set_nlist_keyword('cigrdin', 'nadcalc', 1)
-    if mrci_lvl == 0:
+    if mrci_lvl == -1:
         set_nlist_keyword('cigrdin', 'samcflag', 1)
         shutil.copy(input_path + '/tranmcdenin', 'tranin')
     else:
@@ -810,7 +824,7 @@ def run_col_coupling(traj, ci_ener, t):
         s1 = str(min(t_state, c_state) + 1).strip()
         s2 = str(max(t_state, c_state) + 1).strip()
 
-        if mrci_lvl == 0:
+        if mrci_lvl == -1:
             link_force('mcsd1fl.trd' + s1 + 'to' + s2, 'cid1fl.tr')
             link_force('mcsd2fl.trd' + s1 + 'to' + s2, 'cid2fl.tr')
             link_force('mcad1fl.' + s1 + s2, 'cid1trfl')
@@ -1178,7 +1192,12 @@ def read_pipe_keyword(infile, keyword):
     for line in f:
         if keyword in line:
             f.close()
-            return line.split()[0]
+            # if the pipe keyword is an array, return array
+            if len(line.split('/')[0].split()) > 1:
+                return line.split('/')[0].split()
+            # else return a scalar
+            else:
+                return line.split()[0]
 
 
 def read_nlist_keyword(infile, keyword):
