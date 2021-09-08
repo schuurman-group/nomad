@@ -225,6 +225,9 @@ def evaluate_trajectory(traj, t=None):
     for i in range(nstates):
         dipoles[:,i,i] = perm_dipoles[:,i]
 
+    # transform integrals to using gradient ci tape
+    transform_ints(label)
+
     # run transition dipoles
     init_states = [0, state]
     for i in init_states:
@@ -298,8 +301,13 @@ def evaluate_centroid(cent, t=None):
     col_surf.add_data('potential', potential + glbl.properties['pot_shift'])
     col_surf.add_data('atom_pop', atom_pop)
 
+
     deriv = np.zeros((cent.dim, nstates, nstates))
     if state_i != state_j:
+
+        # tranform integrals if we computing couplings
+        transform_ints(label)
+
         # run coupling between states
         nad_coup = run_col_coupling(cent, potential, t)
         deriv[:,state_i, state_j] =  nad_coup[:,state_j]
@@ -494,8 +502,6 @@ def run_col_mrci(traj, ci_restart, t):
     # determine if trajectory or centroid, and compute densities
     # accordingly
     if type(traj) is trajectory.Trajectory:
-        # perform density transformation for gradient computations
-        int_trans = True
         # compute densities between all states and trajectory state
         tran_den = []
         init_states = [0, traj.state]
@@ -508,7 +514,6 @@ def run_col_mrci(traj, ci_restart, t):
         # this is a centroid, only need gradient if statei != statej
         state_i = min(traj.states)
         state_j = max(traj.states)
-        int_trans = (traj.states[0] != traj.states[1])
         tran_den  = [[state_i+1, state_j+1]]
 
     # append entries in tran_den to ciudgin file
@@ -595,20 +600,23 @@ def run_col_mrci(traj, ci_restart, t):
     # grab mrci output
     append_log(label,'mrci', t)
 
-    # transform integrals using cidrtfl.cigrd
-    if int_trans:
-        frzn_core = int(read_nlist_keyword('cigrdin', 'assume_fc'))
-        if frzn_core == 1:
-            os.remove('moints')
-            os.remove('cidrtfl')
-            os.remove('cidrtfl.1')
-            link_force('cidrtfl.cigrd', 'cidrtfl')
-            link_force('cidrtfl.cigrd', 'cidrtfl.1')
-            shutil.copy(input_path + '/tranin', 'tranin')
-            run_prog(label, 'tran.x', args=['-m', mem_str])
-
     return energies, atom_pops
 
+def transform_ints(traj_label):
+    """transforms integrals to mo basis using cidrtfl.cigrd"""
+    global mem_str, input_path
+
+    frzn_core = int(read_nlist_keyword('cigrdin', 'assume_fc'))
+    if frzn_core == 1:
+        os.remove('moints')
+        os.remove('cidrtfl')
+        os.remove('cidrtfl.1')
+        link_force('cidrtfl.cigrd', 'cidrtfl')
+        link_force('cidrtfl.cigrd', 'cidrtfl.1')
+        shutil.copy(input_path + '/tranin', 'tranin')
+        run_prog(traj_label, 'tran.x', args=['-m', mem_str])
+
+    return
 
 def run_col_multipole(traj):
     """Runs dipoles / second moments."""
@@ -694,12 +702,14 @@ def run_col_tdipole(label, state_i, state_j):
         shutil.copy('mcoftfl.1', 'mcoftfl')
 
     else:
+
         with open('trnciin', 'w') as ofile:
             ofile.write(' &input\n lvlprt=1,\n nroot1=' + str(i1) + ',\n' +
                         ' nroot2=' + str(j1) + ',\n drt1=1,\n drt2=1,\n &end')
         run_prog(label, 'transci.x', args=['-m', mem_str])
 
         shutil.move('cid1trfl', 'cid1trfl.' + str(i1) + '.' + str(j1))
+
 
     tran_dip = np.zeros(p_dim)
 

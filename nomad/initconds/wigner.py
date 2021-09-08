@@ -9,7 +9,7 @@ import nomad.core.log as log
 import nomad.core.trajectory as trajectory
 
 
-def set_initial_coords(wfn):
+def gen_initial_coords(cnt):
     """Samples a v=0 Wigner distribution."""
     # Set the coordinate type: Cartesian or normal mode coordinates
     if glbl.methods['interface'] == 'vibronic':
@@ -80,59 +80,57 @@ def set_initial_coords(wfn):
 
     # loop over the number of initial trajectories
     max_try = 1000
-    ntraj  = glbl.properties['n_init_traj']
-    for i in range(ntraj):
-        delta_x   = np.zeros(n_modes)
-        delta_p   = np.zeros(n_modes)
-        x_sample  = np.zeros(n_modes)
-        p_sample  = np.zeros(n_modes)
-        for j in range(n_modes):
-            alpha   = 0.5 * freqs[j]
-            if alpha > constants.fpzero:
-                sigma_x = (glbl.properties['distrib_compression'] *
-                           np.sqrt(0.25 / alpha))
-                sigma_p = (glbl.properties['distrib_compression'] *
-                           np.sqrt(alpha))
-                itry = 0
-                while itry <= max_try:
-                    dx = np.random.normal(0., sigma_x)
-                    dp = np.random.normal(0., sigma_p)
-                    itry += 1
-                    if mode_overlap(alpha, dx, dp) > glbl.properties['init_mode_min_olap']:
-                        break
-                if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
-                    raise ValueError('Cannot get mode overlap > ' +
-                                     str(glbl.properties['init_mode_min_olap']) +
-                                     ' within ' + str(max_try) + ' attempts. Exiting...')
-                delta_x[j] = dx
-                delta_p[j] = dp
 
-        # If Cartesian coordinates are being used, displace along each
-        # normal mode to generate the final geometry...
-        if coordtype == 'cart':
-            disp_x = np.dot(modes, delta_x) / np.sqrt(m_vec)
-            disp_p = np.dot(modes, delta_p) * np.sqrt(m_vec)
+    delta_x   = np.zeros(n_modes)
+    delta_p   = np.zeros(n_modes)
+    x_sample  = np.zeros(n_modes)
+    p_sample  = np.zeros(n_modes)
+    for j in range(n_modes):
+        alpha   = 0.5 * freqs[j]
+        if alpha > constants.fpzero:
+            sigma_x = (glbl.properties['distrib_compression'] *
+                       np.sqrt(0.25 / alpha))
+            sigma_p = (glbl.properties['distrib_compression'] *
+                       np.sqrt(alpha))
+            itry = 0
+            while itry <= max_try:
+                dx = np.random.normal(0., sigma_x)
+                dp = np.random.normal(0., sigma_p)
+                itry += 1
+                if mode_overlap(alpha, dx, dp) > glbl.properties['init_mode_min_olap']:
+                    break
+            if mode_overlap(alpha, dx, dp) < glbl.properties['init_mode_min_olap']:
+                raise ValueError('Cannot get mode overlap > ' +
+                                 str(glbl.properties['init_mode_min_olap']) +
+                                 ' within ' + str(max_try) + ' attempts. Exiting...')
+            delta_x[j] = dx
+            delta_p[j] = dp
 
-        # ... else if mass- and frequency-scaled normal modes are
-        # being used, then take the frequency-scaled normal mode
-        # displacements and momenta as the inital point in phase
-        # space
-        elif coordtype == 'normal':
-            disp_x = delta_x
-            disp_p = delta_p
-            #disp_x = delta_x * np.sqrt(freqs)
-            #disp_p = delta_p * np.sqrt(freqs)
+    # If Cartesian coordinates are being used, displace along each
+    # normal mode to generate the final geometry...
+    if coordtype == 'cart':
+        disp_x = np.dot(modes, delta_x) / np.sqrt(m_vec)
+        disp_p = np.dot(modes, delta_p) * np.sqrt(m_vec)
 
-        x_sample = x_ref + disp_x
-        p_sample = p_ref + disp_p
+    # ... else if mass- and frequency-scaled normal modes are
+    # being used, then take the frequency-scaled normal mode
+    # displacements and momenta as the inital point in phase
+    # space
+    elif coordtype == 'normal':
+        disp_x = delta_x
+        disp_p = delta_p
+        #disp_x = delta_x * np.sqrt(freqs)
+        #disp_p = delta_p * np.sqrt(freqs)
 
-        # add new trajectory to the bundle
-        new_traj = template.copy()
-        new_traj.update_x(x_sample)
-        new_traj.update_p(p_sample)
+    x_sample = x_ref + disp_x
+    p_sample = p_ref + disp_p
 
-        # Add the trajectory to the bundle
-        wfn.add_trajectory(new_traj)
+    # add new trajectory to the bundle
+    new_traj = template.copy()
+    new_traj.update_x(x_sample)
+    new_traj.update_p(p_sample)
+
+    return new_traj
 
 
 def mode_overlap(alpha, dx, dp):
