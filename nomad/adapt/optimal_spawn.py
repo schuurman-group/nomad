@@ -62,6 +62,7 @@ def spawn(wfn, dt):
             # if we satisfy spawning conditions, begin spawn process
             if spawn_trajectory(wfn, i, st, coup_hist[i][st,:],
                                 current_time):
+
                 # we're going to messing with this trajectory -- mess with a copy
                 parent = wfn.traj[i].copy()
 
@@ -76,7 +77,6 @@ def spawn(wfn, dt):
                 if success:
                     # at this point, child is at the spawn point. Propagate
                     # backwards in time until we reach the current time
-                    child_spawn = child.copy()
                     # need electronic structure at current geometry -- on correct state
                     evaluate.update_pes_traj(child)
                     spawn_backward(child, spawn_time, current_time, -dt)
@@ -84,11 +84,14 @@ def spawn(wfn, dt):
                     if not bundle_overlap:
                         basis_grown = True
                         wfn.add_trajectory(child)
-                        child_spawn.label = wfn.traj[-1].label # a little hacky...
-                        checkpoint.update_adapt(current_time, wfn.traj[i], child)
+                        if glbl.mpi['rank'] == 0:
+                            checkpoint.update_adapt(current_time, wfn.traj[i], wfn.traj[-1])
                     else:
                         log.print_message('spawn_bad_step',
                                                  ['overlap with bundle too large'])
+
+    # after spawning, let all processes re-synchronize
+    glbl.mpi['comm'].barrier()
 
     # let caller known if the basis has been changed
     return basis_grown
