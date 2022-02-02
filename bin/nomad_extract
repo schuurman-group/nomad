@@ -72,6 +72,10 @@ def main():
         if i>0 and abs(tvals[i]-tvals[i-1])<constants.fpzero:
             continue
         [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
+
+        # This is a hack
+        if glbl.methods['integral_eval'] == 'lvc_exact':
+            ints.ints.init_parameters(glbl.properties['crd_widths'])
           
         if wfn is not None:     # successfully extracted a wfn object
             if wfn.matrices is None and ints is not None:

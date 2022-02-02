@@ -284,7 +284,8 @@ def setup_input():
     # set atomic widths and masses unless they are given in the input file
     natm = len(glbl.properties['crd_labels'])
     if glbl.methods['interface'] == 'vibronic' or glbl.methods['interface'] == 'models':
-        wlst = np.array([np.sqrt(2) / 2 for i in range(natm)])
+        #wlst = np.array([np.sqrt(2) / 2 for i in range(natm)])
+        wlst = np.array([1./2. for i in range(natm)])
         mlst = np.array([1. for i in range(natm)])
     elif glbl.properties['use_atom_lib']:
         labels = glbl.properties['crd_labels']

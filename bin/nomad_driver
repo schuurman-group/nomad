@@ -27,8 +27,7 @@ def init():
         glbl.mpi['comm']  = MPI.COMM_WORLD
         glbl.mpi['rank']  = glbl.mpi['comm'].Get_rank()
         glbl.mpi['nproc'] = glbl.mpi['comm'].Get_size()
-
-    glbl.mpi['comm'].barrier()
+        glbl.mpi['comm'].barrier()
 
     # start the global timer
     timings.start('global')

@@ -80,7 +80,7 @@
 
     dx    = x1 - x2
     psum  = a1*p2 + a2*p1
-    del2x = S * (-4.*a1*a2*dx*psum*I - 2.*a1*a2*(a1+a2) + 4.*dx**2*a1**2*a2**2+psum**2) / (a1+a2)**2
+    del2x = S * (-4.*a1*a2*dx*psum*I - 2.*a1*a2*(a1+a2) + 4.*dx**2*a1**2*a2**2 - psum**2) / (a1+a2)**2
 
     return
   end subroutine deld2x

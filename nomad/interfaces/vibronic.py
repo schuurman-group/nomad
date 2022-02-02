@@ -124,8 +124,10 @@ class VibHam:
         self.nterms = sum(active)
         self.coe    = coe[active]
         self.stalbl = stalbl[active]
-        self.mode   = np.array(mode)[active]
-        self.order  = np.array(order)[active]
+        self.mode   = [mode[i] for i in range(len(mode)) if active[i]]
+        #self.mode   = np.array(mode)[active]
+        self.order  = [order[i] for i in range(len(order)) if active[i]]
+        #self.order  = np.array(order)[active]
         self.mrange = [self.mlbl_total.index(lbl) for lbl in self.mlbl_active]
 
 
@@ -203,8 +205,18 @@ def evaluate_trajectory(traj, t=None):
     t_data.add_data('diabat_hessian',diabderiv2)
 
     if glbl.methods['surface'] == 'adiabatic':
-        # Calculation of the adiabatic potential vector and ADT matrix
-        adiabpot, datmat = calc_dat(label, diabpot)
+
+        # grab the previous datmat variable to ensure
+        # phase continuity
+        if traj.check_pes_data('dat_mat'):
+            prev_datmat = traj.pes.get_data('dat_mat')
+        elif label in data_cache:
+            prev_datmat = data_cache[label].get_data('dat_mat')
+        else:
+            prev_datmat = None
+            
+        # Calculation of the diabatic potential vector and ADT matrix
+        adiabpot, datmat = calc_dat(diabpot, prev_datmat=prev_datmat)
 
         # Calculation of the NACT matrix
         nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
@@ -363,19 +375,20 @@ def calc_diabpot(q):
     return diabpot
 
 
-def calc_dat(label, diabpot):
+def calc_dat(diabpot, prev_datmat=None):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
     adiabpot, datmat = sp_linalg.eigh(diabpot)
 
-    if label in data_cache:
-        # Ensure phase continuity from geometry to another
-        datmat *= np.sign(np.dot(datmat.T, data_cache[label].get_data('dat_mat').diagonal()))
-    else:
+    if prev_datmat is None:
         # Set phase convention that the greatest abs element in dat column
         # vector is positive
         datmat *= np.sign(datmat[range(len(adiabpot)),
                                  np.argmax(np.abs(datmat), axis=0)])
+    else:
+        # Ensure phase continuity from geometry to another
+        datmat *= np.sign(np.dot(datmat.T, prev_datmat).diagonal())
+
     return adiabpot, datmat
 
 

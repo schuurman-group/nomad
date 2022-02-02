@@ -63,7 +63,7 @@ def spawn(wfn, dt):
             if spawn_trajectory(wfn, i, st, coup_hist[i][st,:],
                                 current_time):
 
-                # we're going to messing with this trajectory -- mess with a copy
+                # we're going to mess with this trajectory -- mess with a copy
                 parent = wfn.traj[i].copy()
 
                 # propagate the parent forward in time until coupling maximized
@@ -91,7 +91,8 @@ def spawn(wfn, dt):
                                                  ['overlap with bundle too large'])
 
     # after spawning, let all processes re-synchronize
-    glbl.mpi['comm'].barrier()
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].barrier()
 
     # let caller known if the basis has been changed
     return basis_grown

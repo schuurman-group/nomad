@@ -37,7 +37,7 @@ def s_integral(t1, t2, nuc_ovrlp, elec_ovrlp):
     return nuc_ovrlp * elec_ovrlp
 
 
-def t_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
+def t_integral(t1, t2, nuc_ovrlp, elec_ovrlp):
     """Returns kinetic energy integral over trajectories."""
     if elec_ovrlp == 0.:
         return 0.j
@@ -45,7 +45,7 @@ def t_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
     ke = nuclear.deld2x(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                   t2.widths(),t2.x(),t2.p())
 
-    return -np.dot(ke, kecoef)
+    return -np.dot(ke, t1.kecoef)
 
 
 def sdot_integral(t1, t2, nuc_ovrlp, elec_ovrlp):

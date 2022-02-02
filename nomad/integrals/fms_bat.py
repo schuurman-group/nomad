@@ -17,7 +17,7 @@ hermitian = True
 basis = 'gaussian'
 
 
-def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
+def v_integral(t1, t2, nuc_ovrlp, elec_ovrlp):
     """Returns potential coupling matrix element between two trajectories
     using the bra-ket averaged approach.
 
@@ -78,10 +78,10 @@ def v_integral(t1, t2, kecoef, nuc_ovrlp, elec_ovrlp):
         # Derivative coupling
         fij = t1.derivative(t1.state, t2.state)
         fji = t2.derivative(t2.state, t1.state)
-        vij = 2.*np.vdot(fij, kecoef *
+        vij = 2.*np.vdot(fij, t1.kecoef *
                          nuclear.deldx(Sij,t1.widths(),t1.x(),t1.p(),
                                            t2.widths(),t2.x(),t2.p()))
-        vji = 2.*np.vdot(fji, kecoef *
+        vji = 2.*np.vdot(fji, t2.kecoef *
                          nuclear.deldx(Sji,t2.widths(),t2.x(),t2.p(),
                                            t1.widths(),t1.x(),t1.p()))
 #        vij = np.vdot(t1.velocity(), fij)

@@ -203,7 +203,7 @@ def retrieve_adapt(file_name=None, name=0):
     # open chkpoint file
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
-    adapt_data = chkpt[dset][0:chkpt[adapt_name].attrs['current_row']]
+    adapt_data = chkpt[dset][0:chkpt[adapt_name].attrs['current_row']+1]
 
     chkpt.close()
 
@@ -314,10 +314,10 @@ def create_basis(chkpt, wfn, name=0):
         chkpt.create_dataset(dset, dshape, dtype=float, compression="gzip")
 
         # add initial trajectories with a 'born time' of 0
-        for i in range(wfn.n_traj()):
-            data_row  = package_adapt(wfn.time, wfn.traj[i], wfn.traj[i]) 
-            chkpt[adapt_name].attrs['current_row'] += 1         
-            chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
+        #for i in range(wfn.n_traj()):
+        #    data_row  = package_adapt(wfn.time, wfn.traj[i], wfn.traj[i]) 
+        #    chkpt[adapt_name].attrs['current_row'] += 1         
+        #    chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
         
     return
 
@@ -540,7 +540,7 @@ def write_wavefunction(chkpt, wfn, time, name=0):
 
     # now step through and write trajectories
     for i in range(n_traj):
-        write_trajectory(chkpt, wfn.traj[i], time)
+        write_trajectory(chkpt, wfn.traj[i])
 
 
 def write_integral(chkpt, integral, time, name=0):
@@ -590,12 +590,12 @@ def write_integral(chkpt, integral, time, name=0):
                      write_centroid(chkpt, integral.centroids[i][j], time)
 
 
-def write_trajectory(chkpt, traj, time, name=0):
+def write_trajectory(chkpt, traj, name=0):
     """Documentation to come"""
     # open the trajectory file
-    t_data   = package_trajectory(traj, time)
+    t_data   = package_trajectory(traj)
     t_label  = str(traj.label)
-    n_blk    = default_blk_size(time)
+    n_blk    = default_blk_size(traj.time)
     resize   = False
     grp_name = 'wavefunction.'+str(name)
 
@@ -840,6 +840,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj.set_kecoef(chkpt[t_grp].attrs['kecoef'])
 
         # set information about the trajectory itself
+        [time]               = chkpt[t_grp+'/time'][t_row]
         [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
         [parent, state]      = chkpt[t_grp+'/states'][t_row]
         [gamma]              = chkpt[t_grp+'/phase'][t_row]
@@ -860,6 +861,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         # currently, momentum has to be read in separately
         momt    = chkpt[t_grp+'/momentum'][t_row]
 
+        new_traj.time   = time
         new_traj.state  = int(state)
         new_traj.parent = int(parent)
         new_traj.update_amplitude(amp_real+1.j*amp_imag)
@@ -997,12 +999,10 @@ def package_integral(integral, time):
     return int_data
 
 
-def package_trajectory(traj, time):
+def package_trajectory(traj):
     """Documentation to come"""
-    # time is not an element in a trajectory, but necessary to
-    # uniquely tag everything
     traj_data = dict(
-        time     = np.array([time],dtype='float'),
+        time     = np.array([traj.time],dtype='float'),
         amp      = np.array([traj.amplitude.real, traj.amplitude.imag]),
         phase    = np.array([traj.gamma]),
         states   = np.array([traj.parent, traj.state]),

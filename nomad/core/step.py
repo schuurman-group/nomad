@@ -65,7 +65,7 @@ def step_wavefunction(dt):
         # if everything is ok..
         if accept:
             # update the wavefunction time
-            glbl.modules['wfn'].time += time_step
+            update_time(glbl.modules['wfn'].time + time_step)
             # spawn new basis functions if necessary
             basis_grown  = glbl.modules['adapt'].spawn(glbl.modules['wfn'], time_step)
             # kill the dead trajectories
@@ -147,6 +147,7 @@ def step_trajectory(traj, init_time, dt):
         # if everything is ok..
         if accept:
             current_time = proposed_time
+            traj.time    = current_time
         else:
             # redo time step
             # recall -- this time trying to propagate
@@ -167,6 +168,17 @@ def step_trajectory(traj, init_time, dt):
 # Private functions
 #
 #-----------------------------------------------------------------------------
+def update_time(new_time):
+    """ update the wfn time, as well as time in all trajectory
+        basis functions """
+
+    glbl.modules['wfn'].time = new_time
+    for i in range(glbl.modules['wfn'].n_traj()):
+        if glbl.modules['wfn'].traj[i].alive:
+            glbl.modules['wfn'].traj[i].time = new_time
+ 
+    return
+
 def step_complete(current_time, final_time, dt):
     """checks if the propagation time has reached the end of the time step.
        Need to allow for negative time steps."""

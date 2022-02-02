@@ -20,6 +20,7 @@ def adjust_child(parent, child, scale_dir):
     # determine the magnitude of the KE correction
     ke_goal  = e_parent - child.potential()
     ke_child = child.kinetic()
+
     if ke_goal < 0:
         return False
 
@@ -43,10 +44,9 @@ def adjust_child(parent, child, scale_dir):
     #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M)
     #    = x^2 * (p_para.p_para) / 2M + 2.*x*(p_para.p_perp) / 2M + (p_perp.p_perp) / 2M
     #    = x^2 * KE_para_para + x * KE_para_perp + KE_perp_perp
-    inv_mass     = 1. / (2. * child.masses())
-    ke_para_para =     np.dot( p_para, p_para * inv_mass )
-    ke_para_perp = 2.* np.dot( p_para, p_perp * inv_mass )
-    ke_perp_perp =     np.dot( p_perp, p_perp * inv_mass )
+    ke_para_para =     np.dot( p_para, p_para * child.kecoef )
+    ke_para_perp = 2.* np.dot( p_para, p_perp * child.kecoef )
+    ke_perp_perp =     np.dot( p_perp, p_perp * child.kecoef )
 
     # scale p_para by x so that KE == ke_goal
     # (ke_para_para)*x^2 + (ke_para_perp)*x + (ke_perp_perp - ke_goal) = 0

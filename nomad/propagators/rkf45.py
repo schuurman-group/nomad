@@ -46,7 +46,7 @@ wgt_hi = np.array([16./135., 0., 6656./12825., 28561./56430., -9./50., 2./55.])
 
 propphase = glbl.properties['phase_prop']
 safety = 0.9
-tol = 1e-6
+tol = 1e-9
 h = None
 h_traj = None
 
@@ -64,6 +64,7 @@ def propagate_wfn(wfn, dt):
     t = 0.
     if h is None:
         h = dt
+
     while abs(t) < abs(dt):
         hstep = np.sign(dt) * min(abs(h), abs(dt - t))
         for rk in range(rk_ordr):
