@@ -24,7 +24,8 @@ class Matrices:
     """Object containing the Hamiltonian and associated matrices."""
     def __init__(self):
         self.mat_list = ['s','sinv','s_traj','s_nuc','s_elec',
-                         't',   'v',     'h', 'sdot',  'heff']
+                         't',   'v',     'h', 'sdot',  'heff',
+                         'popwt']
         self.matrix = dict()
 
     def set(self, name, matrix):
@@ -50,6 +51,7 @@ class Matrices:
     def build(self, wfn, integrals):
         """Builds the Hamiltonian matrix from a list of trajectories."""
         n_alive = wfn.nalive
+        n_st    = wfn.traj[0].nstates
         m_shape = (n_alive, n_alive)
 
         if integrals.hermitian:
@@ -69,6 +71,7 @@ class Matrices:
             self.matrix['sinv']    = np.zeros(m_shape, dtype=complex)
             self.matrix['sdot']    = np.zeros(m_shape, dtype=complex)
             self.matrix['heff']    = np.zeros(m_shape, dtype=complex)
+            self.matrix['popwt']   = np.zeros(m_shape+(n_st,), dtype=complex)
 
         # now evaluate the hamiltonian matrix
         for ij in range(n_elem):
@@ -99,7 +102,7 @@ class Matrices:
 
             # time-derivative of the overlap matrix (not hermitian in general)
             self.matrix['sdot'][i,j]   = integrals.sdot_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                   nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
+                                                                nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # kinetic energy matrix
             self.matrix['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
@@ -111,6 +114,11 @@ class Matrices:
 
             # Hamiltonian matrix in non-orthogonal basis
             self.matrix['h'][i,j]      = self.matrix['t'][i,j] + self.matrix['v'][i,j]
+
+            # population weights for each state
+            self.matrix['popwt'][i,j,:] = integrals.popwt_integral(wfn.traj[ii],wfn.traj[jj],
+                                                                nuc_ovrlp=s_nuc)
+
 
             # if hermitian matrix, set (j,i) indices
             if integrals.hermitian and i!=j:
@@ -124,6 +132,46 @@ class Matrices:
                 self.matrix['t'][j,i]       = self.matrix['t'][i,j].conjugate()
                 self.matrix['v'][j,i]       = self.matrix['v'][i,j].conjugate()
                 self.matrix['h'][j,i]       = self.matrix['h'][i,j].conjugate()
+                self.matrix['popwt'][j,i,:] = self.matrix['popwt'][i,j,:].conjugate() 
+
+        # TEMP *********************************************************
+        #for i in range(wfn.n_traj()):
+        #    with open('theta'+str(wfn.traj[i].label)+'.dat', 'a') as f:
+        #        f.write(str(wfn.time)+' '+str(integrals.ints.theta(wfn.traj[i]))+'\n')
+
+        #    with open('dtheta'+str(wfn.traj[i].label)+'.dat','a') as f:
+        #        dtheta = integrals.ints.dtheta(wfn.traj[i])
+        #        f.write(str(wfn.time)+' '+str(dtheta[0])+' '+str(dtheta[1])+'\n')
+
+        #    with open('phi'+str(wfn.traj[i].label)+'.dat', 'a') as f:
+        #        phi = integrals.ints.phi(wfn.traj[i])
+        #        f.write(str(wfn.time)+' '+str(phi[0])+' '+str(phi[1])+'\n')
+
+        #    with open('dphi'+str(wfn.traj[i].label)+'.dat', 'a') as f:
+        #        dphi = integrals.ints.dphi(wfn.traj[i])
+        #        f.write(str(wfn.time)+' '+str(dphi[0])+' '+str(dphi[1])+'\n')
+
+        #if wfn.n_traj() > 1:
+            #ostr = str(wfn.time)
+            #ostr += ' '+str(integrals.ints.theta(wfn.traj[1]))
+            #ostr += ' '+str(integrals.ints.elec_sdot(wfn.traj[1], wfn.traj[1], self.matrix['s_nuc'][i,j]).real)
+            #print(ostr)
+
+        #ostr = str(wfn.time)
+        #theta = integrals.ints.theta(wfn.traj[0])
+        #drot = integrals.ints.drot_mat(theta)[:,wfn.traj[0].state]
+        #ostr += ' '+str(drot[0])+' '+str(drot[1])
+        #print(ostr)
+        
+        #for i in range(wfn.n_traj()):
+            #ostr = ' '
+            #ostr += ' '+str(integrals.ints.elec_sdot(wfn.traj[i], wfn.traj[j], self.matrix['s_nuc'][i,j], self.matrix['s_elec'][i,j]))
+            #print(ostr)
+            #ostr += ' '+str(integrals.ints.theta(wfn.traj[i]))
+            #dth = integrals.ints.dtheta(wfn.traj[i])
+            #ostr += ' '+str(dth[0])+' '+str(dth[1])
+            #ostr += ' '+str(integrals.ints.lvc_force(wfn.traj[i]))
+        # **************************************************************
 
         if integrals.hermitian:
             # compute the S^-1, needed to compute Heff
@@ -137,7 +185,7 @@ class Matrices:
             self.matrix['sinv'], cond = linalg.pseudo_inverse(self.matrix['s'])
             timings.stop('hamiltonian.pseudo_inverse')
 
-        self.matrix['heff'] = np.dot( self.matrix['sinv'], self.matrix['h'] - 1j * self.matrix['sdot'] )
+        self.matrix['heff'] = np.dot( self.matrix['sinv'], self.matrix['h'] - 1.j * self.matrix['sdot'] )
 
     def ut_ind(self,index):
         """Gets the (i,j) index of an upper triangular matrix from the

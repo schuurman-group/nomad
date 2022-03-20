@@ -14,22 +14,21 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.checkpoint as checkpoint
-import nomad.analysis.lib_utils as lib_utils
+import nomad.analysis.mods.lib_utils as lib_utils
 
 
 chkpt_file    = ''
-prop_class    = ''
 amp_archive   = ''
 ti            = 0.
 tf            = 0.
 full_basis    = False
+save_matrices = False
 t_method      = ''
 init_method   = ''
 int_method    = ''
-int_order     = ''
 tstep_methods = ['nascent', 'static']
 init_methods  = ['overlap','uniform','explicit']
-int_methods   = ['saddle', 'taylor', 'dirac']
+int_methods   = ['saddle', 'taylor', 'dirac', 'lvc_exact', 'lvc_mca']
 
 def init():
     """Initializes the nomad inputs.
@@ -42,9 +41,9 @@ def init():
 
 def process_arguments(args):
     """Process command line arguments."""
-    global chkpt_file, prop_class, amp_archive, ti, tf
-    global full_basis, t_method, t_step, init_method, int_method, int_order
-    global tstep_methods, init_methods, int_methods
+    global chkpt_file, amp_archive, ti, tf
+    global full_basis, t_method, t_step, init_method, int_method
+    global tstep_methods, init_methods, int_methods, save_matrices
 
     glbl.paths['cwd']        = os.getcwd()
     glbl.paths['chkpt_file'] = args[1]
@@ -87,7 +86,7 @@ def process_arguments(args):
         if init_method not in init_methods:
             sys.exit('initialization approach not recognized')
     else:
-        init_method = 'overlap'
+        init_method = 'explicit'
 
     if '-integrals' in sys.argv:
         int_method =  str(args[args.index('-integrals')+1])
@@ -96,33 +95,21 @@ def process_arguments(args):
     else:
         int_method = 'taylor'        
 
-    if '-integral_order' in sys.argv:
-        int_order = int(args[args.index('-integral_order')+1])
-    else:
-        int_order = 1
+    if '-save_matrices' in sys.argv:
+        save_matrices = True
 
-    if '-ansatz' in sys.argv:
-        prop_class = args[args.index('-ansatz')+1]
-    else:
-        prop_class = 'fms' 
- 
     return
 
 #
 def main():
     """ main driver routine """
-    global chkpt_file, prop_class, amp_archive, ti, tf
-    global full_basis, t_step, t_method, init_method, int_method, int_order
-    global tstep_methods, init_methods, int_methods
-
-#    prop_classes = ['fms','mce','mca','ehrenfest']
-    prop_classes = ['fms']
-
-    if prop_class not in prop_classes:
-        os.exit('prop_class='+prop_class+' is not a valid Hamiltonian type')
+    global chkpt_file, amp_archive, ti, tf
+    global full_basis, t_step, t_method, init_method, int_method
+    global tstep_methods, init_methods, int_methods, save_matrices
 
     # load the appropriate library
-    prop_path = os.environ['NOMAD']+'/nomad/analysis/'+prop_class+'.so'
+    #prop_path = os.environ['NOMAD']+'/nomad/analysis/'+prop_class+'.so'
+    prop_path = os.environ['NOMAD']+'/nomad/analysis/lib/libpropagate.so'
     ld_libs   = os.environ['LD_LIBRARY_PATH']
     if not os.path.isfile(prop_path):
         raise FileNotFoundError('Hamiltonian library not found: '+prop_path)
@@ -139,23 +126,44 @@ def main():
     # pass the various run time options to the propagation library
     if t_step != 0:
         default_step = t_step
-        step_method  = ['nascent', 'static'].index('static')+1
+        step_method  = tstep_methods.index('static')+1
     else:
         default_step = float(glbl.properties['default_time_step'])
-        step_method  = ['nascent', 'static'].index(t_method)+1
-    init_method  = ['overlap', 'uniform', 'explicit'].index(init_method)+1
-    int_method   = ['saddle', 'taylor', 'dirac'].index(int_method)+1 
+        step_method  = tstep_methods.index(t_method)+1
+    init_method  = init_methods.index(init_method)+1
+    int_method   = int_methods.index(int_method)+1 
 
     # initialize the trajectory table
     lib_utils.init_table(lib_prop, default_step, step_method)
 
     # initialize the table that holds trajectory amplitudes
     lib_utils.init_amplitudes(
-                 lib_prop, default_step, step_method, init_method)   
+                 lib_prop, default_step, step_method)   
 
     # initlize the propagation routines
-    lib_utils.init_propagate(
-                 lib_prop, full_basis, int_method, int_order)
+    lib_utils.init_propagate(lib_prop, full_basis, init_method)
+
+    # if this is a vibronic hamiltonian, load the hamiltonian into arrays
+    # so we can pass it to propagate
+    if glbl.methods['interface'] == 'vibronic':
+        vibronic  = __import__('nomad.interfaces.'
+                            + glbl.methods['interface'],fromlist=['NA'])
+        vibronic.init_interface()
+        vibronic.ham.mlbl_active  = [lbl.lower() for lbl in glbl.properties['crd_labels']]
+        vibronic.ham.nmode_active = len(glbl.properties['crd_labels'])
+
+        alpha = np.asarray(glbl.properties['crd_widths'], dtype=float)
+        omega, soterms, foterms, scals = vibronic.ham.package_vibham()
+        fo_terms = np.concatenate((foterms[:,0,0],
+                                   foterms[:,1,1],
+                                   foterms[:,0,1]))
+        scalars  = np.asarray( [scals[0,0],
+                                scals[1,1],
+                                scals[0,1]], dtype=float)
+        lib_utils.init_integrals(lib_prop, 
+                          int_method, alpha, omega, fo_terms, scalars)
+    else:
+        lib_utils.init_integrals(lib_prop, int_method)
 
     # create the trajectory table
     kwords = lib_utils.create_table(
@@ -167,7 +175,7 @@ def main():
 
     # close the current checkpoint file 
     chkpt.close()
-
+   
     # create the amplitude table
     lib_utils.create_amp_table(lib_prop, kwords)
 
@@ -179,22 +187,23 @@ def main():
 
     lib_utils.propagate(lib_prop, tstart, tend)
 
-    print("propagate complete")
+    print("propagate complete", flush=True)
 
     # once propagation is done, retrieve times, phase-space points and 
     # amplitudes from libprop
     glbl.paths['chkpt_file']          = amp_archive
-    glbl.properties['store_matrices'] = True
+    glbl.properties['store_matrices'] = save_matrices
 
     # this is temporary: only two options, fully coherent or fully incoherent
     # in the future: should be able to specify arbitrary groupings of initial
     # conditions
-    nbatch = kwords['nbatch']
+    nbatch  = kwords['nbatch']
+    nstates = int(glbl.properties['n_states'])
     if full_basis:
         nbatch = 1
 
     for ibat in kwords['batches']:
-        ibatch = ibat
+        ibatch = ibat + 1
         if full_basis:
             ibatch = -1 
 
@@ -209,19 +218,35 @@ def main():
                             lib_prop, kwords, time, ibatch, n_traj)
             amp_list  = lib_utils.amp_retrieve_timestep(
                             lib_prop, indices)
+            pops,norm = lib_utils.populations(
+                            lib_prop, time, amp_list, nstates, ibatch)
 
-            wfn      = wavefunction.Wavefunction()
-            wfn.time = time
+            # initialize wfn-level variables
+            wfn          = wavefunction.Wavefunction()
+            wfn.time     = time 
+            wfn.stpop    = pops
+            wfn.wfn_norm = norm
+
+            # add trajectories from list
             for itraj in range(len(traj_list)):
                 new_traj = traj_list[itraj]
                 new_traj.update_amplitude(amp_list[itraj])
+                new_traj.time = time
 
                 # add trajectory to the wavefunction object
                 wfn.add_trajectory(new_traj, relabel=False)
 
             # retrieve the matrices -- maybe useful for analysis
-            mats = lib_utils.retrieve_matrices(lib_prop, time, ibatch, n_traj)
-            wfn.update_matrices(mats)
+            # however -- these are reconstructed at each time step,
+            # if only populations/trajectories desired, you can
+            # save a lot of time skipping this step
+            if save_matrices:
+                mats = lib_utils.retrieve_matrices(lib_prop, 
+                                                time, 
+                                                ibatch, 
+                                                n_traj, 
+                                                nstates)
+                wfn.update_matrices(mats)
 
             # throw this timestep to the new checkpoint file
             checkpoint.archive_simulation(wfn, None)

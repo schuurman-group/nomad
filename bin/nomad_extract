@@ -14,14 +14,12 @@ import nomad.core.matrices as matrices
 import nomad.integrals.integral as integral
 
 wfn0  = None
-ints0 = None
-ints  = None
 print_error = True
 chkpt_file = None
 #
 def main():
     """Runs the main nomad_extract routine."""
-    global print_error, wfn0, ints0, ints, chkpt_file
+    global print_error, wfn0, chkpt_file
 
     chkpt_file, time, data = process_arguments(sys.argv)
 
@@ -50,7 +48,6 @@ def main():
         glbl.modules['interface'].init_interface()
 
     # get printing machine ready
-    mat     = matrices.Matrices()
     checkpoint.generate_data_formats()
 
     # extract the time-indpendent/time-irregular information
@@ -74,16 +71,22 @@ def main():
         [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
 
         # This is a hack
-        if glbl.methods['integral_eval'] == 'lvc_exact':
-            ints.ints.init_parameters(glbl.properties['crd_widths'])
-          
+        if ints is not None:
+            if glbl.methods['integral_eval'] == 'lvc_exact':
+                ints.ints.init_parameters(glbl.properties['crd_widths'])
+        # end hack         
+ 
         if wfn is not None:     # successfully extracted a wfn object
-            if wfn.matrices is None and ints is not None:
-                mat.build(wfn, ints)
+
+            # if we didn't save matrices, but have ability to
+            # regenerate them, do so here
+            if len(wfn.matrices.avail()) == 0 and ints is not None:
+                mat = matrices.Matrices()
+                if ints is not None:
+                    mat.build(wfn, ints)
                 wfn.update_matrices(mat)
 
-            mat = wfn.matrices
-            extract_data(wfn, mat, data)
+            extract_data(wfn, ints, data)
         else:
             print("could not extract wfn for time="+str(tvals[i]))
 
@@ -151,28 +154,22 @@ def extract_logs(dlst):
         extract_spawn()   
 
 
-def extract_data(wfn, mat, dlst):
+def extract_data(wfn, ints, dlst):
     """extracts 'data' from checkpoint. Data is updated regularly/every time
        step."""
     global print_error
 
     if '-all' in dlst or '-energy' in dlst:
-        if mat is None and print_error:
-            print("Warning: requisite overlap matrices unavailable. "+
-                  "Wavefunction energies will not be meaningful")
         extract_energy(wfn)
 
     if '-all' in dlst or '-pop' in dlst:
-        if mat is None and print_error:
-            print("Warning: requisite overlap matrices unavailable. "+
-                  "Wavefunction populations will not be meaningful")
         extract_pop(wfn)
 
     if '-all' in dlst or '-auto' in dlst:
-        extract_auto(wfn)
+        extract_auto(wfn, ints)
 
-    if mat is not None and ('-all' in dlst or '-matrices' in dlst):
-        extract_matrices(wfn, mat)
+    if '-all' in dlst or '-matrices' in dlst:
+        extract_matrices(wfn)
 
     if '-all' in dlst or '-trajectories' in dlst:
         extract_trajectories(wfn)
@@ -195,24 +192,30 @@ def extract_energy(wfn):
     """Documentation to come"""
     prnt_data = [wfn.time]
 
-    prnt_data.extend([wfn.pot_quantum(),   wfn.kin_quantum(),   wfn.tot_quantum(),
-                      wfn.pot_classical(), wfn.kin_classical(), wfn.tot_classical()])
+    if 't' in wfn.matrices.avail() and 'v' in wfn.matrices.avail():
+        prnt_data.extend([wfn.pot_quantum(),   wfn.kin_quantum(),   
+                          wfn.tot_quantum(),
+                          wfn.pot_classical(), wfn.kin_classical(), 
+                          wfn.tot_classical()])
 
-    checkpoint.print_wfn_row('energy', prnt_data)
+        checkpoint.print_wfn_row('energy', prnt_data)
 
 #
 def extract_pop(wfn):
     """Documentation to come"""
+
     prnt_data = [wfn.time]
     prnt_data.extend(wfn.pop())
     prnt_data.extend([wfn.norm()])
 
     checkpoint.print_wfn_row('pop', prnt_data)
 
+    return
+
 #
-def extract_auto(wfn):
+def extract_auto(wfn, ints):
     """Documentation to come"""
-    global wfn0, ints, print_error
+    global wfn0, print_error
 
     if ints is not None:
         wfn_overlap = ints.wfn_overlap(wfn0, wfn)
@@ -228,13 +231,13 @@ def extract_auto(wfn):
                   " integrals module")
 
 #
-def extract_matrices(wfn, mat):
+def extract_matrices(wfn):
     """Documentation to come"""
-    if mat is not None:
-        for mat_key in mat.avail():
+    if wfn.matrices is not None:
+        for mat_key in wfn.matrices.avail():
             if mat_key in checkpoint.bfile_names:
                 checkpoint.print_wfn_mat(wfn.time, mat_key, 
-                                         mat.matrix[mat_key])
+                                         wfn.matrices.matrix[mat_key])
 
 #
 def extract_trajectories(wfn):

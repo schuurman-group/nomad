@@ -105,6 +105,16 @@ class Integral:
 
         return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
+
+    @timings.timed
+    def popwt_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        """Calculates the population contribution to each state for pair of trajectories."""
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        return self.ints.popwt(bra_traj, ket_traj, nuc_ovrlp)
+
+
     def wfn_overlap(self, bra_wfn, ket_wfn):
         """Calculates the overall wavefunction overlap."""
         S = 0.

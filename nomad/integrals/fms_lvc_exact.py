@@ -68,6 +68,7 @@ import numpy as np
 import os.path as path
 import scipy as scipy
 import scipy.integrate as integrate
+import nomad.core.glbl as glbl
 import nomad.math.constants as constants
 import nomad.interfaces.vibronic as vibronic
 import nomad.compiled.nuclear_gaussian as nuclear
@@ -148,27 +149,27 @@ def init_parameters(g_wid):
         ordr = sum(exp)
 
         if ordr == 0:
-          if states[0] == states[1]:
-              s_con[states[0]] = cf
-          else:
-              ex += cf
+            if states[0] == states[1]:
+                s_con[states[0]] = cf
+            else:
+                ex += cf
      
         elif ordr == 1:
-          if states[0] == states[1]:
-              kappa[states[0],modes[0]] = cf
-          else:
-              x_vec[modes[0]] = cf
+            if states[0] == states[1]:
+                kappa[states[0],modes[0]] = cf
+            else:
+                x_vec[modes[0]] = cf
 
         elif ordr == 2:
-          if states[0] == states[1]:
-             if(len(modes) > 1):
-                 sys.exit('Error in LVC_exact: cannot currently'+ 
-                          ' handle bi-linear second order terms')       
-             # we expect w_mat to equal omega, cf is 0.5*omega
-             w_mat[modes[0], modes[0]] = 2.*cf
-          else:
-             sys.exit('Error in lvc_exact.py: exactly integration'+
-                      ' currently limited to LVC models')
+            if states[0] == states[1]:
+                if(len(modes) > 1):
+                    sys.exit('Error in LVC_exact: cannot currently'+ 
+                             ' handle bi-linear second order terms')       
+                # we expect w_mat to equal omega, cf is 0.5*omega
+                w_mat[modes[0], modes[0]] = 2.*cf
+            else:
+                sys.exit('Error in lvc_exact.py: exactly integration'+
+                         ' currently limited to LVC models')
 
         else:
             sys.exit('Error in lvc_exact.py, ordr > 2: '+str(ordr))
@@ -187,11 +188,15 @@ def init_parameters(g_wid):
 
     # shift the LVC parameters to the MECI coordinates
     qci = ci_coord_shift(w_mat, w_vec, z_vec, x_vec, ez, ex)
+    #print('qci='+str(qci))
 
     w_vec, ew = shift_lvc_params(qci, mat=0.5*w_mat, vec=w_vec, con=ew) 
     a_vec, ea = shift_lvc_params(qci, mat=a_mat, vec=a_vec, con=ea)      
     z_vec, ez = shift_lvc_params(qci, mat=None,  vec=z_vec, con=ez)
     x_vec, ex = shift_lvc_params(qci, mat=None,  vec=x_vec, con=ex)
+    #print('shifted w_vec='+str(w_vec))
+    #print('x_vec='+str(x_vec))
+    #print('z_vec='+str(z_vec))
 
     # confirm that ez and ex are now zero:
     if abs(ez)>1.e-16 or abs(ex)>1.e-16:
@@ -203,11 +208,16 @@ def init_parameters(g_wid):
     m_mat = np.identity(nc, dtype=float)
     # gaussian widths 
     alpha = np.diag(2 * g_wid)    
+    #print('alpha='+str(alpha))
 
     # determine shifted branching space parameters
     d_alpha, At = bspace_transform(z_vec, x_vec, alpha)
     b_alpha     = np.dot(At, np.column_stack((z_vec, x_vec)))
 
+    #print('At='+str(At))
+    #print('d_alpha='+str(d_alpha))
+    #print('b_alpha='+str(b_alpha))
+  
     #print('bz='+str(np.dot(At, z_vec)))
     #print('bx='+str(np.dot(At, x_vec)))
     #print('b_alpha='+str(b_alpha))
@@ -288,9 +298,9 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     bk, bl, ck, cl = extract_gauss_params(t1, t2)
     bk, bl, ck, cl = shift_gauss_params(qci, 0.5*alpha, bk, bl, ck, cl)
 
-    bkc      = bk.conj()
-    db       = bkc - bl
-    b_alpha  = np.dot(At, bkc + bl)
+    bkc   = bk.conj()
+    db    = bkc - bl
+    beta  = np.dot(At, bkc + bl)
 
     # nonadiabatic coupling matrix element
     # ------------------------------------
@@ -298,14 +308,18 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
                  - np.outer( x_vec, z_vec.conjugate()))
     p_alpha = np.dot(np.dot( At, J.T), np.dot(w_mat, db))
 
-    nacme   = nuc_ovrlp*exact_nac(b_alpha, p_alpha)    
+    #print('J='+str(J))
+    #print('time='+str(t1.time))
+
+    nacme   = nuc_ovrlp*exact_nac(beta, p_alpha)    
 
     # DBOC matrix element
     # -------------------
     K       = np.dot(np.dot(J, w_mat), J.T)
     k_alpha = np.dot(np.dot(At, K), At.T.conj())
 
-    dbocme = nuc_ovrlp*exact_dboc(b_alpha, k_alpha)
+    if glbl.vibronic['include_dboc']:
+        dbocme = nuc_ovrlp*exact_dboc(beta, k_alpha)
 
     #print('time='+str(t1.time))
     # kinetic energy only contributes to the diagonal
@@ -316,16 +330,24 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
                       aa =  np.dot(np.dot(alpha, w_mat), alpha),
                       a  = -np.dot(np.dot(alpha, w_mat), bkc+bl),
                       ea =  np.dot(np.dot(bkc,   w_mat), bl)))
-        #print('nuclear ke='+str(t_int))
+       
+        #print('nuc, nacme, dbocme='+str(t_int)+','+str(nacme)+','+str(dbocme))
+
         # add diagonal component of NAC and DBOC
-        t_int += 0.5 * 1.j * nacme + dbocme
+        t_int += 0.5 * 1.j * nacme
+
+        if glbl.vibronic['include_dboc']:
+            t_int += dbocme
         #print('nac+dboc='+str(0.5 * 1.j * nacme + dbocme))
         #print('t1.s,t2.s, 0.5*1.j*nace, dbocme='+str(t1.state)+','+str(t2.state)+'  ',str( 0.5 * 1.j * nacme)+','+str(dbocme))
     else:
         # add off-diagonal component of NAC and DBOC
         sgn = t1.state - t2.state
         #t_int = sgn * (-0.5 * nacme - 1.j * dbocme)
-        t_int = sgn * (-0.5 * nacme + 1.j * dbocme)
+        t_int = sgn * -0.5 * nacme
+ 
+        if glbl.vibronic['include_dboc']:
+            t_int += sgn * 1.j * dbocme
         #print('t1.s,t2.s, 0.5*nace, -1.j*dbocme='+str(t1.state)+','+str(t2.state)+'  ',str(sgn*0.5*nacme)+','+str(-sgn*1.j*dbocme),' total='+str(t_int))
 
     return t_int
@@ -410,8 +432,6 @@ def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     # energy difference term
     delta_me  = olap * exact_delta(beta)
     #print('delta_me='+str(delta_me))
-    # DELETE
-    #delta_me *= abs(t1.energy(0,geom_chk=False)-t2.energy(1,geom_chk=False))/0.31
  
     # the average energy contribution is state independent
     v_int = w_me
@@ -423,6 +443,43 @@ def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     #print('exact_pop='+str(exact_pop(beta)))
     #print('state=0'+str(t1.state)+' w_me='+str(w_me)+' sgn*delta='+str(sgn*delta_me), flush=True)
     return v_int
+
+def popwt(t1, t2, nuc_ovrlp=None):
+    """returns the population weight in adiabatic basis"""
+
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(t1, t2)
+
+    pop = np.zeros(t1.nstates, dtype=complex)
+
+    if t1.state == t2.state:
+      pop[t1.state] = nuc_ovrlp
+
+    return pop
+
+def popwt_diabatic(t1, t2, nuc_ovrlp=None):
+    """returns the population weights in diabatic basis"""
+
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(t1, t2)
+
+    bra = np.zeros(2, dtype=float)
+    ket = np.zeros(2, dtype=float)
+    bra[t1.state] = 1.
+    ket[t2.state] = 1.
+
+    bk, bl, ck, cl = extract_gauss_params(t1, t2)
+    bk, bl, ck, cl = shift_gauss_params(qci, 0.5*alpha, bk, bl, ck, bl)
+
+    bkc            = bk.conj()
+    beta           = np.dot(At, bkc + bl)
+
+    zme, xme = exact_pop(beta)
+    sigmaz   = nuc_ovrlp * np.array([[zme, -xme], [-xme, -zme]], dtype=complex)
+    za = np.dot( np.dot(bra, sigmaz), ket )
+
+    return np.asarray([0.5*(1+za), 0.5*(1-za)], dtype=complex)
+
 
 #--------------------------------------------------------------------------
 #
@@ -510,12 +567,13 @@ def exact_nac(beta, p):
     if d_alpha[0] == 0.:
         return 0.j
 
-    delta_xy = d_alpha[1] - d_alpha[0]
+    delta_a = d_alpha[1] - d_alpha[0]
 
     def integrand(u):
-        denom = 1 + delta_xy * u**2 
-        dint  = eff_overlap(np.array(u,dtype=float), beta)
-        dint *= u * (p[0]*beta[0] + (p[1]*beta[1])/denom)    
+        d1    = 1 - d_alpha[0] * u**2
+        d2    = 1 + delta_a * u**2
+        dint  = u * eff_overlap(u, beta) / d1
+        dint *=  p[0]*beta[0] + p[1]*beta[1] / d2
         return dint 
 
     def integrand_real(u):
@@ -530,6 +588,13 @@ def exact_nac(beta, p):
 
     nac_int = nac_int_real[0] + nac_int_imag[0]*1.j
     nac_err = 0.5*(np.abs(nac_int_real[1]) + np.abs(nac_int_imag[1]))
+
+    #npts=1000;
+    #if printf:
+    #    with open('/globalhome/schuurm/nac.dat', 'w') as f:
+    #        for i in range(npts):
+    #            u = i * ul / (npts-1)
+    #            f.write('{:f} {:f} {:f}\n'.format(u, integrand_real(u), integrand_imag(u)))
 
     # only spout error message if tolerance exceed by factor of 10 
     if nac_err > 10*etol:
@@ -554,12 +619,12 @@ def exact_dboc(beta, k):
 
     # calculate asymptotic divergent component first
     Pcf  = k[0,0] / ( d_alpha[0]*np.sqrt(d_alpha[1]) ) + \
-           k[1,1]/(d_alpha[1]**1.5 )
+           k[1,1] / ( d_alpha[1]**1.5 )
     Pexp = -np.dot(beta[:2], beta[:2]) / 4.
     Plim = Pcf * np.exp( Pexp )
     #print('new Plim='+str(Plim))
 
-    gcon     = 1.e4
+    gcon     = 1.e3
     delta    = d_alpha[0] / gcon    
     dboc_div = Plim / (2*np.sqrt(d_alpha[0])) * (
                 np.log(4*d_alpha[0]) - 2*np.log(delta) - constants.euler)
@@ -574,7 +639,7 @@ def exact_dboc(beta, k):
         # convergent part of divergent terms
         dboc  = (Plim - fac * np.exp(earg))
         # convergent integral
-        SD    = eff_overlap(np.array(u,dtype=float), beta)
+        SD    = eff_overlap(u, beta)
         dboc += 0.5 * SD * u**3 * (k[0,0] * beta[0]**2 + 
                                    k[1,1] * beta[1]**2 / d1**2 + 
                                 2.*k[0,1] * beta[0]*beta[1] / d1)
@@ -600,6 +665,7 @@ def exact_dboc(beta, k):
         print('WARNING: integral error tolerance exceeded in exact_dboc:'
                +str(dboc_err) +'>'+str(etol))
 
+    #print('dboc, div='+str(dboc_int)+','+str(dboc_div))
     return dboc_int + dboc_div
 
 def exact_delta(beta):
@@ -620,7 +686,7 @@ def exact_delta(beta):
     def integrand(u):
         d1    = 1 + delta_a * u**2
         d2    = 1 - d_alpha[0]  * u**2
-        dint  = eff_overlap(np.array(u,dtype=float), beta)
+        dint  = eff_overlap(u, beta)
         dint *= (d_alpha[0] + 
                  d_alpha[1]/d1 +
                 (d_alpha[0]*beta[0]**2 + 
@@ -662,12 +728,12 @@ def exact_pop(beta):
 
     delta_a = d_alpha[1] - d_alpha[0]
 
-    def integrand(u,zx):
+    def integrand(u, zx):
         d1    = 1 + delta_a * u**2
         d2    = 1 - d_alpha[0]  * u**2
-        dint  = eff_overlap(np.array(u,dtype=float), beta)
+        dint  = eff_overlap(u, beta) / np.sqrt(d2)
         dint *= beta[0]*b_alpha[0,zx] + beta[1]*b_alpha[1,zx]/d1
-        return dint / np.sqrt(d2)
+        return dint
 
     def integrand_real(u, zx):
         return scipy.real(integrand(u, zx))
@@ -691,9 +757,8 @@ def exact_pop(beta):
     pop_x = (pop_x_real[0] + pop_x_imag[0]*1.j) / np.sqrt(np.pi)
     pop_err += 0.5*(np.abs(pop_x_real[1]) + np.abs(pop_x_imag[1]))
 
-
     # only spout error message if tolerance exceed by factor of 10 
-    if pop_err > 20*etol:
+    if pop_err > 100*etol:
         print('WARNING: integral error tolerance exceeded in exact_delta:'
                +str(pop_err) +'>'+str(etol))
 
@@ -848,16 +913,21 @@ def bspace_transform(z, x, alpha):
     B    = np.column_stack((z, x))
     gh,U = scipy.linalg.eigh(np.dot(np.dot(B.T, ainv),B))
 
+    # convention will be that dy > dx
+    if gh[0] > gh[1]:
+      gh[[0,1]]  = gh[[1,0]]
+      U[:,[0,1]] = U[:,[1,0]]
+ 
+    #print('Bmat='+str(B))
+    #print('Uorig='+str(np.dot(np.dot(B.T, ainv),B)))
+    #print('gh='+str(gh))
+    #print('evecs='+str(U))
+
     dm12 = np.diag([1./np.sqrt(d_alpha) 
                     if np.abs(d_alpha) > 1.e-16 else 0. 
                     for d_alpha in gh])
 
     At   = np.dot(np.dot(dm12, U.T), np.dot(B.T, ainv))
 
-    # convention will be that dy > dx
-    if gh[0] > gh[1]:
-        gh[[0,1]] = gh[[1,0]]
-        At[[0,1]] = At[[1,0]]
- 
     return gh, At
 

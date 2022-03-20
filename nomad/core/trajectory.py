@@ -3,6 +3,7 @@ The Trajectory object and its associated functions.
 """
 import copy
 import numpy as np
+import nomad.core.glbl as glbl
 import nomad.core.timings as timings
 import nomad.core.surface as surface
 import nomad.math.constants as constants
@@ -262,8 +263,11 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        return (self.kinetic() - self.potential() -
+        if glbl.properties['phase_prop']:
+            return (self.kinetic() - self.potential() -
                 np.dot(self.widths(), self.kecoef) )
+        else:
+            return 0.
 
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""

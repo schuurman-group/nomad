@@ -51,7 +51,8 @@ vibronic = dict(
     opfile         = '', # required filename, should contain frequencies
     mem_per_core   = 1000.,
     coupling_order = 1,
-    ordr_max       = 1
+    ordr_max       = 1,
+    include_dboc   = False,
                 )
 
 surfgen = dict(

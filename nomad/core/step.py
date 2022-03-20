@@ -17,9 +17,19 @@ def time_step(time):
 
     else:
         # when coming out of coupled regime, may need one more 'coupled'
-        # time step to ensure what 
-        if time % float(glbl.properties['default_time_step']) == 0:
-            return float(glbl.properties['default_time_step'])
+        # time step to ensure that what follows are multiples of default 
+        # time step
+        dstep        = 1.e-6
+        default_step = float(glbl.properties['default_time_step'])
+        t_mod_step   = float(time % default_step)
+
+        # overstepped by epsilon, scale step back a bit
+        if t_mod_step < dstep:
+            return float(default_step - t_mod_step)
+        # understepped by epsilon, scale steup up a bit
+        elif t_mod_step > (1. - dstep)*default_step:
+            return float(default_step + default_step - t_mod_step)
+        # else, just return what we need to get 'back on track'
         else:
             return float(time % glbl.properties['default_time_step'])
 
@@ -198,9 +208,9 @@ def check_step_wfn(wfn_start, wfn, time_step):
 
     # ...or if there's a numerical error in the simulation:
     #  norm conservation
-    dpop = abs(sum(wfn_start.pop()) - sum(wfn.pop()))
-    if dpop > glbl.properties['pop_jump_toler']:
-        return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
+    #dpop = abs(sum(wfn_start.pop()) - sum(wfn.pop()))
+    #if dpop > glbl.properties['pop_jump_toler']:
+    #    return False, ' jump in wavefunction population, delta[pop] = {:8.4f}'.format(dpop)
 
     # this is largely what the above check is checking -- but is more direct. I would say
     # we should remove the above check...

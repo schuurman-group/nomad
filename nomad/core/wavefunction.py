@@ -12,14 +12,16 @@ import nomad.core.matrices as matrices
 class Wavefunction:
     """Class constructor for the Wavefunction object."""
     def __init__(self):
-        self.time      = 0.
+        self.time      = float(0.)
         self.nalive    = 0
         self.nactive   = 0
         self.ndead     = 0
+        self.stpop     = None 
+        self.wfn_norm  = 0.
         self.traj      = []
         self.alive     = []
         self.active    = []
-        self.matrices  = None 
+        self.matrices  = matrices.Matrices() 
 
     @timings.timed
     def copy(self):
@@ -33,6 +35,7 @@ class Wavefunction:
         new_wfn.time     = copy.copy(self.time)
         new_wfn.nalive   = copy.copy(self.nalive)
         new_wfn.ndead    = copy.copy(self.ndead)
+        new_wfn.stpop    = copy.deepcopy(self.stpop)
         new_wfn.alive    = copy.deepcopy(self.alive)
         new_wfn.active   = copy.deepcopy(self.active)
         if self.matrices is not None:
@@ -110,6 +113,14 @@ class Wavefunction:
     def update_matrices(self, mats):
         """Documentation to come"""
         self.matrices = mats.copy()
+ 
+        # I don't think these should be here (should only
+        # call update when amplitudes updated), but will
+        # keep here for now to be safe
+        self.update_pop()
+        self.update_norm()
+        return
+
 
     @timings.timed
     def update_amplitudes(self, dt, Ct=None):
@@ -117,6 +128,7 @@ class Wavefunction:
         Solves d/dt C = -i H C via the computation of
         exp(-i H(t) dt) C(t)."""
 
+        # update the amplitudes
         if Ct is None:
             old_amp = self.amplitudes()
         else:
@@ -130,12 +142,59 @@ class Wavefunction:
         for i in range(len(self.alive)):
             self.traj[self.alive[i]].update_amplitude(new_amp[i])
 
+        # udpate the corresponding state populations
+        self.update_pop()
+        self.update_norm()
+        return
+
+    @timings.timed
+    def update_pop(self):
+        """Updates the populations"""
+        # udpate the corresponding state populations
+
+        if 'popwt' in self.matrices.avail():
+            nst    = self.traj[0].nstates
+            zpop   = np.zeros(nst, dtype=complex)
+
+            for ib in range(self.nalive):
+                tb = self.traj[self.alive[ib]]
+                ab = tb.amplitude.conjugate()
+                for ik in range(self.nalive):
+                    tk = self.traj[self.alive[ik]]
+                    ak = tk.amplitude
+                    zpop += self.matrices.matrix['popwt'][ib,ik,:]*ab*ak
+
+            #print('popwt='+str(self.matrices.matrix['popwt'][0,0,:]))
+            #print('zpop='+str(zpop))
+            if np.linalg.norm(zpop.imag) > 1.e-4:
+                print('warning: imaginary component of population: '
+                        + str(zpop.imag))
+            self.stpop = zpop.real / sum(zpop.real)
+        return
+
+    @timings.timed
+    def update_norm(self):
+        """Updates the wavefunction norm using current s_traj matrix"""
+
+        if 's_traj' in self.matrices.avail():
+            self.wfn_norm = np.absolute( np.dot(np.dot(
+                          self.amplitudes().conjugate(),
+                          self.matrices.matrix['s_traj']),
+                          self.amplitudes()) )
+        return
+
     @timings.timed
     def renormalize(self):
         """Renormalizes the amplitudes of the trajectories in the wfn."""
+        self.update_norm()
         norm_factor = 1. / np.sqrt(self.norm())
+
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
+       
+        self.update_pop()
+        self.update_norm()
+
 
     def amplitudes(self):
         """Returns amplitudes of the trajectories."""
@@ -147,56 +206,16 @@ class Wavefunction:
         for i in range(self.nalive):
             self.traj[self.alive[i]].amplitude = amps[i]
 
-    def mulliken_pop(self, label):
-        """Returns the Mulliken-like population."""
-        mulliken = 0.
+    def pop(self):
+        """Returns the total population on each state using the
+           contents of matrices['popwt'] to determine contributions
+           of each trajectory pair to each electronic state"""
 
-        if self.matrices is None:
-            return mulliken
+        return self.stpop
 
-        if not self.traj[label].alive:
-            return mulliken
-        i = self.alive.index(label)
-        for j in range(len(self.alive)):
-            jj = self.alive[j]
-            mulliken += abs(self.matrices.matrix['s_traj'][i,j] *
-                            self.traj[label].amplitude.conjugate() *
-                            self.traj[jj].amplitude)
-        return mulliken
-
-    @timings.timed
     def norm(self):
         """Returns the norm of the wavefunction """
-
-        if self.matrices is None:
-            return -1.
-
-        return np.dot(np.dot(np.conj(self.amplitudes()),
-                      self.matrices.matrix['s_traj']),self.amplitudes()).real
-
-    @timings.timed
-    def pop(self):
-        """Returns the populations on each of the states."""
-        pop    = np.zeros(self.traj[0].nstates, dtype=complex)
-        nalive = len(self.alive)
-
-        if self.matrices is None:
-            return pop.real
-
-        # live contribution
-        for i in range(nalive):
-            ii = self.alive[i]
-            state = self.traj[ii].state
-            for j in range(nalive):
-                jj = self.alive[j]
-                popij = (self.matrices.matrix['s_traj'][i,j]  *
-                         self.traj[jj].amplitude *
-                         self.traj[ii].amplitude.conjugate())
-                pop[state] += popij
-
-        pop /= sum(pop)
-
-        return pop.real
+        return self.wfn_norm
 
     @timings.timed
     def pot_classical(self):
@@ -214,14 +233,11 @@ class Wavefunction:
         """Returns the QM (coupled) potential energy of the wfn.
         Currently includes <live|live> (not <dead|dead>,etc,) contributions...
         """
-        if self.matrices is None:
+        if 'v' not in self.matrices.avail():
             return 0.
-
+        
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.matrices.matrix['v']), self.amplitudes()).real
-        #Sinv = sp_linalg.pinv(self.S)
-        #return np.dot(np.dot(np.conj(self.amplitudes()),
-        #                     np.dot(Sinv,self.V)),self.amplitudes()).real
 
     @timings.timed
     def kin_classical(self):
@@ -235,19 +251,23 @@ class Wavefunction:
     @timings.timed
     def kin_quantum(self):
         """Returns the QM (coupled) kinetic energy of the wfn."""
-        if self.matrices is None:
+
+        if 't' not in self.matrices.avail():
             return 0.
 
         return np.dot(np.dot(np.conj(self.amplitudes()),
                              self.matrices.matrix['t']), self.amplitudes()).real
         #Sinv = sp_linalg.pinv(self.S)
         #return np.dot(np.dot(np.conj(self.amplitudes()),
-        #                     np.dot(Sinv,self.T)),self.amplitudes()).real
+        #                     np.dot(Sinv,self.T)),self.amplitudes()).reali
 
     def tot_classical(self):
-        """Returns the total classical energy of the wfn."""
-        return self.pot_classical() + self.kin_classical()
+        """returns the total classical energy"""
+        return self.kin_classical() + self.pot_classical()
 
     def tot_quantum(self):
-        """Returns the total QM (coupled) energy of the wfn."""
-        return self.pot_quantum() + self.kin_quantum()
+        """returns the total quantum energy"""
+        return self.kin_quantum() + self.pot_quantum()
+
+
+

@@ -130,6 +130,46 @@ class VibHam:
         #self.order  = np.array(order)[active]
         self.mrange = [self.mlbl_total.index(lbl) for lbl in self.mlbl_active]
 
+    def package_vibham(self):
+        """Packages up the vibronic hamiltonian coefficients and parameters
+           into a set of exportable arrays. Currently only supports up to
+           second-order terms"""
+        omega = self.freq
+        nc    = len(omega)
+        nst   = np.amax(self.stalbl)
+
+        soterms = np.zeros((nc, nc, nst, nst), dtype=float)
+        foterms = np.zeros((nc, nst, nst), dtype=float)
+        scalars = np.zeros((nst, nst), dtype=float)
+        
+        for i in range(self.nterms):
+            cf  = self.coe[i]
+            # state labels run from 0
+            st  = self.stalbl[i] - 1
+            crd = self.mode[i]
+            exp = self.order[i]
+
+            # get order of term
+            ordr = sum(exp)
+
+            if ordr == 0:
+                scalars[st[0],st[1]] = cf
+                scalars[st[1],st[0]] = cf
+
+            elif ordr == 1:
+                foterms[crd, st[0], st[1]] = cf
+                foterms[crd, st[1], st[0]] = cf
+
+            elif ordr == 2:
+                if len(crd) == 2:
+                    crd2 = crd[1]
+                else:
+                    crd2 = crd[0]
+                soterms[crd[0], crd2, st[0], st[1]] = cf
+                soterms[crd[0], crd2, st[1], st[0]] = cf
+
+        return omega, soterms, foterms, scalars
+
 
 def init_interface():
     """Reads the operator file.

@@ -13,6 +13,12 @@ hermitian = True
 basis = 'gaussian'
 
 
+def state_vector(t1):
+    """Return the component of each electronic state in trajectory
+       electronic function"""
+    return np.asarray([1. if state==t1.state else 0. for state 
+                                  in range(t1.nstates)], dtype=float)
+
 def elec_overlap(t1, t2):
     """ Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
     return float(t1.state == t2.state)
@@ -22,7 +28,6 @@ def nuc_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the nuclear overlap integral of two trajectories"""
     return nuclear.overlap(t1.phase(),t1.widths(),t1.x(),t1.p(),
                            t2.phase(),t2.widths(),t2.x(),t2.p())
-
 
 def traj_overlap(t1, t2):
     """ Returns < Chi | Chi' >, the total overlap integral of two trajectories"""
@@ -63,3 +68,17 @@ def sdot_integral(t1, t2, nuc_ovrlp, elec_ovrlp):
             1j * t2.phase_dot() * nuc_ovrlp)
 
     return sdot
+
+def popwt(t1, t2, nuc_ovrlp=None):
+    """returns the population weight in adiabatic basis"""
+
+    if nuc_ovrlp is None:
+        nuc_ovrlp = nuc_overlap(t1, t2)
+
+    pop = np.zeros(t1.nstates, dtype=complex)
+
+    if t1.state == t2.state:
+      pop[t1.state] = nuc_ovrlp
+
+    return pop
+
