@@ -14,10 +14,6 @@ import nomad.core.checkpoint as checkpoint
 import nomad.core.atom_lib as atom_lib
 import nomad.math.constants as constants
 
-valid_coord = ['stre', 'bend',  'tors',  '|tors|',
-               'oop',  '|oop|', 'plane', '|plane|']
-valid_ops   = ['sum', 'max', '|sum|']
-
 #
 def init_table(traj_lib, default_step, step_method):
     """ initialize a trajectory table """
@@ -38,89 +34,6 @@ def init_amplitudes(amp_lib, default_step, step_method):
 
 
     return
-
-#
-def init_propagate(prop_lib, full_basis, init_method):
-    """ initialize the propagation module """
-
-    prop_lib.init_propagate(
-         ctypes.byref(convert_ctypes(full_basis,   dtype='logical')),
-         ctypes.byref(convert_ctypes(init_method,  dtype='int32')))
-  
-    return
-
-#
-def init_integrals(prop_lib, int_method, alpha, omega, foterms, scal):
-    """pass the vibronic hamiltonian parameters to the 
-       propagation routines"""
-
-    prop_lib.init_integrals(
-         ctypes.byref(convert_ctypes(int_method, dtype='int32')),
-         ctypes.byref(convert_ctypes(len(alpha), dtype='int32')),
-         ctypes.byref(convert_ctypes(alpha,      dtype='double')),
-         ctypes.byref(convert_ctypes(omega,      dtype='double')),
-         ctypes.byref(convert_ctypes(foterms,    dtype='double')),
-         ctypes.byref(convert_ctypes(scal,       dtype='double')))
-
-    return
-
-
-#
-def init_density(den_lib, chkpt, kwords, max_states, max_prim, max_atoms):
-    """ initialize the density table"""
-    global valid_coord, valid_ops
-
-    wfn_id, n_traj, n_steps, t_times = checkpoint.retrieve_basis(chkpt)
-    n_wfn   = len(wfn_id)
-    t_init  = float(kwords['tinit'])
-    t_final = float(kwords['tfinal'])
-    t_step  = float(kwords['tstep'])
-
-    random_seed= 1
-    n_intl     = len(kwords['coords'])
-    state_list = np.full( (max_states),-1,  dtype=int)
-    coord_list = np.zeros(max_prim*n_intl,  dtype=int)
-    cf_list    = np.zeros(max_prim*n_intl,  dtype=float)
-    atm_list   = np.zeros(max_atoms*n_intl, dtype=int)
-    op_list    = np.zeros(n_intl,   dtype=int)
-    bnds       = np.zeros(2*n_intl, dtype=float)
-    npts       = np.zeros(n_intl,   dtype=int)
-
-    if kwords['normalize']:
-        for i_crd in range(n_intl):
-            cf = np.array(kwords['coefs'][i_crd], dtype=float)
-            cf *= 1./math.sqrt(np.dot(cf, cf))
-            kwords['coefs'][i_crd] = cf.tolist()
-
-    for state in range(len(kwords['states'])):
-        state_list[state] = int(kwords['states'][state])
-    for crd in range(n_intl):
-        npts[crd]     = float(kwords['npts'][crd])
-        op_list[crd]  = int(valid_ops.index(kwords['op'][crd])+1)
-        bnds[2*crd]   = float(kwords['bounds'][crd][0])
-        bnds[2*crd+1] = float(kwords['bounds'][crd][1])
-        for prim in range(len(kwords['coords'][crd])):
-            indx = max_prim*crd + prim
-            coord_list[indx] = int(valid_coord.index(kwords['coords'][crd][prim])+1)
-            cf_list[indx]    = float(kwords['coefs'][crd][prim])
-        for atm in range(len(kwords['atoms'][crd])):
-            indx = max_atoms*crd + atm
-            atm_list[indx]   = int(kwords['atoms'][crd][atm])
-
-    den_lib.init_density(
-           ctypes.byref(convert_ctypes(random_seed, dtype='int32')),
-           ctypes.byref(convert_ctypes(n_wfn,       dtype='int32')),
-           ctypes.byref(convert_ctypes(n_intl,      dtype='int32')),
-           ctypes.byref(convert_ctypes(state_list,  dtype='int32')),
-           ctypes.byref(convert_ctypes(coord_list,  dtype='int32')),
-           ctypes.byref(convert_ctypes(cf_list,     dtype='double')),
-           ctypes.byref(convert_ctypes(atm_list,    dtype='int32')),
-           ctypes.byref(convert_ctypes(op_list,     dtype='int32')),
-           ctypes.byref(convert_ctypes(bnds,        dtype='double')),
-           ctypes.byref(convert_ctypes(npts,        dtype='int32')))
-
-    return
-
 
 #
 def create_table(traj_lib, chkpt):
@@ -160,9 +73,15 @@ def create_table(traj_lib, chkpt):
 def create_amp_table(amp_lib, kwords):
     """ create a table to hold all trajectory amplitudes"""
 
+    # this is already causing problems: amp table needs to be consistent
+    # with trajectory batches and there we start indexing at '1' 
+    batch_lbl = convert_ctypes(kwords['tbatch']+1, dtype='int32')
+
     amp_lib.amp_create_table(
+             ctypes.byref(convert_ctypes(kwords['nbatch'],  dtype='int32')),
+             ctypes.byref(convert_ctypes(kwords['nstates'], dtype='int32')),
              ctypes.byref(convert_ctypes(kwords['ntotal'], dtype='int32')),
-                          convert_ctypes(kwords['tbatch'], dtype='int32'),
+                          batch_lbl,
                           convert_ctypes(kwords['nsteps'], dtype='int32'),
                           convert_ctypes(kwords['tbnds'],  dtype='double'))
     return
@@ -274,66 +193,6 @@ def load_trajectories(traj_lib, chkpt, kwords, ti, tf):
 
     kwords['tmax'] = t_max
     return kwords 
-
-#
-def propagate(prop_lib, ti, tf):
-    """ propgate trajectories in each of the loaded 
-        batches from ti to tf"""
-
-    prop_lib.propagate(
-               ctypes.byref(convert_ctypes(ti, dtype='double')),
-               ctypes.byref(convert_ctypes(tf, dtype='double')))
-
-    return
-
-#
-def populations(traj_lib, time, amps, nst, batch):
-    """return the state populations at time=time for batch=batch"""
-
-    pops = convert_ctypes(np.zeros(nst), dtype='double')
-    norm = convert_ctypes(0.,            dtype='double')
-    amp_r = convert_ctypes(amps.real,    dtype='double')
-    amp_i = convert_ctypes(amps.imag,    dtype='double')
-
-    print('amp_i='+str(amp_i))
-    traj_lib.populations(
-               ctypes.byref(convert_ctypes(time, dtype='double')),
-               ctypes.byref(convert_ctypes(len(amps), dtype='int32')),
-               ctypes.byref(amp_r),
-               ctypes.byref(amp_i),
-               ctypes.byref(convert_ctypes(nst, dtype='int32')),
-               ctypes.byref(convert_ctypes(batch, dtype='int32')),
-               ctypes.byref(pops), 
-               ctypes.byref(norm))               
-
-    return np.array(pops),float(norm.value)
-
-#
-def evaluate_density(den_lib, time, npts):
-    """ evaluate the density at t=time"""
-
-    n_grid   = int(np.prod(npts))
-    converge = convert_ctypes(0., dtype='double')
-    n_sample = convert_ctypes(0,  dtype='int32')
-    n_traj   = convert_ctypes(0,  dtype='int32')
-    norm_on  = convert_ctypes(0., dtype='double')
-    norm_off = convert_ctypes(0., dtype='double')
-    int_grid = convert_ctypes(np.zeros(n_grid, dtype=float), dtype='double')
-
-    den_lib.evaluate_density(
-            ctypes.byref(convert_ctypes(time,   dtype='double')),             
-            ctypes.byref(convert_ctypes(n_grid, dtype='int32')),
-            int_grid,
-            ctypes.byref(converge),
-            ctypes.byref(n_sample),
-            ctypes.byref(n_traj),
-            ctypes.byref(norm_on),
-            ctypes.byref(norm_off))
-
-    out_nd_grid = np.reshape(np.array(int_grid, dtype=float), tuple(npts))
-    return out_nd_grid, float(converge.value), int(n_sample.value), \
-                        int(n_traj.value),    float(norm_on.value), \
-                        float(norm_off.value)
 
 #
 def traj_timestep_info(traj_lib, reset, batch, ntotal):
@@ -490,54 +349,6 @@ def amp_next_timestep(amp_lib, indices, n):
     amp_lib.amp_next_timestep(ctypes.byref(n_traj), indx_lst, ctypes.byref(max_step))
 
     return max_step.value
-
-#
-def retrieve_matrices(amp_lib, time, batch, n, nst):
-    """retrieve matrices from amplitude table at time=time"""
-
-    t_current = convert_ctypes(time,  dtype='double')
-    i_batch   = convert_ctypes(batch, dtype='int32')
-    n_traj    = convert_ctypes(n,     dtype='int32')
-    n_state   = convert_ctypes(nst,   dtype='int32')
-
-    # lastly, retrieve the matrices generated using the propagation method of choice
-    s_r    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    s_i    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    t_r    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    t_i    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    v_r    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    v_i    = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    sdt_r  = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    sdt_i  = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    heff_r = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    heff_i = convert_ctypes(np.zeros(n*n, dtype=float), dtype='double')
-    pop_r  = convert_ctypes(np.zeros(n*n*nst, dtype=float), dtype='double')
-    pop_i  = convert_ctypes(np.zeros(n*n*nst, dtype=float), dtype='double')
-
-    amp_lib.retrieve_matrices(ctypes.byref(t_current),
-                              ctypes.byref(i_batch),
-                              ctypes.byref(n_traj),
-                              ctypes.byref(n_state),
-                              s_r,    s_i,
-                              t_r,    t_i,
-                              v_r,    v_i,
-                              sdt_r,  sdt_i,
-                              heff_r, heff_i,
-                              pop_r,  pop_i)
-
-    mats     = matrices.Matrices()
-    mats.set('s',      np.reshape(np.array(s_r) + 1.j*np.array(s_i), tuple([n,n]),order='F'))
-    mats.set('t',      np.reshape(np.array(t_r) + 1.j*np.array(t_i), tuple([n,n]),order='F'))
-    mats.set('v',      np.reshape(np.array(v_r) + 1.j*np.array(v_i), tuple([n,n]),order='F'))
-    mats.set('sdot',   np.reshape(np.array(sdt_r) + 1.j*np.array(sdt_i), tuple([n,n]),order='F'))
-    mats.set('heff',   np.reshape(np.array(heff_r) + 1.j*np.array(heff_i), tuple([n,n]),order='F'))
-    mats.set('popwt',  np.reshape(np.array(pop_r) + 1.j*np.array(pop_i), tuple([n,n,nst]), order='F'))
-    # assume the trajectory overlap and s matrix are same for now
-    mats.set('s_traj', mats.matrix['s'])
-
-    #print('time='+str(time)+' popwt='+str(mats.matrix['popwt']))
- 
-    return mats
 
 #
 def print_geom_file(traj_list, geom_file, time, prev_step):

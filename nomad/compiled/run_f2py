@@ -3,6 +3,6 @@
 # This is done automatically using setup.py in the main directory.
 
 rm -f *.so
-f2py -c --fcompiler=gfortran -m nuclear_gaussian nuclear_gaussian.f90
-f2py -c --fcompiler=gfortran -m nuclear_dirac nuclear_dirac.f90
-f2py -c --fcompiler=gfortran -m nuclear_gaussian_ccs nuclear_gaussian_ccs.f90
+f2py -c --fcompiler=intelem -m nuclear_gaussian nuclear_gaussian.f90
+f2py -c --fcompiler=intelem -m nuclear_dirac nuclear_dirac.f90
+f2py -c --fcompiler=intelem -m nuclear_gaussian_ccs nuclear_gaussian_ccs.f90

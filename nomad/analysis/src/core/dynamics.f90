@@ -38,6 +38,16 @@ module dynamics
   ! integral types are determined at run-time
   class(integral), allocatable  :: nomad_ints
 
+  type population_table
+    integer(ik)                 :: resize
+    integer(ik)                 :: nstates
+    integer(ik)                 :: label
+    real(drk), allocatable      :: time(:)
+    real(drk), allocatable      :: pop(:,:)
+  end type population_table
+
+  type(population_table), allocatable        :: pop_table(:)
+
  contains
 
   !
@@ -46,6 +56,8 @@ module dynamics
   subroutine init_propagate(coherent, initial) bind(c, name='init_propagate')
     logical, intent(in)                :: coherent
     integer(ik), intent(in)            :: initial
+
+    integer(ik)                        :: i
 
     full_basis = coherent
     call init_method_code(initial, init_method)
@@ -125,16 +137,11 @@ module dynamics
 
     complex(drk), allocatable          :: s(:,:), t(:,:), v(:,:), h(:,:)
     complex(drk), allocatable          :: sdt(:,:), sinv(:,:), heff(:,:)
-
     complex(drk), allocatable          :: popwt(:,:,:)
 
     logical                            :: adapt_basis
 
-    real(drk),allocatable              :: pop(:)
-
     call TimerStart('propagate')
-
-    allocate(pop(n_states()))
 
     if(.not.traj_table_exists() .or. .not.amp_table_exists()) &
        stop 'lib_traj needs to be initialized before fms'
@@ -147,6 +154,17 @@ module dynamics
     else
       n_runs      = n_batches()
     endif
+
+    ! Initialize the population table
+    allocate(pop_table(n_runs))
+    do i = 1,n_runs
+      pop_table(i)%resize  = 1000 ! some default value
+      pop_table(i)%nstates = n_states()
+      pop_table(i)%label   = i
+      allocate(pop_table(i)%time(pop_table(i)%resize))
+      allocate(pop_table(i)%pop(pop_table(i)%nstates+1, pop_table(i)%resize))
+      pop_table(i)%time    = -1.d0
+    enddo
 
     do i_bat = 1,n_runs
 
@@ -168,17 +186,26 @@ module dynamics
       do i = 1,n_old
         ovrlp(i) = nuc_overlap_origin(traj(i))
         do j = 1, i
-          nuc_ovrlp = nuc_overlap(traj(i), traj(j))
-          s(i, j)   = nomad_ints%overlap(traj(i), traj(j), nuc_ovrlp)
-          if(i /= j) s(j,i) = conjg(s(i,j))
+          nuc_ovrlp    = nuc_overlap(traj(i), traj(j))
+          s(i,j)       = nomad_ints%overlap(traj(i), traj(j), nuc_ovrlp)
+          popwt(i,j,:) = nomad_ints%pop(n_states(), traj(i), traj(j), nuc_ovrlp)
+          if(i /= j) then
+            s(j,i)       = conjg(s(i,j))
+            popwt(j,i,:) = conjg(popwt(i,j,:))
+          endif
         enddo
       enddo
 
       ! initialize the amplitudes using method=init_method
       c      = init_amplitude(ti, init_method, old_traj, s, ovrlp)
       time   = ti
+      ! set the initial time populations
+      call update_populations(time, i_bat, n_states(), c, s, popwt)
       t_step = traj_time_step(batch_label, time) - time
 
+      !
+      ! Main time propagation loop
+      !
       do while(time <= tf)
         call locate_trajectories(time, batch_label, current_traj, traj)
         n_current = traj_size(traj)        
@@ -213,8 +240,9 @@ module dynamics
 
         call build_hamiltonian(traj, s, t, v, h, sdt, sinv, heff, popwt)
         if(time > ti) then
-          c = propagate_amplitude(c, Heff, time-0.5*t_step, time)
+          c = propagate_amplitude(c, heff, time-0.5*t_step, time)
           call update_amplitude(time, current_traj, c)
+          call update_populations(time, i_bat, n_states(), c, s, popwt)
         endif
  
         c      = propagate_amplitude(c, Heff, time, time+0.5*t_step)
@@ -300,6 +328,142 @@ module dynamics
 
     return
   end subroutine retrieve_matrices
+
+  !
+  !
+  !
+  subroutine pop_retrieve_timestep(time, batch, nst, pop, norm) bind(c, name='pop_retrieve_timestep')
+    real(drk), intent(in)           :: time
+    integer(ik), intent(in)         :: batch
+    integer(ik), intent(in)         :: nst
+    real(drk), intent(out)          :: pop(nst)
+    real(drk), intent(out)          :: norm
+
+    integer(ik), save               :: indx = 1
+    real(drk)                       :: t_toler
+
+
+    if(batch > size(pop_table)) stop 'batch > size(pop_table)'
+
+    t_toler = 0.1*(traj_time_step(batch, time) - time)
+    print *,'t_toler=',t_toler
+    print *,'poptimes=',pop_table(batch)%time
+
+    if(indx > size(pop_table(batch)%time)) indx = 1 ! if indx out of bounds, reset to '1'
+    if(time < pop_table(batch)%time(indx)) indx = 1 ! if indx already > time, reset to '1'
+    print *,'starting indx=',indx,'max=',size(pop_table(batch)%time)
+
+    do while(abs(time-pop_table(batch)%time(indx)) > t_toler)
+      if (pop_table(batch)%time(indx) > time) stop 'time not foudn in pop_retrieve_timestep, time(indx)>time'
+      indx = indx + 1
+      if (indx > size(pop_table(batch)%time)) stop 'time not found in pop_retrieve_timestep, indx > size(time)'
+    enddo
+    print *,'time=',time,' indx=',indx
+
+    pop  = pop_table(batch)%pop(:nst, indx)
+    norm = pop_table(batch)%pop(nst+1, indx)
+
+  end subroutine pop_retrieve_timestep
+
+  !
+  !
+  !
+  subroutine update_populations(t, batch, nst, c, s, popwt)
+    real(drk), intent(in)           :: t
+    integer(ik), intent(in)         :: batch
+    complex(drk), intent(in)        :: c(:)
+    complex(drk), intent(in)        :: s(:,:)
+    complex(drk), intent(in)        :: popwt(:,:,:)
+
+    complex(drk)                    :: aic, aj, znorm
+    complex(drk)                    :: zpop(nst)
+    real(drk)                       :: pop(nst)
+    real(drk)                       :: norm
+    integer(ik)                     :: i,j
+    integer(ik)                     :: n
+    integer(ik)                     :: nst
+    integer(ik),save                :: indx = 1
+
+    pop    = zero_drk
+    norm   = zero_drk
+
+    zpop   = zero_c
+    znorm  = zero_c
+
+    n = size(c)
+
+    if(batch > size(pop_table)) stop 'batch > size(pop_table)'
+    
+    do while(t < pop_table(batch)%time(indx) .and. pop_table(batch)%time(indx) /= -1.d0)
+      indx = indx + 1
+      if (indx > size(pop_table(batch)%time)) then
+        call resize_pop_table(batch)
+        exit
+      endif
+    enddo
+
+    ! update the time list
+    pop_table(batch)%time(indx) = t
+
+    do i = 1, n
+      aic = conjg(c(i)) ! c.c
+      do j = 1, n
+        aj    = c(j)
+        zpop  = zpop  + aic * aj * popwt(i,j,:)
+        znorm = znorm + aic * aj * s(i,j)
+      enddo
+    enddo
+
+    pop = real(zpop)
+    pop = pop / sum(pop)
+    pop_table(batch)%pop(:nst, indx) = pop
+    if(sum(abs(aimag(zpop))) > 1.e-10) then
+      print *,'sum(aimag(zpop)) = ',sum(abs(aimag(zpop)))
+      stop 'error in populations -- imaginary component in populations'
+    endif
+
+    norm = real(znorm)
+    pop_table(batch)%pop(nst+1, indx) = norm
+    if(abs(aimag(znorm)) > 1.e-10) then
+      print *,'aimag(znorm) = ',abs(aimag(znorm))
+      stop 'error in populations -- imaginary component in wfn norm'
+    endif
+
+  end subroutine update_populations
+
+  !
+  !
+  !
+  subroutine resize_pop_table(batch)
+    integer(ik), intent(in)           :: batch
+
+    integer(ik), allocatable          :: time_tmp(:)
+    real(drk), allocatable            :: pop_tmp(:,:)
+
+    integer(ik)                       :: current
+    integer(ik)                       :: resized
+
+    current = size(pop_table(batch)%time)
+    resized = current + pop_table(batch)%resize
+
+    allocate(time_tmp(current))
+    allocate(pop_tmp(n_states()+1, current))
+
+    time_tmp = pop_table(batch)%time
+    pop_tmp  = pop_table(batch)%pop
+
+    deallocate(pop_table(batch)%time, pop_table(batch)%pop)
+   
+    allocate(pop_table(batch)%time(resized))
+    allocate(pop_table(batch)%pop(n_states()+1, resized))
+
+    pop_table(batch)%time            = -1.d0 
+    pop_table(batch)%time(:current)  = time_tmp
+    pop_table(batch)%pop(:,:current) = pop_tmp
+
+    deallocate(time_tmp, pop_tmp)
+
+  end subroutine resize_pop_table
 
   !
   !

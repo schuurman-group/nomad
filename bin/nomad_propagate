@@ -14,7 +14,8 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.checkpoint as checkpoint
-import nomad.analysis.mods.lib_utils as lib_utils
+import nomad.analysis.interface.libutils as libutils
+import nomad.analysis.interface.proputils as proputils
 
 
 chkpt_file    = ''
@@ -134,14 +135,14 @@ def main():
     int_method   = int_methods.index(int_method)+1 
 
     # initialize the trajectory table
-    lib_utils.init_table(lib_prop, default_step, step_method)
+    libutils.init_table(lib_prop, default_step, step_method)
 
     # initialize the table that holds trajectory amplitudes
-    lib_utils.init_amplitudes(
+    libutils.init_amplitudes(
                  lib_prop, default_step, step_method)   
 
     # initlize the propagation routines
-    lib_utils.init_propagate(lib_prop, full_basis, init_method)
+    proputils.init_propagate(lib_prop, full_basis, init_method)
 
     # if this is a vibronic hamiltonian, load the hamiltonian into arrays
     # so we can pass it to propagate
@@ -160,24 +161,23 @@ def main():
         scalars  = np.asarray( [scals[0,0],
                                 scals[1,1],
                                 scals[0,1]], dtype=float)
-        lib_utils.init_integrals(lib_prop, 
+        proputils.init_integrals(lib_prop, 
                           int_method, alpha, omega, fo_terms, scalars)
     else:
-        lib_utils.init_integrals(lib_prop, int_method)
+        proputils.init_integrals(lib_prop, int_method)
 
     # create the trajectory table
-    kwords = lib_utils.create_table(
-                 lib_prop, chkpt)
+    kwords = libutils.create_table(lib_prop, chkpt)
 
     # load the trajectories into the table
-    kwords = lib_utils.load_trajectories(
+    kwords = libutils.load_trajectories(
                  lib_prop, chkpt, kwords, ti, tf)
 
     # close the current checkpoint file 
     chkpt.close()
    
     # create the amplitude table
-    lib_utils.create_amp_table(lib_prop, kwords)
+    libutils.create_amp_table(lib_prop, kwords)
 
     # after data is loaded, this is all on the propagation routines
     tstart = ti
@@ -185,7 +185,7 @@ def main():
     if tend is None:
         tend = kwords['tmax']
 
-    lib_utils.propagate(lib_prop, tstart, tend)
+    proputils.propagate(lib_prop, tstart, tend)
 
     print("propagate complete", flush=True)
 
@@ -202,29 +202,35 @@ def main():
     if full_basis:
         nbatch = 1
 
+    print('nbatch, batches='+str(nbatch)+','+str(kwords['batches']))
     for ibat in kwords['batches']:
         ibatch = ibat + 1
         if full_basis:
             ibatch = -1 
 
+        print('ibatch='+str(ibatch))
+
         # retrieve the time-step info from the amplitude table
-        time, n_traj, indices = lib_utils.amp_timestep_info(
+        time, n_traj, indices = libutils.amp_timestep_info(
                             lib_prop, True, ibatch, kwords['ntotal'])
 
+        print('ntraj='+str(n_traj))
         while n_traj>0:
 
             # retrieve a list of trajectories
-            traj_list = lib_utils.traj_retrieve_timestep( 
+            traj_list = libutils.traj_retrieve_timestep( 
                             lib_prop, kwords, time, ibatch, n_traj)
-            amp_list  = lib_utils.amp_retrieve_timestep(
+            amp_list  = libutils.amp_retrieve_timestep(
                             lib_prop, indices)
-            pops,norm = lib_utils.populations(
-                            lib_prop, time, amp_list, nstates, ibatch)
+            pop, norm = proputils.pop_retrieve_timestep(
+                            lib_prop, time, ibatch, nstates)
+
+            print('pop,norm='+str(pop)+','+str(norm),flush=True)
 
             # initialize wfn-level variables
             wfn          = wavefunction.Wavefunction()
             wfn.time     = time 
-            wfn.stpop    = pops
+            wfn.stpop    = pop 
             wfn.wfn_norm = norm
 
             # add trajectories from list
@@ -241,7 +247,7 @@ def main():
             # if only populations/trajectories desired, you can
             # save a lot of time skipping this step
             if save_matrices:
-                mats = lib_utils.retrieve_matrices(lib_prop, 
+                mats = proputils.retrieve_matrices(lib_prop, 
                                                 time, 
                                                 ibatch, 
                                                 n_traj, 
@@ -252,14 +258,14 @@ def main():
             checkpoint.archive_simulation(wfn, None)
 
             # advance to the next time step
-            max_step = lib_utils.amp_next_timestep(lib_prop, indices, n_traj)
+            max_step = libutils.amp_next_timestep(lib_prop, indices, n_traj)
 
             # if we've reached the maximum time step, we're done
             if max_step:
                 n_traj = 0
             else:
                 # get info on next time step
-                time, n_traj, indices = lib_utils.amp_timestep_info(
+                time, n_traj, indices = libutils.amp_timestep_info(
                            lib_prop, False, ibatch, kwords['ntotal'])
 
     return

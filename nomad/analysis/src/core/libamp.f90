@@ -47,7 +47,6 @@ module libamp
     character(len=7)              :: tstep_method
     real(drk)                     :: default_tstep
 
-
     !
     !
     !
@@ -59,7 +58,7 @@ module libamp
       complex(drk),allocatable    :: amplitude(:)
     end type amplitude_table   
 
-    ! this array of trajectory_tables represents _all_ the 
+    ! this array of amplitude_tables represents _all_ the 
     ! trajectory basis information for a series of times. This
     ! is the 'master' list that is queried as we propagate
     type(amplitude_table), allocatable  :: amp_table(:)
@@ -94,7 +93,9 @@ module libamp
   !
   !
   !
-  subroutine amp_create_table(n_total, batch_labels, n_steps, t_minmax) bind(c,name='amp_create_table')
+  subroutine amp_create_table(n_grp, n_st, n_total, batch_labels, n_steps, t_minmax) bind(c,name='amp_create_table')
+    integer(ik), intent(in)                 :: n_grp
+    integer(ik), intent(in)                 :: n_st
     integer(ik), intent(in)                 :: n_total
     integer(ik), intent(in)                 :: batch_labels(n_total)
     integer(ik), intent(in)                 :: n_steps(n_total)
@@ -123,7 +124,6 @@ module libamp
       amp_table(i)%label       = i
       amp_table(i)%current_row = 1
       amp_table(i)%amplitude   = zero_c
-
     enddo
 
     return
@@ -204,7 +204,7 @@ module libamp
     return
   end subroutine amp_next_timestep
 
-  !
+ !
   !
   !
   function init_amplitude(time, method, indices, smat, origin_svec) result(amps)
@@ -307,7 +307,7 @@ module libamp
     return
   end function propagate_amplitude
 
-  !
+ !
   !
   !
   function locate_amplitude(time, indices) result(amps)
@@ -431,7 +431,11 @@ module libamp
     n_fnd  = 0
     n_test = 0
 
+    !print *,'batch=',batch,' time=',time
+
     do i = 1,amp_total
+
+      !print *,'amp_table(i)%batch=',amp_table(i)%batch
 
       ! if this is not selected batch, move on to next one
       if(batch >= 0 .and. amp_table(i)%batch /= batch) continue
@@ -571,6 +575,7 @@ module libamp
 
     return
   end function normalize_amplitude
+
 
   ! computes the size of an array of complex numbers, returns
   ! zero if the array is unallocat
