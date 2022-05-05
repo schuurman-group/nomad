@@ -7,7 +7,7 @@ This currently uses first-order saddle point.
 import numpy as np
 import scipy as scipy
 import scipy.integrate as integrate
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian_ccs as nuclear
 import nomad.interfaces.vibronic as vibronic

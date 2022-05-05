@@ -2,7 +2,7 @@
 General routines for all spawning algorithms.
 """
 import numpy as np
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 

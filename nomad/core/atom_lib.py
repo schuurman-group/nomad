@@ -1,7 +1,7 @@
 """
 A library containing atom widths, atomic numbers, etc.
 """
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 
 atom_name  = ['X', 'H', 'D', 'T', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F',

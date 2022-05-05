@@ -6,7 +6,7 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.timings as timings
 import nomad.core.surface as surface
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 
 class Trajectory:
