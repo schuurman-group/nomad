@@ -102,7 +102,6 @@ def update_pes(wfn, update_integrals=True):
 
         local_results = []
 
-        print("rank="+str(glbl.mpi['rank'])+", length exec_lst="+str(len(exec_list)))
         for i in range(len(exec_list)):
             if exec_list[i][0] is 'traj':
                 pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], t=wfn.time)
@@ -116,10 +115,15 @@ def update_pes(wfn, update_integrals=True):
 
         global_results = glbl.mpi['comm'].allgather(local_results)
 
+        # organize results into a single unique list
+        result_list = []
+        for rank_result in global_results:
+            for icalc in range(len(rank_result)):
+                result_list.append(rank_result[icalc])        
+
         # update the cache
-        for i in range(glbl.mpi['nproc']):
-            for j in range(len(global_results[i])):
-                pes_cache[global_results[i][j][0]] = global_results[i][j][1]
+        for iresult in result_list:
+            pes_cache[iresult[0]] = iresult[1]
 
         # update the bundle:
         # live trajectories
@@ -182,7 +186,6 @@ def update_pes_traj(traj):
 
     if glbl.mpi['parallel']:
         results = glbl.mpi['comm'].bcast(results, root=0)
-        glbl.mpi['comm'].barrier()
 
     traj.update_pes_info(results)
 
