@@ -29,6 +29,8 @@ def init():
         glbl.mpi['nproc'] = glbl.mpi['comm'].Get_size()
         glbl.mpi['comm'].barrier()
 
+    print('rank='+str(glbl.mpi['rank'])+' nproc='+str(glbl.mpi['nproc']), flush=True)
+
     # start the global timer
     timings.start('global')
 
