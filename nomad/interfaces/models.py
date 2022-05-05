@@ -7,8 +7,8 @@ import math
 import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.surface as surface
-import nomad.math.adt as adt
-import nomad.math.constants as constants
+import nomad.common.adt as adt
+import nomad.common.constants as constants
 
 #---------------------------------------------------------------------
 #

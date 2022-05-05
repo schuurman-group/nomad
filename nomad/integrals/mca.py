@@ -5,7 +5,7 @@ potentials
 This currently uses first-order saddle point.
 """
 import numpy as np
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.compiled.nuclear_gaussian_ccs as nuclear
 

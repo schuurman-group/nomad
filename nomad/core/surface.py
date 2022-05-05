@@ -6,7 +6,7 @@ execution of potential evaluations which is essential for ab initio PES.
 """
 import copy
 import numpy as np
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 
 

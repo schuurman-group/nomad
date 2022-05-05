@@ -12,7 +12,7 @@ import nomad.core.trajectory as trajectory
 import nomad.core.matrices as matrices
 import nomad.core.checkpoint as checkpoint
 import nomad.core.atom_lib as atom_lib
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 valid_coord = ['stre', 'bend',  'tors',  '|tors|',
                'oop',  '|oop|', 'plane', '|plane|']

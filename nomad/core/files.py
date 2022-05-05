@@ -10,7 +10,7 @@ import nomad.core.glbl as glbl
 import nomad.core.atom_lib as atom_lib
 import nomad.integrals.integral as integral
 import nomad.core.matrices as matrices
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 
 def read_input(fname):

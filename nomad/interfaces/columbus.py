@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 import numpy as np
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.core.atom_lib as atom_lib
 import nomad.core.trajectory as trajectory

@@ -16,7 +16,7 @@ As a matter of course, this function also builds:
 import copy
 import numpy as np
 import scipy.linalg as sp_linalg
-import nomad.math.linalg as linalg
+import nomad.common.linalg as linalg
 import nomad.core.timings as timings
 
 

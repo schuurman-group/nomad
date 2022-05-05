@@ -4,7 +4,7 @@ Linear algebra library routines.
 import numpy as np
 import scipy.linalg as sp_linalg
 import nomad.core.glbl as glbl
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 #
 # Routines for diabatic <-> adiabatic transformations
