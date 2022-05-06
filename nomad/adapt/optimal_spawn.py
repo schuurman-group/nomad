@@ -26,7 +26,7 @@ import nomad.adapt.utilities as utils
 coup_hist = []
 
 
-def spawn(wfn, dt):
+def adapt(wfn0, wfn, dt):
     """Propagates to the point of maximum coupling, spawns a new
     basis function, then propagates the function to the current time."""
     global coup_hist
@@ -43,7 +43,7 @@ def spawn(wfn, dt):
         for i in range(n_add):
             coup_hist.append(np.zeros((glbl.properties['n_states'], 3)))
 
-    # iterate over all trajectories in bundle
+    # iterate over all trajectories in wfn
     for i in range(wfn.n_traj()):
         # only live trajectories can spawn
         if not wfn.traj[i].alive:
@@ -80,15 +80,15 @@ def spawn(wfn, dt):
                     # need electronic structure at current geometry -- on correct state
                     evaluate.update_pes_traj(child)
                     spawn_backward(child, spawn_time, current_time, -dt)
-                    bundle_overlap = utils.overlap_with_bundle(child, wfn)
-                    if not bundle_overlap:
+                    wfn_overlap = utils.overlap_with_wfn(child, wfn)
+                    if not wfn_overlap:
                         basis_grown = True
                         wfn.add_trajectory(child)
                         if glbl.mpi['rank'] == 0:
                             checkpoint.update_adapt(current_time, wfn.traj[i], wfn.traj[-1])
                     else:
                         log.print_message('spawn_bad_step',
-                                                 ['overlap with bundle too large'])
+                                                 ['overlap with wfn too large'])
 
     # after spawning, let all processes re-synchronize
     glbl.mpi['comm'].barrier()
@@ -117,9 +117,9 @@ def spawn_forward(parent, child_state, initial_time, dt):
         coup[0]             = abs(parent.coupling(parent_state, child_state))
         child_attempt       = parent.copy()
         child_attempt.state = child_state
-        adjust_success      = utils.adjust_child(parent, child_attempt,
-                                                 parent.derivative(parent_state,
-                                                                   child_state))
+        adjust_success      = utils.adjust_momentum(child_attempt, parent.classical()
+                                                    parent.derivative(parent_state,
+                                                                      child_state))
         sij = abs(glbl.modules['integrals'].nuc_overlap(parent, child_attempt))
 
         # if the coupling has already peaked, either we exit with a successful
@@ -179,10 +179,10 @@ def spawn_backward(child, current_time, end_time, dt):
         back_time = back_time + dt
         log.print_message('spawn_back', [back_time])
 
-def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
+def spawn_trajectory(wfn, traj_index, spawn_state, coup_h, current_time):
     """Checks if we satisfy all spawning criteria."""
 
-    traj = bundle.traj[traj_index]
+    traj = wfn.traj[traj_index]
 
     # Return False if:
     # if insufficient population on trajectory to spawn
@@ -203,19 +203,19 @@ def spawn_trajectory(bundle, traj_index, spawn_state, coup_h, current_time):
 
     # if we already have sufficient overlap with a function on the
     # spawn_state
-    if utils.max_nuc_overlap(bundle, traj_index,
+    if utils.max_nuc_overlap(wfn, traj_index,
                              overlap_state=spawn_state) > glbl.properties['sij_thresh']:
         return False
 
     return True
 
 
-def in_coupled_regime(bundle):
+def in_coupled_regime(wfn):
     """Checks if we are in spawning regime."""
-    for i in range(bundle.n_traj()):
+    for i in range(wfn.n_traj()):
         for st in range(glbl.properties['n_states']):
-            if st != bundle.traj[i].state:
-                if abs(bundle.traj[i].coupling(bundle.traj[i].state, st)) > glbl.properties['spawn_coup_thresh']:
+            if st != wfn.traj[i].state:
+                if abs(wfn.traj[i].coupling(wfn.traj[i].state, st)) > glbl.properties['spawn_coup_thresh']:
                     return True
 
     return False

@@ -139,10 +139,12 @@ def evaluate_coupling(traj):
         coup -= np.diag(coup.diagonal())
         traj.pes.add_data('coupling',coup)
 
+
     else:
         diabpot          = traj.pes.get_data('diabat_pot')
         diab_effcoup     = adt.calc_diabeffcoup(diabpot)
         traj.pes.add_data('coupling',diab_effcoup)
+
 
 #---------------------------------------------------------------------
 #
@@ -215,22 +217,21 @@ def tully_extended(geom):
     """The Tully extended coupling model, taken from 
        JCP, 93, 1061 (1990)"""
     x = geom[0]
-    A = 0.01
-    B = 1.6
-    C = 0.005
-    D = 1.0
+    A = 0.0006 
+    B = 0.1
+    C = 0.9
 
     v11 = A 
     v22 = -A
-    v12 = B * ((1.+np.sign(x)) - math.exp(-C*abs(x)))
+    v12 = B * (1.+ np.sign(x) + (np.sign(-x) * math.exp(np.sign(-x)*C*x)))
 
     dv11 = 0. 
     dv22 = 0.
-    dv12 = B * C * math.exp(-C*abs(x))
+    dv12 = B * C * math.exp(np.sign(-x)*C*x)
 
     d2v11 = 0. 
     d2v22 = 0.
-    d2v12 = -np.sign(x) * B * C**2 * math.exp(-C*abs(x))
+    d2v12 = np.sign(-x) * B * C**2 * math.exp(np.sign(-x)*C*x)
 
     diabpot    = np.array([[v11, v12], [v12, v22]])
     diabderiv1 = np.array([[[dv11, dv12], [dv12, dv22]]])

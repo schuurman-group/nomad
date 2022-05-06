@@ -20,7 +20,7 @@ import nomad.adapt.utilities as utilities
 
 
 @timings.timed
-def spawn(wfn, dt):
+def adapt(wfn0, wfn, dt):
     """Spawns a basis function if the minimum overlap drops below a given
     threshold."""
     basis_grown  = False
@@ -45,8 +45,8 @@ def spawn(wfn, dt):
                 child.state     = st
                 child.parent    = parent.label
 
-                success = utilities.adjust_child(parent, child,
-                                                 parent.derivative(parent.state,
+                success = utilities.adjust_momentum(child, parent.classical()
+                                                    parent.derivative(parent.state,
                                                                    child.state))
                 sij = glbl.modules['integrals'].nuc_overlap(parent, child)
 
