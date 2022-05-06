@@ -4,9 +4,10 @@
 !
 ! M. S. Schuurman -- Dec. 27, 2019
 !
-module lib_amp 
+module libamp 
   use accuracy
   use math
+  use timer
   implicit none
   private
 
@@ -46,7 +47,6 @@ module lib_amp
     character(len=7)              :: tstep_method
     real(drk)                     :: default_tstep
 
-
     !
     !
     !
@@ -58,7 +58,7 @@ module lib_amp
       complex(drk),allocatable    :: amplitude(:)
     end type amplitude_table   
 
-    ! this array of trajectory_tables represents _all_ the 
+    ! this array of amplitude_tables represents _all_ the 
     ! trajectory basis information for a series of times. This
     ! is the 'master' list that is queried as we propagate
     type(amplitude_table), allocatable  :: amp_table(:)
@@ -93,7 +93,9 @@ module lib_amp
   !
   !
   !
-  subroutine amp_create_table(n_total, batch_labels, n_steps, t_minmax) bind(c,name='amp_create_table')
+  subroutine amp_create_table(n_grp, n_st, n_total, batch_labels, n_steps, t_minmax) bind(c,name='amp_create_table')
+    integer(ik), intent(in)                 :: n_grp
+    integer(ik), intent(in)                 :: n_st
     integer(ik), intent(in)                 :: n_total
     integer(ik), intent(in)                 :: batch_labels(n_total)
     integer(ik), intent(in)                 :: n_steps(n_total)
@@ -122,7 +124,6 @@ module lib_amp
       amp_table(i)%label       = i
       amp_table(i)%current_row = 1
       amp_table(i)%amplitude   = zero_c
-
     enddo
 
     return
@@ -203,14 +204,15 @@ module lib_amp
     return
   end subroutine amp_next_timestep
 
+ !
   !
   !
-  !
-  function init_amplitude(time, method, indices, overlap) result(amps)
+  function init_amplitude(time, method, indices, smat, origin_svec) result(amps)
     real(drk), intent(in)              :: time
     character(len=8)                   :: method
-    integer(ik), intent(in)            :: indices(:)
-    complex(drk), intent(in), optional :: overlap(:)
+    integer(ik), intent(in)            :: indices(:) ! indices of the trajectories/amplitudes
+    complex(drk), intent(in)           :: smat(:,:)  ! trajectory overlap matrix
+    complex(drk), intent(in), optional :: origin_svec(:)
 
     complex(drk), allocatable       :: amps(:)
     integer(ik)                     :: i
@@ -220,13 +222,13 @@ module lib_amp
     if(.not.any(init_methods == method)) &
       stop 'initialization method not recognized'
 
-    if(trim(method) == 'overlap' .and. .not.present(overlap)) &
+    if(trim(method) == 'overlap' .and. .not.present(origin_svec)) &
       stop 'cannot initialize amplitudes without overlap values'
 
     select case(trim(method))
       case('overlap')
         do i = 1,size(indices)
-          amps(i)   = overlap(i)
+          amps(i)   = origin_svec(i)
         enddo
 
       case('uniform')
@@ -240,7 +242,7 @@ module lib_amp
 
     end select
 
-    amps = normalize_amplitude(amps)
+    amps = normalize_amplitude(amps, smat)
     call update_amplitude(time, indices, amps)
 
     return
@@ -258,6 +260,8 @@ module lib_amp
     integer(ik)                             :: n_new, n_old
     integer(ik)                             :: i, new_i
 
+    call TimerStart('update_basis')
+
     n_new = size(new_label)
     n_old = size(old_label)
     allocate(c_new(n_new))
@@ -268,6 +272,7 @@ module lib_amp
       if(new_i /= 0) c_new(new_i) = c(i)
     enddo
 
+    call TimerStop('update_basis')
     return
   end function update_basis
 
@@ -286,6 +291,8 @@ module lib_amp
     complex(drk),allocatable        :: U(:,:)
     integer(ik)                     :: n
 
+    call TimerStart('propagate_amplitude')
+
     n = size(c0)
     if(n /= size(H, dim=1))stop 'ERROR: size c0 and H do not match'
     allocate(new_amp(n), amps(n,1), B(n,n), U(n,n))
@@ -296,10 +303,11 @@ module lib_amp
     amps = matmul(U, amps)
     new_amp = amps(:n,1)
 
+    call TimerStop('propagate_amplitude')
     return
   end function propagate_amplitude
 
-  !
+ !
   !
   !
   function locate_amplitude(time, indices) result(amps)
@@ -351,6 +359,8 @@ module lib_amp
     complex(drk)                     :: new_amp
     integer(ik)                      :: sgn, dx, tbnd1, tbnd2
 
+    call TimerStart('interpolate_amplitude')
+
     ! Polynomial regression using fit_order+1 points centered about the
     ! nearest time point 
     sgn   = int(sign(1.,time - amp_table(amp_indx)%time(time_indx)))
@@ -363,6 +373,8 @@ module lib_amp
     if(abs(tbnd1 - tbnd2) /= fit_order)stop 'insufficient data to interpolate amplitude'
 
     new_amp = poly_fit(fit_order, time, amp_table(amp_indx)%time(tbnd1:tbnd2), amp_table(amp_indx)%amplitude(tbnd1:tbnd2))
+
+    call TimerStop('interpolate_amplitude')
 
     return
   end function interpolate_amplitude
@@ -378,6 +390,8 @@ module lib_amp
     integer(ik)                      :: i, table_indx
     integer(ik)                      :: time_indx
     real(drk)                        :: time_val
+  
+    call TimerStart('update_amplitude')
 
     do i=1,size(table_indices)
       table_indx = table_indices(i)
@@ -388,6 +402,7 @@ module lib_amp
       amp_table(table_indx)%amplitude(time_indx) = amplitudes(i)
     enddo
 
+    call TimerStop('update_amplitude')
     return
   end subroutine update_amplitude
 
@@ -416,7 +431,11 @@ module lib_amp
     n_fnd  = 0
     n_test = 0
 
+    !print *,'batch=',batch,' time=',time
+
     do i = 1,amp_total
+
+      !print *,'amp_table(i)%batch=',amp_table(i)%batch
 
       ! if this is not selected batch, move on to next one
       if(batch >= 0 .and. amp_table(i)%batch /= batch) continue
@@ -485,6 +504,8 @@ module lib_amp
     complex(drk), allocatable        :: amp_buf(:)
     real(drk)                        :: current_time, dt, dt_new
 
+    call TimerStart('get_time_index')
+
     ! to save searching through the table over and over again, 
     ! we'll use the previously accessed row as a starting guess
     current_time = amp_table(indx)%time(amp_table(indx)%current_row)
@@ -532,26 +553,29 @@ module lib_amp
       if(fnd_indx == 1 .and. fnd_time > time) fnd_indx = -1
     endif        
 
+    call TimerStop('get_time_index')
     return
   end subroutine get_time_index
 
   !
   !
   !
-  function normalize_amplitude(c) result(c_norm)
+  function normalize_amplitude(c, smat) result(c_norm)
     complex(drk), intent(in)           :: c(:)
+    complex(drk), intent(in)           :: smat(:,:)
 
     complex(drk),allocatable           :: c_norm(:)
-    complex(drk)                       :: norm_amp
+    complex(drk)                       :: norm
 
     allocate(c_norm(size(c)))
 
-    norm_amp = sqrt(dot_product(c, c))
-    if(abs(real(aimag(norm_amp),kind=drk)) > mp_drk) stop 'norm error'
-    c_norm = c / real(norm_amp,kind=drk)
+    norm      = sqrt(dot_product(c, matvec_prod(smat, c)))
+    if(abs(real(aimag(norm))) > 1000.d0*mp_drk) stop 'norm error'
+    c_norm = c / norm
 
     return
   end function normalize_amplitude
+
 
   ! computes the size of an array of complex numbers, returns
   ! zero if the array is unallocat
@@ -569,5 +593,5 @@ module lib_amp
     return
   end function amp_size
 
-end module lib_amp 
+end module libamp 
 

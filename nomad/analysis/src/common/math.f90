@@ -13,6 +13,13 @@ module math
   public expm_complex 
   public poly_fit_array
 
+  interface matvec_prod
+    module procedure matvec_prod_real
+    module procedure matvec_prod_complex1
+    module procedure matvec_prod_complex2
+    module procedure matvec_prod_complex3
+  end interface
+
   interface norm1
     module procedure norm1_real
     module procedure norm1_complex
@@ -54,10 +61,150 @@ module math
                                                  5.371920351148152 /)
   integer(ik), parameter    :: pade_ordr(1:5)  = (/ 3,5,7,9,13 /)
 
-  real(drk), parameter      :: pi   = 3.141592653589793
-  real(drk), parameter      :: log2 = 0.693147180559945309417232 
-
  contains
+
+  !
+  !
+  function outer_prod(a, b) result (c)
+    real(drk), intent(in)     :: a(:)
+    real(drk), intent(in)     :: b(:)
+
+    real(drk)                 :: c(size(a), size(b))
+    integer(sik)              :: j
+
+    do j = 1,size(b)
+      c(:,j) = a(:)*b(j)
+    enddo
+
+    return
+  end function outer_prod
+
+  !
+  !
+  function matvec_prod_real(A, x, trans) result (b)
+    real(drk), intent(in)     :: A(:,:)
+    real(drk), intent(in)     :: x(:)
+    logical, optional         :: trans
+
+    real(drk)                 :: b(size(x))
+    integer(sik)              :: i
+    logical                   :: matvec
+
+    if(present(trans)) then
+      matvec = trans
+    else
+      matvec = .true.
+    endif
+ 
+    if(matvec) then
+      do i = 1,size(x)
+        b(i) = dot_product(A(i,:size(x)), x)
+      enddo
+    else
+      do i = 1,size(x)
+        b(i) = dot_product(x, A(:size(x), i))
+      enddo
+    endif    
+      
+    return
+  end function matvec_prod_real
+
+  !
+  !
+  function matvec_prod_complex1(A, x, trans) result (b)
+    real(drk), intent(in)     :: A(:,:)
+    complex(drk), intent(in)  :: x(:)
+    logical, optional         :: trans
+
+    complex(drk)              :: Acmplx(size(A,dim=1),size(A,dim=2))
+    complex(drk)              :: b(size(x))
+    integer(sik)              :: i,j
+    logical                   :: matvec
+
+    if(present(trans)) then
+      matvec = trans
+    else
+      matvec = .true.
+    endif
+
+    b = zero_c
+
+    if(matvec) then
+      do i = 1,size(A,dim=1)
+        b(i) = dot_product(cmplx(A(i,:)), x)
+      enddo
+    else
+      do i = 1,size(A,dim=2)
+        b(i) = dot_product(cmplx(A(:,i)), x)
+      enddo
+    endif
+
+    return
+  end function matvec_prod_complex1
+
+  !
+  !
+  function matvec_prod_complex2(A, x, trans) result (b)
+    complex(drk), intent(in)  :: A(:,:)
+    real(drk), intent(in)     :: x(:)
+    logical, optional         :: trans
+
+    complex(drk)              :: b(size(x))
+    integer(sik)              :: i,j
+    logical                   :: matvec
+
+    if(present(trans)) then
+      matvec = trans
+    else
+      matvec = .true.
+    endif
+
+    b = zero_c
+
+    if(matvec) then
+      do i = 1,size(A,dim=1)
+        b(i) = dot_product(conjg(A(i,:)), cmplx(x))
+      enddo
+    else
+      do i = 1,size(A,dim=2)
+        b(i) = dot_product(conjg(A(:,i)), cmplx(x))
+      enddo
+    endif
+
+    return
+  end function matvec_prod_complex2
+
+  !
+  !
+  function matvec_prod_complex3(A, x, trans) result (b)
+    complex(drk), intent(in)  :: A(:,:)
+    complex(drk), intent(in)  :: x(:)
+    logical, optional         :: trans
+
+    complex(drk)              :: b(size(x))
+    integer(sik)              :: i,j
+    logical                   :: matvec
+
+    if(present(trans)) then
+      matvec = trans
+    else
+      matvec = .true.
+    endif
+
+    b = zero_c
+
+    if(matvec) then
+      do i = 1,size(A,dim=1)
+        b(i) = dot_product(conjg(A(i,:)), cmplx(x))
+      enddo
+    else
+      do i = 1,size(A,dim=2)
+        b(i) = dot_product(conjg(A(:,i)), cmplx(x))
+      enddo
+    endif
+
+    return
+  end function matvec_prod_complex3
 
   !
   !
@@ -448,6 +595,31 @@ module math
     deallocate(work)
     return
   end function inverse_gelss_complex
+
+  !
+  !
+  !
+  subroutine sym_eigen(a, vecs, vals)
+    real(drk), intent(in)          :: a(:,:)
+    real(drk), intent(out)         :: vecs(:,:)
+    real(drk), intent(out)         :: vals(:)
+
+    integer(sik)                   :: i, j
+    integer(ik)                    :: n, lwork, info
+    real(drk)                      :: work(5*size(vals))
+
+    lwork = size(work)
+    n     = size(a, dim=1)
+    if(n /= size(a,dim=2)) stop 'error in sym_eigen: non-square matrix'
+
+    vecs = a
+    call dsyev('V', 'L', n, vecs, n, vals, work, lwork, info)
+
+    if(info /=0) stop 'error in sym_eigen'
+
+    return
+  end subroutine sym_eigen
+
 
 end module math 
 

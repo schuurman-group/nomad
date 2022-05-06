@@ -203,7 +203,7 @@ def retrieve_adapt(file_name=None, name=0):
     # open chkpoint file
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
-    adapt_data = chkpt[dset][0:chkpt[adapt_name].attrs['current_row']]
+    adapt_data = chkpt[dset][0:chkpt[adapt_name].attrs['current_row']+1]
 
     chkpt.close()
 
@@ -314,10 +314,10 @@ def create_basis(chkpt, wfn, name=0):
         chkpt.create_dataset(dset, dshape, dtype=float, compression="gzip")
 
         # add initial trajectories with a 'born time' of 0
-        for i in range(wfn.n_traj()):
-            data_row  = package_adapt(wfn.time, wfn.traj[i], wfn.traj[i]) 
-            chkpt[adapt_name].attrs['current_row'] += 1         
-            chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
+        #for i in range(wfn.n_traj()):
+        #    data_row  = package_adapt(wfn.time, wfn.traj[i], wfn.traj[i]) 
+        #    chkpt[adapt_name].attrs['current_row'] += 1         
+        #    chkpt[dset][chkpt[adapt_name].attrs['current_row']] = data_row
         
     return
 
@@ -523,6 +523,7 @@ def write_wavefunction(chkpt, wfn, time, name=0):
                 d_shape  = (n_rows,) 
                 if h5py.check_dtype(vlen=wfn_type[data_label]) is None:
                     d_shape   =  d_shape   + wfn_data[data_label].shape
+                    print('dshape='+str(d_shape))
                 chkpt[dset].resize(d_shape)
             chkpt[dset][current_row] = wfn_data[data_label]
 
@@ -540,7 +541,7 @@ def write_wavefunction(chkpt, wfn, time, name=0):
 
     # now step through and write trajectories
     for i in range(n_traj):
-        write_trajectory(chkpt, wfn.traj[i], time)
+        write_trajectory(chkpt, wfn.traj[i])
 
 
 def write_integral(chkpt, integral, time, name=0):
@@ -590,12 +591,12 @@ def write_integral(chkpt, integral, time, name=0):
                      write_centroid(chkpt, integral.centroids[i][j], time)
 
 
-def write_trajectory(chkpt, traj, time, name=0):
+def write_trajectory(chkpt, traj, name=0):
     """Documentation to come"""
     # open the trajectory file
-    t_data   = package_trajectory(traj, time)
+    t_data   = package_trajectory(traj)
     t_label  = str(traj.label)
-    n_blk    = default_blk_size(time)
+    n_blk    = default_blk_size(traj.time)
     resize   = False
     grp_name = 'wavefunction.'+str(name)
 
@@ -749,17 +750,29 @@ def read_wavefunction(chkpt, time, name=0):
     for label in wfn_grps:
 
         # these are outputs of functions -- no place to put this data
-        if (label=='time' or label=='pop' or label=='energy'):
+        if (label=='time' or label=='energy'):
             continue
+
+        # set the population array
+        if label=='pop':
+            wfn.stpop = chkpt[wfn_name+'/pop'][read_row]
+
+        if label=='norm':
+            wfn.wfn_norm = chkpt[wfn_name+'/norm'][read_row,0]
 
         # if matrices are present, read those in
         if label in mat.mat_list:
             mat_raw = chkpt[wfn_name+'/'+label][read_row]
-            n       = math.sqrt(len(mat_raw))
-            if not math.isclose(n, int(n)):
+            if label == 'popwt':
+              n = math.sqrt(len(mat_raw)/nstates)
+              mshape = (int(n), int(n), nstates)
+            else:
+              n = math.sqrt(len(mat_raw))
+              mshape = (int(n), int(n))
+            if np.prod(list(mshape)) != len(mat_raw):
                 sys.exit('error retrieving matrices from '+ 
-                         'read_wavefunction: n not integer')
-            mat.set(label, np.reshape(mat_raw, (int(n),int(n)), order='F'))
+                  'read_wavefunction: '+str(mshape)+'!='+len(mat_raw))
+            mat.set(label, np.reshape(mat_raw, mshape, order='F'))
             continue
 
         # if we're here, we're reading a trajectory
@@ -853,6 +866,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj = None
     else:
         # set information about the trajectory itself
+        [time]               = chkpt[t_grp+'/time'][t_row]
         [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
         [parent, state]      = chkpt[t_grp+'/states'][t_row]
         [gamma]              = chkpt[t_grp+'/phase'][t_row]
@@ -875,6 +889,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         # currently, momentum has to be read in separately
         momt    = chkpt[t_grp+'/momentum'][t_row]
 
+        new_traj.time   = time
         new_traj.state  = int(state)
         new_traj.parent = int(parent)
         new_traj.update_amplitude(amp_real+1.j*amp_imag)
@@ -1015,13 +1030,22 @@ def package_adapt(time, parent, child):
 def package_wfn(wfn):
     """Documentation to come"""
     # dimensions of these objects are not time-dependent
+    # determine the populations
+
+    # hack
+    if wfn.pop() is None:
+        stpop    = np.zeros(glbl.properties['n_states'], dtype=float)
+    else:
+        stpop    = wfn.pop()
+
     wfn_data   = dict(
         time   = np.array([wfn.time], dtype='float'),
-        pop    = np.array(wfn.pop()),
+        pop    = stpop,
+        norm   = np.array([wfn.norm()], dtype='float'),
         energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
                            wfn.pot_classical(), wfn.kin_classical()]))
 
-    if glbl.properties['store_matrices'] and wfn.matrices is not None:
+    if glbl.properties['store_matrices']:
         avail_mat = wfn.matrices.avail()
         for label in wfn.matrices.avail():
             wfn_data[label] = wfn.matrices.matrix[label].flatten(order='F')
@@ -1029,6 +1053,7 @@ def package_wfn(wfn):
     wfn_types  = dict(
         time   = np.dtype('float'),
         pop    = np.dtype('float'),
+        norm   = np.dtype('float'),
         energy = np.dtype('float'),
         t      = h5py.special_dtype(vlen=np.dtype('complex')),
         v      = h5py.special_dtype(vlen=np.dtype('complex')),
@@ -1036,7 +1061,8 @@ def package_wfn(wfn):
         s      = h5py.special_dtype(vlen=np.dtype('complex')),
         s_traj = h5py.special_dtype(vlen=np.dtype('complex')),
         sdot   = h5py.special_dtype(vlen=np.dtype('complex')),
-        heff   = h5py.special_dtype(vlen=np.dtype('complex')))
+        heff   = h5py.special_dtype(vlen=np.dtype('complex')),
+        popwt  = h5py.special_dtype(vlen=np.dtype('float')))
 
     return wfn_data, wfn_types
 
@@ -1049,12 +1075,10 @@ def package_integral(integral, time):
     return int_data
 
 
-def package_trajectory(traj, time):
+def package_trajectory(traj):
     """Documentation to come"""
-    # time is not an element in a trajectory, but necessary to
-    # uniquely tag everything
     traj_data = dict(
-        time     = np.array([time],dtype='float'),
+        time     = np.array([traj.time],dtype='float'),
         amp      = np.array([traj.amplitude.real, traj.amplitude.imag]),
         phase    = np.array([traj.gamma]),
         states   = np.array([traj.parent, traj.state]),
@@ -1097,14 +1121,14 @@ def package_centroid(cent, time):
 def max_dset_size():
     """Return the maximum dataset size"""
     return max( default_blk_size(0.), 
-                3*int(glbl.properties['simulation_time'] / 
+                100*int(glbl.properties['simulation_time'] / 
                       glbl.properties['default_time_step']))
 
 def default_blk_size(time):
     """Documentation to come"""
     # let's just keep this to small default size: 25
     # need to look into optimizing this more
-    return 25
+    return 200 
 
 
 def isTrajectory(dset_name):
@@ -1264,6 +1288,8 @@ def generate_data_formats():
     bfile_names['t']         = 't.dat'
     bfile_names['v']         = 'v.dat'
     bfile_names['s']         = 's.dat'
+    bfile_names['s_nuc']     = 's_nuc.dat'
+    bfile_names['s_elec']    = 's_elec.dat'
     bfile_names['sdot']      = 'sdot.dat'
     bfile_names['h']         = 'h.dat'
     bfile_names['heff']      = 'heff.dat'

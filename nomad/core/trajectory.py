@@ -3,6 +3,7 @@ The Trajectory object and its associated functions.
 """
 import copy
 import numpy as np
+import nomad.core.glbl as glbl
 import nomad.core.timings as timings
 import nomad.core.surface as surface
 import nomad.common.constants as constants
@@ -41,6 +42,8 @@ class Trajectory:
         self.pos        = np.zeros(self.dim)
         # current momentum of the trajectory
         self.mom        = np.zeros(self.dim)
+        # current time 
+        self.time       = 0.
         # state trajectory exists on
         self.state      = 0
         # whether the trajectory is alive (i.e. contributes to the wavefunction)
@@ -65,6 +68,7 @@ class Trajectory:
         """Copys a Trajectory object with new references."""
         new_traj = Trajectory(self.nstates, self.dim, width=self.width, mass=self.mass,
                               label=self.label, parent=self.parent, kecoef=self.kecoef)
+        new_traj.time       = copy.copy(self.time)
         new_traj.state      = copy.copy(self.state)
         new_traj.alive      = copy.copy(self.alive)
         new_traj.amplitude  = copy.copy(self.amplitude)
@@ -115,6 +119,10 @@ class Trajectory:
     def update_p(self, mom):
         """Updates the momentum of the trajectory."""
         self.mom = np.array(mom)
+
+    def update_t(self, time):
+        """update the time -- needed to evluate gamma*t"""
+        self.time = time
 
     def update_phase(self, phase):
         """Updates the nuclear phase."""
@@ -255,8 +263,11 @@ class Trajectory:
     def phase_dot(self):
         """Returns time derivatives of the phase."""
         # d[gamma]/dt = T - V - alpha/(2M)
-        return (self.kinetic() - self.potential() -
+        if glbl.properties['phase_prop']:
+            return (self.kinetic() - self.potential() -
                 np.dot(self.widths(), self.kecoef) )
+        else:
+            return 0.
 
     def same_state(self, j_state):
         """Determines if a given state is the same as the trajectory state."""

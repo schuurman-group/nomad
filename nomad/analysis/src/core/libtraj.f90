@@ -4,8 +4,9 @@
 !
 ! M. S. Schuurman -- Dec. 27, 2019
 !
-module lib_traj
+module libtraj
   use accuracy
+  use timer
   use math
   implicit none
   private
@@ -17,6 +18,7 @@ module lib_traj
    public traj_table_exists
    public n_trajectories
    public n_batches
+   public n_states
 
    public traj_timestep_info
    public traj_retrieve_timestep
@@ -28,11 +30,6 @@ module lib_traj
    public tr_kinetic
    public tr_velocity
    public tr_force
-   public ref_overlap
-   public nuc_overlap
-   public nuc_density
-   public qn_integral
-   public qn_vector
    public traj_size
 
    private extract_trajectory
@@ -139,11 +136,11 @@ module lib_traj
   !
   !
   !
-  subroutine traj_create_table(n_grp, n_tot, n_states, n_dim, ref_width, ref_mass, x, p) bind(c, name='traj_create_table')
+  subroutine traj_create_table(n_grp, n_tot, n_st, n_dim, ref_width, ref_mass, x, p) bind(c, name='traj_create_table')
     integer(ik), intent(in)        :: n_grp ! number of trajectory "batches" -- generally derived
                                             ! from the same initial condition
     integer(ik), intent(in)        :: n_tot ! total number of trajectories
-    integer(ik), intent(in)        :: n_states ! number of electronic states
+    integer(ik), intent(in)        :: n_st ! number of electronic states
     integer(ik), intent(in)        :: n_dim ! dimension of the trajectories
     real(drk), intent(in)          :: ref_width(n_dim) ! widths of each degree of freedom
     real(drk), intent(in)          :: ref_mass(n_dim)  ! masses of each degree of freedom
@@ -153,7 +150,7 @@ module lib_traj
     n_batch = n_grp
     n_total = n_tot 
     n_crd   = n_dim
-    n_state = n_states
+    n_state = n_st
 
     ! allocate the basis set table
     allocate(basis_table(n_total))
@@ -193,6 +190,16 @@ module lib_traj
     n_traj = n_total
     return
   end function n_trajectories
+
+  !
+  ! number of states in the simulatoin
+  !
+  function n_states() result(nst)
+    integer(ik)                     :: nst
+
+    nst = n_state
+    return
+  end function n_states
 
   !
   ! return the number of batches
@@ -442,13 +449,16 @@ module lib_traj
     real(drk)                                  :: time_vec(size(basis_table))
     real(drk)                                  :: time_val
 
+    call TimerStart('locate_trajectories')
     ! go through table once to figure out how many trajectories
     ! exist at the requested time
     n_fnd = 0
     do i = 1,size(basis_table)
+      !print *,'req batch=',batch,' trajbatch=',basis_table(i)%batch
       ! skip if trajectory(i) is in wrong batch
       if(batch >= 0 .and. basis_table(i)%batch /= batch) cycle 
       call get_time_index(i, time, time_indx, time_val)
+      !print *,'time_indx=',time_indx
       if(time_indx /= -1) then
         n_fnd = n_fnd + 1
         table_indx(n_fnd)   = i
@@ -503,6 +513,7 @@ module lib_traj
       endif
     enddo
 
+    call TimerStop('locate_trajectories')
     return
   end subroutine locate_trajectories
 
@@ -549,23 +560,29 @@ module lib_traj
     integer(ik)                       :: sgn, dx1, dx2, tbnd1, tbnd2 
     integer(ik)                       :: i,j
 
+    call TimerStart('interpolate_trajectory')
     ! Polynomial regression using fit_order+1 points centered about the
     ! nearest time point 
     sgn   = int(sign(1.,time - basis_table(table_indx)%time(time_indx)))
     ! if fit_order is odd, take extra point in direction of requested time, i.e. sgn(time-t0)
     dx1   =  sgn*ceiling(0.5*fit_order)
     dx2   = -sgn*floor(0.5*fit_order)
-    if(time_indx+dx1 > basis_table(table_indx)%nsteps .or. &
-       time_indx+dx2 > basis_table(table_indx)%nsteps) then
-       dx1 = dx1 + min(0, basis_table(table_indx)%nsteps - (time_indx+dx2))
-       dx2 = dx2 + min(0, basis_table(table_indx)%nsteps - (time_indx+dx1))
+    tbnd1 = min(time_indx+dx1, time_indx+dx2)
+    tbnd2 = max(time_indx+dx1, time_indx+dx2)
+
+    ! if tbnd1 < 1, shift bounds to be in range
+    dx1 = 1 - tbnd1
+    if(dx1 > 0) then
+     tbnd1 = tbnd1 + dx1
+     tbnd2 = tbnd2 + dx1
     endif
-    if(time_indx+dx1 < 1 .or. time_indx+dx2 < 1) then
-       dx1 = dx1 - min(0, 1 - (time_indx+dx2))
-       dx2 = dx2 - min(0, 1 - (time_indx+dx1))
+
+    ! if tbnd2 > nsteps, shift bounds to be in range
+    dx1 = tbnd2 - basis_table(table_indx)%nsteps 
+    if(dx1 > 0) then
+     tbnd1 = tbnd1 - dx1
+     tbnd2 = tbnd2 - dx1
     endif
-    tbnd1 = max(min(time_indx+dx1, time_indx+dx2),1)
-    tbnd2 = min(max(time_indx+dx1, time_indx+dx2), basis_table(table_indx)%nsteps)
 
     if(tbnd2-tbnd1 /= fit_order) then
       stop 'insufficient data to interpolate trajectory'
@@ -594,6 +611,7 @@ module lib_traj
       enddo
     enddo
 
+    call TimerStop('interpolate_trajectory')
     return
   end subroutine interpolate_trajectory
 
@@ -785,133 +803,6 @@ module lib_traj
   end function tr_force
 
   !
-  ! compute the overlap with the reference trajectory
-  !
-  function ref_overlap(bra_t) result(S)
-    type(trajectory), intent(in)       :: bra_t
-    
-    complex(drk)                       :: S
-
-    S = nuc_overlap(bra_t, ref_traj)
-    return
-  end function ref_overlap
-
-  !
-  ! Computes _just_ the nuclear part of the overlap integral
-  !
-  function nuc_overlap(bra_t, ket_t) result(S)
-    type(trajectory), intent(in)       :: bra_t
-    type(trajectory), intent(in)       :: ket_t
-
-    complex(drk)                       :: S
-    real(drk)                          :: a1(n_crd)
-    real(drk)                          :: a2(n_crd)
-    real(drk)                          :: dx(n_crd)
-    real(drk)                          :: dp(n_crd)
-    real(drk)                          :: prefactor(n_crd)
-    real(drk)                          :: x_center(n_crd)
-    real(drk)                          :: real_part(n_crd)
-    real(drk)                          :: imag_part(n_crd)
-
-    a1        = bra_t%width
-    a2        = ket_t%width
-    dx        = bra_t%x - ket_t%x
-    dp        = bra_t%p - ket_t%p
-    prefactor = sqrt(2. * sqrt(a1*a2) / (a1+a2))
-    x_center  = (a1 * bra_t%x + a2 * ket_t%x) / (a1+a2)
-    real_part = (a1*a2*dx**2 + 0.25*dp**2) / (a1+a2)
-    imag_part = (bra_t%x * bra_t%p - ket_t%x * ket_t%p) - x_center * dp
-
-    S         = exp(I_drk * (ket_t%phase - bra_t%phase)) * product(prefactor) * &
-                exp(sum(-real_part + I_drk*imag_part))
-    
-    return
-  end function nuc_overlap
-
-  !
-  !
-  !
-  function nuc_density(bra_t, ket_t, pt) result(den)
-    type(trajectory), intent(in)        :: bra_t
-    type(trajectory), intent(in)        :: ket_t
-    real(drk)                           :: pt(n_crd)
-   
-    complex(drk)                        :: den
-    complex(drk)                        :: den_vec(n_crd)
-    real(drk)                           :: argr(n_crd)
-    real(drk)                           :: argi(n_crd)
-    real(drk)                           :: a1(n_crd)
-    real(drk)                           :: a2(n_crd)
- 
-    a1      = bra_t%width
-    a2      = ket_t%width
-    argr    = -a1*(pt - bra_t%x)**2   - a2*(pt - ket_t%x)**2
-    argi    = -bra_t%p*(pt - bra_t%x) + ket_t%p*(pt - ket_t%x)
-    den_vec = ((4*a1*a2/(pi**2))**0.25) * exp(argr + I_drk*argi)
-    den     = product(den_vec)
-
-    return
-  end function nuc_density
-
-
-  !
-  ! Returns the matrix element <cmplx_gaus(q,p)| q^N |cmplx_gaus(q,p)>
-  !   -- up to an overlap integral --
-  !
-  function qn_integral(n, a1, x1, p1, a2, x2, p2) result(qn_int)
-    integer(ik), intent(in)      :: n
-    real(drk), intent(in)        :: a1, x1, p1
-    real(drk), intent(in)        :: a2, x2, p2
-
-    complex(drk)                 :: qn_int
-    integer(ik)                  :: i, n_2
-    real(drk)                    :: a
-    complex(drk)                 :: b   
-    integer(ik)                  :: two_ik=2
-
-    n_2    = int(floor(0.5*n))
-    a      = a1+a2 
-    b      = 2.*(a1*x1 + a2*x2) - I_drk*(p1 - p2)
-
-    qn_int = zero_c
-
-    if (abs(b) < mp_drk) then
-      if (mod(n,2) == 0) then
-        qn_int = a**(-n_2) * factorial(n) / (factorial(n_2) * 2.**n)
-      endif
-      return
-    endif
-
-    do i = 0,n_2
-      qn_int = qn_int + a**(i-n) * b**(n-two_ik*i) / (factorial(i) * factorial(n-two_ik*i))
-    enddo
-    qn_int = qn_int * factorial(n) / 2.**n
-
-    return
-  end function qn_integral
-
-  !
-  ! Returns the matrix elements <cmplx_gaus(q1i,p1i)| q^N |cmplx_gaus(q2i,p2i)>
-  !
-  function qn_vector(n, bra_t, ket_t, S) result(qn_vec)
-    integer(ik), intent(in)      :: n
-    type(trajectory), intent(in) :: bra_t, ket_t
-    complex(drk), intent(in)        :: S
-
-    complex(drk)                 :: qn_vec(n_crd)
-    integer(ik)                  :: i
-
-    qn_vec = zero_c
-
-    do i = 1,n_crd
-      qn_vec(i) = S * qn_integral(n, bra_t%width(i), bra_t%x(i), bra_t%p(i), &
-                                     ket_t%width(i), ket_t%x(i), ket_t%p(i))
-    enddo
-
-    return
-  end function qn_vector
-
-  !
   ! computes the size of an array of trajectory objects, returns
   ! zero if array is unallocated
   !
@@ -928,5 +819,5 @@ module lib_traj
     return
   end function traj_size
 
-end module lib_traj
+end module libtraj
 

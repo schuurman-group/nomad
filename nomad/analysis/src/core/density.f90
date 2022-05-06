@@ -1,11 +1,17 @@
-!
+	
 ! libden
 !
 !
-module lib_den
+module density 
   use accuracy
   use math
-  use lib_traj
+  use libtraj
+  use gauss_ints
+  use saddlemod
+  use taylormod
+  use diracmod 
+  use lvc_exactmod
+  use lvc_mcamod
   implicit none
 
   private
@@ -74,6 +80,8 @@ module lib_den
 
       integer(ik)                              :: i,j,n_prim
       integer(ik)                              :: scr_vec(max_prim)
+      ! temp for now
+      integer(sik)                             :: int_method
 
       ! initialize random number generator
       call seed(rseed)
@@ -847,4 +855,4 @@ module lib_den
     end function cross_prod
 
 
-end module lib_den
+end module density 

@@ -27,8 +27,7 @@ def init():
         glbl.mpi['comm']  = MPI.COMM_WORLD
         glbl.mpi['rank']  = glbl.mpi['comm'].Get_rank()
         glbl.mpi['nproc'] = glbl.mpi['comm'].Get_size()
-
-    glbl.mpi['comm'].barrier()
+        glbl.mpi['comm'].barrier()
 
     # start the global timer
     timings.start('global')
@@ -78,7 +77,9 @@ def main():
         time_step = step.time_step(glbl.modules['wfn'].time)
 
         # propagate one step forward
+        print('stepping, time = '+str(glbl.modules['wfn'].time))
         step.step_wavefunction(time_step)
+        print('done.')
 
         # if no more live trajectories, simulation is complete
         if glbl.modules['wfn'].nalive == 0:

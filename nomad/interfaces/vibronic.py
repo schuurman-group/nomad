@@ -124,9 +124,51 @@ class VibHam:
         self.nterms = sum(active)
         self.coe    = coe[active]
         self.stalbl = stalbl[active]
-        self.mode   = np.array(mode)[active]
-        self.order  = np.array(order)[active]
+        self.mode   = [mode[i] for i in range(len(mode)) if active[i]]
+        #self.mode   = np.array(mode)[active]
+        self.order  = [order[i] for i in range(len(order)) if active[i]]
+        #self.order  = np.array(order)[active]
         self.mrange = [self.mlbl_total.index(lbl) for lbl in self.mlbl_active]
+
+    def package_vibham(self):
+        """Packages up the vibronic hamiltonian coefficients and parameters
+           into a set of exportable arrays. Currently only supports up to
+           second-order terms"""
+        omega = self.freq
+        nc    = len(omega)
+        nst   = np.amax(self.stalbl)
+
+        soterms = np.zeros((nc, nc, nst, nst), dtype=float)
+        foterms = np.zeros((nc, nst, nst), dtype=float)
+        scalars = np.zeros((nst, nst), dtype=float)
+        
+        for i in range(self.nterms):
+            cf  = self.coe[i]
+            # state labels run from 0
+            st  = self.stalbl[i] - 1
+            crd = self.mode[i]
+            exp = self.order[i]
+
+            # get order of term
+            ordr = sum(exp)
+
+            if ordr == 0:
+                scalars[st[0],st[1]] = cf
+                scalars[st[1],st[0]] = cf
+
+            elif ordr == 1:
+                foterms[crd, st[0], st[1]] = cf
+                foterms[crd, st[1], st[0]] = cf
+
+            elif ordr == 2:
+                if len(crd) == 2:
+                    crd2 = crd[1]
+                else:
+                    crd2 = crd[0]
+                soterms[crd[0], crd2, st[0], st[1]] = cf
+                soterms[crd[0], crd2, st[1], st[0]] = cf
+
+        return omega, soterms, foterms, scalars
 
 
 def init_interface():
@@ -203,8 +245,18 @@ def evaluate_trajectory(traj, t=None):
     t_data.add_data('diabat_hessian',diabderiv2)
 
     if glbl.methods['surface'] == 'adiabatic':
-        # Calculation of the adiabatic potential vector and ADT matrix
-        adiabpot, datmat = calc_dat(label, diabpot)
+
+        # grab the previous datmat variable to ensure
+        # phase continuity
+        if traj.check_pes_data('dat_mat'):
+            prev_datmat = traj.pes.get_data('dat_mat')
+        elif label in data_cache:
+            prev_datmat = data_cache[label].get_data('dat_mat')
+        else:
+            prev_datmat = None
+            
+        # Calculation of the diabatic potential vector and ADT matrix
+        adiabpot, datmat = calc_dat(diabpot, prev_datmat=prev_datmat)
 
         # Calculation of the NACT matrix
         nactmat = calc_nacts(adiabpot, datmat, diabderiv1)
@@ -363,19 +415,20 @@ def calc_diabpot(q):
     return diabpot
 
 
-def calc_dat(label, diabpot):
+def calc_dat(diabpot, prev_datmat=None):
     """Diagonalises the diabatic potential matrix to yield the adiabatic
     potentials and the adiabatic-to-diabatic transformation matrix."""
     adiabpot, datmat = sp_linalg.eigh(diabpot)
 
-    if label in data_cache:
-        # Ensure phase continuity from geometry to another
-        datmat *= np.sign(np.dot(datmat.T, data_cache[label].get_data('dat_mat').diagonal()))
-    else:
+    if prev_datmat is None:
         # Set phase convention that the greatest abs element in dat column
         # vector is positive
         datmat *= np.sign(datmat[range(len(adiabpot)),
                                  np.argmax(np.abs(datmat), axis=0)])
+    else:
+        # Ensure phase continuity from geometry to another
+        datmat *= np.sign(np.dot(datmat.T, prev_datmat).diagonal())
+
     return adiabpot, datmat
 
 

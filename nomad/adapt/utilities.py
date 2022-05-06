@@ -6,20 +6,19 @@ import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 
-
-def adjust_momentum(traj, target_energy, scale_dir):
+def adjust_child(parent, child, scale_dir):
     """Adjust the child momentum so that child and parent have the same
-    energy. Takes a trajectory, the target total energy and the scale
-    direction as arguments.
-
+    energy
     1. First try to scale the momentum along the NAD vector direction
     2. If that fails, scale the momentum uniformly
     """
-    e_traj  = traj.classical()
+    e_parent = parent.classical()
+    e_child  = child.classical()
 
     # determine the magnitude of the KE correction
-    ke_goal = target_energy - traj.potential()
-    ke_traj = traj.kinetic()
+    ke_goal  = e_parent - child.potential()
+    ke_child = child.kinetic()
+
     if ke_goal < 0:
         return False
 
@@ -33,20 +32,19 @@ def adjust_momentum(traj, target_energy, scale_dir):
         scale_vec = np.ones(len(scale_dir))
         scale_vec = scale_vec / np.linalg.norm(scale_vec)
 
-    p_traj = traj.p()
+    p_child = child.p()
     # scale the momentum along the scale_vec direction
-    p_para = np.dot(p_traj, scale_vec) * scale_vec
-    p_perp = p_traj - p_para
+    p_para = np.dot(p_child, scale_vec) * scale_vec
+    p_perp = p_child - p_para
 
     # the kinetic energy is given by:
     # KE = (P . P) * / (2M)
     #    = (x * p_para + p_perp).(x * p_para + p_perp) / (2M)
     #    = x^2 * (p_para.p_para) / 2M + 2.*x*(p_para.p_perp) / 2M + (p_perp.p_perp) / 2M
     #    = x^2 * KE_para_para + x * KE_para_perp + KE_perp_perp
-    inv_mass     = 1. / (2. * traj.masses())
-    ke_para_para =     np.dot( p_para, p_para * inv_mass )
-    ke_para_perp = 2.* np.dot( p_para, p_perp * inv_mass )
-    ke_perp_perp =     np.dot( p_perp, p_perp * inv_mass )
+    ke_para_para =     np.dot( p_para, p_para * child.kecoef )
+    ke_para_perp = 2.* np.dot( p_para, p_perp * child.kecoef )
+    ke_perp_perp =     np.dot( p_perp, p_perp * child.kecoef )
 
     # scale p_para by x so that KE == ke_goal
     # (ke_para_para)*x^2 + (ke_para_perp)*x + (ke_perp_perp - ke_goal) = 0
@@ -68,10 +66,9 @@ def adjust_momentum(traj, target_energy, scale_dir):
 
     p_new = x*p_para + p_perp
 
-    traj.update_p(p_new)
+    child.update_p(p_new)
 
     return True
-
 
 def overlap_with_wfn(traj, wfn):
     """Checks if trajectory has significant overlap with any trajectories

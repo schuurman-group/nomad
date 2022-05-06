@@ -63,7 +63,7 @@ def adapt(wfn0, wfn, dt):
             if spawn_trajectory(wfn, i, st, coup_hist[i][st,:],
                                 current_time):
 
-                # we're going to messing with this trajectory -- mess with a copy
+                # we're going to mess with this trajectory -- mess with a copy
                 parent = wfn.traj[i].copy()
 
                 # propagate the parent forward in time until coupling maximized
@@ -91,7 +91,8 @@ def adapt(wfn0, wfn, dt):
                                                  ['overlap with wfn too large'])
 
     # after spawning, let all processes re-synchronize
-    glbl.mpi['comm'].barrier()
+    if glbl.mpi['parallel']:
+        glbl.mpi['comm'].barrier()
 
     # let caller known if the basis has been changed
     return basis_grown
@@ -117,9 +118,9 @@ def spawn_forward(parent, child_state, initial_time, dt):
         coup[0]             = abs(parent.coupling(parent_state, child_state))
         child_attempt       = parent.copy()
         child_attempt.state = child_state
-        adjust_success      = utils.adjust_momentum(child_attempt, parent.classical()
-                                                    parent.derivative(parent_state,
-                                                                      child_state))
+        adjust_success      = utils.adjust_child(parent, child_attempt,
+                                                 parent.derivative(parent_state,
+                                                                   child_state))
         sij = abs(glbl.modules['integrals'].nuc_overlap(parent, child_attempt))
 
         # if the coupling has already peaked, either we exit with a successful

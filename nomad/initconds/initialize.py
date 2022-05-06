@@ -53,6 +53,12 @@ def init_wavefunction():
                                                    glbl.methods['ansatz'],
                                                    glbl.methods['integral_eval'])
 
+    # this is a temporary hack
+    if glbl.methods['integral_eval'] == 'lvc_exact':
+        glbl.modules['integrals'].ints.init_parameters(
+                                   glbl.properties['crd_widths'])
+
+
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
 
@@ -282,7 +288,12 @@ def set_initial_amplitudes(wfn):
     """Sets the initial amplitudes."""
     # if init_amp_overlap is set, overwrite 'amplitudes' that was
     # set in nomad.input
-    if glbl.properties['init_amp_overlap']:
+
+    # initial conditions are explicitly specified, ignore init_amp_overlap
+    # as the geometry is not the "origin"
+    init_mod  = glbl.modules['init_conds'].__name__
+    init_type = init_mod[init_mod.rfind('.')+1:]
+    if glbl.properties['init_amp_overlap'] and init_type != 'explicit':
         origin = make_origin_traj()
 
         # Calculate the initial expansion coefficients via projection onto
@@ -300,10 +311,12 @@ def set_initial_amplitudes(wfn):
         sinv = sp_linalg.pinvh(smat)
         glbl.properties['init_amps'] = np.dot(sinv, ovec)
 
-    # if we didn't set any amplitudes, set them all equal -- normalization
+    # if we didn't set any amplitudes, set them all equal, normalization
     # will occur later
-    elif len(glbl.properties['init_amps']) == 0:
-        glbl.properties['init_amps'] = np.ones(wfn.n_traj(),dtype=complex)
+    elif not isinstance(glbl.properties['init_amps'],
+                                               (list, np.ndarray)):
+        glbl.properties['init_amps'] = np.ones(wfn.n_traj(),
+                                               dtype=complex)
 
     # if we don't have a sufficient number of amplitudes, append
     # amplitudes with "zeros" as necesary

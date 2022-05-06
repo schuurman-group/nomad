@@ -14,11 +14,11 @@ module accuracy
     integer, parameter :: rk          = selected_real_kind(14,17)  ! Standard reals and complex
     integer, parameter :: ark         = selected_real_kind(14,17)  ! Possible increased precision reals and complex
 
-    complex(drk),parameter        :: zero_c   = (0., 0.)
-    complex(drk),parameter        :: one_c    = (1., 0.)
-    complex(drk),parameter        :: I_drk    = (0., 1.)
-    real(drk),parameter           :: zero_drk = 0.
-    real(drk),parameter           :: one_drk  = 1.
+    complex(drk),parameter        :: zero_c   = (0.d0, 0.d0)
+    complex(drk),parameter        :: one_c    = (1.d0, 0.d0)
+    complex(drk),parameter        :: I_drk    = (0.d0, 1.d0)
+    real(drk),parameter           :: zero_drk = 0.d0
+    real(drk),parameter           :: one_drk  = 1.d0
     integer(ik),parameter         :: zero_ik  = 0
     integer(ik),parameter         :: one_ik   = 1
     real(drk),parameter           :: mp_drk   = 1.e-16

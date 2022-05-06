@@ -15,3 +15,5 @@ au2ev    = 27.21138505
 au2cm    = 219474.63
 # floating point zero
 fpzero   = 1.e-10
+# Euler-Mascheroni constant
+euler = 0.577215664901532860606512090082

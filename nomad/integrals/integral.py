@@ -25,10 +25,15 @@ class Integral:
             self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+
                                         '_'+str(self.numerical),fromlist=['a'])
         else:
-            self.ints      = __import__('nomad.integrals.'+str(self.ansatz),
-                                        fromlist=['a'])
             self.ints_eval = __import__('nomad.integrals.'+str(self.ansatz)+
                                         '_'+str(self.numerical),fromlist=['a'])
+
+            # this is a temporary hack
+            if str(self.numerical) != 'lvc_exact':
+                self.ints = __import__('nomad.integrals.'+str(self.ansatz),
+                                        fromlist=['a'])
+            else:
+                self.ints = self.ints_eval
 
         self.hermitian            = self.ints.hermitian
         self.require_centroids    = self.ints_eval.require_centroids
@@ -69,8 +74,7 @@ class Integral:
         if elec_ovrlp is None:
             elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
 
-        return self.ints.t_integral(bra_traj, ket_traj, self.kecoef,
-                                    nuc_ovrlp, elec_ovrlp)
+        return self.ints.t_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
     def v_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
@@ -85,10 +89,10 @@ class Integral:
         if self.require_centroids:
             return self.ints_eval.v_integral(bra_traj, ket_traj,
                                         self.centroids[bra_traj.label][ket_traj.label],
-                                        self.kecoef, nuc_ovrlp, elec_ovrlp)
+                                             nuc_ovrlp, elec_ovrlp)
         else:
             return self.ints_eval.v_integral(bra_traj, ket_traj,
-                                             self.kecoef, nuc_ovrlp, elec_ovrlp)
+                                             nuc_ovrlp, elec_ovrlp)
 
     @timings.timed
     def sdot_integral(self, bra_traj, ket_traj, nuc_ovrlp=None, elec_ovrlp=None):
@@ -100,6 +104,16 @@ class Integral:
             elec_ovrlp = self.ints.elec_overlap(bra_traj, ket_traj)
 
         return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
+
+
+    @timings.timed
+    def popwt_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
+        """Calculates the population contribution to each state for pair of trajectories."""
+        if nuc_ovrlp is None:
+            nuc_ovrlp = self.ints.nuc_overlap(bra_traj, ket_traj)
+
+        return self.ints.popwt(bra_traj, ket_traj, nuc_ovrlp)
+
 
     def wfn_overlap(self, bra_wfn, ket_wfn):
         """Calculates the overall wavefunction overlap."""
