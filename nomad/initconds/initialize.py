@@ -73,7 +73,6 @@ def init_wavefunction():
         if glbl.mpi['parallel']:
             # synchronize tasks
             glbl.mpi['comm'].barrier()
-            glbl.modules['integrals'] = glbl.mpi['comm'].bcast(glbl.modules['integrals'], root=0)
             glbl.modules['wfn']       = glbl.mpi['comm'].bcast(glbl.modules['wfn'], root=0)
             wfn0                      = glbl.mpi['comm'].bcast(wfn0, root=0)
             if glbl.modules['integrals'].require_centroids:

@@ -854,7 +854,9 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
 
         # if MOs are present as an attribute, read them in
         if 'mo' in chkpt[t_grp].attrs.keys():
-            mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[t_grp].attrs['mo']]
+            mo_decode = [mo if type(mo) is str else 
+                           mo.decode("utf-8","ignore") 
+                              for mo in chkpt[t_grp].attrs['mo']]
             pes.add_data('mo', mo_decode)
 
         # currently, momentum has to be read in separately
@@ -890,8 +892,9 @@ def read_centroid(chkpt, new_cent, c_grp, c_row):
 
         # if MOs are present as an attribute, read them in
         if 'mo' in chkpt[c_grp].attrs.keys():
-            mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[c_grp].attrs['mo']]
-            pes.add_data('mo', mo_decode)
+            mo_decode = [mo if type(mo) is str else 
+                           mo.decode("utf-8","ignore") 
+                              for mo in chkpt[t_grp].attrs['mo']]
 
         # currently, momentum has to be read in separately
         momt    = chkpt[c_grp+'/momentum'][c_row]
