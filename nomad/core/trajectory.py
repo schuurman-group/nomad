@@ -27,12 +27,13 @@ class Trajectory:
             self.mass = np.zeros(dim)
         else:
             self.mass = np.array(mass)
-       # the prefactor on the kinetic energy term: default to 1/2M
-        if len(np.nonzero(self.mass)) == len(self.mass) and kecoef is None:
+
+        # the prefactor on the kinetic energy term: default to 1/2M
+        if len(np.nonzero(self.mass)[0]) == len(self.mass) and kecoef is None:
             self.kecoef = 0.5 / self.mass
         else:
             self.kecoef = kecoef
-
+     
         # unique identifier for trajectory
         self.label      = label
         # trajectory that spawned this one:

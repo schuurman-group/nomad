@@ -495,15 +495,22 @@ def convert_value(kword, val):
 
 def write_wavefunction(chkpt, wfn, time, name=0):
     """Documentation to come"""
-    wfn_data,wfn_type = package_wfn(wfn)
     n_traj            = wfn.n_traj()
     n_blk             = default_blk_size(time)
     resize            = False
-    wfn_name          = 'wavefunction.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'wavefunction.'+str(name) in chkpt:
+        wfn_name = 'wavefunction.'+str(name)
+        wfn_data,wfn_type = package_wfn(wfn)
+    else:
+        wfn_name = 'wavefunction'
+        wfn_data,wfn_type = package_wfn_old(wfn)
 
     # if wfn doesn't exist, add it on the fly
     if wfn_name not in chkpt.keys():
-        create_wfn(chkpt, name=name)
+        create_wfn(chkpt, wfn, name=name)
 
     # update the current row index (same for all data sets)
     chkpt[wfn_name].attrs['current_row'] += 1
@@ -546,10 +553,17 @@ def write_wavefunction(chkpt, wfn, time, name=0):
 
 def write_integral(chkpt, integral, time, name=0):
     """Documentation to come"""
-    int_data = package_integral(integral, time)
     n_blk    = default_blk_size(time)
     resize   = False
-    int_name = 'integral.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'integral.'+str(name) in chkpt:
+        int_name = 'integral.'+str(name)
+        int_data = package_integral(integral, time)
+    else:
+        int_name = 'integral'
+        int_data = package_integral_old(integral, time)
 
     # if integral doesn't exist, add it on the fly
     if int_name not in chkpt.keys():
@@ -594,11 +608,20 @@ def write_integral(chkpt, integral, time, name=0):
 def write_trajectory(chkpt, traj, name=0):
     """Documentation to come"""
     # open the trajectory file
-    t_data   = package_trajectory(traj)
     t_label  = str(traj.label)
     n_blk    = default_blk_size(traj.time)
     resize   = False
-    grp_name = 'wavefunction.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'wavefunction.'+str(name) in chkpt:
+        grp_name = 'wavefunction.'+str(name)
+        old_style = False
+        t_data   = package_trajectory(traj)
+    else:
+        grp_name = 'wavefunction'
+        old_style = True
+        t_data   = package_trajectory_old(traj, traj.time)
 
     # if trajectory group already exists, just append current
     # time information to existing datasets
@@ -657,11 +680,19 @@ def write_trajectory(chkpt, traj, name=0):
 def write_centroid(chkpt, cent, time, name=0):
     """Documentation to come"""
     # open the trajectory file
-    c_data  = package_centroid(cent, time)
     c_label = str(cent.label)
     n_blk   = default_blk_size(time)
     resize  = False
     grp_name = 'integral.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'integral.'+str(name) in chkpt:
+        grp_name = 'integral.'+str(name)
+        c_data  = package_centroid(cent, time)
+    else:
+        grp_name = 'integral'
+        c_data  = package_centroid_old(cent, time)
 
     # if trajectory group already exists, just append current
     # time information to existing datasets
@@ -1098,7 +1129,6 @@ def package_trajectory(traj):
 
     return traj_data
 
-
 def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
@@ -1117,6 +1147,78 @@ def package_centroid(cent, time):
         cent_data[obj] = cent.pes.get_data(obj)
 
     return cent_data
+
+def package_wfn_old(wfn):
+    """Documentation to come"""
+    # dimensions of these objects are not time-dependent
+    wfn_data = dict(
+        time   = np.array([wfn.time], dtype='float'),
+        pop    = np.array(wfn.pop()),
+        energy = np.array([wfn.pot_quantum(),   wfn.kin_quantum(),
+                           wfn.pot_classical(), wfn.kin_classical()])
+                    )
+
+    wfn_types  = dict(
+        time   = np.dtype('float'),
+        pop    = np.dtype('float'),
+        energy = np.dtype('float'))
+
+    return wfn_data, wfn_types
+
+
+def package_integral_old(integral, time):
+    """Documentation to come"""
+    int_data = dict(
+        time = np.array([time],dtype='float')
+                    )
+    return int_data
+
+
+def package_trajectory_old(traj, time):
+    """Documentation to come"""
+    # time is not an element in a trajectory, but necessary to
+    # uniquely tag everything
+    traj_data = dict(
+        time     = np.array([time],dtype='float'),
+        glbl     = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
+                                 traj.amplitude.real, traj.amplitude.imag]),
+                                 traj.last_spawn)),
+        momentum = traj.p()
+                    )
+
+    # store everything about the surface
+    for obj in traj.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
+        traj_data[obj] = traj.pes.get_data(obj)
+
+    return traj_data
+
+
+def package_centroid_old(cent, time):
+    """Documentation to come"""
+    cent_data = dict(
+        time     = np.array([time],dtype='float'),
+        glbl     = np.concatenate((cent.parents, cent.states)),
+        momentum = cent.p()
+                     )
+
+    # last, store everything about the surface
+    for obj in cent.pes.avail_data():
+
+        # don't write MOs as a time-dependent dataset
+        if obj == 'mo':
+            continue
+
+        cent_data[obj] = cent.pes.get_data(obj)
+
+    return cent_data
+
+
+
 
 def max_dset_size():
     """Return the maximum dataset size"""

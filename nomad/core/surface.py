@@ -103,10 +103,10 @@ def update_pes(wfn, update_integrals=True):
         local_results = []
 
         for i in range(len(exec_list)):
-            if exec_list[i][0] is 'traj':
+            if exec_list[i][0] == 'traj':
                 print('rank='+str(glbl.mpi['rank'])+' evaluate_trajectory, label='+str(exec_list[i][1].label))
                 pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], t=wfn.time)
-            elif exec_list[i][0] is 'cent':
+            elif exec_list[i][0] == 'cent':
                 pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], t=wfn.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
