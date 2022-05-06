@@ -721,7 +721,13 @@ def read_wavefunction(chkpt, time, name=0):
     widths   = glbl.properties['crd_widths']
     masses   = glbl.properties['crd_masses']
     dim      = len(widths)
-    wfn_name = 'wavefunction.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'wavefunction.'+str(name) in chkpt: 
+        wfn_name = 'wavefunction.'+str(name)
+    else:
+        wfn_name = 'wavefunction'
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, wfn_name, time)
@@ -786,7 +792,13 @@ def read_integral(chkpt, time, name=0):
     dim      = len(widths)
     ansatz   = glbl.methods['ansatz']
     numerics = glbl.methods['integral_eval'] 
-    int_name = 'integral.'+str(name)
+
+    # this is a little hack to ensure backwards compatibility
+    # we should eventually do away with this
+    if 'integral.'+str(name) in chkpt:
+        int_name = 'integral.'+str(name)
+    else:
+        int_name = 'integral'
 
     # return None if no integrals section
     if int_name not in chkpt:
@@ -835,10 +847,6 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     if t_row > chkpt[t_grp].attrs['current_row']:
         new_traj = None
     else:
-        # set the kecoef vector by reading the appropriate
-        # trajectory attribute
-        new_traj.set_kecoef(chkpt[t_grp].attrs['kecoef'])
-
         # set information about the trajectory itself
         [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
         [parent, state]      = chkpt[t_grp+'/states'][t_row]
@@ -1067,7 +1075,7 @@ def isTrajectory(dset_name):
 
 
 def isWfn(dset_name):
-    """ returns true is a dset is a valid name for a trajectory"""
+    """ returns true is a dset is a valid name for a wavefunction"""
     return 'wavefunction' in dset_name
 
 
