@@ -726,8 +726,10 @@ def read_wavefunction(chkpt, time, name=0):
     # we should eventually do away with this
     if 'wavefunction.'+str(name) in chkpt: 
         wfn_name = 'wavefunction.'+str(name)
+        old_style = False
     else:
         wfn_name = 'wavefunction'
+        old_style = True
 
     # check that we have the desired time:
     read_row = get_time_index(chkpt, wfn_name, time)
@@ -771,7 +773,10 @@ def read_wavefunction(chkpt, time, name=0):
                                          width=widths,
                                          mass=masses,
                                          label=label)
-        read_trajectory(chkpt, new_traj, t_grp, t_row)
+        if old_style:
+            read_trajectory_old(chkpt, new_traj, t_grp, t_row)
+        else:
+            read_trajectory(chkpt, new_traj, t_grp, t_row)
 
         # if there was an error reading the trajectory, return None
         if new_traj is None:
@@ -874,6 +879,42 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj.parent = int(parent)
         new_traj.update_amplitude(amp_real+1.j*amp_imag)
         new_traj.last_spawn = last_adapt
+
+        new_traj.update_pes_info(pes)
+        new_traj.update_x(new_traj.pes.get_data('geom'))
+        new_traj.update_p(momt)
+
+
+def read_trajectory_old(chkpt, new_traj, t_grp, t_row):
+    """Documentation to come"""
+    # populate the surface object in the trajectory
+
+    # if this time step doesn't exist, return null trajectory
+    if t_row > len(chkpt[t_grp+'/glbl'])-1:
+        new_traj = None
+    else:
+        # set information about the trajectory itself
+        data_row = chkpt[t_grp+'/glbl'][t_row]
+        [parent, state, new_traj.gamma, amp_real, amp_imag] = data_row[0:5]
+
+        pes = surface.Surface()
+        for data_label in chkpt[t_grp].keys():
+            if pes.valid_data(data_label):
+                dset = chkpt[t_grp+'/'+data_label]
+                pes.add_data(data_label, dset[t_row])
+
+        # if MOs are present as an attribute, read them in
+        if 'mo' in chkpt[t_grp].attrs.keys():
+            mo_decode = [mo_i.decode("utf-8","ignore") for mo_i in chkpt[t_grp].attrs['mo']]
+            pes.add_data('mo', mo_decode)
+
+        # currently, momentum has to be read in separately
+        momt    = chkpt[t_grp+'/momentum'][t_row]
+
+        new_traj.state  = int(state)
+        new_traj.parent = int(parent)
+        new_traj.update_amplitude(amp_real+1.j*amp_imag)
+        new_traj.last_spawn = data_row[5:]
 
         new_traj.update_pes_info(pes)
         new_traj.update_x(new_traj.pes.get_data('geom'))

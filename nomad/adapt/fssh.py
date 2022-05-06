@@ -14,8 +14,8 @@ import numpy as np
 import scipy as sp 
 import nomad.core.glbl as glbl
 import nomad.core.log as log
-import nomad.math.constants as constants
-import nomad.math.linalg as lalg
+import nomad.common.constants as constants
+import nomad.common.linalg as lalg
 import nomad.adapt.utilities as utils
 
 a_cache = None 

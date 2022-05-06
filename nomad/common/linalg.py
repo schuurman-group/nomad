@@ -3,7 +3,7 @@ Linear algebra library routines.
 """
 import numpy as np
 import nomad.core.glbl as glbl
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 
 def normalize(vec):
     """function that returns a normalized copy of vec"""
