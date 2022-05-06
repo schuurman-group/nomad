@@ -1021,6 +1021,7 @@ def package_trajectory(traj, time):
         momentum = traj.p()
                     )
 
+
     # store everything about the surface
     for obj in traj.pes.avail_data():
 
