@@ -77,7 +77,8 @@ def init_interface():
     restart_path  = glbl.paths['cwd']+'/restart'
     # ...but each process has it's own work directory
     work_path     = glbl.paths['cwd']+'/work.'+str(glbl.mpi['rank'])
-
+    print('rank='+str(glbl.mpi['rank'])+' workpath='+work_path, flush=True)  
+ 
     # set atomic symbol, number, mass,
     natm    = len(glbl.properties['crd_labels']) // p_dim
     a_sym   = glbl.properties['crd_labels'][::p_dim]

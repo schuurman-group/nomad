@@ -69,7 +69,7 @@ import os.path as path
 import scipy as scipy
 import scipy.integrate as integrate
 import nomad.core.glbl as glbl
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.interfaces.vibronic as vibronic
 import nomad.compiled.nuclear_gaussian as nuclear
 
