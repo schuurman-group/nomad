@@ -14,8 +14,8 @@ import numpy as np
 import nomad.core.glbl as glbl
 import nomad.core.wavefunction as wavefunction
 import nomad.core.checkpoint as checkpoint
-import nomad.analysis.interface.libutils as libutils
-import nomad.analysis.interface.proputils as proputils
+import nomad.post.interface.libutils as libutils
+import nomad.post.interface.proputils as proputils
 
 
 chkpt_file    = ''

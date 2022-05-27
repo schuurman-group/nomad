@@ -88,43 +88,47 @@ def update_pes(wfn, update_integrals=True):
                 if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
                     exec_list.append(['traj',wfn.traj[i]])
 
-        if update_integrals and glbl.modules['integrals'].require_centroids:
-            # now update electronic structure in a controled way to allow for
-            # parallelization
+        if (update_integrals and 
+                           glbl.modules['integrals'].require_centroids):
+            # now update electronic structure in a controled way to 
+            # allow for parallelization
             for i in range(wfn.n_traj()):
                 for j in range(i):
-                    if glbl.modules['integrals'].centroid_required[i][j] and not \
-                                             cached(glbl.modules['integrals'].centroids[i][j].label,
-                                                    glbl.modules['integrals'].centroids[i][j].x()):
+                    creq = glbl.modules['integrals'].centroid_required[i][j]
+                    cent = glbl.modules['integrals'].centroids[i][j]
+                    lbl  = cent.label
+                    cgm  = cent.x()
+                    if creq and not cached(lbl, cgm):
                         n_total += 1
                         if n_total % glbl.mpi['nproc'] == glbl.mpi['rank']:
-                            exec_list.append(['cent',glbl.modules['integrals'].centroids[i][j]])
+                            exec_list.append(['cent', cent])
 
         local_results = []
 
         for i in range(len(exec_list)):
             if exec_list[i][0] == 'traj':
-                print('rank='+str(glbl.mpi['rank'])+' evaluate_trajectory, label='+str(exec_list[i][1].label))
-                pes_calc = glbl.modules['interface'].evaluate_trajectory(exec_list[i][1], t=wfn.time)
+                pes_new = glbl.modules['interface'].evaluate_trajectory(
+                                            exec_list[i][1], t=wfn.time)
             elif exec_list[i][0] == 'cent':
-                pes_calc = glbl.modules['interface'].evaluate_centroid(exec_list[i][1], t=wfn.time)
+                pes_new = glbl.modules['interface'].evaluate_centroid(
+                                            exec_list[i][1], t=wfn.time)
             else:
                 raise TypeError('type='+str(type(exec_list[i]))+
                                 'not recognized')
                 pes_calc = None
-            local_results.append([exec_list[i][1].label,pes_calc])
+            local_results.append([exec_list[i][1].label,pes_new])
 
         global_results = glbl.mpi['comm'].allgather(local_results)
 
         # organize results into a single unique list
         result_list = []
         for rank_result in global_results:
-            for icalc in range(len(rank_result)):
-                result_list.append(rank_result[icalc])        
+            for iresult in range(len(rank_result)):
+                result_list.append(rank_result[iresult])        
 
         # update the cache
-        for iresult in result_list:
-            pes_cache[iresult[0]] = iresult[1]
+        for [lbl, pes] in result_list:
+            pes_cache[lbl] = pes
 
         # update the bundle:
         # live trajectories
@@ -133,7 +137,8 @@ def update_pes(wfn, update_integrals=True):
                 wfn.traj[i].update_pes_info(pes_cache[wfn.traj[i].label])
 
         # and centroids
-        if update_integrals and glbl.modules['integrals'].require_centroids:
+        creq = glbl.modules['integrals'].require_centroids
+        if update_integrals and creq:
             for i in range(wfn.n_traj()):
                 for j in range(i):
                     c_label = glbl.modules['integrals'].centroids[i][j].label
@@ -162,15 +167,15 @@ def update_pes(wfn, update_integrals=True):
                 for j in range(i):
                 # if centroid not initialized, skip it
                     if glbl.modules['integrals'].centroid_required[i][j]:
-                        if not cached(glbl.modules['integrals'].centroids[i][j].label,
-                                      glbl.modules['integrals'].centroids[i][j].x()):
+                        cent = glbl.modules['integrals'].centroids[i][j]
+                        if not cached(cent.label, cent.x()):
                             pes_centij = glbl.modules['interface'].evaluate_centroid(
-                                         glbl.modules['integrals'].centroids[i][j], wfn.time)
+                                         cent, wfn.time)
                         else:
-                            pes_centij = pes_cache[glbl.modules['integrals'].centroids[i][j].label]
+                            pes_centij = pes_cache[cent.label]
                         glbl.modules['integrals'].centroids[i][j].update_pes_info(pes_centij)
                         glbl.modules['integrals'].centroids[j][i] = glbl.modules['integrals'].centroids[i][j]
-                        pes_cache[glbl.modules['integrals'].centroids[i][j].label] = pes_centij
+                        pes_cache[cent.label] = pes_centij
 
     return success
 

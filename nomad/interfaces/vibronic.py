@@ -171,7 +171,7 @@ class VibHam:
         return omega, soterms, foterms, scalars
 
 
-def init_interface():
+def init_interface(print_opinfo=True):
     """Reads the operator file.
 
     Note that the order of active modes is determined by the init_coords
@@ -190,29 +190,30 @@ def init_interface():
     ham.rdoperfile(glbl.vibronic['opfile'])
 
     # Ouput some information about the Hamiltonian
-    log.print_message('string', ['*'*72])
-    log.print_message('string',
+    if print_opinfo:
+        log.print_message('string', ['*'*72])
+        log.print_message('string',
                              ['* Vibronic Coupling Hamiltonian Information'])
-    log.print_message('string', ['*'*72])
-    log.print_message('string',
+        log.print_message('string', ['*'*72])
+        log.print_message('string',
                              ['Operator file: ' + glbl.vibronic['opfile']])
-    log.print_message('string',
+        log.print_message('string',
                              ['Number of Hamiltonian terms: ' + str(ham.nterms)])
-    string = 'Total no. modes: ' + str(ham.nmode_total)
-    log.print_message('string', [string])
-
-    string = 'No. active modes: ' + str(ham.nmode_active)
-    log.print_message('string', [string])
-
-    log.print_message('string', ['Active mode labels:'])
-    for i in range(ham.nmode_active):
-        string = str(i+1) + ' ' + ham.mlbl_active[i]
+        string = 'Total no. modes: ' + str(ham.nmode_total)
         log.print_message('string', [string])
 
-    log.print_message('string', ['Active mode frequencies (a.u.):'])
-    for i in range(ham.nmode_active):
-        string = str(i+1) + ' ' + str(ham.freq[i])
+        string = 'No. active modes: ' + str(ham.nmode_active)
         log.print_message('string', [string])
+
+        log.print_message('string', ['Active mode labels:'])
+        for i in range(ham.nmode_active):
+            string = str(i+1) + ' ' + ham.mlbl_active[i]
+            log.print_message('string', [string])
+
+        log.print_message('string', ['Active mode frequencies (a.u.):'])
+        for i in range(ham.nmode_active):
+            string = str(i+1) + ' ' + str(ham.freq[i])
+            log.print_message('string', [string])
 
 
 def evaluate_trajectory(traj, t=None):

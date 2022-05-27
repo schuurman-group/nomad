@@ -57,7 +57,7 @@ def archive_simulation(wfn, integrals, file_name=None, create_new=False):
     chkpt.close()
 
 def retrieve_simulation(time=None, file_name=None, key_words=False,
-                        reset_rows=False):
+                        reset_rows=False, save_paths=True):
     """Documentation to come"""
     # default is to use file name from previous write
     if file_name is not None:
@@ -67,7 +67,7 @@ def retrieve_simulation(time=None, file_name=None, key_words=False,
     chkpt = h5py.File(glbl.paths['chkpt_file'], 'r', libver='latest')
 
     if key_words:
-        read_keywords(chkpt)
+        read_keywords(chkpt, save_paths=save_paths)
 
     # when restarting from arbitrary time, we may want to overwrite
     # subsequent time-data, if it exists
@@ -82,6 +82,8 @@ def retrieve_simulation(time=None, file_name=None, key_words=False,
 
     if ints is not None:
         ints.update(wfn)
+        pops = ints.pops(wfn)
+        wfn.update_pop(pops)
 
     # close the checkpoint file
     chkpt.close()
@@ -427,7 +429,7 @@ def write_keyword(chkpt, grp, kword, val):
                   " -- "+str(e)+"\n")
 
 
-def read_keywords(chkpt=None):
+def read_keywords(chkpt=None, save_paths=True):
     """Read keywords from archive file"""
     # open chkpoint file
     close_file = False
@@ -450,6 +452,12 @@ def read_keywords(chkpt=None):
                 glbl.sections[keyword_section][keyword] = val
             except Exception as e:
                 print("Failed to set keyword:"+str(keyword)+" -- "+str(e)+"\n")
+
+        # remove global path if save_paths is false
+        if keyword_section == 'paths' and not save_paths:
+            for kword in glbl.sections['paths']:
+                fname = os.path.basename(glbl.sections['paths'][kword])
+                glbl.sections['paths'][kword] = fname
 
     if close_file:
         chkpt.close()
@@ -495,10 +503,6 @@ def convert_value(kword, val):
 
 def write_wavefunction(chkpt, wfn, time, name=0):
     """Documentation to come"""
-    n_traj            = wfn.n_traj()
-    n_blk             = default_blk_size(time)
-    resize            = False
-
     # this is a little hack to ensure backwards compatibility
     # we should eventually do away with this
     if 'wavefunction.'+str(name) in chkpt:
@@ -512,90 +516,30 @@ def write_wavefunction(chkpt, wfn, time, name=0):
     if wfn_name not in chkpt.keys():
         create_wfn(chkpt, wfn, name=name)
 
-    # update the current row index (same for all data sets)
-    chkpt[wfn_name].attrs['current_row'] += 1
-    current_row = chkpt[wfn_name].attrs['current_row']
-
-    if current_row == chkpt[wfn_name].attrs['n_rows']:
-        resize = True
-        chkpt[wfn_name].attrs['n_rows'] += n_blk
-    n_rows = chkpt[wfn_name].attrs['n_rows']
-
-    # first write items with time-independent dimensions
-    for data_label in wfn_data.keys():
-        dset = wfn_name+'/'+data_label
-
-        if dset in chkpt:
-            if resize:
-                d_shape  = (n_rows,) 
-                if h5py.check_dtype(vlen=wfn_type[data_label]) is None:
-                    d_shape   =  d_shape   + wfn_data[data_label].shape
-                    print('dshape='+str(d_shape))
-                chkpt[dset].resize(d_shape)
-            chkpt[dset][current_row] = wfn_data[data_label]
-
-        # if this is the first time we're trying to write this bundle,
-        # create a new datasets with reasonble default sizes
-        else:
-            d_shape   = (n_rows,)
-            max_shape = (max_dset_size(),)
-            if h5py.check_dtype(vlen=wfn_type[data_label]) is None:
-                d_shape   =  d_shape   + wfn_data[data_label].shape
-                max_shape =  max_shape + wfn_data[data_label].shape
-            d_type    = wfn_type[data_label]
-            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
-            chkpt[dset][current_row] = wfn_data[data_label]
+    write_package(chkpt, wfn_name, wfn_data, wfn_type)
 
     # now step through and write trajectories
-    for i in range(n_traj):
+    for i in range(wfn.n_traj()):
         write_trajectory(chkpt, wfn.traj[i])
 
 
 def write_integral(chkpt, integral, time, name=0):
     """Documentation to come"""
-    n_blk    = default_blk_size(time)
-    resize   = False
 
     # this is a little hack to ensure backwards compatibility
     # we should eventually do away with this
     if 'integral.'+str(name) in chkpt:
         int_name = 'integral.'+str(name)
-        int_data = package_integral(integral, time)
+        int_data, int_type = package_integral(integral, time)
     else:
         int_name = 'integral'
-        int_data = package_integral_old(integral, time)
+        int_data, int_type = package_integral_old(integral, time)
 
     # if integral doesn't exist, add it on the fly
     if int_name not in chkpt.keys():
         create_int(chkpt, integral, name=name)
 
-    # update the current row index (same for all data sets)
-    chkpt[int_name].attrs['current_row'] += 1
-    current_row = chkpt[int_name].attrs['current_row']
-
-    if current_row == chkpt[int_name].attrs['n_rows']:
-        resize   = True
-        chkpt[int_name].attrs['n_rows'] += n_blk
-    n_rows = chkpt[int_name].attrs['n_rows']
-
-    # first write items with time-independent dimensions
-    for data_label in int_data.keys():
-        dset = int_name+'/'+data_label
-
-        if dset in chkpt:
-            if resize:
-                d_shape  = (n_rows,) + int_data[data_label].shape
-                chkpt[dset].resize(d_shape)
-            chkpt[dset][current_row] = int_data[data_label]
-
-        # if this is the first time we're trying to write this bundle,
-        # create a new datasets with reasonble default sizes
-        else:
-            d_shape   = (n_rows,) + int_data[data_label].shape
-            max_shape = (max_dset_size(),)   + int_data[data_label].shape
-            d_type    = int_data[data_label].dtype
-            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
-            chkpt[dset][current_row] = int_data[data_label]
+    write_package(chkpt, int_name, int_data, int_type)
 
     # now step through centroids, if they're present
     if integral.require_centroids:
@@ -607,145 +551,124 @@ def write_integral(chkpt, integral, time, name=0):
 
 def write_trajectory(chkpt, traj, name=0):
     """Documentation to come"""
-    # open the trajectory file
-    t_label  = str(traj.label)
-    n_blk    = default_blk_size(traj.time)
-    resize   = False
 
     # this is a little hack to ensure backwards compatibility
     # we should eventually do away with this
     if 'wavefunction.'+str(name) in chkpt:
         grp_name = 'wavefunction.'+str(name)
         old_style = False
-        t_data   = package_trajectory(traj)
+        t_data, t_type = package_trajectory(traj)
     else:
         grp_name = 'wavefunction'
         old_style = True
-        t_data   = package_trajectory_old(traj, traj.time)
+        t_data, t_type = package_trajectory_old(traj, traj.time)
 
-    # if trajectory group already exists, just append current
-    # time information to existing datasets
-    t_grp = grp_name+'/'+t_label
-
-    if t_label in chkpt[grp_name].keys():
-
-        chkpt[t_grp].attrs['current_row'] += 1
-        current_row = chkpt[t_grp].attrs['current_row']
-
-        if current_row == chkpt[t_grp].attrs['n_rows']:
-            resize = True
-            chkpt[t_grp].attrs['n_rows'] += n_blk
-        n_rows = chkpt[t_grp].attrs['n_rows']
-
-        for data_label in t_data.keys():
-            dset = t_grp+'/'+data_label
-            if resize:
-                d_shape  = (n_rows,) + t_data[data_label].shape
-                chkpt[dset].resize(d_shape)
-
-            chkpt[dset][current_row] = t_data[data_label]
-
-    # if this is the first time we're trying to write this trajectory,
-    # create a new data group, and new data sets with reasonble default sizes
-    else:
-
-        chkpt.create_group(t_grp)
-        current_row                       = 0
-        chkpt[t_grp].attrs['current_row'] = current_row
-        chkpt[t_grp].attrs['n_rows']      = n_blk
-        chkpt[t_grp].attrs['kecoef']      = traj.kecoef
-        n_rows                            = chkpt[t_grp].attrs['n_rows']
-
-        # store surface information from trajectory
-        for data_label in t_data.keys():
-            dset = t_grp+'/'+data_label
-            d_shape   = (n_rows,) + t_data[data_label].shape
-            max_shape = (max_dset_size(),)   + t_data[data_label].shape
-            d_type    = t_data[data_label].dtype
-            if d_type.type is np.unicode_:
-                d_type = h5py.special_dtype(vlen=str)
-            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
-            chkpt[dset][current_row] = t_data[data_label]
+    # write trajectory
+    tgrp_name = grp_name+'/'+str(traj.label)
+    write_package(chkpt, tgrp_name, t_data, t_type, 
+                          grp_attr={'kecoef': traj.kecoef})
 
     # if MOs exist, write them as an attribute
     if 'mo' in traj.pes.avail_data():
         # until python figures out unicode, we need to explicitly encode strings
         mo_encode = [str(mo_i).encode('utf8') for mo_i in traj.pes.get_data('mo')]
-        if 'mo' in chkpt[t_grp].attrs.keys():
-            chkpt[t_grp].attrs.modify('mo', mo_encode)
+        if 'mo' in chkpt[tgrp_name].attrs.keys():
+            chkpt[tgrp_name].attrs.modify('mo', mo_encode)
         else:
-            chkpt[t_grp].attrs.create('mo', mo_encode)
+            chkpt[tgrp_name].attrs.create('mo', mo_encode)
 
 
 def write_centroid(chkpt, cent, time, name=0):
     """Documentation to come"""
+
     # open the trajectory file
-    c_label = str(cent.label)
-    n_blk   = default_blk_size(time)
-    resize  = False
     grp_name = 'integral.'+str(name)
 
     # this is a little hack to ensure backwards compatibility
     # we should eventually do away with this
     if 'integral.'+str(name) in chkpt:
         grp_name = 'integral.'+str(name)
-        c_data  = package_centroid(cent, time)
+        c_data, c_type  = package_centroid(cent, time)
     else:
         grp_name = 'integral'
-        c_data  = package_centroid_old(cent, time)
+        c_data, c_type  = package_centroid_old(cent, time)
 
-    # if trajectory group already exists, just append current
-    # time information to existing datasets
-    c_grp = grp_name+'/'+c_label
-
-    if c_label in chkpt[grp_name].keys():
-
-        chkpt[c_grp].attrs['current_row'] += 1
-        current_row = chkpt[c_grp].attrs['current_row']
-
-        if current_row == chkpt[c_grp].attrs['n_rows']:
-            resize = True
-            chkpt[c_grp].attrs['n_rows'] += n_blk
-        n_rows = chkpt[c_grp].attrs['n_rows']
-
-        for data_label in c_data.keys():
-            dset = c_grp+'/'+data_label
-            if resize:
-                d_shape  = (n_rows,) + c_data[data_label].shape
-                chkpt[dset].resize(d_shape)
-
-            chkpt[dset][current_row] = c_data[data_label]
-
-    # if this is the first time we're trying to write this trajectory,
-    # create a new data group, and new data sets with reasonble default sizes
-    else:
-
-        chkpt.create_group(c_grp)
-        current_row                       = 0
-        chkpt[c_grp].attrs['current_row'] = current_row
-        chkpt[c_grp].attrs['n_rows']      = n_blk
-        n_rows                            = chkpt[c_grp].attrs['n_rows']
-
-        # store surface information from trajectory
-        for data_label in c_data.keys():
-            dset = c_grp+'/'+data_label
-            d_shape   = (n_rows,) + c_data[data_label].shape
-            max_shape = (max_dset_size(),)   + c_data[data_label].shape
-            d_type    = c_data[data_label].dtype
-            if d_type.type is np.unicode_:
-                d_type = h5py.special_dtype(vlen=str)
-            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, dtype=d_type, compression="gzip")
-            chkpt[dset][current_row] = c_data[data_label]
+    # write centroid
+    cgrp_name = grp_name+'/'+str(cent.label)
+    write_package(chkpt, cgrp_name, c_data, c_type)
 
     # if MOs exist, write them as an attribute
     if 'mo' in cent.pes.avail_data():
         # until python figures out unicode, we need to explicitly encode strings
         mo_encode = [str(mo_i).encode('utf8') for mo_i in cent.pes.get_data('mo')]
-        if 'mo' in chkpt[c_grp].attrs.keys():
-            chkpt[c_grp].attrs.modify('mo', mo_encode)
+        if 'mo' in chkpt[cgrp_name].attrs.keys():
+            chkpt[cgrp_name].attrs.modify('mo', mo_encode)
         else:
-            chkpt[c_grp].attrs.create('mo', mo_encode)
+            chkpt[cgrp_name].attrs.create('mo', mo_encode)
 
+
+def write_package(chkpt, grp, data, types, grp_attr=None):
+    """
+    A generate function to write a dictionary of 'data'
+    to dataset labeled by 'labels'
+
+    Arguments: 
+    data:    dictonary of data with keys given by 'labels'
+
+    Returns:
+    None
+    """
+    n_blk   = default_blk_size()
+
+    # if new_grp isn't none, create new group in grp with
+    # name new_grp
+    if grp not in chkpt.keys(): 
+        chkpt.create_group(grp)
+        current_row                     = -1
+        chkpt[grp].attrs['current_row'] = current_row
+        chkpt[grp].attrs['n_rows']      = n_blk
+        n_rows                          = chkpt[grp].attrs['n_rows']
+        if grp_attr is not None:
+            for key,value in grp_attr.items():
+                chkpt[grp].attrs[key] = value
+
+    # update the current row index (same for all data sets)
+    chkpt[grp].attrs['current_row'] += 1
+    current_row = chkpt[grp].attrs['current_row']
+
+    if current_row == chkpt[grp].attrs['n_rows']:
+        resize = True
+        chkpt[grp].attrs['n_rows'] += n_blk
+    else:
+        resize = False
+    n_rows = chkpt[grp].attrs['n_rows']
+
+    # first write items with time-independent dimensions
+    for label in data.keys():
+        dset = grp+'/'+label
+
+        if dset in chkpt:
+            if resize:
+                d_shape  = (n_rows,)
+                if h5py.check_dtype(vlen=types[label]) is None:
+                    d_shape   =  d_shape   + data[label].shape
+                chkpt[dset].resize(d_shape)
+
+        # if this is the first time we're trying to write this bundle,
+        # create a new datasets with reasonble default sizes
+        else:
+            d_shape   = (n_rows,)
+            max_shape = (max_dset_size(),)
+            if h5py.check_dtype(vlen=types[label]) is None:
+                d_shape   =  d_shape   + data[label].shape
+                max_shape =  max_shape + data[label].shape
+            d_type    = types[label]
+            chkpt.create_dataset(dset, d_shape, maxshape=max_shape, 
+                                 dtype=d_type, compression="gzip")
+
+        chkpt[dset][current_row] = data[label]
+
+    return
 
 def read_wavefunction(chkpt, time, name=0):
     """Documentation to come"""
@@ -793,17 +716,8 @@ def read_wavefunction(chkpt, time, name=0):
 
         # if matrices are present, read those in
         if label in mat.mat_list:
-            mat_raw = chkpt[wfn_name+'/'+label][read_row]
-            if label == 'popwt':
-              n = math.sqrt(len(mat_raw)/nstates)
-              mshape = (int(n), int(n), nstates)
-            else:
-              n = math.sqrt(len(mat_raw))
-              mshape = (int(n), int(n))
-            if np.prod(list(mshape)) != len(mat_raw):
-                sys.exit('error retrieving matrices from '+ 
-                  'read_wavefunction: '+str(mshape)+'!='+len(mat_raw))
-            mat.set(label, np.reshape(mat_raw, mshape, order='F'))
+            mat_read = chkpt[wfn_name+'/'+label][read_row]
+            mat.set(label, mat_read)
             continue
 
         # if we're here, we're reading a trajectory
@@ -898,11 +812,15 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
     else:
         # set information about the trajectory itself
         [time]               = chkpt[t_grp+'/time'][t_row]
-        [amp_real, amp_imag] = chkpt[t_grp+'/amp'][t_row]
         [parent, state]      = chkpt[t_grp+'/states'][t_row]
         [gamma]              = chkpt[t_grp+'/phase'][t_row]
         last_adapt           = chkpt[t_grp+'/adapt'][t_row]
         momt                 = chkpt[t_grp+'/momentum'][t_row]
+        try:
+            [amp] = chkpt[t_grp+'/amp'][t_row]
+        except ValueError:
+            [amp_r, amp_i] = chkpt[t_grp+'/amp'][t_row]
+            amp            = amp_r + amp_i*1.j
 
         pes = surface.Surface()
         for data_label in chkpt[t_grp].keys():
@@ -923,7 +841,7 @@ def read_trajectory(chkpt, new_traj, t_grp, t_row):
         new_traj.time   = time
         new_traj.state  = int(state)
         new_traj.parent = int(parent)
-        new_traj.update_amplitude(amp_real+1.j*amp_imag)
+        new_traj.update_amplitude(amp)
         new_traj.last_spawn = last_adapt
 
         new_traj.update_pes_info(pes)
@@ -1092,8 +1010,7 @@ def package_wfn(wfn):
         s      = h5py.special_dtype(vlen=np.dtype('complex')),
         s_traj = h5py.special_dtype(vlen=np.dtype('complex')),
         sdot   = h5py.special_dtype(vlen=np.dtype('complex')),
-        heff   = h5py.special_dtype(vlen=np.dtype('complex')),
-        popwt  = h5py.special_dtype(vlen=np.dtype('float')))
+        heff   = h5py.special_dtype(vlen=np.dtype('complex')))
 
     return wfn_data, wfn_types
 
@@ -1101,22 +1018,31 @@ def package_wfn(wfn):
 def package_integral(integral, time):
     """Documentation to come"""
     int_data = dict(
-        time = np.array([time],dtype='float')
-                    )
-    return int_data
+        time = np.array([time],dtype='float'))
+
+    int_types = dict(
+        time = np.dtype('float'))
+
+    return int_data, int_types
 
 
 def package_trajectory(traj):
     """Documentation to come"""
     traj_data = dict(
         time     = np.array([traj.time],dtype='float'),
-        amp      = np.array([traj.amplitude.real, traj.amplitude.imag]),
+        amp      = np.array([traj.amplitude]),
         phase    = np.array([traj.gamma]),
         states   = np.array([traj.parent, traj.state]),
         adapt    = traj.last_spawn,
-        momentum = traj.p()
-                    )
+        momentum = traj.p())
 
+    traj_types = dict(
+        time     = np.dtype('float'),
+        amp      = h5py.special_dtype(vlen=np.dtype('complex')),
+        phase    = np.dtype('float'),
+        states   = np.dtype('int'),
+        adapt    = np.dtype('float'),
+        momentum = np.dtype('float'))
 
     # store everything about the surface
     for obj in traj.pes.avail_data():
@@ -1126,16 +1052,22 @@ def package_trajectory(traj):
             continue
 
         traj_data[obj] = traj.pes.get_data(obj)
+        # treat all surface properties as floats
+        traj_types[obj] = np.dtype('float') 
 
-    return traj_data
+    return traj_data, traj_types
 
 def package_centroid(cent, time):
     """Documentation to come"""
     cent_data = dict(
         time     = np.array([time],dtype='float'),
         states   = np.concatenate((cent.parents, cent.states)),
-        momentum = cent.p()
-                     )
+        momentum = cent.p())
+
+    cent_types = dict(
+        time     = np.dtype('float'),
+        states   = np.dtype('int'),
+        momentum = np.dtype('float'))
 
     # last, store everything about the surface
     for obj in cent.pes.avail_data():
@@ -1145,8 +1077,10 @@ def package_centroid(cent, time):
             continue
 
         cent_data[obj] = cent.pes.get_data(obj)
+        # treat all surface properties as floats
+        cent_types[obj] = np.dtype('float')
 
-    return cent_data
+    return cent_data, cent_types
 
 def package_wfn_old(wfn):
     """Documentation to come"""
@@ -1169,9 +1103,12 @@ def package_wfn_old(wfn):
 def package_integral_old(integral, time):
     """Documentation to come"""
     int_data = dict(
-        time = np.array([time],dtype='float')
-                    )
-    return int_data
+        time = np.array([time],dtype='float'))
+
+    int_types = dict(
+        time = np.dtype('float'))
+
+    return int_data, int_types
 
 
 def package_trajectory_old(traj, time):
@@ -1183,8 +1120,12 @@ def package_trajectory_old(traj, time):
         glbl     = np.concatenate((np.array([traj.parent, traj.state, traj.gamma,
                                  traj.amplitude.real, traj.amplitude.imag]),
                                  traj.last_spawn)),
-        momentum = traj.p()
-                    )
+        momentum = traj.p())
+
+    traj_types = dict(
+        time     = np.dtype('float'),
+        glbl     = np.dtype('float'),
+        momentum = np.dtype('float'))
 
     # store everything about the surface
     for obj in traj.pes.avail_data():
@@ -1194,8 +1135,10 @@ def package_trajectory_old(traj, time):
             continue
 
         traj_data[obj] = traj.pes.get_data(obj)
+        # treat all surface properties as floats
+        traj_types[obj] = np.dtype('float')
 
-    return traj_data
+    return traj_data, traj_types
 
 
 def package_centroid_old(cent, time):
@@ -1206,6 +1149,11 @@ def package_centroid_old(cent, time):
         momentum = cent.p()
                      )
 
+    cent_types = dict(
+        time     = np.dtype('float'),
+        glbl     = np.dtype('float'),
+        momentum = np.dtype('float'))
+
     # last, store everything about the surface
     for obj in cent.pes.avail_data():
 
@@ -1214,23 +1162,23 @@ def package_centroid_old(cent, time):
             continue
 
         cent_data[obj] = cent.pes.get_data(obj)
+        # treat all surface properties as floats
+        cent_types[obj] = np.dtype('float')
 
-    return cent_data
-
-
+    return cent_data, cent_types
 
 
 def max_dset_size():
     """Return the maximum dataset size"""
-    return max( default_blk_size(0.), 
+    return max( default_blk_size(), 
                 100*int(glbl.properties['simulation_time'] / 
                       glbl.properties['default_time_step']))
 
-def default_blk_size(time):
+def default_blk_size():
     """Documentation to come"""
     # let's just keep this to small default size: 25
     # need to look into optimizing this more
-    return 200 
+    return 100 
 
 
 def isTrajectory(dset_name):
@@ -1390,6 +1338,7 @@ def generate_data_formats():
     bfile_names['t']         = 't.dat'
     bfile_names['v']         = 'v.dat'
     bfile_names['s']         = 's.dat'
+    bfile_names['sinv']      = 'sinv.dat'
     bfile_names['s_nuc']     = 's_nuc.dat'
     bfile_names['s_elec']    = 's_elec.dat'
     bfile_names['sdot']      = 'sdot.dat'

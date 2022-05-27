@@ -53,11 +53,6 @@ def init_wavefunction():
                                                    glbl.methods['ansatz'],
                                                    glbl.methods['integral_eval'])
 
-    # this is a temporary hack
-    if glbl.methods['integral_eval'] == 'lvc_exact':
-        glbl.modules['integrals'].ints.init_parameters(
-                                   glbl.properties['crd_widths'])
-
 
     # now load the initial trajectories into the bundle
     if glbl.properties['restart']:
@@ -116,8 +111,14 @@ def init_wavefunction():
                 glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
         # build the necessary matrices
-        glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+        glbl.modules['matrices'].build( glbl.modules['wfn'], 
+                                        glbl.modules['wfn'],
+                                        glbl.modules['integrals'])
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
+
+        # set the populations
+        pops = glbl.modules['integrals'].pops(glbl.modules['wfn'])
+        glbl.modules['wfn'].update_pop(pops)
 
     else:
 
@@ -157,12 +158,19 @@ def init_wavefunction():
         for i in range(glbl.modules['wfn'].n_traj()):
             glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
-        # compute the hamiltonian matrix...
-        glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+        # compute the various matrices (H, T, V, Sdot, etc.) 
+        glbl.modules['matrices'].build( glbl.modules['wfn'],
+                                        glbl.modules['wfn'],
+                                        glbl.modules['integrals'])
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
 
-        # so that we may appropriately renormalize to unity
+        # ...so that we may appropriately renormalize to unity
         glbl.modules['wfn'].renormalize()
+
+        # set the populations
+        pops = glbl.modules['integrals'].pops(glbl.modules['wfn'])
+        glbl.modules['wfn'].update_pop(pops)
+
 
         # this is the bundle at time t=0.  Save in order to compute auto
         # correlation function
@@ -293,6 +301,7 @@ def set_initial_amplitudes(wfn):
     # as the geometry is not the "origin"
     init_mod  = glbl.modules['init_conds'].__name__
     init_type = init_mod[init_mod.rfind('.')+1:]
+
     if glbl.properties['init_amp_overlap'] and init_type != 'explicit':
         origin = make_origin_traj()
 
@@ -324,9 +333,9 @@ def set_initial_amplitudes(wfn):
         dif = wfn.n_traj() - len(glbl.properties['init_amps'])
         glbl.properties['init_amps'].extend([0+0j for i in range(dif)])
 
-    # finally -- update amplitudes in the bundle
-    for i in range(wfn.n_traj()):
-        wfn.traj[i].update_amplitude(glbl.properties['init_amps'][i])
+    # finally -- update amplitudes for trajectories in wfn
+    wfn.set_amplitudes(glbl.properties['init_amps'])
+    return
 
 
 def save_initial_wavefunction(wfn):

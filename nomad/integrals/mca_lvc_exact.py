@@ -16,7 +16,7 @@ import nomad.interfaces.vibronic as vibronic
 require_centroids = False
 
 # Determines the Hamiltonian symmetry
-hermitian = True
+hermitian  = False
 
 # returns basis in which matrix elements are evaluated
 basis = 'gaussian'
@@ -24,27 +24,26 @@ basis = 'gaussian'
 #cache previous values of theta, ensure continuity
 theta_cache = dict()
 
-# gaussian parameters
-alpha   = None
+# position of the CI
+qci   = None
+d_alpha  = None
+At    = None
+
+# hamiltonian parameters 
 b_alpha = None
+w_mat = None
+w_vec = None
+z_vec = None
+x_vec = None
+ew    = None
+ez    = None
+ex    = None
 
-#hamiltonian parameters
-omega   = None
-fovec   = None
-scal    = None
+# guassian parameters
+m_mat = None
+alpha = None
 
-qci     = None
-w_mat   = None
-x_vec   = None
-z_vec   = None
-w_vec   = None
-ew      = None
-ez      = None
-ex      = None
-d_alpha = None
-
-
-def init_parameters(g_wid):
+def initialize():
     """
     Returns 
     -------
@@ -53,58 +52,67 @@ def init_parameters(g_wid):
     Initialize the time-independent variables just once and save
     as global variables
     """
-    global alpha, omega, fovec, scal
-    global b_alpha, d_alpha, qci, At
+    global qci, d_alpha, b_alpha, At
     global w_mat, w_vec, z_vec, x_vec, ew, ez, ex
+    global m_mat, alpha
 
-    nc    = len(vibronic.ham.freq)
-    ns    = 2
-    fovec = np.zeros((ns, ns, nc), dtype=float)
-    scal  = np.zeros((ns, ns), dtype=float)
-    omega = np.zeros((nc, nc), dtype=float)
+    # initialize coordinate system variables    
+    nc      = len(vibronic.ham.freq)
+    # limit oursevles to 2 states, for now...
+    nstates = 2
+
+    # initialize variables related to LVC parameters
+    kappa = np.zeros((nstates,nc), dtype=float)
+    s_con = np.zeros(nstates, dtype=float)
+
+    w_mat = np.zeros((nc,nc), dtype=float)
+    w_vec = np.zeros(nc, dtype=float)
+    z_vec = np.zeros(nc, dtype=float)
+    x_vec = np.zeros(nc, dtype=float)
+    ew = 0.
+    ez = 0.
+    ex = 0.
 
     for i in range(vibronic.ham.nterms):
         cf     = vibronic.ham.coe[i]
         # state labels run from 0
         states = vibronic.ham.stalbl[i] - 1
         modes  = vibronic.ham.mode[i]
-        expon  = vibronic.ham.order[i]
+        exp    = vibronic.ham.order[i]
 
         # get order of term
-        ordr = sum(expon)
+        ordr = sum(exp)
 
         if ordr == 0:
-            # this is not as careful as it could/should be
-            scal[states[0], states[1]] = cf
-            if states[0] != states[1]:
-                scal[states[1], states[0]] = cf
+            if states[0] == states[1]:
+                s_con[states[0]] = cf
+            else:
+                ex += cf
 
         elif ordr == 1:
-            fovec[states[0],states[1], modes[0]] = cf
-            if states[0] != states[1]:
-                fovec[states[1], states[0], modes[0]] = cf
+            if states[0] == states[1]:
+                kappa[states[0],modes[0]] = cf
+            else:
+                x_vec[modes[0]] = cf
 
         elif ordr == 2:
-          if states[0] == states[1]:
-             if(len(modes) > 1):
-                 sys.exit('Error in LVC_exact: cannot currently'+
-                          ' handle bi-linear second order terms')
-             # we expect w_mat to equal omega, cf is 0.5*omega
-             omega[modes[0], modes[0]] = 2.*cf
-          else:
-             sys.exit('Error in lvc_exact.py: exactly integration'+
-                      ' currently limited to LVC models')
+            if states[0] == states[1]:
+                if(len(modes) > 1):
+                    sys.exit('Error in LVC_exact: cannot currently'+
+                             ' handle bi-linear second order terms')
+                # we expect w_mat to equal omega, cf is 0.5*omega
+                w_mat[modes[0], modes[0]] = 2.*cf
+            else:
+                sys.exit('Error in lvc_exact.py: exactly integration'+
+                         ' currently limited to LVC models')
 
         else:
             sys.exit('Error in lvc_exact.py, ordr > 2: '+str(ordr))
 
-    w_mat = omega
-    w_vec = 0.5*(fovec[0,0,:] + fovec[1,1,:])
-    z_vec = 0.5*(fovec[0,0,:] - fovec[1,1,:])
-    x_vec = fovec[0,1,:]
-    ew    = 0.5*(scal[0,0] + scal[1,1])
-    ez    = 0.5*(scal[0,0] - scal[1,1])
-    ex    = scal[0,1]
+    w_vec = 0.5*(kappa[0,:] + kappa[1,:])
+    z_vec = 0.5*(kappa[0,:] - kappa[1,:])
+    ew    = 0.5*(s_con[0]   + s_con[1])
+    ez    = 0.5*(s_con[0]   - s_con[1])
 
     # shift the LVC parameters to the MECI coordinates
     qci = ci_coord_shift(w_mat, w_vec, z_vec, x_vec, ez, ex)
@@ -113,14 +121,20 @@ def init_parameters(g_wid):
     z_vec, ez = shift_lvc_params(qci, mat=None,  vec=z_vec, con=ez)
     x_vec, ex = shift_lvc_params(qci, mat=None,  vec=x_vec, con=ex)
 
-    # set alpha to be 2* widths
-    alpha = np.diag(2 * g_wid)
+    # confirm that ez and ex are now zero:
+    if abs(ez)>1.e-16 or abs(ex)>1.e-16:
+        sys.exit('ERROR: CI shift process failed: qci='+str(qci))
+
+    # initialize variables related to Gaussian basis functions
+    # coefficient on kinetic energy contribution
+    m_mat = np.identity(nc, dtype=float)
+    # gaussian widths 
+    alpha = np.diag(2 * glbl.properties['crd_widths'])
 
     # determine shifted branching space parameters
     d_alpha, At = bspace_transform(z_vec, x_vec, alpha)
     b_alpha     = np.dot(At, np.column_stack((z_vec, x_vec)))
 
-    #print('At='+str(At))
     return
 
 def elec_overlap(t1, t2):
@@ -179,7 +193,7 @@ def s_integral(traj1, traj2, nuc_ovrlp=None, elec_ovrlp=None):
 def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     """Returns kinetic energy integral over trajectories."""
     # evaluate just the nuclear component (for re-use)
-    global alpha, qci
+    global alpha, qci, w_mat
 
     if nuc_ovrlp is None:
         nuc_ovrlp = nuc_overlap(t1, t2)
@@ -198,9 +212,9 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     # nuclear kinetic energy
     t_nuc = 0.5 * nuc_ovrlp * (
               exact_poly(alpha, bk, bl,
-                 aa =  np.dot(np.dot(alpha, omega), alpha),
-                 a  = -np.dot(np.dot(alpha, omega), bkc+bl),
-                 ea =  np.dot(np.dot(bkc,   omega), bl)))
+                 aa =  np.dot(np.dot(alpha, w_mat), alpha),
+                 a  = -np.dot(np.dot(alpha, w_mat), bkc+bl),
+                 ea =  np.dot(np.dot(bkc,   w_mat), bl)))
 
     t_int = np.dot( np.dot( phi(t1), t_nuc*np.identity(2),), phi(t2))
 
@@ -236,13 +250,17 @@ def nuc_sdot(t1, t2, nuc_ovrlp, elec_ovrlp):
 
     vel   = np.diagonal(w_mat)*t2.p()*complex(1.,0.)
     force = lvc_force(t2)*complex(1.,0.)
+    #print('t2, force='+str(t2.label)+' '+str(force))
+    #if t1.label == 1 and t2.label == 0:
+    #    deldp = np.conj(deldp)
+    #print(' delp='+str(deldp))
 
     # the nuclear contribution to the sdot matrix
     sdot = ( np.dot(deldx, vel) +
              np.dot(deldp, force) +
              1j*t2.phase_dot()*nuc_ovrlp )*elec_ovrlp
 
-    #print('deldx, deldp, phase_dot='+str(np.dot(deldx, vel))+' '+str(np.dot(deldp, force))+' '+str(1j*t2.phase_dot()*nuc_ovrlp))
+    #print('t1, t2, deldx, deldp, phase_dot='+str(t1.label)+' '+str(t2.label)+' '+str(np.dot(deldx, vel))+' '+str(np.dot(deldp, force))+' '+str(1j*t2.phase_dot()*nuc_ovrlp))
     return sdot
 
 def elec_sdot(t1, t2, nuc_ovrlp):
@@ -261,7 +279,7 @@ def elec_sdot(t1, t2, nuc_ovrlp):
     #print('tderiv_coup, vel='+str(tderiv_coup)+','+str(vel))
     e_coup = np.dot(tderiv_coup, vel) * nuc_ovrlp
 
-    #print('sdot, e_coup='+str(sdot)+','+str(e_coup))
+    #print('e_coup='+str(e_coup))
     return e_coup
 
 
@@ -290,7 +308,7 @@ def lvc_force(traj):
 
 def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     """Returns potential coupling matrix element between two trajectories."""
-    global qci, alpha, omega, At
+    global qci, alpha, At
     global w_mat, w_vec, z_vec, x_vec, ew, ez, ex
 
     if nuc_ovrlp is None:
@@ -352,14 +370,8 @@ def popwt(t1, t2, nuc_ovrlp=None):
 
     zme, xme = exact_pop(beta)    
     sigmaz   = nuc_ovrlp * np.array([[zme, -xme], [-xme, -zme]], dtype=complex)
-    za = np.dot( np.dot(phi(t1), sigmaz), phi(t2) )
-    #print('sigmaz='+str(sigmaz))
-    #print('phi1='+str(phi(t1)))
-    #print('phi2='+str(phi(t2)))
-    #print('theta(t1)='+str(theta(t1)))
-    #print('theta(t2)='+str(theta(t2)))
-    #print('za, spop='+str(za)+','+str(np.asarray([0.5*(1+za), 0.5*(1-za)], dtype=complex)))
-    return np.asarray([0.5*(1-za), 0.5*(1+za)], dtype=complex)
+    za = np.dot( np.conj(phi(t1)).dot(sigmaz), phi(t2) )
+    return za 
 
 #---------------------------------------------------------------------------------
 
@@ -507,7 +519,7 @@ def theta(traj):
     X = np.dot(x_vec, qshft)
     Z = np.dot(z_vec, qshft)
 
-    ang  = 0.5 * np.arctan( X / Z )
+    ang  = 0.5 * np.arctan2( X, Z )
 
     # check the cached value and shift if necessary.
     pi_mult  = np.array([0,-np.pi,np.pi])

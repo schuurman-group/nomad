@@ -69,12 +69,13 @@ import os.path as path
 import scipy as scipy
 import scipy.integrate as integrate
 import nomad.core.glbl as glbl
+import nomad.core.log as log
 import nomad.common.constants as constants
 import nomad.interfaces.vibronic as vibronic
 import nomad.compiled.nuclear_gaussian as nuclear
 
 # Determines the Hamiltonian symmetry
-hermitian = True 
+hermitian = False 
 
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
@@ -107,7 +108,10 @@ ea    = None
 m_mat = None
 alpha = None
 
-def init_parameters(g_wid):
+# regularization parameter delta
+reg_delta = 0.
+
+def initialize():
     """
     Returns 
     -------
@@ -120,6 +124,10 @@ def init_parameters(g_wid):
     global w_mat, w_vec, z_vec, x_vec, ew, ez, ex
     global a_mat, a_vec, ea
     global m_mat, alpha
+    global reg_delta
+
+    # set the regularization parameter
+    reg_delta = float(glbl.vibronic['dboc_delta']) 
 
     # initialize coordinate system variables    
     nc      = len(vibronic.ham.freq)
@@ -207,12 +215,18 @@ def init_parameters(g_wid):
     #m_mat = np.diag(vibronic.ham.freq)
     m_mat = np.identity(nc, dtype=float)
     # gaussian widths 
-    alpha = np.diag(2 * g_wid)    
+    alpha = np.diag(2 * glbl.properties['crd_widths'])    
     #print('alpha='+str(alpha))
 
     # determine shifted branching space parameters
     d_alpha, At = bspace_transform(z_vec, x_vec, alpha)
     b_alpha     = np.dot(At, np.column_stack((z_vec, x_vec)))
+
+    pstr = '\n DBOC parameter should be << than sqrt(gh_alpha):\n' + \
+           ' DBOC integral parameter: {0:.3e}\n' + \
+           ' sqrt(gh_alpha):          {1:.3e}\n'
+    log.print_message('string', [pstr.format(reg_delta, 
+                                             np.sqrt(d_alpha[0]))])
 
     #print('At='+str(At))
     #print('d_alpha='+str(d_alpha))
@@ -311,6 +325,7 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     #print('J='+str(J))
     #print('time='+str(t1.time))
 
+    #print('t1 t2 beta p_alpha='+str(t1.label)+' '+str(t2.label)+' '+str(beta)+' '+str(p_alpha))
     nacme   = nuc_ovrlp*exact_nac(beta, p_alpha)    
 
     # DBOC matrix element
@@ -321,7 +336,6 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     if glbl.vibronic['include_dboc']:
         dbocme = nuc_ovrlp*exact_dboc(beta, k_alpha)
 
-    #print('time='+str(t1.time))
     # kinetic energy only contributes to the diagonal
     if t1.state == t2.state:
         # nuclear kinetic energy
@@ -330,25 +344,38 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
                       aa =  np.dot(np.dot(alpha, w_mat), alpha),
                       a  = -np.dot(np.dot(alpha, w_mat), bkc+bl),
                       ea =  np.dot(np.dot(bkc,   w_mat), bl)))
-       
-        #print('nuc, nacme, dbocme='+str(t_int)+','+str(nacme)+','+str(dbocme))
 
+        #print('t1 t2 Tn='+str(t1.label)+' '+str(t2.label)+' '+str(t_int))
+       
         # add diagonal component of NAC and DBOC
-        t_int += 0.5 * 1.j * nacme
+        # this derivative coupling only contributes to the digonal
+        # if we're including the Mead-Truhlar nuclear phase
+        if glbl.vibronic['include_nuc_phase']:
+            t_int += 0.5 * 1.j * nacme
+            #print('t1 t2 nacme='+str(t1.label)+' '+str(t2.label)+' '+str(0.5 * 1.j * nacme))
 
         if glbl.vibronic['include_dboc']:
             t_int += dbocme
-        #print('nac+dboc='+str(0.5 * 1.j * nacme + dbocme))
-        #print('t1.s,t2.s, 0.5*1.j*nace, dbocme='+str(t1.state)+','+str(t2.state)+'  ',str( 0.5 * 1.j * nacme)+','+str(dbocme))
+            #print('t1 t2 dbocme='+str(t1.label)+' '+str(t2.label)+' '+str(dbocme))
+
     else:
         # add off-diagonal component of NAC and DBOC
-        sgn = t1.state - t2.state
-        #t_int = sgn * (-0.5 * nacme - 1.j * dbocme)
-        t_int = sgn * -0.5 * nacme
+        sigma_y = (t1.state - t2.state) * 1.j
+
+        # derivative coupling contribution
+        t_int = 1.j * nacme * sigma_y
+
+        # if we're including the Mead-Truhlar phase, the derivative
+        # coupling term gets rotated and picks up a factor of 0.5
+        if glbl.vibronic['include_nuc_phase']:
+            t_int *= 0.5
  
-        if glbl.vibronic['include_dboc']:
-            t_int += sgn * 1.j * dbocme
-        #print('t1.s,t2.s, 0.5*nace, -1.j*dbocme='+str(t1.state)+','+str(t2.state)+'  ',str(sgn*0.5*nacme)+','+str(-sgn*1.j*dbocme),' total='+str(t_int))
+        # the off-diagonal contribution of DBOC only gets added if
+        # we're including both dboc and nuclear phase (which accounts
+        # for the rotation off the diagonal)
+        if (glbl.vibronic['include_dboc'] and 
+                               glbl.vibronic['include_nuc_phase']):
+            t_int += dbocme * sigma_y
 
     return t_int
 
@@ -371,8 +398,14 @@ def sdot_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     deldp = nuclear.deldp(nuc_ovrlp,t1.widths(),t1.x(),t1.p(),
                                     t2.widths(),t2.x(),t2.p())
 
-    sdot = (np.dot(deldx, np.diagonal(w_mat)*t2.p()*complex(1.,0.)) +
-            np.dot(deldp, lvc_force(t2)*complex(1.,0.)) +
+    vel   = np.diagonal(w_mat)*t2.p()*complex(1.,0.)
+    force = lvc_force(t2)*complex(1.,0.)
+
+    #print('t1 t2 deldx='+str(t1.label)+' '+str(t2.label)+' '+str(vel)+' '+str(deldx)+' '+str(np.dot(deldx,vel)))
+    #print('t1 t2 deldp='+str(t1.label)+' '+str(t2.label)+' '+str(force)+' '+str(deldp)+' '+str(np.dot(deldp,force)))
+
+    sdot = (np.dot(deldx, vel) +
+            np.dot(deldp, force) +
             1j * t2.phase_dot() * nuc_ovrlp)
 
     return sdot
@@ -478,7 +511,7 @@ def popwt_diabatic(t1, t2, nuc_ovrlp=None):
     sigmaz   = nuc_ovrlp * np.array([[zme, -xme], [-xme, -zme]], dtype=complex)
     za = np.dot( np.dot(bra, sigmaz), ket )
 
-    return np.asarray([0.5*(1+za), 0.5*(1-za)], dtype=complex)
+    return za 
 
 
 #--------------------------------------------------------------------------
@@ -610,6 +643,7 @@ def exact_dboc(beta, k):
     ----------
     """
     global d_alpha
+    global reg_delta
 
     etol = 1.e-10
 
@@ -624,9 +658,10 @@ def exact_dboc(beta, k):
     Plim = Pcf * np.exp( Pexp )
     #print('new Plim='+str(Plim))
 
-    gcon     = 1.e3
-    delta    = d_alpha[0] / gcon    
-    dboc_div = Plim / (2*np.sqrt(d_alpha[0])) * (
+    #gcon     = 1.e3
+    #delta    = d_alpha[0] / gcon    
+    delta     = reg_delta
+    dboc_div  = Plim / (2*np.sqrt(d_alpha[0])) * (
                 np.log(4*d_alpha[0]) - 2*np.log(delta) - constants.euler)
 
     # now calculate convergent component of the integral

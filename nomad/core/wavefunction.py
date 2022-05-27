@@ -117,70 +117,32 @@ class Wavefunction:
         # I don't think these should be here (should only
         # call update when amplitudes updated), but will
         # keep here for now to be safe
-        self.update_pop()
-        self.update_norm()
-        return
-
-
-    @timings.timed
-    def update_amplitudes(self, dt, Ct=None):
-        """Updates the amplitudes of the trajectory in the wfn.
-        Solves d/dt C = -i H C via the computation of
-        exp(-i H(t) dt) C(t)."""
-
-        # update the amplitudes
-        if Ct is None:
-            old_amp = self.amplitudes()
-        else:
-            old_amp = Ct
-
-        new_amp = np.zeros(self.nalive, dtype=complex)
-        B       = -1j * self.matrices.matrix['heff'] * dt
-        umat    = sp_linalg.expm(B)
-        new_amp = np.dot(umat, old_amp)
-
-        for i in range(len(self.alive)):
-            self.traj[self.alive[i]].update_amplitude(new_amp[i])
-
-        # udpate the corresponding state populations
-        self.update_pop()
         self.update_norm()
         return
 
     @timings.timed
-    def update_pop(self):
-        """Updates the populations"""
-        # udpate the corresponding state populations
-
-        if 'popwt' in self.matrices.avail():
-            nst    = self.traj[0].nstates
-            zpop   = np.zeros(nst, dtype=complex)
-
-            for ib in range(self.nalive):
-                tb = self.traj[self.alive[ib]]
-                ab = tb.amplitude.conjugate()
-                for ik in range(self.nalive):
-                    tk = self.traj[self.alive[ik]]
-                    ak = tk.amplitude
-                    zpop += self.matrices.matrix['popwt'][ib,ik,:]*ab*ak
-
-            #print('popwt='+str(self.matrices.matrix['popwt'][0,0,:]))
-            #print('zpop='+str(zpop))
-            if np.linalg.norm(zpop.imag) > 1.e-4:
-                print('warning: imaginary component of population: '
-                        + str(zpop.imag))
-            self.stpop = zpop.real / sum(zpop.real)
+    def update_pop(self, pops):
+        """Update the populations"""
+        self.stpop = pops
         return
 
     @timings.timed
     def update_norm(self):
         """Updates the wavefunction norm using current s_traj matrix"""
 
-        if 's_traj' in self.matrices.avail():
-            self.wfn_norm = np.absolute( np.dot(np.dot(
-                          self.amplitudes().conjugate(),
-                          self.matrices.matrix['s_traj']),
-                          self.amplitudes()) )
+        znorm = complex(0., 0.)
+        ct    = self.amplitudes()
+
+        if 's' in self.matrices.avail():
+
+            znorm = np.conj(ct) @ self.matrices.matrix['s'] @ ct
+
+            # this should be a real quantity
+            if abs(znorm.imag) > 1.e-5:
+                print('ERROR: wfn norm = '+str(znorm))
+
+            self.wfn_norm = znorm.real
+
         return
 
     @timings.timed
@@ -192,8 +154,8 @@ class Wavefunction:
         for i in range(self.n_traj()):
             self.traj[i].update_amplitude(self.traj[i].amplitude * norm_factor)
        
-        self.update_pop()
         self.update_norm()
+        return
 
 
     def amplitudes(self):
@@ -205,6 +167,10 @@ class Wavefunction:
         """Sets the value of the amplitudes."""
         for i in range(self.nalive):
             self.traj[self.alive[i]].amplitude = amps[i]
+
+        self.update_norm()
+        return
+
 
     def pop(self):
         """Returns the total population on each state using the

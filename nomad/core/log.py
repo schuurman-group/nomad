@@ -143,7 +143,7 @@ def generate_formats():
 
     print_level['general']        = 2
     print_level['warning']        = 0
-    print_level['string']         = 2
+    print_level['string']         = 0 
     print_level['t_step']         = 0
     print_level['coupled']        = 2
     print_level['new_step']       = 2

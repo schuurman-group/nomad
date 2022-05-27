@@ -53,8 +53,8 @@ class Centroid:
             wid_i = traj_i.widths()
             wid_j = traj_j.widths()
             self.width = 0.5 * (wid_i + wid_j)
-            self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
-            self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
+            self.pos = ( wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
+            self.mom = (-wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
         # data structure to hold the data from the interface
         self.pes  = surface.Surface()
@@ -78,13 +78,13 @@ class Centroid:
         """Updates the position of the centroid."""
         wid_i    = traj_i.widths()
         wid_j    = traj_j.widths()
-        self.pos = (wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
+        self.pos = ( wid_i*traj_i.x() + wid_j*traj_j.x()) / (wid_i+wid_j)
 
     def update_p(self, traj_i, traj_j):
         """Updates the momentum of the centroid."""
         wid_i    = traj_i.widths()
         wid_j    = traj_j.widths()
-        self.mom = (wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
+        self.mom = (-wid_i*traj_i.p() + wid_j*traj_j.p()) / (wid_i+wid_j)
 
     def update_pes_info(self, new_pes):
         """Updates information about the potential energy surface."""

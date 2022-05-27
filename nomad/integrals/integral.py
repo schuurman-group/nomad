@@ -39,6 +39,10 @@ class Integral:
         self.require_centroids    = self.ints_eval.require_centroids
         self.overlap_requires_pes = False
 
+        # call the initialization routine
+        self.ints.initialize()
+
+
     @timings.timed
     def elec_overlap(self, bra_traj, ket_traj):
         """Calculates the electronic overlap."""
@@ -105,7 +109,6 @@ class Integral:
 
         return self.ints.sdot_integral(bra_traj, ket_traj, nuc_ovrlp, elec_ovrlp)
 
-
     @timings.timed
     def popwt_integral(self, bra_traj, ket_traj, nuc_ovrlp=None):
         """Calculates the population contribution to each state for pair of trajectories."""
@@ -114,6 +117,32 @@ class Integral:
 
         return self.ints.popwt(bra_traj, ket_traj, nuc_ovrlp)
 
+    @timings.timed
+    def pops(self, wfn):
+        """Determine the wave function populations"""
+        nst    = wfn.traj[0].nstates
+        za     = complex(0., 0.)
+
+        for ib in range(wfn.nalive):
+            tb = wfn.traj[wfn.alive[ib]]
+            ab = tb.amplitude.conjugate()
+            for ik in range(wfn.nalive):
+               tk  = wfn.traj[wfn.alive[ik]]
+               ak  = tk.amplitude
+               pwt = self.popwt_integral(tb, tk)
+               za += ab * ak * pwt
+
+        if isinstance(za, (np.ndarray)):
+            zpop = za
+        else:
+            zpop = np.asarray([0.5*(1+za), 0.5*(1-za)], dtype=complex)
+
+        if np.linalg.norm(zpop.imag) > 1.e-4:
+            print('warning: imaginary component of population: '
+                    + str(zpop.imag))
+
+        #self.stpop = zpop.real / sum(zpop.real)
+        return zpop.real
 
     def wfn_overlap(self, bra_wfn, ket_wfn):
         """Calculates the overall wavefunction overlap."""

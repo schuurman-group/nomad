@@ -5,7 +5,7 @@ Script used to extract data from nomad output files.
 import os
 import sys
 import numpy as np
-import nomad.math.constants as constants
+import nomad.common.constants as constants
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import nomad.core.checkpoint as checkpoint
@@ -23,6 +23,17 @@ def main():
 
     chkpt_file, time, data = process_arguments(sys.argv)
 
+    # read keywords
+    glbl.paths['chkpt_file'] = chkpt_file
+    checkpoint.read_keywords()
+
+    # if this is a vibronic model, we need to load the vibronic Hamiltonian in order
+    # to evaluate the integrals
+    if glbl.methods['interface'] == 'vibronic':
+        glbl.modules['interface']  = __import__('nomad.interfaces.vibronic',
+                                                fromlist=['NA'])
+        glbl.modules['interface'].init_interface(print_opinfo=False)
+
     # set the read time: here, there are 3 options:
     # time = None, -1, t, where these return: data
     # at all times, data at last time, data  at time
@@ -33,19 +44,16 @@ def main():
         read_time = time
 
     # read t=0 wfn to determine autocorrelation function
-    [wfn0, ints0] = checkpoint.retrieve_simulation(time=0., file_name=chkpt_file, key_words=True)
+    [wfn0, ints0] = checkpoint.retrieve_simulation(time=0., 
+                                      file_name=chkpt_file, 
+                                      key_words=True, 
+                                      save_paths=False)
     if wfn0 is None and data['-auto']:
-        print("Cannot construct autocorrelation function: missing t=0 wavefunction\n")
+        print("Cannot construct autocorrelation function: "+
+               "missing t=0 wavefunction\n")
 
     # generate output formats
     log.generate_formats()
-
-    # if this is a vibronic model, we need to load the vibronic Hamiltonian in order
-    # to evaluate the integrals
-    if glbl.methods['interface'] == 'vibronic':
-        glbl.modules['interface']  = __import__('nomad.interfaces.vibronic',
-                                                fromlist=['NA'])
-        glbl.modules['interface'].init_interface()
 
     # get printing machine ready
     checkpoint.generate_data_formats()
@@ -70,12 +78,6 @@ def main():
             continue
         [wfn, ints] = checkpoint.retrieve_simulation(time=tvals[i], file_name=chkpt_file)
 
-        # This is a hack
-        if ints is not None:
-            if glbl.methods['integral_eval'] == 'lvc_exact':
-                ints.ints.init_parameters(glbl.properties['crd_widths'])
-        # end hack         
- 
         if wfn is not None:     # successfully extracted a wfn object
 
             # if we didn't save matrices, but have ability to
@@ -83,7 +85,7 @@ def main():
             if len(wfn.matrices.avail()) == 0 and ints is not None:
                 mat = matrices.Matrices()
                 if ints is not None:
-                    mat.build(wfn, ints)
+                    mat.build(wfn, wfn, ints)
                 wfn.update_matrices(mat)
 
             extract_data(wfn, ints, data)

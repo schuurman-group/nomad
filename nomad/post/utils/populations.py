@@ -5,8 +5,8 @@ finding transferred population and fitting population curves.
 import os
 import numpy as np
 from scipy.optimize import curve_fit
-import nomad.analysis.fileio
-import nomad.analysis.fitting
+import nomad.post.fileio
+import nomad.post.fitting
 
 
 def error_amps(stamps, nboot=1000, bthrsh=1e-3):

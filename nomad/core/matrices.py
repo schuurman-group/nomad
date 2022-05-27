@@ -24,8 +24,7 @@ class Matrices:
     """Object containing the Hamiltonian and associated matrices."""
     def __init__(self):
         self.mat_list = ['s','sinv','s_traj','s_nuc','s_elec',
-                         't',   'v',     'h', 'sdot',  'heff',
-                         'popwt']
+                         't',   'v',     'h', 'sdot',  'heff']
         self.matrix = dict()
 
     def set(self, name, matrix):
@@ -48,13 +47,19 @@ class Matrices:
         return new_matrices
 
     @timings.timed
-    def build(self, wfn, integrals):
+    def build(self, bra, ket, integrals, hermitian=False):
         """Builds the Hamiltonian matrix from a list of trajectories."""
-        n_alive = wfn.nalive
-        n_st    = wfn.traj[0].nstates
+
+        if (bra.nalive != ket.nalive or 
+            bra.traj[0].nstates != ket.traj[0].nstates):
+            sys.exit('error buiding matrices - '+
+                     'bra/ket wfns not consistent')
+
+        n_alive = bra.nalive
+        n_st    = bra.traj[0].nstates
         m_shape = (n_alive, n_alive)
 
-        if integrals.hermitian:
+        if integrals.hermitian and hermitian:
             n_elem  = int(n_alive * (n_alive + 1) / 2)
         else:
             n_elem  = n_alive * n_alive
@@ -71,20 +76,19 @@ class Matrices:
             self.matrix['sinv']    = np.zeros(m_shape, dtype=complex)
             self.matrix['sdot']    = np.zeros(m_shape, dtype=complex)
             self.matrix['heff']    = np.zeros(m_shape, dtype=complex)
-            self.matrix['popwt']   = np.zeros(m_shape+(n_st,), dtype=complex)
 
         # now evaluate the hamiltonian matrix
         for ij in range(n_elem):
-            if integrals.hermitian:
+            if integrals.hermitian and hermitian:
                 i, j = self.ut_ind(ij)
             else:
                 i, j = self.sq_ind(ij, n_alive)
 
-            ii = wfn.alive[i]
-            jj = wfn.alive[j]
+            ii = bra.alive[i]
+            jj = ket.alive[j]
 
-            s_nuc  = integrals.nuc_overlap(wfn.traj[ii],wfn.traj[jj])
-            s_elec = integrals.elec_overlap(wfn.traj[ii],wfn.traj[jj])
+            s_nuc  = integrals.nuc_overlap(bra.traj[ii],ket.traj[jj])
+            s_elec = integrals.elec_overlap(bra.traj[ii],ket.traj[jj])
 
             # nuclear overlap matrix (excluding electronic component)
             self.matrix['s_nuc'][i,j]  = s_nuc
@@ -94,83 +98,59 @@ class Matrices:
 
             # compute overlap of trajectories (different from S, which may or may
             # not involve integration in a gaussian basis
-            self.matrix['s_traj'][i,j] = integrals.traj_overlap(wfn.traj[ii],wfn.traj[jj])
+            self.matrix['s_traj'][i,j] = integrals.traj_overlap(bra.traj[ii], ket.traj[jj])
 
             # overlap matrix (including electronic component)
-            self.matrix['s'][i,j]      = integrals.s_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['s'][i,j]      = integrals.s_integral(bra.traj[ii], ket.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # time-derivative of the overlap matrix (not hermitian in general)
-            self.matrix['sdot'][i,j]   = integrals.sdot_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['sdot'][i,j]   = integrals.sdot_integral(bra.traj[ii], ket.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # kinetic energy matrix
-            self.matrix['t'][i,j]      = integrals.t_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['t'][i,j]      = integrals.t_integral(bra.traj[ii], ket.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # potential energy matrix
-            self.matrix['v'][i,j]      = integrals.v_integral(wfn.traj[ii],wfn.traj[jj],
+            self.matrix['v'][i,j]      = integrals.v_integral(bra.traj[ii], ket.traj[jj],
                                                                 nuc_ovrlp=s_nuc, elec_ovrlp=s_elec)
 
             # Hamiltonian matrix in non-orthogonal basis
             self.matrix['h'][i,j]      = self.matrix['t'][i,j] + self.matrix['v'][i,j]
 
-            # population weights for each state
-            self.matrix['popwt'][i,j,:] = integrals.popwt_integral(wfn.traj[ii],wfn.traj[jj],
-                                                                nuc_ovrlp=s_nuc)
-
 
             # if hermitian matrix, set (j,i) indices
-            if integrals.hermitian and i!=j:
+            if integrals.hermitian and hermitian and i!=j:
                 self.matrix['s_nuc'][j,i]   = self.matrix['s_nuc'][i,j].conjugate()
                 self.matrix['s_elec'][j,i]  = self.matrix['s_elec'][i,j].conjugate()
                 self.matrix['s_traj'][j,i]  = self.matrix['s_traj'][i,j].conjugate()
                 self.matrix['s'][j,i]       = self.matrix['s'][i,j].conjugate()
-                self.matrix['sdot'][j,i]    = integrals.sdot_integral(wfn.traj[jj], wfn.traj[ii],
+                self.matrix['sdot'][j,i]    = integrals.sdot_integral(bra.traj[jj], ket.traj[ii],
                                                 nuc_ovrlp=self.matrix['s_nuc'][j,i],
                                                 elec_ovrlp=self.matrix['s_elec'][j,i])
                 self.matrix['t'][j,i]       = self.matrix['t'][i,j].conjugate()
                 self.matrix['v'][j,i]       = self.matrix['v'][i,j].conjugate()
                 self.matrix['h'][j,i]       = self.matrix['h'][i,j].conjugate()
-                self.matrix['popwt'][j,i,:] = self.matrix['popwt'][i,j,:].conjugate() 
 
         # TEMP *********************************************************
-        #for i in range(wfn.n_traj()):
-        #    with open('theta'+str(wfn.traj[i].label)+'.dat', 'a') as f:
-        #        f.write(str(wfn.time)+' '+str(integrals.ints.theta(wfn.traj[i]))+'\n')
-
-        #    with open('dtheta'+str(wfn.traj[i].label)+'.dat','a') as f:
-        #        dtheta = integrals.ints.dtheta(wfn.traj[i])
-        #        f.write(str(wfn.time)+' '+str(dtheta[0])+' '+str(dtheta[1])+'\n')
-
-        #    with open('phi'+str(wfn.traj[i].label)+'.dat', 'a') as f:
-        #        phi = integrals.ints.phi(wfn.traj[i])
-        #        f.write(str(wfn.time)+' '+str(phi[0])+' '+str(phi[1])+'\n')
-
-        #    with open('dphi'+str(wfn.traj[i].label)+'.dat', 'a') as f:
-        #        dphi = integrals.ints.dphi(wfn.traj[i])
-        #        f.write(str(wfn.time)+' '+str(dphi[0])+' '+str(dphi[1])+'\n')
-
-        #if wfn.n_traj() > 1:
-            #ostr = str(wfn.time)
-            #ostr += ' '+str(integrals.ints.theta(wfn.traj[1]))
-            #ostr += ' '+str(integrals.ints.elec_sdot(wfn.traj[1], wfn.traj[1], self.matrix['s_nuc'][i,j]).real)
-            #print(ostr)
-
-        #ostr = str(wfn.time)
-        #theta = integrals.ints.theta(wfn.traj[0])
-        #drot = integrals.ints.drot_mat(theta)[:,wfn.traj[0].state]
-        #ostr += ' '+str(drot[0])+' '+str(drot[1])
-        #print(ostr)
-        
-        #for i in range(wfn.n_traj()):
-            #ostr = ' '
-            #ostr += ' '+str(integrals.ints.elec_sdot(wfn.traj[i], wfn.traj[j], self.matrix['s_nuc'][i,j], self.matrix['s_elec'][i,j]))
-            #print(ostr)
-            #ostr += ' '+str(integrals.ints.theta(wfn.traj[i]))
-            #dth = integrals.ints.dtheta(wfn.traj[i])
-            #ostr += ' '+str(dth[0])+' '+str(dth[1])
-            #ostr += ' '+str(integrals.ints.lvc_force(wfn.traj[i]))
+        #if hermitian:
+        #    for i in range(bra.n_traj()):
+        #        with open('theta'+str(bra.traj[i].label)+'.dat', 'a') as f:
+        #            f.write(str(bra.time)+' '+str(integrals.ints.theta(bra.traj[i]))+'\n')
+        #
+        #        with open('dtheta'+str(bra.traj[i].label)+'.dat','a') as f:
+        #            dtheta = integrals.ints.dtheta(bra.traj[i])
+        #            f.write(str(bra.time)+' '+str(dtheta[0])+' '+str(dtheta[1])+'\n')
+        #
+        #        with open('phi'+str(bra.traj[i].label)+'.dat', 'a') as f:
+        #            phi = integrals.ints.phi(bra.traj[i])
+        #            f.write(str(bra.time)+' '+str(phi[0])+' '+str(phi[1])+'\n')
+        #
+        #        with open('dphi'+str(bra.traj[i].label)+'.dat', 'a') as f:
+        #            dphi = integrals.ints.dphi(bra.traj[i])
+        #            f.write(str(bra.time)+' '+str(dphi[0])+' '+str(dphi[1])+'\n')
+        #
         # **************************************************************
 
         if integrals.hermitian:

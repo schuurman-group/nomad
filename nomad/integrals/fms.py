@@ -12,6 +12,11 @@ hermitian = True
 # Returns functional form of bra function ('dirac_delta', 'gaussian')
 basis = 'gaussian'
 
+def initialize():
+    """ initialize integrals"""
+
+    return
+
 
 def state_vector(t1):
     """Return the component of each electronic state in trajectory

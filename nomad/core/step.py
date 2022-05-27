@@ -2,13 +2,13 @@
 Routines for propagating a wavefunction forward by a time step.
 """
 import numpy as np
+import scipy.linalg as sp_linalg
 import nomad.core.glbl as glbl
 import nomad.core.log as log
 import nomad.core.checkpoint as checkpoint
 import nomad.core.surface as evaluate
+import nomad.core.matrices as matrices
 import nomad.adapt.utilities as utilities
-#import nomad.core.matching_pursuit as mp
-
 
 def time_step(time):
     """ Determine time step based on whether in coupling regime"""
@@ -50,9 +50,6 @@ def step_wavefunction(dt):
         # propagate each trajectory in the wavefunction
         time_step = min(time_step, end_time-glbl.modules['wfn'].time)
 
-        # propagate amplitudes for 1/2 time step using x0
-        glbl.modules['wfn'].update_amplitudes(0.5*time_step)
-
         # the propagators update the potential energy surface as need be.
         glbl.modules['propagator'].propagate_wfn(glbl.modules['wfn'], time_step)
 
@@ -60,10 +57,16 @@ def step_wavefunction(dt):
         for i in range(glbl.modules['wfn'].n_traj()):
             glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
-        # propagate amplitudes for 1/2 time step using x1
-        glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+        # build new matrices at time t' = t + dt
+        glbl.modules['matrices'].build(glbl.modules['wfn'], 
+                                       glbl.modules['wfn'], 
+                                       glbl.modules['integrals'],
+                                       hermitian=True)
         glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
-        glbl.modules['wfn'].update_amplitudes(0.5*time_step)
+
+        # update the amplitudes
+        new_amps = step_amplitudes(wfn_start, glbl.modules['wfn'], time_step)
+        glbl.modules['wfn'].set_amplitudes(new_amps)
 
         # Renormalization
         if glbl.properties['renorm'] == 1:
@@ -90,15 +93,17 @@ def step_wavefunction(dt):
 
             # update the Hamiltonian and associated matrices
             if basis_grown or basis_pruned:
-                 glbl.modules['matrices'].build(glbl.modules['wfn'], glbl.modules['integrals'])
+                 glbl.modules['matrices'].build( glbl.modules['wfn'],
+                                                 glbl.modules['wfn'],
+                                                 glbl.modules['integrals'],
+                                                 hermitian=True)
                  glbl.modules['wfn'].update_matrices(glbl.modules['matrices'])
                  for i in range(glbl.modules['wfn'].n_traj()):
                      glbl.modules['interface'].evaluate_coupling(glbl.modules['wfn'].traj[i])
 
-            # re-expression of the basis using the matching pursuit
-            # algorithm
-            #if glbl.properties['matching_pursuit'] == 1:
-            #    mp.reexpress_basis(master)
+            # udpate populations
+            pops = glbl.modules['integrals'].pops(glbl.modules['wfn'])
+            glbl.modules['wfn'].update_pop(pops)
 
             # update the running log
             log.print_message('t_step',[glbl.modules['wfn'].time, time_step, glbl.modules['wfn'].nalive])
@@ -109,7 +114,7 @@ def step_wavefunction(dt):
             if glbl.mpi['rank'] == 0:
                 # update the checkpoint, if necessary
                 checkpoint.archive_simulation(glbl.modules['wfn'],
-                                          glbl.modules['integrals'])
+                                              glbl.modules['integrals'])
 
 
         else:
@@ -172,6 +177,59 @@ def step_trajectory(traj, init_time, dt):
             # reset the beginning of the time step and go to beginning of loop
             traj = traj0.copy()
 
+def step_amplitudes(wfn0, wfn1, dt):
+    """step amplitudes using Pade approxmiant"""
+
+    I = complex(0., 1.)
+    ct = wfn0.amplitudes()
+ 
+    if glbl.properties['amp_prop'] == 'pade':
+        st = wfn0.matrices.matrix['s']
+        ht = wfn0.matrices.matrix['h']
+
+        sdt = wfn1.matrices.matrix['s']
+        hdt = wfn1.matrices.matrix['h']
+
+        tdt_matrices = matrices.Matrices()
+        tdt_matrices.build(wfn0, wfn1, glbl.modules['integrals'],
+                                                  hermitian=False)
+        stdt = tdt_matrices.matrix['s']
+        htdt = tdt_matrices.matrix['h']
+
+        dtt_matrices = matrices.Matrices()
+        dtt_matrices.build(wfn1, wfn0, glbl.modules['integrals'],
+                                                  hermitian=False)
+        sdtt = dtt_matrices.matrix['s']
+        hdtt = dtt_matrices.matrix['h']
+
+        a = np.concatenate((stdt + 0.5*I*dt*htdt,
+                            sdt  + 0.5*I*dt*hdt))
+   
+        b = np.concatenate((np.dot(st   - 0.5*I*dt*ht, ct),
+                            np.dot(sdtt - 0.5*I*dt*hdtt, ct)))
+
+        cdt, res, rank, sing = np.linalg.lstsq(a, b, rcond=None)
+        new_norm = np.conj(cdt).T @ sdt @ cdt
+        cdt *= (1./np.sqrt(new_norm)) 
+
+    elif glbl.properties['amp_prop'] == 'expm':
+        #Updates the amplitudes of the trajectory in the wfn.
+        #Solves d/dt C = -i H C via the computation of
+        #exp(-i H(t) dt) C(t).
+
+        # update amplitudes in two steps: 0.5*dt from previous
+        # step and 0.5*dt from final step
+        B0 = -1j * wfn0.matrices.matrix['heff'] * 0.5 * dt
+        u0 = sp_linalg.expm(B0)
+
+        B1 = -1j * wfn1.matrices.matrix['heff'] * 0.5 * dt
+        u1 = sp_linalg.expm(B1)
+
+        cdt = np.dot( u1, u0 @ ct)
+    else:
+        sys.exit('ERROR: amp_prop = '+str(lbl.properties['amp_prop']))
+
+    return cdt 
 
 #-----------------------------------------------------------------------------
 #

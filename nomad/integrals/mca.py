@@ -27,6 +27,10 @@ theta_cache = dict()
 gs = 0
 es = 1
 
+def initialize():
+    """ initialize integrals"""
+
+    return
 
 def elec_overlap(traj1, traj2):
     """Returns < Psi | Psi' >, the electronic overlap integral of two trajectories"""
