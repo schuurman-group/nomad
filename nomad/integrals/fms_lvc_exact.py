@@ -486,6 +486,21 @@ def popwt_diabatic(t1, t2, nuc_ovrlp=None):
 # Numerical integral routines
 #
 #--------------------------------------------------------------------------
+def f_real(f, *args):
+    """Returns the real component of a function with set parameters."""
+    def func(u):
+        return np.real(f(u, *args))
+
+    return func
+
+
+def f_imag(f, *args):
+    """Returns the real component of a function with set parameters."""
+    def func(u):
+        return np.imag(f(u, *args))
+
+    return func
+
 
 def eff_overlap(u, beta):
     """evaluate the effective overlap for change-of-variable
@@ -603,62 +618,71 @@ def exact_nac(beta, p):
 
     return nac_int
 
-
+#
 def exact_dboc(beta, k):
     """
-    Parameters
-    ----------
+    exact dboc integral
     """
     global d_alpha
 
-    etol = 1.e-10
-
-    # if dx_alpha == 0, integral is 0
     if d_alpha[0] == 0.:
         return 0.j
 
-    # calculate asymptotic divergent component first
-    Pcf  = k[0,0] / ( d_alpha[0]*np.sqrt(d_alpha[1]) ) + \
-           k[1,1] / ( d_alpha[1]**1.5 )
-    Pexp = -np.dot(beta[:2], beta[:2]) / 4.
+    [dx, dy] = d_alpha
+    [bx, by] = beta
+    kxx      = k[0, 0]
+    kyy      = k[1, 1]
+    kxy      = k[0, 1]
+    dxy      = d_alpha[1] - d_alpha[0]
+    bxy      = bx**2 + by**2
+
+    # asymptotic limit
+    Pcf  = kxx / ( dx*np.sqrt(dx) ) + kyy / ( dy**1.5 )
+    Pexp = -(bx**2 + by**2) / 4.
     Plim = Pcf * np.exp( Pexp )
-    #print('new Plim='+str(Plim))
 
-    gcon     = 1.e3
-    delta    = d_alpha[0] / gcon    
-    dboc_div = Plim / (2*np.sqrt(d_alpha[0])) * (
-                np.log(4*d_alpha[0]) - 2*np.log(delta) - constants.euler)
+    # divergent integral
+    dboc_div = 0.5 * np.exp(-bxy/4.) 
+    dboc_div *= (kxx / np.sqrt(dy*dx**3) + kyy / np.sqrt(dx*dy**3)) 
+    dboc_div *= (np.log(4*dx) - 2.*np.log(delta) - np.euler_gamma)
 
-    # now calculate convergent component of the integral
-    delta_a = d_alpha[1] - d_alpha[0]
-    def integrand(u):
-        d1    = 1 + delta_a * u**2
-        earg  = -0.25 * u**2 * (d_alpha[0]*beta[0]**2 + 
-                               (d_alpha[1]*beta[1]**2) / d1) 
-        fac   = u**3 * (k[0,0] + k[1,1] / d1) / np.sqrt(d1)
-        # convergent part of divergent terms
-        dboc  = (Plim - fac * np.exp(earg))
-        # convergent integral
-        SD    = eff_overlap(u, beta)
-        dboc += 0.5 * SD * u**3 * (k[0,0] * beta[0]**2 + 
-                                   k[1,1] * beta[1]**2 / d1**2 + 
-                                2.*k[0,1] * beta[0]*beta[1] / d1)
-        dboc /= (1 - d_alpha[0] * u**2)
+    # convergent integral
+    ul = 1./np.sqrt(dx)
+    d1 = (1 - dx*u**2)
+    d2 = (1 + dxy*u**2)
+    def term1(u):
+        if np.isclose(u, ul):
+            t1 = kxx * ((by**2 - 2)*dx + (bx**2 - 4)*dy) / (dx*np.sqrt(dy**3))
+            t2 = kyy * ((by**2 - 6)*dx + dy*bx**2) / np.sqrt(dy)**5
+            return -0.25*(t1 + t2)*np.exp(-bxy / 4)
 
-        return  dboc
+        t2 = (kxx + kyy / d2) * u**3 * eff_overlap(u, beta) / d1
+        return (Plim - t2) / d1
 
-    def integrand_real(u):
-        return scipy.real(integrand(u))
+    # second term
+    def term2(u):
+        if np.isclose(u, ul):
+            t1 = kxx*bx**2 / (dx * np.sqrt(dy))
+            t2 = dx*kyy*by**2 / np.sqrt(dy)**5
+            t3 = 2*kxy*bx*by / np.sqrt(dy)**3
+            return 0.5 * (t1 + t2 + t3) * np.exp(-bxy / 4)
 
-    def integrand_imag(u):
-        return scipy.imag(integrand(u))
+        t1 = kxx*bx**2 + kyy*by**2 / d2**2 + 2*kxy*bx*by / d2
+        return 0.5 * t1 * u**3 * eff_overlap(u, beta) / d1
 
-    ul = 1./np.sqrt(d_alpha[0])
-    dboc_int_real = integrate.quad(integrand_real, 0, ul, epsabs=etol)
-    dboc_int_imag = integrate.quad(integrand_imag, 0, ul, epsabs=etol)
 
-    dboc_int = dboc_int_real[0] + dboc_int_imag[0]*1.j
-    dboc_err      = 0.5*(np.abs(dboc_int_real[1]) + np.abs(dboc_int_imag[1]))
+    term1_int_r = integrate.quad(f_real(term1), 0, ul, epsabs=etol)
+    term1_int_i = integrate.quad(f_imag(term1), 0, ul, epsabs=etol)
+
+    term2_int_r = integrate.quad(f_real(term2), 0, ul, epsabs=etol)
+    term2_int_i = integrate.quad(f_imag(term2), 0, ul, epsabs=etol)
+
+    dboc_int = term1_int_r[0] + term2_int_r[0] + \
+              (term1_int_i[0] + term1_int_i[0])*1.j + \
+              dboc_div
+
+    dboc_err = 0.25 * (term1_int_r[0] + term2_int_r[0] +
+                       term1_int_i[0] + term1_int_i[0])
 
     # only spout error message if tolerance exceed by factor of 10 
     if dboc_err > 10*etol:
@@ -666,7 +690,8 @@ def exact_dboc(beta, k):
                +str(dboc_err) +'>'+str(etol))
 
     #print('dboc, div='+str(dboc_int)+','+str(dboc_div))
-    return dboc_int + dboc_div
+    return dboc_int
+
 
 def exact_delta(beta):
     """
