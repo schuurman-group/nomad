@@ -306,22 +306,41 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     # ------------------------------------
     J       = 0.5*(np.outer( z_vec, x_vec.conjugate())
                  - np.outer( x_vec, z_vec.conjugate()))
+    D       =     (np.outer( x_vec, x_vec.conjugate())
+                 + np.outer( z_vec, z_vec.conjugate()))
+
     p_alpha = np.dot(np.dot( At, J.T), np.dot(w_mat, db))
 
-    #print('J='+str(J))
-    #print('time='+str(t1.time))
 
-    nacme   = nuc_ovrlp*exact_nac(beta, p_alpha)    
+    pkl = 1.j * db / 2.
+    qkl = scipy.linalg.solve(np.real(alpha), np.real(bkc+bl)) / 2
+    qkk = scipy.linalg.solve(np.real(0.5*alpha), np.real(bk)) / 2
+    qll = scipy.linalg.solve(np.real(0.5*alpha), np.real(bl)) / 2
+
+    if glbl.vibronic['exact_spa']:
+        nacme = eval_nac(qkl, pkl, D, w_mat @ J)    
+    elif glbl.vibronic['exact_bat']:
+        nacme = 0.5*(eval_nac(qkk, pkl, D, w_mat @ J) +
+                     eval_nac(qll, pkl, D, w_mat @ J))
+    else:
+        nacme = exact_nac(beta, p_alpha)
+    nacme *= nuc_ovrlp
 
     # DBOC matrix element
     # -------------------
     K       = np.dot(np.dot(J, w_mat), J.T)
     k_alpha = np.dot(np.dot(At, K), At.T.conj())
 
-    if glbl.vibronic['include_dboc']:
-        dbocme = nuc_ovrlp*exact_dboc(beta, k_alpha)
+    if glbl.vibronic['inc_dboc']:
+        if glbl.vibronic['exact_spa']:
+            dbocme = eval_dboc(qkl, D, K)
+        elif glbl.vibronic['exact_bat']:
+            dbocme = 0.5 * (eval_dboc(qkk, D, K) + 
+                            eval_dboc(qll, D, K))
+        else:
+            dbocme = exact_dboc(beta, k_alpha)
+        dbocme *= nuc_ovrlp
 
-    #print('time='+str(t1.time))
     # kinetic energy only contributes to the diagonal
     if t1.state == t2.state:
         # nuclear kinetic energy
@@ -331,24 +350,23 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
                       a  = -np.dot(np.dot(alpha, w_mat), bkc+bl),
                       ea =  np.dot(np.dot(bkc,   w_mat), bl)))
        
-        #print('nuc, nacme, dbocme='+str(t_int)+','+str(nacme)+','+str(dbocme))
-
         # add diagonal component of NAC and DBOC
-        t_int += 0.5 * 1.j * nacme
+        if glbl.vibronic['inc_nuc_phase']:
+            t_int += 0.5 * 1.j * nacme
 
-        if glbl.vibronic['include_dboc']:
+        if glbl.vibronic['inc_dboc']:
             t_int += dbocme
-        #print('nac+dboc='+str(0.5 * 1.j * nacme + dbocme))
-        #print('t1.s,t2.s, 0.5*1.j*nace, dbocme='+str(t1.state)+','+str(t2.state)+'  ',str( 0.5 * 1.j * nacme)+','+str(dbocme))
+
     else:
         # add off-diagonal component of NAC and DBOC
-        sgn = t1.state - t2.state
-        #t_int = sgn * (-0.5 * nacme - 1.j * dbocme)
-        t_int = sgn * -0.5 * nacme
- 
-        if glbl.vibronic['include_dboc']:
-            t_int += sgn * 1.j * dbocme
-        #print('t1.s,t2.s, 0.5*nace, -1.j*dbocme='+str(t1.state)+','+str(t2.state)+'  ',str(sgn*0.5*nacme)+','+str(-sgn*1.j*dbocme),' total='+str(t_int))
+        sigy = (t1.state - t2.state)*1.j
+
+        t_int = sigy * nacme * 1.j
+        if glbl.vibronic['inc_nuc_phase']:
+            t_int *= 0.5
+
+        if glbl.vibronic['inc_dboc']:
+            t_int +=  sigy * dbocme
 
     return t_int
 
@@ -376,6 +394,17 @@ def sdot_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
             1j * t2.phase_dot() * nuc_ovrlp)
 
     return sdot
+
+def lvc_energy(q, state):
+    """evaluat the lvc energy at point q"""
+    global w_mat, x_vec, z_vec
+
+    ave_ener   = 0.5 * q @ w_mat @ q
+    delta_ener = np.sqrt( (q @ x_vec)**2 + (q @ z_vec)**2 )
+    sgn        = 2*state - 1
+
+    return ave_ener + sgn * delta_ener
+
 
 def lvc_force(traj):
     """return the LVC gradient at the current trajectory geometry"""
@@ -425,23 +454,29 @@ def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     bkc            = bk.conj()
     beta           = np.dot(At, bkc + bl)
 
-    # average potential energy
-    w_me  = olap * exact_poly(alpha, bk, bl, aa=0.5*w_mat, a=w_vec, ea=ew) 
-    #print('w_me='+str(w_me))
+    qkl = scipy.linalg.solve(np.real(alpha), np.real(bkc+bl)) / 2
+    qkk = scipy.linalg.solve(np.real(0.5*alpha), np.real(bk)) / 2
+    qll = scipy.linalg.solve(np.real(0.5*alpha), np.real(bl)) / 2
 
-    # energy difference term
-    delta_me  = olap * exact_delta(beta)
-    #print('delta_me='+str(delta_me))
- 
-    # the average energy contribution is state independent
-    v_int = w_me
+    if glbl.vibroninc['exact_spa']:
+        v_int = lvc_energy(qkl, t1.state)
+    elif glbl.vibronic['exact_bat']:
+        v_int = 0.5*(lvc_energy(qkk, t1.state) + 
+                     lvc_energy(qll, t1.state))
 
-    # the energy shift contribution is -sigma_z
-    sgn = int(-1 + 2 * t1.state)
-    v_int += sgn * delta_me
+    else:
+        # average potential energy
+        w_me  = olap * exact_poly(alpha, bk, bl, 
+                                  aa=0.5*w_mat, a=w_vec, ea=ew) 
+        # energy difference term
+        delta_me  = olap * exact_delta(beta)
+        # the average energy contribution is state independent
+        v_int = w_me
 
-    #print('exact_pop='+str(exact_pop(beta)))
-    #print('state=0'+str(t1.state)+' w_me='+str(w_me)+' sgn*delta='+str(sgn*delta_me), flush=True)
+        # the energy shift contribution is -sigma_z
+        sgn = int(-1 + 2 * t1.state)
+        v_int += sgn * delta_me
+
     return v_int
 
 def popwt(t1, t2, nuc_ovrlp=None):
@@ -569,6 +604,13 @@ def exact_poly(alpha, bk, bl, aa=None, a=None, ea=0):
 
     return poly
 
+def eval_nac(q, p, D, wJ):
+    """
+    evaluate the NAC at point (q,p)
+    """
+    return 2. * p @ wJ @ q / (q @ D @ q)
+
+
 def exact_nac(beta, p):
     """
     Parameters
@@ -617,6 +659,15 @@ def exact_nac(beta, p):
                +str(nac_err) +'>'+str(etol))
 
     return nac_int
+
+#
+def eval_dboc(q, D, K):
+    """
+    evaluate the DBOC at position q
+    """
+
+    return q @ K @ q / (q @ D @ q)**2
+
 
 #
 def exact_dboc(beta, k):
