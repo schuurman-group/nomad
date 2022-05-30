@@ -214,14 +214,6 @@ def init_parameters(g_wid):
     d_alpha, At = bspace_transform(z_vec, x_vec, alpha)
     b_alpha     = np.dot(At, np.column_stack((z_vec, x_vec)))
 
-    #print('At='+str(At))
-    #print('d_alpha='+str(d_alpha))
-    #print('b_alpha='+str(b_alpha))
-  
-    #print('bz='+str(np.dot(At, z_vec)))
-    #print('bx='+str(np.dot(At, x_vec)))
-    #print('b_alpha='+str(b_alpha))
-
     return
 
 def nuc_overlap(t1, t2):
@@ -686,6 +678,7 @@ def exact_dboc(beta, k):
     kxy      = k[0, 1]
     dxy      = d_alpha[1] - d_alpha[0]
     bxy      = bx**2 + by**2
+    delta    = glbl.vibronic['dboc_delta']
 
     # asymptotic limit
     Pcf  = kxx / ( dx*np.sqrt(dx) ) + kyy / ( dy**1.5 )
