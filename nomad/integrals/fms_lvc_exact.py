@@ -471,7 +471,7 @@ def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     qkk = scipy.linalg.solve(np.real(0.5*alpha), np.real(bk)) / 2
     qll = scipy.linalg.solve(np.real(0.5*alpha), np.real(bl)) / 2
 
-    if glbl.vibroninc['exact_spa']:
+    if glbl.vibronic['exact_spa']:
         v_int = lvc_energy(qkl, t1.state)
     elif glbl.vibronic['exact_bat']:
         v_int = 0.5*(lvc_energy(qkk, t1.state) + 
@@ -632,7 +632,6 @@ def exact_nac(beta, p):
     global d_alpha
 
     etol = 1.e-10
-
     # if dx_alpha == 0, integral is 0
     if d_alpha[0] == 0.:
         return 0.j
@@ -693,6 +692,7 @@ def exact_dboc(beta, k):
     if d_alpha[0] == 0.:
         return 0.j
 
+    etol     = 1.e-10
     [dx, dy] = d_alpha
     [bx, by] = beta
     kxx      = k[0, 0]
@@ -700,7 +700,6 @@ def exact_dboc(beta, k):
     kxy      = k[0, 1]
     dxy      = d_alpha[1] - d_alpha[0]
     bxy      = bx**2 + by**2
-    delta    = glbl.vibronic['dboc_delta']
 
     # asymptotic limit
     Pcf  = kxx / ( dx*np.sqrt(dx) ) + kyy / ( dy**1.5 )
@@ -710,18 +709,18 @@ def exact_dboc(beta, k):
     # divergent integral
     dboc_div = 0.5 * np.exp(-bxy/4.) 
     dboc_div *= (kxx / np.sqrt(dy*dx**3) + kyy / np.sqrt(dx*dy**3)) 
-    dboc_div *= (np.log(4*dx) - 2.*np.log(delta) - np.euler_gamma)
+    dboc_div *= (np.log(4*dx) - 2.*np.log(reg_delta) - np.euler_gamma)
 
     # convergent integral
     ul = 1./np.sqrt(dx)
-    d1 = (1 - dx*u**2)
-    d2 = (1 + dxy*u**2)
     def term1(u):
         if np.isclose(u, ul):
             t1 = kxx * ((by**2 - 2)*dx + (bx**2 - 4)*dy) / (dx*np.sqrt(dy**3))
             t2 = kyy * ((by**2 - 6)*dx + dy*bx**2) / np.sqrt(dy)**5
             return -0.25*(t1 + t2)*np.exp(-bxy / 4)
 
+        d1 = (1 - dx*u**2)
+        d2 = (1 + dxy*u**2)
         t2 = (kxx + kyy / d2) * u**3 * eff_overlap(u, beta) / d1
         return (Plim - t2) / d1
 
@@ -733,9 +732,10 @@ def exact_dboc(beta, k):
             t3 = 2*kxy*bx*by / np.sqrt(dy)**3
             return 0.5 * (t1 + t2 + t3) * np.exp(-bxy / 4)
 
+        d1 = (1 - dx*u**2)
+        d2 = (1 + dxy*u**2)
         t1 = kxx*bx**2 + kyy*by**2 / d2**2 + 2*kxy*bx*by / d2
         return 0.5 * t1 * u**3 * eff_overlap(u, beta) / d1
-
 
     term1_int_r = integrate.quad(f_real(term1), 0, ul, epsabs=etol)
     term1_int_i = integrate.quad(f_imag(term1), 0, ul, epsabs=etol)
@@ -747,8 +747,8 @@ def exact_dboc(beta, k):
               (term1_int_i[0] + term1_int_i[0])*1.j + \
               dboc_div
 
-    dboc_err = 0.25 * (term1_int_r[0] + term2_int_r[0] +
-                       term1_int_i[0] + term1_int_i[0])
+    dboc_err = 0.25 * (term1_int_r[1] + term2_int_r[1] +
+                       term1_int_i[1] + term1_int_i[1])
 
     # only spout error message if tolerance exceed by factor of 10 
     if dboc_err > 10*etol:
@@ -767,7 +767,6 @@ def exact_delta(beta):
     global d_alpha
 
     etol = 1.e-10
-
     # if dx_alpha == 0, integral is 0
     if d_alpha[0] == 0.:
         return 0.j
@@ -812,7 +811,6 @@ def exact_pop(beta):
     global d_alpha, b_alpha
 
     etol = 1.e-10
-
     # if dx_alpha == 0, integral is 0
     if d_alpha[0] == 0.:
         return 0.j
