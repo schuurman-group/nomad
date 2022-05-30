@@ -228,14 +228,6 @@ def initialize():
     log.print_message('string', [pstr.format(reg_delta, 
                                              np.sqrt(d_alpha[0]))])
 
-    #print('At='+str(At))
-    #print('d_alpha='+str(d_alpha))
-    #print('b_alpha='+str(b_alpha))
-  
-    #print('bz='+str(np.dot(At, z_vec)))
-    #print('bx='+str(np.dot(At, x_vec)))
-    #print('b_alpha='+str(b_alpha))
-
     return
 
 def nuc_overlap(t1, t2):
@@ -320,21 +312,39 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     # ------------------------------------
     J       = 0.5*(np.outer( z_vec, x_vec.conjugate())
                  - np.outer( x_vec, z_vec.conjugate()))
+    D       =     (np.outer( x_vec, x_vec.conjugate())
+                 + np.outer( z_vec, z_vec.conjugate()))
+
     p_alpha = np.dot(np.dot( At, J.T), np.dot(w_mat, db))
 
-    #print('J='+str(J))
-    #print('time='+str(t1.time))
+    pkl = 1.j * db / 2.
+    qkl = scipy.linalg.solve(np.real(alpha), np.real(bkc+bl)) / 2
+    qkk = scipy.linalg.solve(np.real(0.5*alpha), np.real(bk)) / 2
+    qll = scipy.linalg.solve(np.real(0.5*alpha), np.real(bl)) / 2
 
-    #print('t1 t2 beta p_alpha='+str(t1.label)+' '+str(t2.label)+' '+str(beta)+' '+str(p_alpha))
-    nacme   = nuc_ovrlp*exact_nac(beta, p_alpha)    
+    if glbl.vibronic['exact_spa']:
+        nacme = eval_nac(qkl, pkl, D, w_mat @ J)    
+    elif glbl.vibronic['exact_bat']:
+        nacme = 0.5*(eval_nac(qkk, pkl, D, w_mat @ J) +
+                     eval_nac(qll, pkl, D, w_mat @ J))
+    else:
+        nacme = exact_nac(beta, p_alpha)
+    nacme *= nuc_ovrlp
 
     # DBOC matrix element
     # -------------------
     K       = np.dot(np.dot(J, w_mat), J.T)
     k_alpha = np.dot(np.dot(At, K), At.T.conj())
 
-    if glbl.vibronic['include_dboc']:
-        dbocme = nuc_ovrlp*exact_dboc(beta, k_alpha)
+    if glbl.vibronic['inc_dboc']:
+        if glbl.vibronic['exact_spa']:
+            dbocme = eval_dboc(qkl, D, K)
+        elif glbl.vibronic['exact_bat']:
+            dbocme = 0.5 * (eval_dboc(qkk, D, K) + 
+                            eval_dboc(qll, D, K))
+        else:
+            dbocme = exact_dboc(beta, k_alpha)
+        dbocme *= nuc_ovrlp
 
     # kinetic energy only contributes to the diagonal
     if t1.state == t2.state:
@@ -344,38 +354,26 @@ def t_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
                       aa =  np.dot(np.dot(alpha, w_mat), alpha),
                       a  = -np.dot(np.dot(alpha, w_mat), bkc+bl),
                       ea =  np.dot(np.dot(bkc,   w_mat), bl)))
-
-        #print('t1 t2 Tn='+str(t1.label)+' '+str(t2.label)+' '+str(t_int))
        
         # add diagonal component of NAC and DBOC
-        # this derivative coupling only contributes to the digonal
-        # if we're including the Mead-Truhlar nuclear phase
-        if glbl.vibronic['include_nuc_phase']:
+        if glbl.vibronic['inc_nuc_phase']:
             t_int += 0.5 * 1.j * nacme
-            #print('t1 t2 nacme='+str(t1.label)+' '+str(t2.label)+' '+str(0.5 * 1.j * nacme))
 
-        if glbl.vibronic['include_dboc']:
+        if glbl.vibronic['inc_dboc']:
             t_int += dbocme
-            #print('t1 t2 dbocme='+str(t1.label)+' '+str(t2.label)+' '+str(dbocme))
 
     else:
         # add off-diagonal component of NAC and DBOC
-        sigma_y = (t1.state - t2.state) * 1.j
+        sigy = (t1.state - t2.state)*1.j
 
         # derivative coupling contribution
-        t_int = 1.j * nacme * sigma_y
+        t_int = sigy * nacme * 1.j
 
-        # if we're including the Mead-Truhlar phase, the derivative
-        # coupling term gets rotated and picks up a factor of 0.5
-        if glbl.vibronic['include_nuc_phase']:
+        if glbl.vibronic['inc_nuc_phase']:
             t_int *= 0.5
- 
-        # the off-diagonal contribution of DBOC only gets added if
-        # we're including both dboc and nuclear phase (which accounts
-        # for the rotation off the diagonal)
-        if (glbl.vibronic['include_dboc'] and 
-                               glbl.vibronic['include_nuc_phase']):
-            t_int += dbocme * sigma_y
+            
+            if glbl.vibronic['inc_dboc']:
+                t_int += sigy * dbocme
 
     return t_int
 
@@ -409,6 +407,17 @@ def sdot_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
             1j * t2.phase_dot() * nuc_ovrlp)
 
     return sdot
+
+def lvc_energy(q, state):
+    """evaluat the lvc energy at point q"""
+    global w_mat, x_vec, z_vec
+
+    ave_ener   = 0.5 * q @ w_mat @ q
+    delta_ener = np.sqrt( (q @ x_vec)**2 + (q @ z_vec)**2 )
+    sgn        = 2*state - 1
+
+    return ave_ener + sgn * delta_ener
+
 
 def lvc_force(traj):
     """return the LVC gradient at the current trajectory geometry"""
@@ -458,23 +467,29 @@ def v_integral(t1, t2, nuc_ovrlp=None, elec_ovrlp=None):
     bkc            = bk.conj()
     beta           = np.dot(At, bkc + bl)
 
-    # average potential energy
-    w_me  = olap * exact_poly(alpha, bk, bl, aa=0.5*w_mat, a=w_vec, ea=ew) 
-    #print('w_me='+str(w_me))
+    qkl = scipy.linalg.solve(np.real(alpha), np.real(bkc+bl)) / 2
+    qkk = scipy.linalg.solve(np.real(0.5*alpha), np.real(bk)) / 2
+    qll = scipy.linalg.solve(np.real(0.5*alpha), np.real(bl)) / 2
 
-    # energy difference term
-    delta_me  = olap * exact_delta(beta)
-    #print('delta_me='+str(delta_me))
- 
-    # the average energy contribution is state independent
-    v_int = w_me
+    if glbl.vibroninc['exact_spa']:
+        v_int = lvc_energy(qkl, t1.state)
+    elif glbl.vibronic['exact_bat']:
+        v_int = 0.5*(lvc_energy(qkk, t1.state) + 
+                     lvc_energy(qll, t1.state))
 
-    # the energy shift contribution is -sigma_z
-    sgn = int(-1 + 2 * t1.state)
-    v_int += sgn * delta_me
+    else:
+        # average potential energy
+        w_me  = olap * exact_poly(alpha, bk, bl, 
+                                  aa=0.5*w_mat, a=w_vec, ea=ew) 
+        # energy difference term
+        delta_me  = olap * exact_delta(beta)
+        # the average energy contribution is state independent
+        v_int = w_me
 
-    #print('exact_pop='+str(exact_pop(beta)))
-    #print('state=0'+str(t1.state)+' w_me='+str(w_me)+' sgn*delta='+str(sgn*delta_me), flush=True)
+        # the energy shift contribution is -sigma_z
+        sgn = int(-1 + 2 * t1.state)
+        v_int += sgn * delta_me
+
     return v_int
 
 def popwt(t1, t2, nuc_ovrlp=None):
@@ -519,6 +534,21 @@ def popwt_diabatic(t1, t2, nuc_ovrlp=None):
 # Numerical integral routines
 #
 #--------------------------------------------------------------------------
+def f_real(f, *args):
+    """Returns the real component of a function with set parameters."""
+    def func(u):
+        return np.real(f(u, *args))
+
+    return func
+
+
+def f_imag(f, *args):
+    """Returns the real component of a function with set parameters."""
+    def func(u):
+        return np.imag(f(u, *args))
+
+    return func
+
 
 def eff_overlap(u, beta):
     """evaluate the effective overlap for change-of-variable
@@ -587,6 +617,13 @@ def exact_poly(alpha, bk, bl, aa=None, a=None, ea=0):
 
     return poly
 
+def eval_nac(q, p, D, wJ):
+    """
+    evaluate the NAC at point (q,p)
+    """
+    return 2. * p @ wJ @ q / (q @ D @ q)
+
+
 def exact_nac(beta, p):
     """
     Parameters
@@ -636,64 +673,82 @@ def exact_nac(beta, p):
 
     return nac_int
 
+#
+def eval_dboc(q, D, K):
+    """
+    evaluate the DBOC at position q
+    """
 
+    return q @ K @ q / (q @ D @ q)**2
+
+
+#
 def exact_dboc(beta, k):
     """
-    Parameters
-    ----------
+    exact dboc integral
     """
     global d_alpha
     global reg_delta
 
-    etol = 1.e-10
-
-    # if dx_alpha == 0, integral is 0
     if d_alpha[0] == 0.:
         return 0.j
 
-    # calculate asymptotic divergent component first
-    Pcf  = k[0,0] / ( d_alpha[0]*np.sqrt(d_alpha[1]) ) + \
-           k[1,1] / ( d_alpha[1]**1.5 )
-    Pexp = -np.dot(beta[:2], beta[:2]) / 4.
+    [dx, dy] = d_alpha
+    [bx, by] = beta
+    kxx      = k[0, 0]
+    kyy      = k[1, 1]
+    kxy      = k[0, 1]
+    dxy      = d_alpha[1] - d_alpha[0]
+    bxy      = bx**2 + by**2
+    delta    = glbl.vibronic['dboc_delta']
+
+    # asymptotic limit
+    Pcf  = kxx / ( dx*np.sqrt(dx) ) + kyy / ( dy**1.5 )
+    Pexp = -(bx**2 + by**2) / 4.
     Plim = Pcf * np.exp( Pexp )
-    #print('new Plim='+str(Plim))
 
-    #gcon     = 1.e3
-    #delta    = d_alpha[0] / gcon    
-    delta     = reg_delta
-    dboc_div  = Plim / (2*np.sqrt(d_alpha[0])) * (
-                np.log(4*d_alpha[0]) - 2*np.log(delta) - constants.euler)
+    # divergent integral
+    dboc_div = 0.5 * np.exp(-bxy/4.) 
+    dboc_div *= (kxx / np.sqrt(dy*dx**3) + kyy / np.sqrt(dx*dy**3)) 
+    dboc_div *= (np.log(4*dx) - 2.*np.log(delta) - np.euler_gamma)
 
-    # now calculate convergent component of the integral
-    delta_a = d_alpha[1] - d_alpha[0]
-    def integrand(u):
-        d1    = 1 + delta_a * u**2
-        earg  = -0.25 * u**2 * (d_alpha[0]*beta[0]**2 + 
-                               (d_alpha[1]*beta[1]**2) / d1) 
-        fac   = u**3 * (k[0,0] + k[1,1] / d1) / np.sqrt(d1)
-        # convergent part of divergent terms
-        dboc  = (Plim - fac * np.exp(earg))
-        # convergent integral
-        SD    = eff_overlap(u, beta)
-        dboc += 0.5 * SD * u**3 * (k[0,0] * beta[0]**2 + 
-                                   k[1,1] * beta[1]**2 / d1**2 + 
-                                2.*k[0,1] * beta[0]*beta[1] / d1)
-        dboc /= (1 - d_alpha[0] * u**2)
+    # convergent integral
+    ul = 1./np.sqrt(dx)
+    d1 = (1 - dx*u**2)
+    d2 = (1 + dxy*u**2)
+    def term1(u):
+        if np.isclose(u, ul):
+            t1 = kxx * ((by**2 - 2)*dx + (bx**2 - 4)*dy) / (dx*np.sqrt(dy**3))
+            t2 = kyy * ((by**2 - 6)*dx + dy*bx**2) / np.sqrt(dy)**5
+            return -0.25*(t1 + t2)*np.exp(-bxy / 4)
 
-        return  dboc
+        t2 = (kxx + kyy / d2) * u**3 * eff_overlap(u, beta) / d1
+        return (Plim - t2) / d1
 
-    def integrand_real(u):
-        return scipy.real(integrand(u))
+    # second term
+    def term2(u):
+        if np.isclose(u, ul):
+            t1 = kxx*bx**2 / (dx * np.sqrt(dy))
+            t2 = dx*kyy*by**2 / np.sqrt(dy)**5
+            t3 = 2*kxy*bx*by / np.sqrt(dy)**3
+            return 0.5 * (t1 + t2 + t3) * np.exp(-bxy / 4)
 
-    def integrand_imag(u):
-        return scipy.imag(integrand(u))
+        t1 = kxx*bx**2 + kyy*by**2 / d2**2 + 2*kxy*bx*by / d2
+        return 0.5 * t1 * u**3 * eff_overlap(u, beta) / d1
 
-    ul = 1./np.sqrt(d_alpha[0])
-    dboc_int_real = integrate.quad(integrand_real, 0, ul, epsabs=etol)
-    dboc_int_imag = integrate.quad(integrand_imag, 0, ul, epsabs=etol)
 
-    dboc_int = dboc_int_real[0] + dboc_int_imag[0]*1.j
-    dboc_err      = 0.5*(np.abs(dboc_int_real[1]) + np.abs(dboc_int_imag[1]))
+    term1_int_r = integrate.quad(f_real(term1), 0, ul, epsabs=etol)
+    term1_int_i = integrate.quad(f_imag(term1), 0, ul, epsabs=etol)
+
+    term2_int_r = integrate.quad(f_real(term2), 0, ul, epsabs=etol)
+    term2_int_i = integrate.quad(f_imag(term2), 0, ul, epsabs=etol)
+
+    dboc_int = term1_int_r[0] + term2_int_r[0] + \
+              (term1_int_i[0] + term1_int_i[0])*1.j + \
+              dboc_div
+
+    dboc_err = 0.25 * (term1_int_r[0] + term2_int_r[0] +
+                       term1_int_i[0] + term1_int_i[0])
 
     # only spout error message if tolerance exceed by factor of 10 
     if dboc_err > 10*etol:
@@ -701,7 +756,8 @@ def exact_dboc(beta, k):
                +str(dboc_err) +'>'+str(etol))
 
     #print('dboc, div='+str(dboc_int)+','+str(dboc_div))
-    return dboc_int + dboc_div
+    return dboc_int
+
 
 def exact_delta(beta):
     """

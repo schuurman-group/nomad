@@ -48,14 +48,16 @@ columbus = dict(
                 )
 
 vibronic = dict(
-    opfile            = '', # required filename, should contain frequencies
-    mem_per_core      = 1000.,
-    coupling_order    = 1,
-    ordr_max          = 1,
-    include_dboc      = False,
-    include_nuc_phase = False,
-    dboc_delta        = 1.e-6
-                )
+    opfile         = '', # required filename, should contain frequencies
+    mem_per_core   = 1000.,
+    coupling_order = 1,
+    ordr_max       = 1,
+    inc_dboc       = False,
+    inc_nuc_phase  = False,
+    dboc_delta     = 1.e-8,
+    exact_spa      = False,
+    exact_bat      = False
+    )
 
 surfgen = dict(
     hessian        = None,
