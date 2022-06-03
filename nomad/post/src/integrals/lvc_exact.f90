@@ -11,8 +11,9 @@ module lvc_exactmod
 
    type, extends(integral) :: lvc_exact
      ! whether or not to include dboc term
-     logical                    :: include_dboc
+     logical                    :: inc_dboc
      type(lvc)                  :: model
+     logical                    :: inc_nuc_phase
 
      contains
        procedure, public  :: init      => init_exact
@@ -32,8 +33,9 @@ module lvc_exactmod
     real(drk), intent(in)              :: focons(:,:)
     real(drk), intent(in)              :: scalars(:)
 
-    self%nc = size(alpha)
-    self%include_dboc = .true.
+    self%nc            = size(alpha)
+    self%inc_dboc      = .true.
+    self%inc_nuc_phase = .true.
     call self%model%init(alpha, omega, focons, scalars)
 
     return
@@ -111,10 +113,21 @@ module lvc_exactmod
     !print *,'bra_t,ket_t, nuc, nac, dboc=',nuc_kinetic(bra_t, ket_t, -0.5*self%omega, Snuc),nacme,dbocme
 
     if(bra_t%state == ket_t%state) then
-        T = nuc_kinetic(bra_t, ket_t, -0.5d0*self%model%omega, Snuc) + 0.5d0 * nacme * I_drk + dbocme
+        T = nuc_kinetic(bra_t, ket_t, -0.5d0*self%model%omega, Snuc)
+        if(self%inc_nuc_phase) then
+            T = T +  0.5d0 * nacme * I_drk
+        endif
+        if(self%inc_dboc) then
+            T = T + dbocme
     else
-        sgn = real(bra_t%state - ket_t%state)
-        T = sgn * (-0.5d0 * nacme + dbocme * I_drk)
+        sigy = real(bra_t%state - ket_t%state) * I_drk
+
+        T = sigy * nacme * I_drk
+        if(self%inc_nuc_phase) then
+             T = 0.5_drk * T
+             if (self%inc_dboc) T = T + sigy * dboc
+        endif
+
     endif
 
     call TimerStop('kinetic_exact')

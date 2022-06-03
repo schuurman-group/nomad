@@ -207,8 +207,8 @@ module dynamics
       ! Main time propagation loop
       !
       do while(time <= tf)
-        call locate_trajectories(time, batch_label, current_traj, traj)
-        n_current = traj_size(traj)        
+        call locate_trajectories(time, batch_label, tindx0, traj0)
+        n0 = traj_size(traj0)        
 
         ! if no more trajectories, exit the loop
         if(n_current == 0) exit
@@ -217,10 +217,10 @@ module dynamics
         ! timestep is larger than the number for the previous
         if(n_current > n_old) then
           deallocate(s, t, v, h, sdt, sinv, heff, popwt)
-          allocate(s(n_current, n_current), t(n_current, n_current), v(n_current, n_current))
-          allocate(h(n_current, n_current), sdt(n_current, n_current), sinv(n_current, n_current))
-          allocate(heff(n_current,n_current))
-          allocate(popwt(n_current, n_current, n_states()))
+          allocate(s(n0, n0), t(n0, n0), v(n0, n0))
+          allocate(h(n0, n0), sdt(n0, n0), sinv(n0, n0))
+          allocate(heff(n0, n0))
+          allocate(popwt(n0, n0, n_states()))
         endif
 
         ! if the basis has changed in any way, make sure the basis label order
@@ -238,7 +238,10 @@ module dynamics
           n_old = n_current
         endif
 
-        call build_hamiltonian(traj, s, t, v, h, sdt, sinv, heff, popwt)
+        call build_hamiltonian(traj0, traj0, s, t, v, h, sdt, sinv, heff, popwt)
+
+        if(prop_expm) then
+
         if(time > ti) then
           c = propagate_amplitude(c, heff, time-0.5*t_step, time)
           call update_amplitude(time, current_traj, c)

@@ -692,7 +692,7 @@ def exact_dboc(beta, k):
     if d_alpha[0] == 0.:
         return 0.j
 
-    etol     = 1.e-10
+    etol     = 1.e-8
     [dx, dy] = d_alpha
     [bx, by] = beta
     kxx      = k[0, 0]
